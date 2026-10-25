@@ -208,6 +208,28 @@ G.module({
     },
     // 修炼肉身界面（modules/body.js）
     openBody(on) { this.cultView = on ? "body" : ""; this.render(); },
+    // 人物头像：人物属性（原来在修炼页下方，现在点头像打开）
+    openProfile() {
+      const s = this.s, st = this.stats(), sp = this.speed(), R0 = this.regen(false), R1 = this.regenStep();
+      this.modal(`<h2>${s.name}<small>${this.realmName()}</small></h2>
+        <div class="stats">
+          <div><span>生命</span>${U.fmt(s.hp)}/${U.fmt(st.hp)}</div><div><span>法力</span>${U.fmt(s.mana)}/${U.fmt(st.mana)}</div>
+          <div><span>攻击</span>${U.fmt(st.atk)}</div><div><span>防御</span>${U.fmt(st.def)}</div>
+          <div><span>命中</span>${U.num(st.hit)}</div><div><span>闪避</span>${U.num(st.dodge)}</div>
+          <div><span>速度</span>${U.fmt(st.speed)}</div><div><span>暴击</span>${st.crit.toFixed(1)}%</div>
+          ${DATA.elements.map(e => `<div><span>${e.name}抗</span>${U.fmt(st.res[e.id])}</div>`).join("")}
+          <div style="grid-column:1/3"><span>修炼速度</span>${U.fmt(sp.total)} / 10秒</div>
+        </div>
+        <p class="desc" style="margin-top:6px">平时每 10 秒恢复 生命 ${U.num(R0.hp)}% · 法力 ${U.num(R0.mana)}%；历练/探索每走一步恢复 生命 ${U.num(R1.hp)}%${R1.hpFlat ? ` + ${U.fmt(R1.hpFlat)}` : ""} · 法力 ${U.num(R1.mana)}%${R1.manaFlat ? ` + ${U.fmt(R1.manaFlat)}` : ""}</p>
+        <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+    },
+    // 顶部设置按钮：修炼设置（从修炼卡片移到这里）
+    openSettings() {
+      const c = this.s.cultSet;
+      this.modal(`<h2>设置</h2>
+        <div class="line"><div>修炼设置<small>自动探索 / 挖矿、自动执行任务、灵气不足自动补灵石${c && c.on ? " · 已开启" : ""}</small></div><button class="sm ${c && c.on ? "on" : ""}" onclick="G.openCultSet()">打开</button></div>
+        <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+    },
     // 修炼加成（弹窗）：修炼速度构成 + 丹药
     openBoost() {
       const s = this.s, st = this.stats(), sp = this.speed(), arrPct = (this.arrayFactor() - 1) * 100;
@@ -296,13 +318,13 @@ G.module({
     const can = this.canBreak(), major = this.isMajor();
     const next = s.mortal ? "引气入体（突破至练气期）" : major ? `突破至${DATA.realmLabel(this.r() + 1)}` : "突破";
     const block = this.isCultivating() ? this.cultivateBlock() : "";
-    const boost = sp.pill || sp.room || this.arrayFactor() > 1 || sp.mifa, R0 = this.regen(false), R1 = this.regenStep();
+    const boost = sp.pill || sp.room || this.arrayFactor() > 1 || sp.mifa;
     return `
+    <div class="cult-stage"><div class="ys-aura"></div><img class="ys-hero" src="img/wd_hero.webp?v=${DATA.IMG_V}" alt=""></div>
     <div class="card">
       <h3>${this.realmName()}<small>${this.needTrib() ? "下次突破需渡劫" : ""}</small></h3>
       <div class="row small"><span>修炼速度 <b class="q4">${U.num(sp.total)}</b> 修为 / 10秒</span>
-        <div class="cult-sbtn"><button class="sm ${s.cultSet && s.cultSet.on ? "on" : ""}" onclick="G.openCultSet()">修炼设置</button>
-        <button class="sm ${boost ? "on" : ""}" onclick="G.openBoost()">修炼加成</button></div></div>
+        <div class="cult-sbtn"><button class="sm ${boost ? "on" : ""}" onclick="G.openBoost()">修炼加成</button></div></div>
       <div class="row small"><span>本次修炼</span><span>${!this.isCultivating() ? "未修炼" : block ? `<b class='q5'>${block}</b>` : `${s.auto ? "自动修炼中" : "修炼中"} · <b id="tick-left"></b>`}</span></div>
       <div class="bar tick"><div id="tick-bar"></div></div>
       <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
@@ -316,14 +338,6 @@ G.module({
       </div>
       <div class="row small" style="margin-top:8px"><span>修为</span><span>${U.fmt(s.exp)} / ${U.fmt(this.needExp())}</span></div>
       <div class="bar"><div style="width:${Math.min(100, s.exp / this.needExp() * 100)}%"></div></div>
-    </div>
-    <div class="card"><h3>人物属性</h3><div class="stats">
-      <div><span>生命</span>${U.fmt(s.hp)}/${U.fmt(st.hp)}</div><div><span>法力</span>${U.fmt(s.mana)}/${U.fmt(st.mana)}</div>
-      <div><span>攻击</span>${U.fmt(st.atk)}</div><div><span>防御</span>${U.fmt(st.def)}</div>
-      <div><span>命中</span>${U.num(st.hit)}</div><div><span>闪避</span>${U.num(st.dodge)}</div>
-      <div><span>速度</span>${U.fmt(st.speed)}</div><div><span>暴击</span>${st.crit.toFixed(1)}%</div>
-      ${DATA.elements.map(e => `<div><span>${e.name}抗</span>${U.fmt(st.res[e.id])}</div>`).join("")}
-      <div style="grid-column:1/3"><span>修炼速度</span>${U.fmt(sp.total)} / 10秒</div>
-    </div><p class="desc" style="margin-top:4px">平时每 10 秒恢复 生命 ${U.num(R0.hp)}% · 法力 ${U.num(R0.mana)}%；历练/探索每走一步恢复 生命 ${U.num(R1.hp)}%${R1.hpFlat ? ` + ${U.fmt(R1.hpFlat)}` : ""} · 法力 ${U.num(R1.mana)}%${R1.manaFlat ? ` + ${U.fmt(R1.manaFlat)}` : ""}</p></div>`;
+    </div>`;
   },
 });

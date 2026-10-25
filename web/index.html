@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#14110f">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>问道长生 · 文字修仙</title>
-<link rel="stylesheet" href="css/style.css?v=240">
+<link rel="stylesheet" href="css/style.css?v=241">
 </head>
 <body class="nologin">
 <div id="boot">问道长生<small>加载中…</small></div>
@@ -14,7 +14,11 @@
   <div class="bar-img bar-top"></div>
   <!-- 顶部：道号、境界、灵石、贡献、功德（修为条在修炼页突破按钮下面） -->
   <header id="top">
-    <div class="top-line"><b id="p-name"></b><span id="p-realm"></span></div>
+    <div class="top-line">
+      <button class="top-ava" onclick="G.openProfile()" aria-label="人物属性"></button>
+      <div class="top-id"><b id="p-name"></b><span id="p-realm"></span></div>
+      <button class="top-set" onclick="G.openSettings()">设置</button>
+    </div>
     <div class="res3 small"><span>灵石 <b id="p-stone"></b></span><span>贡献 <b id="p-contrib"></b></span><span>功德 <b id="p-merit"></b></span></div>
   </header>
 
@@ -90,7 +94,7 @@
 <script src="js/modules/custom.js?v=208"></script>
 <script src="js/modules/gongfa.js?v=227"></script>
 <script src="js/modules/sect.js?v=245"></script>
-<script src="js/modules/cultivate.js?v=215"></script>
+<script src="js/modules/cultivate.js?v=216"></script>
 <script src="js/modules/trib.js?v=220"></script>
 <script src="js/modules/body.js?v=215"></script>
 <script src="js/modules/world.js?v=286"></script>

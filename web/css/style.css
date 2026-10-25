@@ -4,12 +4,17 @@ html,body{height:100%;background:var(--c-deep)}
 body{color:var(--t-main);font-family:"Songti SC","Noto Serif SC","Source Han Serif SC","SimSun",serif;font-size:14px;line-height:1.55;overscroll-behavior:none}
 #app{max-width:560px;margin:0 auto;height:100%;display:flex;flex-direction:column}
 #top{padding:calc(8px + env(safe-area-inset-top)) 12px 6px;background:var(--c-bar);border-bottom:1px solid var(--c-line);flex:none}
-.top-line{display:flex;justify-content:space-between;align-items:baseline}
-.top-line b{color:var(--t-gold);font-size:16px}
-#p-realm{color:var(--t-gold2);font-size:15px}
-.res3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:2px}
-.res3>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.res3>span:nth-child(2){text-align:center}.res3>span:nth-child(3){text-align:right}
+.top-line{display:flex;justify-content:space-between;align-items:center;gap:8px}
+/* 道号左边的人物头像（点开人物属性） */
+.top-ava{flex:none;width:42px;height:42px;padding:0;border:1px solid var(--c-edge);border-radius:50%;overflow:hidden;cursor:pointer;
+  background-image:url(../img/wd_hero.webp?v=1),radial-gradient(circle at 50% 40%,#3a2f46,#1b1713);
+  background-size:300% auto,cover;background-position:50% 0,center;background-repeat:no-repeat}
+.top-id{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;line-height:1.2}
+.top-line b{color:var(--t-gold);font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#p-realm{color:var(--t-gold2);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top-set{flex:none;padding:3px 9px;font-size:12px;line-height:1.2}
+.res3{display:flex;justify-content:flex-end;gap:10px;margin-top:3px;font-size:12px}
+.res3>span{white-space:nowrap}
 .row{display:flex;justify-content:space-between;gap:8px}
 .small{font-size:12px;color:var(--t-sub2)}
 .small b{color:var(--t-main);font-weight:normal}
@@ -533,6 +538,11 @@ button small .cd{min-width:0}
 .wd-run { margin-top: 8px; } .wd-run div { width: 0; animation: wd-run linear forwards; } @keyframes wd-run { from { width: 0; } to { width: 100%; } }
 .wd-stage.fx .ys-aura { animation: ys-burst 1.6s ease-out infinite; }
 .cult-sbtn { display: flex; flex-direction: column; gap: 4px; } .cult-sbtn button.sm { width: 76px; padding: 4px 0; text-align: center; }
+/* 修炼页 · 打坐人物（悟道室模型 wd_hero） */
+.cult-stage{position:relative;flex:none;height:min(32vh,230px);margin:-10px -12px 8px;overflow:hidden;
+  background:radial-gradient(ellipse at 50% 72%,#4a3b63 0%,#2a2030 55%,#14110f 100%)}
+.cult-stage .ys-hero{height:92%;bottom:1%;filter:drop-shadow(0 0 10px #ffe9a860)}
+.cult-stage .ys-aura{top:5%;width:24%}
 
 /* v217 高阶丹药流光（DATA.danImg）：圆形图标上斜扫一道光，品质越高越亮越快 */
 .dsh{position:relative;display:inline-block;border-radius:50%;vertical-align:middle;line-height:0}
