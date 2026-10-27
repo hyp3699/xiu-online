@@ -42,8 +42,11 @@ G.module({
     bodySpeed() {
       const s = this.s, base = (CFG.body.BASE_SPEED || 0) * Math.pow(CFG.body.SPEED_GROW, s.mortal ? 0 : s.L);
       const M = this.mifaBonus(), gf = this.gongfaBonus().body || 0, mf = M.bodySpeed || 0;
-      // 修炼室加成同样作用于肉身修炼（免费修炼室优先，和修为修炼一致）
-      const room = this.freeCultOn && this.freeCultOn() ? this.freeCultPct() : s.room >= 0 && s.sect && this.roomPct ? this.roomPct(s.room) : 0;
+      // 修炼室加成同样作用于肉身修炼（免费修炼室优先，和修为修炼一致），
+      // 但前提是修为修炼也在跑、正在扣次数 / 贡献：只开肉身、关了修为时，
+      // cultivate.tick() 不会扣修炼室，肉身也不能白嫖这个加成。
+      const cultOn = this.isCultivating && this.isCultivating() && this.hasMijue() && !this.exBlocksCult();
+      const room = cultOn ? (this.freeCultOn && this.freeCultOn() ? this.freeCultPct() : s.room >= 0 && s.sect && this.roomPct ? this.roomPct(s.room) : 0) : 0;
       const arr = this.arrayFactor ? Math.max(0, (this.arrayFactor() - 1) * 100) : 0;   // 聚灵阵效率 %，同修为修炼
       const pct = (M.bodySpeedPct || 0) + (this.servantPct ? this.servantPct("cult") : 0) + room + arr;   // 炼体秘法圆满额外 % + 道童辅助修炼 % + 修炼室 % + 聚灵阵 %
       const jm = this.jmFull ? this.jmFull().body : 0;   // 经脉穴位冲满：直接加数值（jingmai.js）

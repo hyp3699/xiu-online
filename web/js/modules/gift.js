@@ -86,7 +86,7 @@ G.module({
           case "contrib": return `贡献 ${U.fmt(it.n)}`;
           case "merit": return `功德 ${U.fmt(it.n)}`;
           case "gf": { const g = DATA.gongfaInfo(DATA.gongfaId(it.src, it.type)); return `功法《${g.name}》`; }
-          case "sp": { const o = DATA.sectById[it.src]; return `法术《${DATA.spellInfo(DATA.spellId(it.src, o.el)).name}》`; }
+          case "sp": { const o = DATA.gfSrcById[it.src]; if (!o) return "未知物品"; return `法术《${DATA.spellInfo(DATA.spellId(it.src, o.el)).name}》`; }
           case "mf": return `秘法《${DATA.mifaInfo(DATA.mifaId(it.star, it.kind)).name}》`;
           case "fabao": return `${DATA.XING[it.g]}·${DATA.elById[it.el].name}·${DATA.fabaoName(it.ft, it.g)}${n}`;
           case "eq": { const [sl, r] = String(it.slot).split(":"); return (sl === "ring" ? DATA.ringName(+r, it.g) : DATA.forgeEqName(sl, it.g)) + n; }

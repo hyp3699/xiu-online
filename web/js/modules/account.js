@@ -34,12 +34,22 @@ G.module({
       this.enterGame();
     },
     async enterGame() {
-      let data;
-      try { data = await API.loadSave(); }
-      catch (e) {
-        if (/登录/.test(e.message)) { API.logout(); return this.loginForm("登录已过期，请重新登录。"); }
-        return this.loginForm("连接服务器失败：" + e.message);
+      // 服务器重启/更新时刷新正好撞上空档会失败一次：以前直接锁死在登录框，
+      // 服务器恢复后也不会自动再试，只能重启 App。现在先自动重试几次，
+      // 只有登录过期才立即回登录框，其它网络失败重试完才提示。
+      let data, lastErr = null;
+      for (let attempt = 0; attempt < 10; attempt++) {
+        try { data = await API.loadSave(); lastErr = null; break; }
+        catch (e) {
+          if (/登录/.test(e.message)) { API.logout(); return this.loginForm("登录已过期，请重新登录。"); }
+          lastErr = e;
+          if (attempt < 9) {
+            try { API.setSync(`服务器重启中，正在重连（${attempt + 1}/10）…`); } catch {}
+            await new Promise(r => setTimeout(r, Math.min(3000 * (attempt + 1), 10000)));
+          }
+        }
       }
+      if (lastErr) return this.loginForm("连接服务器失败：" + lastErr.message);
       this._lockModal = false; this.closeModal();
       if (!data) return this.intro();
       this.s = data;

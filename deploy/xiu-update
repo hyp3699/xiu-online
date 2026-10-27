@@ -45,6 +45,13 @@ def update(match):
 text = re.sub(r'((?:src|href)="([^"?:]+))\?v=[^"]*"', update, text)
 index.write_text(text, encoding="utf-8")
 PY
+# 安卓图片热更新清单：MainActivity 靠服务器上的 web/img_ver.txt 比对图片，
+# 以前这里没生成（只有打包 APK 时生成内置清单），安卓端永远用内置旧图。
+# 格式与 .github/workflows/apk.yml 一致：首行是 web/img 的树哈希前 8 位，
+# 之后每行是「相对路径 空格 文件哈希前 8 位」。clean -fdx 会删掉旧清单，
+# 所以必须在 clean 之后、nginx reload 之前重新生成。
+git -C "$DIR" rev-parse HEAD:web/img | cut -c1-8 > "$DIR/web/img_ver.txt"
+git -C "$DIR" ls-files -s web/img | awk -F'\t' '{split($1,a," "); print substr($2,9)" "substr(a[2],1,8)}' >> "$DIR/web/img_ver.txt"
 install -m 0644 "$DIR/deploy/xiu-server.service" "/etc/systemd/system/${SERVICE}.service"
 install -m 0644 "$DIR/deploy/xiu-web-update.service" /etc/systemd/system/xiu-online-web-update.service
 install -m 0644 "$DIR/deploy/xiu-web-update.path" /etc/systemd/system/xiu-online-web-update.path

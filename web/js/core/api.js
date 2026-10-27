@@ -22,6 +22,9 @@ const API = {
   _socket: null,
   _connectPromise: null,
   _reconnectTimer: null,
+  _reconnectAttempts: 0,
+  _watchdogTimer: null,
+  _lastMessageAt: 0,
   _actionCounter: 0,
   _seq: 0,
   // 开关 / 设置类操作：先在本地改好显示，服务器结果到了再以服务器为准（失败会自动恢复）。
@@ -46,6 +49,7 @@ const API = {
   logout() {
     const token = this.token;
     if (token) fetch(this.BASE + "logout", { method: "POST", headers: { "Content-Type": "application/json", "X-Token": token }, body: "{}", keepalive: true }).catch(() => {});
+    this.cancelReconnect();
     if (this._socket) this._socket.close(1000, "logout");
     this._socket = null;
     this.token = ""; this.serverState = null;
@@ -263,6 +267,41 @@ const API = {
     return j.data;
   },
 
+  // 断线后循环重连（带退避），而不是只试一次：服务器重启/更新的空档
+  // 往往超过 1.5 秒，一次失败就停会导致客户端卡在断线状态，只能重启 App。
+  // 被踢（4001）和正常登出（1000）不走这里，由 onclose 直接排除。
+  scheduleReconnect() {
+    if (!this.token || !this.serverState) return;
+    clearTimeout(this._reconnectTimer);
+    const delay = Math.min(1500 * Math.pow(2, this._reconnectAttempts), 30000);
+    this._reconnectAttempts++;
+    this._reconnectTimer = setTimeout(async () => {
+      if (!this.token || !this.serverState) return;
+      try { await this.connectSocket(); this._reconnectAttempts = 0; }
+      catch { this.scheduleReconnect(); }
+    }, delay);
+  },
+  cancelReconnect() {
+    clearTimeout(this._reconnectTimer);
+    this._reconnectTimer = null;
+    this._reconnectAttempts = 0;
+    clearInterval(this._watchdogTimer);
+    this._watchdogTimer = null;
+  },
+  // 半断不断的连接不会触发 onclose：服务端平时最多 10 秒推一次快照，
+  // 超过 35 秒没收到任何消息就判定为死连接，主动关掉它走重连循环。
+  startWatchdog() {
+    clearInterval(this._watchdogTimer);
+    this._lastMessageAt = Date.now();
+    this._watchdogTimer = setInterval(() => {
+      const s = this._socket;
+      if (!s || s.readyState !== WebSocket.OPEN || !this.token || !this.serverState) return;
+      if (Date.now() - this._lastMessageAt > 35000) {
+        try { s.close(4000, "watchdog"); } catch {}
+      }
+    }, 5000);
+  },
+
   async connectSocket() {
     if (!this.token) throw new Error("请先登录");
     if (this._socket && this._socket.readyState === WebSocket.OPEN) return;
@@ -277,11 +316,13 @@ const API = {
       await new Promise((resolve, reject) => {
         let opened = false;
         const timeout = setTimeout(() => { if (!opened) { socket.close(); reject(new Error("连接游戏服务器超时")); } }, 10_000);
-        socket.onopen = () => { opened = true; clearTimeout(timeout); resolve(); this.setSync("已连接服务器"); };
+        socket.onopen = () => { opened = true; clearTimeout(timeout); this._reconnectAttempts = 0; clearTimeout(this._reconnectTimer); this.startWatchdog(); resolve(); this.setSync("已连接服务器"); };
         socket.onerror = () => { if (!opened) { clearTimeout(timeout); reject(new Error("无法连接游戏服务器")); } };
       });
-      socket.onmessage = event => this.onSocketMessage(event.data);
+      socket.onmessage = event => { this._lastMessageAt = Date.now(); this.onSocketMessage(event.data); };
       socket.onclose = event => {
+        clearInterval(this._watchdogTimer);
+        this._watchdogTimer = null;
         if (this._socket === socket) this._socket = null;
         for (const [id, pending] of this._pending) {
           clearTimeout(pending.timer); this.finishButtonPending(pending);
@@ -289,9 +330,8 @@ const API = {
         }
         if (event.code === 4001 && typeof G !== "undefined" && G.kicked) G.kicked();
         else if (this.token && this.serverState && event.code !== 1000) {
-          // 后台静默重连，不在前台弹提示
-          clearTimeout(this._reconnectTimer);
-          this._reconnectTimer = setTimeout(() => this.connectSocket().catch(() => {}), 1500);
+          // 后台静默重连，不在前台弹提示；循环重连直到成功或登出
+          this.scheduleReconnect();
         }
       };
     })();
@@ -355,7 +395,9 @@ const API = {
     if (name === "tribUse" && G.tribRender) G.tribRender(false);
     if (name === "startChuqiao") { G.closeModal(); G.exploreOpen = true; G.render(); }
     if (["autoTaskSet", "atPickSet"].includes(name) && G.openCultSet) G.openCultSet();
-    if (["learnBook", "learnGfBook", "learnBlueprint", "learnRingBp", "installFurnace", "equipItem", "unequip", "sellItem", "slotSpell", "swapFabao", "unslotSpell", "useStone", "useFurnace", "eatDan", "eatQl", "plantField", "clearField", "svAccept"].includes(name) && G.closeModal) G.closeModal();
+    if (["learnBook", "learnGfBook", "learnBlueprint", "learnRingBp", "installFurnace", "equipItem", "unequip", "sellItem", "slotSpell", "swapFabao", "unslotSpell", "useStone", "useFurnace", "eatDan", "eatQl", "plantField", "clearField", "svAccept", "spellAdv"].includes(name) && G.closeModal) G.closeModal();
+    // spellAdv 会删掉弹窗里的低星法术：不关弹窗的话 refreshOpenModal 会重开
+    // 已删除法术的进阶弹窗，显示「修炼到 10 层才能进阶」。
     if (name === "craftFurnace" && args[2] === "fabao" && G.closeModal) G.closeModal();
     if (name === "spellJy" && G.openSpellJy) G.openSpellJy(args[0]);
     if (name === "doEnhance" && G.openEnhance) G.openEnhance(args[0]);

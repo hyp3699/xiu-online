@@ -43,8 +43,11 @@ G.module({
     }
 
     // 2. 修炼室：免费修炼室（每天 N 次，每次若干次修炼）优先，用完再按付费修炼室扣
+    // 免费最后一次不能先扣到 0 再算 speed()：freeCultOn() 要求 left > 0，
+    // 那样最后一次 tick 吃不到加速。算速度时临时恢复 1 次，算完再真正关掉。
+    let freeExhausted = false;
     if (this.freeCultOn()) {
-      if (--s.freeCult.left <= 0) { s.freeCult.left = 0; s.freeCult.on = false; this.dirty(); this.log(`${CFG.sect.freeRoom.name}次数已用完。`, "sys"); }
+      if (--s.freeCult.left <= 0) { s.freeCult.left = 0; freeExhausted = true; this.dirty(); this.log(`${CFG.sect.freeRoom.name}次数已用完。`, "sys"); }
     } else if (s.room >= 0 && s.sect) {
       const c = this.roomCost(s.room);
       if (s.contrib >= c) s.contrib -= c;
@@ -52,7 +55,9 @@ G.module({
     }
 
     // 3. 灵气不足且开了自动补充：用灵石补
+    if (freeExhausted) s.freeCult.left = 1;
     const sp = this.speed().total, red = this.wdRed("exp");   // red：神魂之道减掉的灵气消耗
+    if (freeExhausted) { s.freeCult.left = 0; s.freeCult.on = false; this.dirty(); }
     if (s.ling < sp - red && s.array.autoRefill && s.stone >= 1) {
       const rate = this.lingPerStone();
       const pay = Math.min(Math.ceil((sp - red - s.ling) / rate), Math.floor(s.stone));

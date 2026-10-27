@@ -42,7 +42,9 @@ G.module({
       const sp = (st.stone || 0) * mul, rem = Math.ceil((st.total - st.done) / (STEP * mul)), want = Math.min(2 * steps, rem);
       if (s.ling < want * per && s.array && s.array.autoRefill) { const keep = sp ? want * sp : 0, rate = this.lingPerStone(), pay = Math.min(Math.ceil((want * per - s.ling) / rate), Math.floor(s.stone - keep));
         if (pay > 0) { s.stone -= pay; s.ling += pay * rate; } }
-      let can = Math.min(want, Math.floor(s.ling / per), sp ? Math.floor(s.stone / sp) : Infinity);
+      // 灵石为负时 Math.floor(负数 / sp) 为负，can 为负会倒扣灵气 / 倒加进度：
+      // 先钳到 0，灵石不够就暂停，不再推进。
+      let can = Math.max(0, Math.min(want, Math.floor(s.ling / per), sp ? Math.floor(s.stone / sp) : Infinity));
       if (can < rem && can % 2) can--;   // 只按整 10 秒走（最后一次除外）
       s.ling -= can * per; st.spent += can * per; st.done = can >= rem ? st.total : Math.min(st.total, st.done + can * STEP * mul);
       if (sp) {   // 秘法灵石：按已走的 5 秒单位四舍五入累计，这层走完正好扣满 sc

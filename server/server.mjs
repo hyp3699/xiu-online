@@ -242,8 +242,19 @@ const server = http.createServer(async (req, res) => {
     const user = userFor(req);
     if (!user) return error(res, 401, "登录已过期，请重新登录");
     if (req.method === "GET" && route === "/api/session") {
-      let data = getState(user.id);
-      if (data) { data = getEngine(user.id).advance(data, Date.now()).state; persist(user.id, data); }
+      // 在线玩家优先用内存里的最新状态（同 /api/gift）：直接读数据库会拿到
+      // 上次落盘的旧存档，结算并覆盖后最近一段时间的进度就回档了。
+      // 刷新 / 重连时旧 WebSocket 往往还没断开，这个分支正好命中。
+      const on = clients.get(user.id);
+      let data;
+      if (on) {
+        const advanced = on.engine.advance(on.state, Date.now());
+        on.state = advanced.state; on.nextCheck = Math.min(Date.now() + CHECK_MS, Math.max(Date.now() + 50, (advanced.nextDue || 0) + DUE_MARGIN_MS));
+        data = on.state; persist(user.id, data);
+      } else {
+        data = getState(user.id);
+        if (data) { data = getEngine(user.id).advance(data, Date.now()).state; persist(user.id, data); }
+      }
       return sendJson(res, 200, { data, serverNow: Date.now(), actions: [...ACTIONS], admin: !!user.is_admin });
     }
     if (req.method === "GET" && route === "/api/hist") {

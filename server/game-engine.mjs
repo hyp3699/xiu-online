@@ -11,7 +11,7 @@ const TICK_MS = 10_000;
 export const CONFIG_DIR = path.join(ROOT, "web/js/config");
 export const CONFIG_OVERRIDE_DIR = path.resolve(process.env.XIU_CONFIG_DIR || path.join(process.env.XIU_DATA_DIR || path.join(HERE, "data"), "config"));
 // 加载顺序（后面的文件可以用前面文件定义的参数）；新加的参数文件不在列表里时按文件名排在最后
-const CONFIG_ORDER = ["rates.js", "realm.js", "player.js", "array.js", "mobs.js", "explore.js", "drops.js", "worldmaps.js", "xingjun.js", "battle.js", "equip.js", "start.js", "bag.js", "gongfa.js", "lingen.js", "items.js", "alchemy.js", "furnace.js", "forge.js", "garden.js", "trib.js", "servant.js", "sect.js", "wudao.js", "craftsman.js", "mijing.js", "lingdi.js", "body.js", "names.js", "shenshi.js", "wudaoshi.js"];
+const CONFIG_ORDER = ["rates.js", "realm.js", "player.js", "array.js", "mobs.js", "explore.js", "drops.js", "worldmaps.js", "xingjun.js", "battle.js", "equip.js", "start.js", "bag.js", "gongfa.js", "lingen.js", "items.js", "alchemy.js", "furnace.js", "forge.js", "garden.js", "trib.js", "servant.js", "sect.js", "wudao.js", "craftsman.js", "mijing.js", "lingdi.js", "body.js", "names.js", "shenshi.js", "wudaoshi.js", "jingmai.js"];
 export function configNames() {
   const files = fs.readdirSync(CONFIG_DIR).filter(f => /^[a-z0-9_-]+\.js$/i.test(f));
   return [...CONFIG_ORDER.filter(f => files.includes(f)), ...files.filter(f => !CONFIG_ORDER.includes(f)).sort()];

@@ -154,6 +154,10 @@ DATA.fbPool = T => T && T.shield ? _FG.fabao.SHIELD_POOL : _FG.fabao.pool;   // 
 DATA.fbPoolLeft = (pool, attrs) => attrs.some(a => a.k === "uses") ? pool.filter(k => k !== "uses") : pool;
 // 祭出次数那一条的序号（没有 = -1）
 DATA.fbUsesIdx = e => (e.attrs || []).findIndex(a => a.k === "uses");
+// 装备 / 法宝的持久唯一标识：渡劫格子、法宝融合等按 uid 找法宝。
+// 以前这里不生成 uid，客户端弹窗里现生成的 uid 进不了服务端存档，
+// 服务端同步后格子里的法宝就变成「已失效」。
+DATA.newUid = () => "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 DATA.rollForged = (slot, g, r, el) => {
   const A = _FG.attr;
   if (slot === "fabao") {   // r = 形状序号、el = 属性（不填就随机）
@@ -163,19 +167,20 @@ DATA.rollForged = (slot, g, r, el) => {
     for (const k of T.special || []) attrs.push(DATA.rollAttr(k, 2, undefined, W));
     const n = DATA.affixRollN(F.AFFIX_COUNT, g), pool = DATA.fbPool(T);
     for (let i = 0; i < n; i++) attrs.push(DATA.fbAffix(U.pick(DATA.fbPoolLeft(pool, attrs)), W));   // v164 祭出次数最多一条
-    return { slot, g, ft, el: elv, name: DATA.fabaoName(ft, g), enh: 0, q: DATA.bestQ(attrs), attrs };
+    return { slot, g, ft, el: elv, name: DATA.fabaoName(ft, g), enh: 0, q: DATA.bestQ(attrs), attrs, uid: DATA.newUid() };
   }
   if (slot === "ring" && r === undefined) r = Math.floor(Math.random() * DATA.ringNames.length);
   const main = (slot === "ring" ? _FG.ring.main[r] : A.main[slot] || []).slice(0, 2), W = DATA.equipNewW(), attrs = main.map(k => DATA.rollAttr(k, 1, undefined, W));
   const pool = A.pool.filter(k => !main.includes(k)), n = Math.min(pool.length, DATA.affixRollN(A.AFFIX_COUNT, g));
   for (let i = 0; i < n; i++) { const j = Math.floor(Math.random() * pool.length); attrs.push(DATA.rollAttr(pool.splice(j, 1)[0], 0, undefined, W)); }
-  const e = { slot, g, name: slot === "ring" ? DATA.ringNames[r] : DATA.forgeNames[slot][g], q: DATA.bestQ(attrs), attrs };
+  const e = { slot, g, name: slot === "ring" ? DATA.ringNames[r] : DATA.forgeNames[slot][g], q: DATA.bestQ(attrs), attrs, uid: DATA.newUid() };
   if (slot === "ring") e.r = r;
   return e;
 };
 // 升阶：颜色、位置都不变，只改阶和名字（数值按新阶自动变大）
 DATA.upgradeForged = (prev, g) => {
   const e = JSON.parse(JSON.stringify(prev));
+  if (!e.uid) e.uid = DATA.newUid();
   if (e.enh > 0) { const E = DATA.enhCfg(e); e.enh = Math.max(0, e.enh - Math.max(E.DOWN_MIN === undefined ? 1 : E.DOWN_MIN, Math.floor(e.enh * (E.DOWN_PCT || 0) / 100))); }   // v152 法宝升阶：强化等级 −20%，最少 −1
   e.g = g; e.rj = 0;   // 升星后回到一阶
   e.name = e.slot === "ring" ? DATA.ringNames[e.r] : e.slot === "fabao" ? DATA.fabaoName(e.ft, g) : DATA.forgeNames[e.slot][g];

@@ -258,10 +258,9 @@ G.module({
     },
     affairFightMul(t) { return (CFG.sect.affairFight.GROUPS[t.grp] || {}).mul || 1; },
     affairFightWin(t) { const W = CFG.sect.affairFight.WIN, m = this.affairFightMul(t); return { stone: W.stone * m * this.sectInfo().star, contrib: W.contrib * m }; },
-    affairFightLose(t) { const L = CFG.sect.affairFight.LOSE, m = this.affairFightMul(t) * this.sectInfo().star; return { stone: L.stone * m, contrib: L.contrib * m }; },
     affairFightRow(t) { return [t.realm, t.lay, 0, [1, t.pct, t.gf], [2, 0, 0], [3, 0, 0], 1]; },
     fightAffair(i) {
-      this.affairGen(); const s = this.s, t = (s.affairFights || [])[i]; if (!s.sect || !t || t.done) return;
+      this.affairGen(); const s = this.s, t = (s.affairFights || [])[i]; if (!s.sect || !t || t.done || t.failed) return;
       if (s.hp < this.stats().hp * CFG.battle.TOWER_HP_MIN) return this.log("生命不足三成，先休养片刻。", "sys");
       const b = DATA.mobRoll(this.affairFightRow(t), CFG.sect.affairFight.CRIT), v = (x, k) => x * DATA.mobRnd(k);
       const a = t.a >= 0 ? t.a : DATA.maps.findIndex(m => (m.monsters || []).includes(t.name));   // 地图序号：战斗画面按它找怪物图
@@ -269,8 +268,8 @@ G.module({
       const res = this.battle(m); let txt;
       if (res.win) { const w = this.affairFightWin(t); t.done = true; s.stone += w.stone; s.contrib += w.contrib;
         txt = `${res.rounds}回合击杀${t.name}，灵石 +${U.fmt(w.stone)}，贡献 +${U.fmt(w.contrib)}。`; }
-      else { const l = this.affairFightLose(t); s.stone -= l.stone; s.contrib -= l.contrib;
-        txt = `未能击杀${t.name}${res.timeout ? "（回合耗尽）" : ""}，灵石 -${U.fmt(l.stone)}，贡献 -${U.fmt(l.contrib)}。`; }
+      else { t.failed = true;   // 失败不扣灵石、贡献，但当天不能再执行
+        txt = `未能击杀${t.name}${res.timeout ? "（回合耗尽）" : ""}，任务失败，今日无法再执行。`; }
       this.log(txt, res.win ? "good" : "bad");
       this.after();
       this.playBattle(res.detail, "特殊任务", txt, res.win, null, false, { tname: t.name });
@@ -788,9 +787,9 @@ G.module({
               <button class="sm" onclick="G.submitAffairItem(${i})" ${t.done || have < t.n ? "disabled" : ""}>${t.done ? "已完成" : have < t.n ? "数量不足" : "提交"}</button></div>`; }).join("")) + `</div>`;
       } else if (at === "fight") {
         h += `<div class="card"><h3>特殊任务</h3>` +
-          (!fresh ? `<p class="desc">任务刷新中…</p>` : s.affairFights.map((t, i) => { const w = this.affairFightWin(t), l = this.affairFightLose(t);
-            return `<div class="line"><div>击杀 · ${t.name}<span class="tag">${DATA.realmLabel(t.realm)}</span><small>奖励 ${U.fmt(w.stone)} 灵石 ${U.fmt(w.contrib)} 贡献 · 失败扣 ${U.fmt(l.stone)} 灵石 ${U.fmt(l.contrib)} 贡献</small></div>
-              <button class="sm" onclick="G.fightAffair(${i})" ${t.done ? "disabled" : ""}>${t.done ? "已完成" : "执行"}</button></div>`; }).join("")) + `</div>`;
+          (!fresh ? `<p class="desc">任务刷新中…</p>` : s.affairFights.map((t, i) => { const w = this.affairFightWin(t);
+            return `<div class="line"><div>击杀 · ${t.name}<span class="tag">${DATA.realmLabel(t.realm)}</span><small>奖励 ${U.fmt(w.stone)} 灵石 ${U.fmt(w.contrib)} 贡献</small></div>
+              <button class="sm" onclick="G.fightAffair(${i})" ${t.done || t.failed ? "disabled" : ""}>${t.done ? "已完成" : t.failed ? "已失败" : "执行"}</button></div>`; }).join("")) + `</div>`;
       } else {
       const a = s.affair, cur = a.task >= 0 ? DATA.affairs[a.task] : null;
       h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "affair", "事务堂")}<small>点任务开始，完成后自动继续，离线也进行</small></h3>` +

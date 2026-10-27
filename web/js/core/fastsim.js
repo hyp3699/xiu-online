@@ -136,7 +136,8 @@
             const rem = Math.ceil((gs.total - d2) / (STEP * mul)), want = Math.min(2 * steps, rem);
             if (GR && GR.cost > 0 && Math.floor((ru2 + want) / RU) * GR.cost > ct) break;   // 离开练功房：事件
             if (L < want * per && refill) { const pay = Math.min(Math.ceil((want * per - L) / RATE), Math.floor(sn - (sps ? want * sps : 0))); if (pay > 0) { sn -= pay; L += pay * RATE; } }
-            let can = Math.min(want, Math.floor(L / per), sps ? Math.floor(sn / sps) : Infinity);
+            // 同 gongfa.js：灵石为负时 can 不能为负，否则会倒加灵气 / 贡献。
+            let can = Math.max(0, Math.min(want, Math.floor(L / per), sps ? Math.floor(sn / sps) : Infinity));
             if (can < rem && can % 2) can--;
             L -= can * per; s2 += can * per; d2 = can >= rem ? gs.total : Math.min(gs.total, d2 + can * STEP * mul);
             if (sps) {   // 同 gongfa.js：按单位四舍五入累计，这层走完扣满 sc

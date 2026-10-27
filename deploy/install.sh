@@ -35,6 +35,10 @@ fi
 
 id xiu-online >/dev/null 2>&1 || useradd -r -s /usr/sbin/nologin xiu-online
 install -d -o xiu-online -g xiu-online -m 0750 "$DATA_DIR"
+# 安卓图片热更新清单（同 xiu-update，格式见 .github/workflows/apk.yml）：
+# 服务器上的 web/img_ver.txt 供 MainActivity 比对，缺了它安卓端只能用内置旧图。
+git -C "$DIR" rev-parse HEAD:web/img | cut -c1-8 > "$DIR/web/img_ver.txt"
+git -C "$DIR" ls-files -s web/img | awk -F'\t' '{split($1,a," "); print substr($2,9)" "substr(a[2],1,8)}' >> "$DIR/web/img_ver.txt"
 (cd "$DIR/server" && npm ci --omit=dev --no-audit --no-fund)
 install -m 0644 "$DIR/deploy/xiu-server.service" "/etc/systemd/system/${SERVICE}.service"
 systemctl daemon-reload

@@ -91,7 +91,7 @@ G.module({
           <p>强化一次：${DATA.smName("lj", z.ft)} ×${per}，聚灵 +${U.fmt(C.ENH)}（拥有 ${U.fmt(have)}）</p>
           <div class="btns"><button class="primary" onclick="G.lzEnh(${i},1)" ${have >= per ? "" : "disabled"}>强化</button>
           <button onclick="G.lzEnh(${i},10)" ${have >= per * 10 ? "" : "disabled"}>强化10次</button>
-          <button onclick="G.lzEnh(${i},Infinity)" ${have >= per ? "" : "disabled"}>全部强化</button><button onclick="G.closeModal()">关闭</button></div>`);
+          <button onclick="G.lzEnh(${i},0)" ${have >= per ? "" : "disabled"}>全部强化</button><button onclick="G.closeModal()">关闭</button></div>`);
       }
       const own = C.NAMES.map((_, ft) => [ft, this.smCount("lz", ft)]).filter(x => x[1] > 0);
       this.modal(`<h2>灵珠格</h2>${own.length ? own.map(([ft, n]) => `<div class="line"><div>${DATA.li(DATA.smIcon("lz", ft), "lz-glow")}${DATA.smName("lz", ft)}<small>拥有 ${n} · 聚灵 +${U.fmt(C.BASE)}</small></div>
@@ -105,7 +105,10 @@ G.module({
     },
     lzEnh(i, times) {
       const C = CFG.lingzhu, z = this.s.lzSlot[i]; if (!z) return;
-      const n = Math.min(times, Math.floor(this.smCount("lj", z.ft) / C.ENH_JING));
+      // 按钮传 Infinity 时 JSON 序列化成 null，Math.min(null, ...) = 0 永远失败：
+      // 0 / null / undefined 都表示「全部」，其它数按次数算。
+      const max = Math.floor(this.smCount("lj", z.ft) / C.ENH_JING);
+      const n = times ? Math.min(times, max) : max;
       if (n <= 0 || !this.takeSm("lj", n * C.ENH_JING, z.ft)) return this.log(`${DATA.smName("lj", z.ft)}不足。`, "sys");
       z.v += n * C.ENH;
       this.log(`${DATA.smName("lz", z.ft)}强化 ${n} 次，聚灵 +${U.fmt(n * C.ENH)}。`, "good"); this.after(); this.lzOpen(i);

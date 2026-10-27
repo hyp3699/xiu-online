@@ -51,7 +51,7 @@ G.module({
     bsetActs() {
       const s = this.s, n = this.slotCount(), out = [];
       s.spellSlots.slice(0, n).forEach(id => { const g = id && DATA.spellInfo(id, s.gongfa[id]); if (g) out.push({ key: "sp:" + id, name: `法术·${g.name}` }); });
-      s.fabao.slice(0, n).forEach((e, i) => { if (e && e.attrs) { const f = DATA.fabaoInfo(e); out.push({ key: "fb:" + i, name: `法宝·${f.name}` }); } });
+      s.fabao.slice(0, n).forEach((e, i) => { if (e && e.attrs) { const f = DATA.fabaoInfo(e); out.push({ key: "fb:" + i, name: `法宝·${f.name}`, shield: !!f.shield }); } });
       return out;
     },
     bsetSet(k, v) {

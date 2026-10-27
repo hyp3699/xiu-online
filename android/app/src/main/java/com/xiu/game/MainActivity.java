@@ -267,7 +267,10 @@ public class MainActivity extends Activity {
                 if (s2 != null && !s2.equals(h)) return null;          // 服务器换了这张图 → 去服务器下载
             } else {
                 String v = u.getQueryParameter("v");                    // 读不到清单：按旧办法比对版本号
-                if (v != null && !v.equals(imgTree) && !v.equals(h) && v.length() == 8) return null;
+                // DATA.IMG_V 现在是 37 这样的短数字，不是 8 位哈希：原来要求
+                // v.length() == 8 让回退分支永远不触发，安卓端一直用内置旧图。
+                // 去掉长度限制，版本号对不上就去服务器下载。
+                if (v != null && !v.equals(imgTree) && !v.equals(h)) return null;
             }
             String mime = rel.endsWith(".webp") ? "image/webp" : rel.endsWith(".png") ? "image/png"
                     : rel.endsWith(".svg") ? "image/svg+xml" : rel.endsWith(".gif") ? "image/gif" : "image/jpeg";
