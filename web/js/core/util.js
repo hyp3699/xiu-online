@@ -24,6 +24,14 @@ const U = {
     for (const [v, u] of U.UNITS) if (n >= v) { const x = (n / v).toFixed(n / v >= 100 ? 0 : 2); return (x.includes(".") ? x.replace(/\.?0+$/, "") : x) + u; } // 只去掉小数部分末尾的 0（400万 不能变成 4万）
     return String(n);
   },
+  // 完整数字（个位也显示）：每 4 位一个单位，如 12亿3456万7890；超过 1e16 精度不够，退回 fmt
+  full(n) {
+    if (!isFinite(n)) return "∞"; n = Math.floor(n); if (n < 0) return "-" + U.full(-n); if (n < 1e4) return String(n); if (n >= 1e16) return U.fmt(n);
+    const u = ["", "万", "亿", "兆"]; let out = "", i = 0, lead = true;
+    const parts = []; while (n > 0) { parts.push(n % 10000); n = Math.floor(n / 10000); }
+    for (let k = parts.length - 1; k >= 0; k--) { const p = parts[k]; if (p === 0) continue; out += (lead ? String(p) : String(p).padStart(4, "0")) + u[k]; lead = false; }
+    return out;
+  },
   // 小数字保留 1 位小数（如 1.6），大数字同 fmt
   // 最多保留 2 位小数（0.8999999 → 0.9）
   dec(n) { return String(Math.round(n * 100) / 100); },

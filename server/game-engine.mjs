@@ -118,7 +118,7 @@ export class GameEngine {
       const cfg = source.match(/^(?:api|js)\/config\/([^/]+\.js)$/);
       const cfgOf = name => Object.prototype.hasOwnProperty.call(overrides, name) ? overrides[name] : readConfig(name);
       if (source === "api/config-loader.js") {
-        for (const name of configNames()) vm.runInContext(cfgOf(name), sandbox, { filename: `js/config/${name}`, timeout: 5_000 });
+        for (const name of configNames()) vm.runInContext(cfgOf(name), sandbox, { filename: `js/config/${name}`, timeout: 30_000 });
         continue;
       }
       if (cfg) code = cfgOf(cfg[1]);
@@ -127,7 +127,7 @@ export class GameEngine {
         if (!fullPath.startsWith(path.join(ROOT, "web") + path.sep)) throw new Error(`Invalid game script path: ${source}`);
         code = fs.readFileSync(fullPath, "utf8");
       }
-      vm.runInContext(code, sandbox, { filename: source, timeout: 5_000 });
+      vm.runInContext(code, sandbox, { filename: source, timeout: 30_000 });
     }
     vm.runInContext("globalThis.__xiuGame = G; globalThis.__xiuData = DATA; globalThis.__xiuConfig = CFG;", sandbox, { timeout: 1_000 });
     this.G = sandbox.__xiuGame;

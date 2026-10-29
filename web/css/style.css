@@ -75,6 +75,7 @@ button.sel i{font-style:normal;color:#c9a45c;font-size:12px}
 .cell{aspect-ratio:1;border:1px solid var(--c-line);border-radius:6px;background:var(--c-cell);font-size:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2px;line-height:1.2;position:relative;overflow:hidden}
 .cell .n{position:absolute;right:3px;bottom:1px;color:var(--t-main);font-size:11px}
 .cell .g{color:var(--t-dim);font-size:10px}
+.cell .nt{position:absolute;right:3px;top:1px;color:var(--t-main);font-size:11px;line-height:1.2;text-shadow:0 0 2px rgba(0,0,0,.6)}
 .q0{color:var(--t-main)}.q1{color:var(--t-good)}.q2{color:var(--t-blue)}.q3{color:var(--t-purple)}.q4{color:var(--t-gold)}.q5{color:var(--t-orange)}
 .cell.q0{border-color:var(--c-edge)}.cell.q1{border-color:#4f7f6f}.cell.q2{border-color:#4b6596}.cell.q3{border-color:#7a5596}.cell.q4{border-color:#9a7f3a}.cell.q5{border-color:#a65a40}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:9;padding:12px}
@@ -913,7 +914,7 @@ html.bg-light .rgt b{color:var(--t-gold);text-shadow:none}
 html.bg-light .rgt small{color:var(--t-sub)}
 html.bg-light .mpage>.row.small{color:#f4ead2}
 /* 浅色背景：绿色「开/停止/跟随最新/当前页签」按钮用白字；探索信息浮层改浅底，标题和状态行用深色字 */
-html.bg-light button.on:not(.pill):not(.rib),html.bg-light .exov-head .sm.on,html.bg-light .exov-tabs button.on{background:#2f5a3c;border-color:#2f5a3c;color:#fff}
+html.bg-light button.on:not(.pill):not(.rib):not(.gc),html.bg-light .exov-head .sm.on,html.bg-light .exov-tabs button.on{background:#2f5a3c;border-color:#2f5a3c;color:#fff}
 html.bg-light .exov{background:var(--c-toast)}
 html.bg-light .exov-head b{color:var(--t-gold)}
 html.bg-light .exov-head small,html.bg-light .exov-st{color:var(--t-sub)}
@@ -964,3 +965,84 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 @keyframes glpulse{50%{box-shadow:inset 0 0 0 2px #fff2c0,0 0 18px rgba(255,215,120,.95)}}
 .gridbar{display:flex;justify-content:center;font-size:13px;color:#fff3d6;background:rgba(20,16,12,.72);border-radius:6px;padding:5px 8px;margin:8px 0 0}
 .gridbar.gt{margin:0 0 2px}
+
+/* 隐世宗门 */
+.mgrid .gc.ys{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:visible;z-index:2}
+.mgrid .gc.ys img{width:118%;height:118%;object-fit:contain;margin:-14% 0 -6%;filter:drop-shadow(0 2px 4px rgba(0,0,0,.7));pointer-events:none}
+.mgrid .gc.ys span{position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);font-size:10px;line-height:14px;padding:0 4px;border-radius:7px;background:rgba(0,0,0,.65);color:#ffe9a8;white-space:nowrap;pointer-events:none}
+.ysmap{position:relative;width:100%;max-width:520px;margin:0 auto;border-radius:10px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.5)}
+.ysmap img{display:block;width:100%;height:auto}
+.ysmap .ysfav{position:absolute;left:8px;top:8px;padding:3px 10px;font-size:13px;border-radius:12px;background:rgba(0,0,0,.65);border:1px solid rgba(232,200,120,.7);color:#ffe9a8;z-index:2}
+.ysmap .ysp{position:absolute;transform:translate(-50%,-50%);min-width:0;padding:4px 10px;font-size:13px;border-radius:12px;background:rgba(20,14,8,.78);border:1px solid rgba(232,200,120,.8);color:#ffe9a8;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.6);letter-spacing:1px}
+/* 隐世宗门 · 宗门大殿神通 */
+.sthall{position:relative;border-radius:10px;overflow:hidden;background-size:cover;background-position:center;padding:10px 8px 12px;box-shadow:0 4px 16px rgba(0,0,0,.5)}
+.sthall .sttip{text-align:center;font-size:13px;color:#e8f2ff;background:linear-gradient(90deg,transparent,rgba(10,20,40,.8),transparent);padding:5px 0;letter-spacing:1px}
+.sthall .stmap{position:relative;height:min(84vw,380px);margin-bottom:16px}
+.sthall .stline{position:absolute;inset:0;width:100%;height:100%}
+.sthall .stline polyline{fill:none;stroke:rgba(150,220,255,.55);stroke-width:.5;vector-effect:non-scaling-stroke}
+.sthall .stline polyline{stroke-width:2px}
+.sthall .stn{position:absolute;transform:translate(-50%,-50%);width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 40% 35%,#2d6a6a,#103038);border:2px solid rgba(140,210,220,.55);box-shadow:0 0 10px rgba(80,200,230,.35)}
+.sthall .stn b{font-size:20px;color:rgba(200,240,240,.55)}
+.sthall .stn.full{border-color:#8fe6ff;box-shadow:0 0 14px rgba(120,230,255,.75)}
+.sthall .stn.full b{color:#d8fbff}
+.sthall .stn.cur{border-color:#ffb347;box-shadow:0 0 16px rgba(255,170,60,.9)}
+.sthall .stn.cur b{color:#fff3d8}
+.sthall .stn small{position:absolute;top:100%;margin-top:4px;left:50%;transform:translateX(-50%);font-size:11px;padding:0 7px;border-radius:8px;background:rgba(10,20,40,.8);color:#e8f2ff;white-space:nowrap}
+.sthall .stcore{position:absolute;transform:translate(-50%,-50%);width:96px;height:96px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,rgba(70,160,255,.55),rgba(20,50,110,.85));border:2px solid rgba(140,200,255,.8);box-shadow:0 0 26px rgba(90,170,255,.8)}
+.sthall .stcore img{width:62px;height:62px;object-fit:contain;opacity:.6}
+.sthall .stcore.full img{opacity:1}
+.sthall .stcn{position:absolute;transform:translate(-50%,58px);display:flex;flex-direction:column;align-items:center;gap:2px}
+.sthall .stcn b{font-size:15px;color:#fff;text-shadow:0 1px 4px #000}
+.sthall .stcn small{font-size:11px;padding:0 7px;border-radius:8px;background:rgba(10,20,40,.8);color:#e8f2ff}
+.sthall .stbtn{justify-content:center;margin-top:4px}
+.sthall .stbtn button{min-width:0;width:auto;flex:0 0 auto;padding:6px 26px}
+.sthall .stcost{text-align:center;font-size:12px;color:#e8f2ff;margin:6px 0 0;text-shadow:0 1px 3px #000}
+.ststat{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 10px;font-size:13px}
+.ststat b{color:var(--t-gold)}
+
+.sttabs{display:flex;gap:6px;margin:0 0 8px}
+.sttabs button{flex:1 1 0;padding:6px 4px}
+.sttabs button.on{background:var(--t-gold);color:#222}
+.strow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+.strow:last-child{border-bottom:0}
+.strow .sti{flex:1 1 auto;min-width:0}
+.strow .sti b{font-size:15px}
+.strow .sti small{margin-left:6px;opacity:.7}
+.strow .sti p{margin:3px 0 0;font-size:12px;opacity:.85}
+.strow button{flex:0 0 auto;padding:6px 12px}
+.strow.on .sti b{color:var(--t-gold)}
+.strow .sti p.stc{opacity:.6}
+.strow .stb{display:flex;flex-direction:column;gap:6px;flex:0 0 auto}
+
+/* 神通秘术：上面出战格子，下面已领悟图标 */
+.stslots{display:flex;gap:10px;justify-content:space-around}
+.stslot,.stcell{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;text-align:center;min-width:0}
+.stslot small,.stcell small{font-size:12px;white-space:nowrap}
+.stslot.on small,.stcell.on small{color:var(--t-gold)}
+.stcell i{font-style:normal;font-size:11px;opacity:.6}
+.stgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 6px}
+.sticon{width:58px;height:58px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;object-fit:cover;
+  background:radial-gradient(circle at 35% 30%,rgba(var(--c),.95),rgba(var(--c),.35) 60%,rgba(0,0,0,.6));border:2px solid rgba(var(--c),.9);box-shadow:0 0 10px rgba(var(--c),.5);color:#fff;text-shadow:0 1px 3px #000;line-height:1.05}
+.sticon b{font-size:14px;letter-spacing:1px}
+.sticon.empty{--c:120,120,130;background:rgba(255,255,255,.04);border-style:dashed;box-shadow:none;opacity:.6;font-size:13px}
+.stcell.on .sticon,.stslot.on .sticon{outline:2px solid var(--t-gold);outline-offset:2px}
+.sticon.big{width:84px;height:84px;margin:0 auto 6px}
+.sticon.big b{font-size:19px}
+.stpop{text-align:center}
+.stpop p{margin:6px 0}
+.stpop .desc{text-align:left}
+.btv-pop.heal{color:#2fd36b;font-size:22px}
+
+/* 宗门大殿压缩：节点、中心图片缩小，属性一屏看全 */
+.sthall{padding:6px 8px 8px}
+.sthall .stn{width:36px;height:36px}
+.sthall .stn b{font-size:16px}
+.sthall .stn small{font-size:10px;margin-top:2px;padding:0 5px}
+.sthall .stcore{width:68px;height:68px}
+.sthall .stcore img{width:44px;height:44px}
+.sthall .stcn{transform:translate(-50%,40px)}
+.sthall .stcn b{font-size:13px}
+.sthall .stcost{font-size:11px;margin-top:4px}
+.stcard{margin-top:8px;padding:8px 12px}
+.stcard h3{margin:0 0 4px}
+.stcard .ststat{gap:2px 10px;font-size:12.5px}

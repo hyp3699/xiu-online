@@ -122,6 +122,7 @@ G.module({
       return this.s.bag.reduce((a, it) => a + (it.t === "mat" && it.kind === kind && it.name === name ? it.n : 0), 0);
     },
     takeMat(kind, g, n) {
+      n = Math.floor(+n); if (!(n >= 1)) return;
       if (kind === "sm") return void this.takeSm(g, n);
       const name = DATA.matName(kind, g);
       for (let i = this.s.bag.length - 1; i >= 0 && n > 0; i--) {
@@ -518,7 +519,7 @@ G.module({
     stoneLeft(g) { return CFG.forge.stone.MAX_USE - ((this.s.stoneUsed || {})[g] || 0); },
     useStone(i, n) {
       const s = this.s, it = s.bag[i]; if (!it || it.t !== "ss") return;
-      n = Math.min(n, it.n, this.stoneLeft(it.g));
+      n = Math.min(Math.floor(+n), it.n, this.stoneLeft(it.g));
       if (n <= 0) return this.log(`${DATA.stoneName(it.g)}已达使用上限（每阶 ${CFG.forge.stone.MAX_USE} 个）。`, "sys");
       s.stoneUsed[it.g] = (s.stoneUsed[it.g] || 0) + n; s.bagCap += n;
       this.log(`使用${DATA.stoneName(it.g)} ×${n}，储物格 +${n}（共 ${s.bagCap} 格）。`, "good");
@@ -551,9 +552,10 @@ G.module({
       if (!s.recipes.includes(type + "|" + g)) return this.log("尚未学会该丹方。", "sys");
       const fk = this.danFurn(DATA.danFu(type)), fn = DATA.furnaceKinds[fk];
       if (s.furnaceUse[fk] < 0) return this.log(`炼丹必须装有炼丹炉。`, "sys");
-      // n = 0 表示用现有药材能炼多少炼多少
+      // n = 0 表示用现有药材能炼多少炼多少（这个 0 哨兵要保留，不能一刀切成 n>=1）
       let max = CFG.alchemy.MAX_BATCH;
       for (const m of rec) max = Math.min(max, Math.floor(this.countMat(m.kind, m.g) / m.n));
+      n = Math.floor(+n || 0); if (n < 0) return this.log("药材不足。", "sys");
       n = n ? Math.min(n, max) : max;
       if (n <= 0) return this.log("药材不足。", "sys");
       rec.forEach(m => this.takeMat(m.kind, m.g, m.n * n));
@@ -589,7 +591,7 @@ G.module({
     danLeft(type, g) { return DATA.danLimit(type, g) - (this.s.danEaten[type + "|" + g] || 0); },
     eatDan(i, n) {
       const it = this.s.bag[i]; if (!it || it.t !== "dan") return;
-      n = Math.min(n, it.n, this.danLeft(it.type, it.g));
+      n = Math.min(Math.floor(+n), it.n, this.danLeft(it.type, it.g));
       if (n <= 0) return this.log(`${DATA.danName(it.type, it.g, it.sg)}已达服用上限。`, "sys");
       const key = it.type + "|" + it.g, d = DATA.dans[it.type];
       this.s.danEaten[key] = (this.s.danEaten[key] || 0) + n;
@@ -606,6 +608,8 @@ G.module({
       const q = this.qlBonus ? this.qlBonus() : {}; for (const k in q) if (k in b) b[k] += q[k];   // v213 宗主清灵丹
       const jd = this.jdBonus ? this.jdBonus() : {}; for (const k in jd) if (k in b) b[k] += jd[k]; else if (k.startsWith("res_")) b.resEl[k.slice(4)] = (b.resEl[k.slice(4)] || 0) + jd[k];   // 讲道室听讲加的属性
       const yb = this.ybBonus ? this.ybBonus() : {}; for (const k in yb) if (k in b) b[k] += yb[k]; else if (k.startsWith("res_")) b.resEl[k.slice(4)] = (b.resEl[k.slice(4)] || 0) + yb[k];   // 游历宝物（world.js）
+      const yst = this.ysStBonus ? this.ysStBonus() : {}; for (const k in yst) if (k in b) b[k] += yst[k]; else if (k.startsWith("res_")) b.resEl[k.slice(4)] = (b.resEl[k.slice(4)] || 0) + yst[k];   // 隐世宗门神通（world.js）
+      const ysd = this.ysDanBonus ? this.ysDanBonus() : {}; for (const k in ysd) if (k in b) b[k] += ysd[k]; else if (k.startsWith("res_")) b.resEl[k.slice(4)] = (b.resEl[k.slice(4)] || 0) + ysd[k];   // 隐世宗门炼丹房丹药（world.js）
       const jm = this.jmBonus ? this.jmBonus() : {}; for (const k in jm) if (k in b) b[k] += jm[k]; else if (k.startsWith("res_")) b.resEl[k.slice(4)] = (b.resEl[k.slice(4)] || 0) + jm[k];   // 经脉（jingmai.js）
       return b;
     },

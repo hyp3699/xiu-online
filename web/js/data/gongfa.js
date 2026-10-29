@@ -129,6 +129,7 @@ DATA.sectWords = (sect, typeKey) => {
 DATA.gfCn = n => { const d = "零一二三四五六七八九"; return n < 10 ? d[n] : n < 20 ? "十" + (n % 10 ? d[n % 10] : "") : d[Math.floor(n / 10)] + "十" + (n % 10 ? d[n % 10] : ""); };
 DATA.gongfaName = (sect, type) => {
   if (sect.src === "yl" && DATA.ylGfName) return DATA.ylGfName(sect, type);   // 游历功法（data/youli.js）
+  if (sect.src === "ys" && DATA.ysGfName) return DATA.ysGfName(sect, type);   // 隐世宗门功法（data/yinshi.js）
   if (sect.src === "cc") { const C = CFG.sect.chuancheng; return sect.name + C.WORD + (C.NAME[type.id] || type.suffix); }   // 宗门传承
   if (sect.src === "wdroom") return `${CFG.wudaoRoom.xiulian.NAME[type.id] || type.suffix}·第${DATA.cnNum(sect.juan)}卷`;   // 悟道室秘诀
   if (sect.book) return `${sect.prefix}${type.suffix}·第${sect.book}卷`;   // 试炼塔秘诀

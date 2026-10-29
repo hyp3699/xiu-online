@@ -38,7 +38,7 @@ G.module({
     // 法宝栏、法术栏当前开启格数：每个大境界 1 格
     // 背包排序：先按类型（修炼丹 → 属性丹 → 药材 → 矿石 → 装备），同类型再按品阶从低到高
     sortBag() {
-      const order = it => it.t === "pill" ? 0 : it.t === "dan" || it.t === "ql" ? 1 : it.t === "mat" ? (it.kind === "herb" ? 2 : 3) : it.t === "fu" ? 4 : it.t === "bp" || it.t === "ss" || it.t === "rbp" || it.t === "dfb" || it.t === "hx" || it.t === "sm" ? 5 : it.t === "eq" ? (it.e.slot === "fabao" ? 7 : 6) : it.t === "cu" ? 8 : 9;
+      const order = it => it.t === "pill" ? 0 : it.t === "dan" || it.t === "ql" || it.t === "ysd" ? 1 : it.t === "mat" ? (it.kind === "herb" ? 2 : 3) : it.t === "fu" ? 4 : it.t === "bp" || it.t === "ss" || it.t === "rbp" || it.t === "dfb" || it.t === "hx" || it.t === "sm" ? 5 : it.t === "eq" ? (it.e.slot === "fabao" ? 7 : 6) : it.t === "cu" ? 8 : 9;
       const grade = it => it.t === "eq" ? it.e.g * 10 + it.e.q : it.g || 0;
       const sub = it => it.t === "pill" || it.t === "dan" ? it.type : it.t === "eq" ? it.e.slot : it.kind || "";
       this.s.bag.sort((a, b) => order(a) - order(b) || grade(a) - grade(b) || (sub(a) < sub(b) ? -1 : sub(a) > sub(b) ? 1 : 0));
@@ -77,6 +77,7 @@ G.module({
     stackMax(it) { const S = CFG.stack; return S.ONE.includes(it.t) || (it.t === "sm" && S.ONE_SM.includes(it.k)) ? 1 : S.MAX; },
     // 放进背包：先补满同种的格子，剩下的每 stackMax 个开一格；make(k) 造一格 k 个。没空格时丢弃剩下的，返回 false
     bagAdd(match, make, n, lost) {
+      n = Math.floor(+n); if (!(n >= 1)) return true;   // 小数向下取整，负数/0 不加（防控制台直接调 add 系函数刷物品）
       const S = this.s.bag, max = this.stackMax(make(1));
       if (max > 1) for (const it of S) { if (n <= 0) break; if (match(it) && (it.n || 1) < max) { const k = Math.min(n, max - (it.n || 1)); it.n = (it.n || 1) + k; n -= k; } }
       while (n > 0) {
@@ -88,6 +89,7 @@ G.module({
     bagNum(match) { return this.s.bag.reduce((t, it) => t + (match(it) ? it.n || 1 : 0), 0); },
     // 从背包扣 n 个（可跨多格，从后往前扣）；不够返回 false 且不扣
     bagTake(match, n) {
+      n = Math.floor(+n); if (!(n >= 1)) return false;   // 小数/负数直接失败，不进 removeAt
       if (this.bagNum(match) < n) return false;
       for (let i = this.s.bag.length - 1; i >= 0 && n > 0; i--) { const it = this.s.bag[i]; if (!match(it)) continue; const k = Math.min(n, it.n || 1); this.removeAt(i, k); n -= k; }
       return true;
@@ -105,14 +107,19 @@ G.module({
       this.s.bag.push({ t: "eq", e }); return true;
     },
     removeAt(i, n = 1) {
-      const it = this.s.bag[i];
-      if (it.n > n) it.n -= n; else this.s.bag.splice(i, 1);
+      const it = this.s.bag[i]; if (!it) return;
+      // 中央关口：小数向下取整，负数/0 直接不扣（原来负数会让 it.n -= 负数 = 反向加物品），
+      // 超过格子数量时只扣整格，不按请求数算账（算账在调用方先 clamp，见 sellItem）。
+      n = Math.floor(+n); if (!(n >= 1)) return;
+      if (it.n !== undefined && it.n > n) it.n -= n; else this.s.bag.splice(i, 1);
     },
     itemName(it) {
       if (it.t === "pill") return `${DATA.realms[it.g]}·${DATA.pills[it.type].name}`;
       if (it.t === "dan") return DATA.danName(it.type, it.g, it.sg);
       if (it.t === "ql") return DATA.qlName(it.sect);   // v213 宗主清灵丹
       if (it.t === "ylb") return DATA.ybName(it.k, it.g);   // 游历宝物（data/youli.js）
+      if (it.t === "ysd") return this.ysDanName(it.ys, it.k);   // 隐世宗门炼丹房丹药
+      if (it.t === "stp") return this.ysFragName(it.id);   // 神通碎片（隐世宗门秘境）
       if (it.t === "mat") return DATA.matFull(it.kind, it.g);
       if (it.t === "fu") return DATA.furnaceName(it.kind, it.g);
       if (it.t === "bp") return DATA.furnaceName(it.kind, it.g) + "图纸";
@@ -133,7 +140,7 @@ G.module({
       if (it.t === "dan") return DATA.danPrice(it.type, it.g);
       if (it.t === "mat") return DATA.matPrice(it.kind, it.g);
       if (it.t === "cu") { const d = this.cuDef(it.name); return d ? d.sell || 0 : 0; }
-      if (it.t === "ss" || it.t === "book" || it.t === "gfb" || it.t === "ql" || it.t === "dfb" || it.t === "ylb") return 0;
+      if (it.t === "ss" || it.t === "book" || it.t === "gfb" || it.t === "ql" || it.t === "dfb" || it.t === "ylb" || it.t === "stp" || it.t === "ysd") return 0;
       if (it.t === "hx") return CFG.forge.reset.SELL || 0;
       if (it.t === "sm") { const v = (CFG.mijing.items[it.k] || {}).sell || 0; return Array.isArray(v) ? v[it.ft || 0] || 0 : v; }
       if (it.t === "rbp") return CFG.forge.ring.bpSell[it.g] || 0;
@@ -147,6 +154,7 @@ G.module({
     setBagPage(k) { this.bagPage = k || ""; this.render(); },
     bagPageView() {
       const T = { shentong: "神通秘术", benming: "本命法宝" }, k = this.bagPage, t = T[k] || "";
+      if (k === "shentong") return `<div class="mpage bpage"><div class="pghead">${t}</div>${this.stPageView()}<div class="fback"><button onclick="G.setBagPage('')">返回</button></div></div>`;
       return `<div class="mpage bpage"><div class="pghead">${t}</div>
         <div class="card bp-hero"><img src="img/orb_${k}.webp?v=3" alt=""><b>${t}</b><p class="desc">${t}即将开放，敬请期待。</p></div>
         <div class="fback"><button onclick="G.setBagPage('')">返回</button></div></div>`;
@@ -160,6 +168,8 @@ G.module({
         case "dan": return DATA.danIcon(it.type);
         case "ql": return DATA.iconImg("dan_ql");
         case "ylb": return DATA.ybIcon(it.k);
+        case "stp": return DATA.iconImg("st_frag");
+        case "ysd": return `img/ysdan/${it.k}.webp`;
         case "fu": return DATA.furnaceIcon(it.kind);
         case "ss": return DATA.iconImg("ss");
         case "hx": return DATA.iconImg("hx");
@@ -226,7 +236,7 @@ G.module({
       const _sell = it.n > 1
         ? `<button onclick="G.sellItem(${i},1)">出售1个（${U.fmt(this.sellPrice(it))}）</button><button onclick="G.sellItem(${i},${it.n})">全部出售</button>`
         : `<button onclick="G.sellItem(${i},1)">出售（${U.fmt(this.sellPrice(it))}）</button>`;
-      const cq = it.t === "cu" ? ((this.cuDef(it.name) || {}).q || 0) : 0;
+      const cq = it.t === "cu" ? ((this.cuDef(it.name) || {}).q || 0) : it.t === "ysd" ? 5 : it.t === "ylb" ? DATA.ybQ(it.g) : 0;
       const big = it.t === "mat" ? "" : this.itemIcon(it);
       let h = (big ? (it.t === "dan" || it.t === "ql" ? DATA.danImg(big, it.t === "dan" ? DATA.danCls(it.type, it.g) : DATA.qlCls(it.sect), "big") : `<img class="item-img${it.t === "eq" ? DATA.eqCls(it.e) : ""}" src="${big}" alt="">`) : "") + `<h2 class="q${it.t === "eq" ? it.e.q : cq}${it.t === "eq" ? DATA.fbElCls(it.e) : ""}">${this.itemName(it)}${it.n ? " ×" + it.n : ""}${it.t === "eq" && it.e.attrs ? `<br><small>${DATA.rjName(it.e)}</small>` : ""}</h2>`;
       if (it.t === "pill") {
@@ -244,6 +254,13 @@ G.module({
         h += `<p>${o ? o.name : ""}宗主专属丹药，服用后永久 ${DATA.qlTxt(it.sect)}。<br>已服 ${used} / ${lim} 颗。</p>
           <div class="btns"><button class="primary" onclick="G.eatQl(${i},1)" ${left > 0 ? "" : "disabled"}>服用</button>
           <button onclick="G.eatQl(${i},${it.n})" ${left > 0 && it.n > 1 ? "" : "disabled"}>全部服用</button>${sell}</div>`;
+      } else if (it.t === "ysd") {
+        const D = this.ysDanCfg(), used = this.ysDanEatN(it.ys, it.k), left = Math.max(0, D.MAX - used);
+        h += `<p>隐世宗门丹药，服用后永久 ${this.ysDanLab(it.k)} +${U.fmt(D.VAL)}。<br>本宗此丹已服 ${used} / ${D.MAX} 颗。</p>
+          <div class="btns"><button class="primary" onclick="G.eatYsDan(${i},1)" ${left > 0 ? "" : "disabled"}>服用</button>
+          <button onclick="G.eatYsDan(${i},${it.n})" ${left > 0 && it.n > 1 ? "" : "disabled"}>全部服用</button></div>`;
+      } else if (it.t === "stp") {
+        h += `<img class="item-img" src="${DATA.iconImg("st_frag")}" alt=""><p>神通碎片用于修炼精研神通</p>`;
       } else if (it.t === "ylb") {
         const left = this.ybLeft(it.k, it.g);
         h += `<p>游历宝物，服用后永久 ${DATA.ybLabel(it.k)} +${U.num(DATA.ybVal(it.k, it.g))}。<br>此阶已服 ${this.ybUsed(it.k, it.g)} / ${DATA.YB_MAX} 个。</p>
@@ -272,8 +289,8 @@ G.module({
           <div class="btns"><button class="primary" onclick="G.learnBook(${i})" ${has ? "disabled" : ""}>学习</button></div>`;
       } else if (it.t === "gfb") {
         const g = DATA.skillInfo(it.id, 1), has = this.hasGongfa(it.id), need = this.ssCost(it.id), left = Math.max(0, this.lsLeft());
-        const yl = g && g.src === "yl";   // 游历功法：不占灵识点
-        h += `<p>${yl ? `游历功法 · ${g.star}星` : "试炼塔秘诀"}${g && g.label ? ` · ${g.label}每层 +${this.gfValue(g, g.perLv)}` : ""}<br>${yl ? "学习不占灵识点" : `学习占用灵识点 ${need}（剩余 ${left}）`}${has ? "<br><span class='q5'>已学会。</span>" : !yl && left < need ? "<br><span class='q5'>灵识点不足，可在「修炼 → 神识」增加或遗忘功法。</span>" : ""}</p>
+        const yl = g && (g.src === "yl" || g.src === "ys");   // 游历功法、隐世宗门功法：不占灵识点
+        h += `<p>${yl ? `${g.src === "ys" ? "隐世宗门功法" : "游历功法"} · ${g.star}星` : "试炼塔秘诀"}${g && g.label ? ` · ${g.label}每层 +${this.gfValue(g, g.perLv)}` : ""}<br>${yl ? "学习不占灵识点" : `学习占用灵识点 ${need}（剩余 ${left}）`}${has ? "<br><span class='q5'>已学会。</span>" : !yl && left < need ? "<br><span class='q5'>灵识点不足，可在「修炼 → 神识」增加或遗忘功法。</span>" : ""}</p>
           <div class="btns">${this.bagLearnBtn(it, "gf", it.id, `G.learnGfBook(${i})`, has, g ? DATA.gfLearnMin(g.star) * 60000 : 0)}</div>`;
       } else if (it.t === "dfb") {
         const key = it.type + "|" + it.g, has = this.s.recipes.includes(key);
@@ -431,6 +448,10 @@ G.module({
     },
     sellItem(i, n) {
       const it = this.s.bag[i]; if (!it || it.lq) return;   // v173 学习中 / 排队中的不能卖
+      // 先 clamp 再算钱：原来直接用请求数算钱，n=1e12 时只删 1 个却按 1e12 个结算；
+      // n 为负数时算出负价、再经 removeAt 反向加物品。装备没有 n，按 1 个算。
+      n = Math.floor(+n); if (!(n >= 1)) return;
+      n = Math.min(n, it.n || 1);
       const p = this.sellPrice(it) * n;
       this.s.stone += p; this.removeAt(i, n);
       this.log(`售出${this.itemName(it)} ×${n}，灵石 +${U.fmt(p)}。`, "sys"); this.closeModal(); this.after();
@@ -626,7 +647,7 @@ G.module({
       <div class="bs-top" style="grid-column:3;grid-row:1">${tabs}</div><div class="bs-bot" style="grid-column:3;grid-row:4">${spBtn}</div>${orb("shentong", "神通秘术", 2)}${orb("benming", "本命法宝", 4)}${sCells.join("")}</div>`;
     this.sortBag();
     // v26：储物格分类（全部 丹药 药材 矿石）+ 出售页
-    const flt = this.bagFilter || "all", match = it => flt === "all" || (flt === "dan" ? it.t === "pill" || it.t === "dan" || it.t === "ql" || it.t === "ylb" : it.t === "mat" && it.kind === flt);
+    const flt = this.bagFilter || "all", match = it => flt === "all" || (flt === "dan" ? it.t === "pill" || it.t === "dan" || it.t === "ql" || it.t === "ylb" || it.t === "ysd" : it.t === "mat" && it.kind === flt);
     const ftabs = `<div class="bag-tabs">${[["all", "全部"], ["dan", "丹药"], ["herb", DATA.matKinds.herb], ["ore", DATA.matKinds.ore]].map(([k, t]) =>
       `<button class="${flt === k && !this.bagSell ? "active" : ""}" onclick="G.setBagFilter('${k}')">${t}</button>`).join("")}
       <button class="sell ${this.bagSell ? "active" : ""}" onclick="G.openSellPage()">出售</button></div>`;
@@ -645,7 +666,9 @@ G.module({
       else if (it.t === "fu") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.furnaceIcon(it.kind)}" alt="">${DATA.furnaceName(it.kind, it.g)}${it.n > 1 ? `<span class="n">${it.n}</span>` : ""}</div>`;
       else if (it.t === "bp") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("bp")}" alt="">${DATA.furnaceName(it.kind, it.g)}</div>`;
  else if (it.t === "sm") cells += `<div class="cell q3" onclick="G.openItem(${i})"><img class="mi" src="${DATA.smIcon(it.k, it.ft)}" alt="">${DATA.smName(it.k, it.ft, it.tier)}<span class="n">${U.fmt(it.n)}</span></div>`;
- else if (it.t === "ylb") cells += `<div class="cell q${Math.min(5, 1 + Math.floor(it.g / 6))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.ybIcon(it.k)}" alt="">${(DATA.YB[it.k] || {}).name || "宝物"}<span class="g">${DATA.ybGrade(it.g)}</span><span class="n">${it.n}</span></div>`;
+ else if (it.t === "ysd") cells += `<div class="cell q5" onclick="G.openItem(${i})"><img class="mi" src="img/ysdan/${it.k}.webp" alt="">${this.itemName(it)}<span class="n">${U.fmt(it.n)}</span></div>`;
+ else if (it.t === "stp") cells += `<div class="cell q4" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("st_frag")}" alt="">${this.itemName(it)}<span class="n">${U.fmt(it.n)}</span></div>`;
+ else if (it.t === "ylb") cells += `<div class="cell q${DATA.ybQ(it.g)}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.ybIcon(it.k)}" alt="">${(DATA.YB[it.k] || {}).name || "宝物"}<span class="n">${it.n}</span></div>`;
  else if (it.t === "book") cells += `<div class="cell q1" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("mifa")}" alt="">${CFG.start.book.name}</div>`;
  else if (it.t === "gfb") cells += `<div class="cell q3" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("mifa")}" alt="">${this.itemName(it)}</div>`;
  else if (it.t === "hx") cells += `<div class="cell q4" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("hx")}" alt="">${DATA.HX}<span class="n">${U.fmt(it.n)}</span></div>`;

@@ -80,6 +80,7 @@ G.module({
     // 按名字数 / 扣药材（凡界药材或 content/items.js 的自定义物品）
     herbCount(name) { const m = DATA.matByName[name]; if (m) return this.countMat(m.kind, m.g); return this.s.bag.reduce((a, it) => a + (it.t === "cu" && it.name === name ? it.n : 0), 0); },
     herbTake(name, n) {
+      n = Math.floor(+n); if (!(n >= 1)) return;
       const m = DATA.matByName[name]; if (m) return this.takeMat(m.kind, m.g, n);
       for (let i = this.s.bag.length - 1; i >= 0 && n > 0; i--) { const it = this.s.bag[i]; if (it.t !== "cu" || it.name !== name) continue; const k = Math.min(n, it.n); this.removeAt(i, k); n -= k; }
     },

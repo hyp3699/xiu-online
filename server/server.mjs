@@ -156,15 +156,29 @@ function validUsername(raw) {
   if (username.length < 2 || username.length > 20 || !/^[\p{L}\p{N}_-]+$/u.test(username)) throw new Error("账号需为 2–20 个字母、数字、中文、下划线或连字符");
   return username;
 }
-function validateValue(value, depth = 0) {
+// 服务端统一兜底：所有 WebSocket 操作参数里的数字必须是整数。
+// 负数一律拒绝，只放行确实用 -1 当哨兵的操作：
+//   bsetMove(dir=-1 上移)、jmSwap(n=-1 全部)。
+//   灵矿已删除，出窍的 r=-1 不再是合法哨兵，不再放行。
+// 其它 -1 以外、以及 -999 这类负数，仍会被挡下；小数、非整数同样被挡下，
+// 这样 sellItem(i, -999)、buyLingshi(0.5) 在进引擎前就失败，状态用的是出错前的工作副本，
+// 不会落盘。sellItem(i, 1e12) 是整数、能过这一层，靠 sellItem 内部按格 clamp 挡下。
+// 数量上限仍保留原来的 1e12，
+// 因为 cultSetSave 的灵石阈值这类设置本身就可能超过 1e9，真正防超卖靠下面各函数的按格 clamp。
+const NEGATIVE_ONE_ACTIONS = new Set(["bsetMove", "jmSwap"]);
+function validateValue(value, depth = 0, action = "") {
   if (depth > 5) throw new Error("操作参数层级过深");
   if (value === null || typeof value === "boolean") return;
   if (typeof value === "string") { if (value.length > 2048) throw new Error("操作参数过长"); return; }
-  if (typeof value === "number") { if (!Number.isFinite(value) || Math.abs(value) > 1e12) throw new Error("操作参数无效"); return; }
-  if (Array.isArray(value)) { if (value.length > 100) throw new Error("操作参数数组过长"); return value.forEach(x => validateValue(x, depth + 1)); }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value) || !Number.isInteger(value) || Math.abs(value) > 1e12) throw new Error("操作参数无效");
+    if (value < 0 && !(value === -1 && NEGATIVE_ONE_ACTIONS.has(action))) throw new Error("操作参数无效");
+    return;
+  }
+  if (Array.isArray(value)) { if (value.length > 100) throw new Error("操作参数数组过长"); return value.forEach(x => validateValue(x, depth + 1, action)); }
   if (typeof value === "object") {
     const pairs = Object.entries(value); if (pairs.length > 50) throw new Error("操作参数对象过大");
-    for (const [key, child] of pairs) { if (["__proto__", "prototype", "constructor"].includes(key)) throw new Error("操作参数字段无效"); validateValue(child, depth + 1); }
+    for (const [key, child] of pairs) { if (["__proto__", "prototype", "constructor"].includes(key)) throw new Error("操作参数字段无效"); validateValue(child, depth + 1, action); }
     return;
   }
   throw new Error("操作参数类型无效");
@@ -532,7 +546,7 @@ wss.on("connection", (socket, session) => {
       const action = String(msg.action || ""), args = msg.args;
       if (!ACTIONS.has(action)) throw new Error("此操作未授权");
       if (!Array.isArray(args) || args.length > 20) throw new Error("操作参数无效");
-      validateValue(args);
+      validateValue(args, 0, action);
       const t0 = performance.now();
       const working = structuredClone(client.state);   // 出错时 client.state 保持原样
       const t1 = performance.now();

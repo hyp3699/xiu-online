@@ -201,7 +201,13 @@ const API = {
     if (!force && G.tab === "cultivate" && !modalOpen) return;
     const t = document.getElementById("toast"); if (!t) return;
     const esc = x => String(x).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-    t.innerHTML = logs.slice(0, 3).reverse().map(l => `<p class="${esc(l.c || "")}">${esc(l.m || "")}</p>`).join("");
+    // 日志本身带的品质颜色 span 要保留渲染（精炼 / 炼成日志：<span class="q1">装备名</span>），
+    // 其它 HTML 照样转义：先全转义，再把恰好是 q0~q5 的 span 开闭标签换回来，
+    // 带其它属性 / 其它 class / 单引号的 span 仍是转义文本，不会变成真的标签。
+    const safeLog = m => esc(m)
+      .replace(/&lt;span class=&quot;(q[0-5])&quot;&gt;/g, '<span class="$1">')
+      .replace(/&lt;\/span&gt;/g, "</span>");
+    t.innerHTML = logs.slice(0, 3).reverse().map(l => `<p class="${esc(l.c || "")}">${safeLog(l.m || "")}</p>`).join("");
     t.classList.toggle("center", fail); delete t.dataset.tone;
     t.classList.add("show");
     clearTimeout(G._toastT); clearTimeout(this._actionToastTimer);
@@ -392,8 +398,8 @@ const API = {
       const D0 = ((CFG.wudaoRoom || {}).daos || []).find(d => d.id === args[0]), log = logs.find(l => l.c === "gold");
       if (D0 && log && G.wdModal) G.wdModal(D0, String(log.m).replace(/。$/, "").split("，").slice(1).map(x => `<div class="line"><div>${x.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]))}</div></div>`).join(""));
     }
-    // 开始探索 / 挖矿 / 秘境后展开探索信息（单机版在操作里设置 exploreOpen，服务器上设置不到客户端）
-    if (["toggleExplore", "toggleKuang", "toggleMj", "mjAll"].includes(name) && G.s.explore && G.s.explore.start !== exStart) { G.exploreOpen = true; G.exInfo = "ex"; G.render(); }
+    // 开始探索 / 秘境后展开探索信息（单机版在操作里设置 exploreOpen，服务器上设置不到客户端）
+    if (["toggleExplore", "toggleMj", "mjAll", "ysEnterMj"].includes(name) && G.s.explore && G.s.explore.start !== exStart) { G.exploreOpen = true; G.exInfo = "ex"; G.render(); }
     if (name === "startChuqiao" && G.s.cq && G.s.cq.start !== cqStart) { G.exploreOpen = true; G.exInfo = "cq"; G.render(); }
     // These actions combine a server state change with a purely visual transition.
     if (name === "startTrib") { G.tribOpen = true; if (G.tribRender) G.tribRender(true); }
@@ -401,7 +407,7 @@ const API = {
     if (name === "tribUse" && G.tribRender) G.tribRender(false);
     if (name === "startChuqiao") { G.closeModal(); G.exploreOpen = true; G.render(); }
     if (["autoTaskSet", "atPickSet"].includes(name) && G.openCultSet) G.openCultSet();
-    if (["learnBook", "learnGfBook", "learnBlueprint", "learnRingBp", "installFurnace", "equipItem", "unequip", "sellItem", "slotSpell", "swapFabao", "unslotSpell", "useStone", "useFurnace", "eatDan", "eatQl", "plantField", "clearField", "svAccept", "spellAdv"].includes(name) && G.closeModal) G.closeModal();
+    if (["learnBook", "learnGfBook", "learnBlueprint", "learnRingBp", "installFurnace", "equipItem", "unequip", "sellItem", "slotSpell", "swapFabao", "unslotSpell", "useStone", "useFurnace", "eatDan", "eatQl", "eatYsDan", "eatYb", "learnDanScroll", "plantField", "clearField", "svAccept", "spellAdv"].includes(name) && G.closeModal) G.closeModal();
     // spellAdv 会删掉弹窗里的低星法术：不关弹窗的话 refreshOpenModal 会重开
     // 已删除法术的进阶弹窗，显示「修炼到 10 层才能进阶」。
     if (name === "craftFurnace" && args[2] === "fabao" && G.closeModal) G.closeModal();

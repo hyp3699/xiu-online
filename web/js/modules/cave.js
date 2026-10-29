@@ -51,6 +51,7 @@ G.module({
       const cap = this.lingCap(), rate = this.lingPerStone();
       const need = Math.ceil((cap - this.s.ling) / rate);
       if (stones === "fill") stones = need;
+      else stones = Math.floor(+stones);
       stones = Math.min(stones, need, Math.floor(this.s.stone));
       if (stones <= 0) return this.log(this.s.ling >= cap ? "灵气已满。" : "灵石不足。", "sys");
       this.s.stone -= stones;
@@ -60,7 +61,7 @@ G.module({
     },
     // 灵气换灵石：每 LING_STONE 灵气换 1 灵石；want = 换几个灵石（不填 = 全部兑换）
     lingToStone(want) {
-      const per = DATA.array.LING_STONE, n = Math.min(want || Infinity, Math.floor(this.s.ling / per));
+      const per = DATA.array.LING_STONE, n = Math.min(want === undefined || want === null ? Infinity : Math.floor(+want), Math.floor(this.s.ling / per));
       if (n <= 0) return this.log(`灵气不足 ${U.fmt(per)}。`, "sys");
       this.s.ling -= n * per; this.s.stone += n;
       this.log(`消耗灵气 ${U.fmt(n * per)}，换得 ${U.fmt(n)} 灵石。`, "good");
@@ -108,7 +109,7 @@ G.module({
       // 按钮传 Infinity 时 JSON 序列化成 null，Math.min(null, ...) = 0 永远失败：
       // 0 / null / undefined 都表示「全部」，其它数按次数算。
       const max = Math.floor(this.smCount("lj", z.ft) / C.ENH_JING);
-      const n = times ? Math.min(times, max) : max;
+      const n = times ? Math.min(Math.floor(+times), max) : max;   // 0/null = 全部哨兵保留，负数/小数先取整，负数走下面 n<=0 退出
       if (n <= 0 || !this.takeSm("lj", n * C.ENH_JING, z.ft)) return this.log(`${DATA.smName("lj", z.ft)}不足。`, "sys");
       z.v += n * C.ENH;
       this.log(`${DATA.smName("lz", z.ft)}强化 ${n} 次，聚灵 +${U.fmt(n * C.ENH)}。`, "good"); this.after(); this.lzOpen(i);
@@ -117,6 +118,7 @@ G.module({
 
     // 升级聚灵阵，times 为最多升几级
     upgradeArray(times) {
+      times = Math.floor(+times);   // 小数向下取整，负数/0 走下面循环 0 次、只提示，不升级
       let n = 0;
       while (n < times && this.s.array.lv < DATA.array.MAX) {
         const c = DATA.array.cost(this.s.array.lv);

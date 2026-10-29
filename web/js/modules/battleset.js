@@ -52,6 +52,7 @@ G.module({
       const s = this.s, n = this.slotCount(), out = [];
       s.spellSlots.slice(0, n).forEach(id => { const g = id && DATA.spellInfo(id, s.gongfa[id]); if (g) out.push({ key: "sp:" + id, name: `法术·${g.name}` }); });
       s.fabao.slice(0, n).forEach((e, i) => { if (e && e.attrs) { const f = DATA.fabaoInfo(e); out.push({ key: "fb:" + i, name: `法宝·${f.name}`, shield: !!f.shield }); } });
+      if (this.stEqList) this.stEqList().filter(id => !this.stIsPas(id)).forEach(id => out.push({ key: "st:" + id, name: `神通·${this.stName(id)}` }));   // 出战神通（world.js）
       return out;
     },
     bsetSet(k, v) {

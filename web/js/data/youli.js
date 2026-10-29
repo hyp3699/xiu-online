@@ -11,6 +11,8 @@
   DATA.YB_MAX = C.YB_MAX || 100;
   DATA.YB_PIN = C.YB_PIN || ["凡品", "仙品", "神品"];
   DATA.ybGrade = g => `${DATA.YB_PIN[Math.floor(g / 10)] || ""}${DATA.gfCn(g % 10 + 1)}阶`;
+  // 名字颜色：每 5 阶一档（凡品一~五阶 q0 白、六~十阶 q1 绿，仙品 q2 蓝 / q3 紫，神品 q4 金 / q5 橙）
+  DATA.ybQ = g => Math.max(0, Math.min(5, Math.floor((g || 0) / 5)));
   DATA.ybName = (k, g) => `${DATA.ybGrade(g)}·${(DATA.YB[k] || {}).name || "宝物"}`;
   DATA.ybVal = (k, g) => ((DATA.YB[k] || {}).per || 0) * (g + 1);
   DATA.ybLabel = k => { const st = (DATA.YB[k] || {}).stat || "";

@@ -43,7 +43,7 @@ G.module({
     // 功德司：买悟道果
     wdFruitCost(a) { const w = (DATA.maps[a] || {}).w; return w === "shen" && _WR.FRUIT_MERIT_SHEN !== undefined ? _WR.FRUIT_MERIT_SHEN : _WR.FRUIT_MERIT; },   // 神界功德司单独价格
     buyWdFruit(n, a) {
-      const s = this.s, c = this.wdFruitCost(a); n = Math.min(n, Math.floor((s.merit || 0) / c));
+      const s = this.s, c = this.wdFruitCost(a); n = Math.min(Math.floor(+n), Math.floor((s.merit || 0) / c));
       if (n <= 0) return this.log("功德不足。", "sys");
       if (!this.addSm("wdg", n)) return;
       s.merit -= c * n; this.log(`购得${DATA.smName("wdg")} ×${n}。`, "good"); this.after();

@@ -165,7 +165,7 @@ G.module({
     eatQl(i, n) {
       const s = this.s, it = s.bag[i]; if (!it || it.t !== "ql") return;
       s.qlEaten = s.qlEaten || {};
-      const used = s.qlEaten[it.sect] || 0; n = Math.min(n, it.n, DATA.qlLimit(it.sect) - used);
+      const used = s.qlEaten[it.sect] || 0; n = Math.min(Math.floor(+n), it.n, DATA.qlLimit(it.sect) - used);
       if (n <= 0) return this.log(`${DATA.qlName(it.sect)}已达服用上限。`, "sys");
       s.qlEaten[it.sect] = used + n;
       const v = DATA.qlVals(it.sect);
@@ -341,10 +341,11 @@ G.module({
       this._autoQuiet = true;
       try { for (const d of ["xiulian", "shenhun", "zhandou"]) if (A[d] && this.wdCheck(d)) this.wudaoDone(d); } finally { this._autoQuiet = false; }
       const go = (tgt, cq) => { const p = (tgt || "").split(":").map(Number); if (!tgt) return log("没有选择地图。");
-        if (cq) { const r = tgt[0] === "k" ? -1 : p[2];
+        if (tgt[0] === "k") return log("灵矿已删除，跳过自动出窍，请在修炼设置里重新选一个探索区域。");
+        if (cq) { const r = p[2];
           if (s.cq || (s.explore && s.explore.cq)) return log("正在出窍，跳过自动出窍。");
           if (!s.cqLearn || this.cqLeftToday() <= 0 || !this.realmOK(CFG.chuqiao.REALM)) return log("出窍条件不足或今天次数已用完。");
-          if (r < 0 ? !this.mapOpen(p[1]) : !this.isTrained(p[1], r)) return log("所选地方还不能出窍。");
+          if (!this.isTrained(p[1], r)) return log("所选地方还不能出窍。");
           this.startChuqiao(p[1], r, this.cqLeftToday());
         } else { if (s.explore) return log("正在探索，跳过自动探索。");
           if (!this.isTrained(p[1], p[2])) return log("所选区域还没历练通过。");

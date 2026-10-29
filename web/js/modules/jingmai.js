@@ -66,11 +66,11 @@ G.module({
       this.log(`「${nm}」冲至第 ${s.jmv[k]} 层${ex}。`, s.jmv[k] >= ly ? "gold" : "good");
       this.dirty(); this.after();
     },
-    // 灵液兑换：药材 → 灵液；n = -1 全部
+    // 灵液兑换：药材 → 灵液；n = -1 全部（只有 -1 是哨兵，-999、-0.5 都不再算全部）
     jmSwap(name, n) {
       const r = +((CFG.jingmai || {}).LY_RATE || {})[name] || 0, m = DATA.matByName[name];
       if (!r || !m || m.kind !== "herb") return this.log("这种药材不能兑换灵液。", "sys");
-      const have = this.countMat("herb", m.g); n = n < 0 ? have : Math.min(Math.floor(+n || 0), have);
+      const have = this.countMat("herb", m.g); n = n === -1 ? have : Math.min(Math.floor(+n || 0), have);
       if (n <= 0) return this.log(`${name}不足。`, "sys");
       this.takeMat("herb", m.g, n); this.s.lingye = (this.s.lingye || 0) + n * r;
       this.log(`${name} ×${U.fmt(n)} 兑换灵液 ${U.fmt(n * r)}。`, "good"); this.dirty(); this.after();

@@ -33,7 +33,7 @@ CFG.battle = {
 
 // 属性抗性（法术 / 法宝减免，双方相同）
 CFG.battle.RES_RATE = 0.578;      // 对方防御 × 此值
-CFG.battle.RES_EL_RATE = 0.893;   // 对方该系抗性 × 此值
+CFG.battle.RES_EL_RATE = 1.153;   // 对方该系抗性 × 此值
 // 以上 DEF_RATE / RES_RATE / RES_EL_RATE 只在旧公式（FORMULA: "sub"，直接相减）用
 
 /* 伤害公式（FORMULA: "ratio" 按比例减免，"sub" 旧的直接相减）
@@ -48,6 +48,7 @@ CFG.battle.RATIO = { DEF_K: 1, RES_K: 1, DEF_CAP: 75, RES_CAP: 75, SP_DEF: 0.5 }
 
 // 战斗画面播放（结果已算好，只是播放）
 CFG.battle.ACT_SEC = 1.5;   // 每次出手播放间隔（秒）
+CFG.battle.ST_ACT_SEC = 3;   // 神通出手后的播放间隔（秒），神通释放动画比法术长
 CFG.battle.ANIM_SLOW = 1.4; // 动作动画放慢倍数（1 = 原速）
 CFG.battle.SKIP_SEC = 3;    // 现场战斗几秒后可跳过（秒）
 

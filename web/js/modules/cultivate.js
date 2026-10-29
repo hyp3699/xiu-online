@@ -22,7 +22,7 @@ G.module({
     autoPill: { juqi: false, juling: false, peiyuan: false }, // 自动服丹开关
     lackWarned: false,
     trib: null,       // 正在进行（或刚结束未关闭）的渡劫（modules/trib.js）
-    // 修炼设置：自动修炼中，灵石 < low 且灵气不足 → 去 tgt（"k:地图" 灵矿 / "e:地图:区域" 自动探索）；灵气 ≥ 上限的 pct% → 停止探索回来修炼
+    // 修炼设置：自动修炼中，灵石 < low 且灵气不足 → 去 tgt（"e:地图:区域" 自动探索）；灵气 ≥ 上限的 pct% → 停止探索回来修炼
     cultSet: { on: false, low: 1000, mul: 10, tgt: "", went: false },
   }),
 
@@ -111,15 +111,14 @@ G.module({
         gather: this.gatherAmount() };                                     // 每 10 秒聚灵（开关不影响）
     },
 
-    /* ---------- 修炼设置：灵石不够自动去探索 / 挖矿，够了回来修炼 ---------- */
+    /* ---------- 修炼设置：灵石不够自动去探索，够了回来修炼 ---------- */
     // 修炼页左右圆钮外圈：生命 / 法力百分比（0~100）
     orbPct(k) { const m = this.stats()[k] || 0; return m > 0 ? Math.max(0, Math.min(100, Math.round(this.s[k] / m * 1000) / 10)) : 0; },
     cultLack() { return this.s.ling < this.speed().total - this.wdRed("exp"); },   // 灵气不够修炼一次
-    cultTargets() {   // [[值, 名称]]：开放的灵矿 + 历练通过的区域
+    cultTargets() {   // [[值, 名称]]：历练通过的区域（灵矿已删除，不再列 k:地图）
       const out = [];
       DATA.maps.forEach((m, a) => {
         if (!this.mapOpen(a)) return;
-        if (this.kuangOn()) out.push([`k:${a}`, this.kuangName(a)]);
         for (let r = 0; r < DATA.regionCount; r++) if (this.isTrained(a, r)) out.push([`e:${a}:${r}`, DATA.regionName(a, r)]);
       });
       return out;
@@ -133,10 +132,10 @@ G.module({
     cultSetCheck() {
       const s = this.s, c = s.cultSet; if (!c || !c.on || !c.tgt) return;   // 不再要求自动修炼开着：灵石低于下限且灵气不够就去
       if (c.mul === undefined) { c.mul = 10; delete c.pct; }   // 旧存档：「灵气高于 %」改成「灵气高于修炼速度几倍」
-      if (c.tgt[0] === "k" && !this.kuangOn()) { const x0 = s.explore; if (x0 && x0.cs && x0.kuang) { c.went = false; this.stopExplore("灵矿已关闭"); } const T = this.cultTargets(); c.tgt = T.length ? T[0][0] : ""; if (!c.tgt) return; }   // 灵矿关闭后，旧的「前往灵矿」改成第一个可探索区域
-      const x = s.explore, p = c.tgt.split(":").map(Number), kuang = c.tgt[0] === "k";
-      const mine = x && !x.cq && !x.once && x.map === p[1] && (kuang ? x.kuang : !x.kuang && x.reg === p[2]);
-      const norm = x && !x.cq && !x.once && x.mj === undefined;   // 普通自动探索 / 挖矿（不含历练、出窍、秘境）
+      if (c.tgt[0] === "k") { const x0 = s.explore; if (x0 && x0.cs && x0.kuang) { c.went = false; this.stopExplore("灵矿已删除"); } const T = this.cultTargets(); c.tgt = T.length ? T[0][0] : ""; if (!c.tgt) return; }   // 灵矿已删除：旧的「前往灵矿」改成第一个可探索区域
+      const x = s.explore, p = c.tgt.split(":").map(Number);
+      const mine = x && !x.cq && !x.once && x.map === p[1] && x.reg === p[2];
+      const norm = x && !x.cq && !x.once && x.mj === undefined;   // 普通自动探索（不含历练、出窍、秘境）
       // 修炼设置自动去的，或者手动开启的探索：灵气够了都停下回来修炼
       // 只有修炼设置自动去的探索才在灵气够了时自动停；手动开的探索只在自动修炼开着时才停（自动修炼关着不打断手动探索）
       const ours = x && (x.cs || c.went);
@@ -151,13 +150,13 @@ G.module({
         }
         return;
       }
-      // 修炼设置自动去的探索，但「前往」已改成别处（例如从灵矿改成青云山林东）：停下当前的，下面按新地点重新出发
+      // 修炼设置自动去的探索，但「前往」已改成别处（例如改成青云山林东）：停下当前的，下面按新地点重新出发
       if (x && !x.cq && !x.once && (x.cs || c.went)) { c.went = false; this.stopExplore("前往地点已更改"); }
       else if (x) return;   // 别的探索 / 出窍中：不管
       // 灵石低于下限且灵气不足才去
       if (s.stone < c.low && lack && (this.hasMijue() || this.hasTijue())) {
         if (!this.cultTargets().some(t => t[0] === c.tgt)) return;
-        if (kuang) this.toggleKuang(p[1]); else this.toggleExplore(p[1], p[2], false);
+        this.toggleExplore(p[1], p[2], false);
         if (this.s.explore) { c.went = true; this.s.explore.cs = 1; this.exploreOpen = false; this.log("灵石不足且灵气不够修炼，自动前往探索。", "sys"); }
       }
     },
@@ -170,8 +169,8 @@ G.module({
       const s = this.s, c = s.cultSet, T = this.cultTargets(), a = s.array;
       if (!c.tgt && T.length) c.tgt = T[0][0];
       return `<h2>修炼设置</h2>
-        <p class="desc">灵石低于下限且灵气不足，${this.kuangOn() ? "自动去探索或挖矿" : "自动去探索"}；灵气恢复到修炼速度（每次修炼消耗）的设定倍数以上，停止探索回来修炼。修炼速度按开着的自动修炼算：只开修为看修为，只开肉身看肉身，都开看两者相加；都没开不会自动回来。</p>
-        <div class="line"><div>${this.kuangOn() ? "自动探索 / 挖矿" : "自动探索"}<small>手动开启的探索也按这里的条件回来修炼</small></div><button data-refresh="openCultSet" class="sm ${c.on ? "on" : ""}" onclick="G.cultSetSave('on')">${c.on ? "开" : "关"}</button></div>
+        <p class="desc">灵石低于下限且灵气不足，自动去探索；灵气恢复到修炼速度（每次修炼消耗）的设定倍数以上，停止探索回来修炼。修炼速度按开着的自动修炼算：只开修为看修为，只开肉身看肉身，都开看两者相加；都没开不会自动回来。</p>
+        <div class="line"><div>自动探索<small>手动开启的探索也按这里的条件回来修炼</small></div><button data-refresh="openCultSet" class="sm ${c.on ? "on" : ""}" onclick="G.cultSetSave('on')">${c.on ? "开" : "关"}</button></div>
         <div class="line"><div>灵石低于</div><input id="cs-low" type="number" min="0" value="${c.low}" style="width:130px" onchange="G.cultSetSave()"></div>
         <div class="line"><div>灵气高于修炼速度（倍）<small>当前修炼速度 ${this.csRate().act ? U.fmt(this.csRate().per) : "未开自动修炼"}</small></div><input id="cs-high" type="number" min="1" value="${c.mul === undefined ? 10 : c.mul}" style="width:130px" onchange="G.cultSetSave()"></div>
         <div class="line"><div>前往</div><button class="sm" onclick="G.openAtPick('tgt')">${(T.find(t => t[0] === c.tgt) || T[0] || [0, "暂无可去的地方"])[1]} ▾</button></div>
@@ -283,12 +282,12 @@ G.module({
       const s = this.s, st = this.stats(), sp = this.speed(), R0 = this.regen(false), R1 = this.regenStep();
       this.modal(`<h2>${s.name}<small>${this.realmName()}</small></h2>
         <div class="stats">
-          <div><span>生命</span><b id="pf-hp" style="font-weight:normal">${U.fmt(s.hp)}/${U.fmt(st.hp)}</b></div><div><span>法力</span><b id="pf-mana" style="font-weight:normal">${U.fmt(s.mana)}/${U.fmt(st.mana)}</b></div>
-          <div><span>攻击</span>${U.fmt(st.atk)}</div><div><span>防御</span>${U.fmt(st.def)}</div>
-          <div><span>命中</span>${U.num(st.hit)}</div><div><span>闪避</span>${U.num(st.dodge)}</div>
-          <div><span>速度</span>${U.fmt(st.speed)}</div><div><span>暴击</span>${st.crit.toFixed(1)}%</div>
-          ${DATA.elements.map(e => `<div><span>${e.name}抗</span>${U.fmt(st.res[e.id])}</div>`).join("")}
-          <div style="grid-column:1/3"><span>修炼速度</span>${U.fmt(sp.total)} / 10秒</div>
+          <div><span>生命</span><b id="pf-hp" style="font-weight:normal">${U.full(s.hp)}/${U.full(st.hp)}</b></div><div><span>法力</span><b id="pf-mana" style="font-weight:normal">${U.full(s.mana)}/${U.full(st.mana)}</b></div>
+          <div><span>攻击</span>${U.full(st.atk)}</div><div><span>防御</span>${U.full(st.def)}</div>
+          <div><span>命中</span>${st.hit < 100 ? U.num(st.hit) : U.full(st.hit)}</div><div><span>闪避</span>${st.dodge < 100 ? U.num(st.dodge) : U.full(st.dodge)}</div>
+          <div><span>速度</span>${U.full(st.speed)}</div><div><span>暴击</span>${st.crit.toFixed(1)}%</div>
+          ${DATA.elements.map(e => `<div><span>${e.name}抗</span>${U.full(st.res[e.id])}</div>`).join("")}
+          <div style="grid-column:1/3"><span>修炼速度</span>${U.full(sp.total)} / 10秒</div>
         </div>
         <p class="desc" style="margin-top:6px">平时每 10 秒恢复 生命 ${U.num(R0.hp)}% · 法力 ${U.num(R0.mana)}%；历练/探索每走一步恢复 生命 ${U.num(R1.hp)}%${R1.hpFlat ? ` + ${U.fmt(R1.hpFlat)}` : ""} · 法力 ${U.num(R1.mana)}%${R1.manaFlat ? ` + ${U.fmt(R1.manaFlat)}` : ""}</p>
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);

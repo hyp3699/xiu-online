@@ -16,6 +16,7 @@
  *   bp {item: "f:炉子" | "r:戒指序号", g, n}   图纸
  *   lj / lz {ft, n}                     灵晶 / 灵珠（ft = 金木水火土 0~4）
  *   hx {n}                              火髓
+ *   st {id}                             神通（直接学会 = 宗门大殿修满，进背包「神通秘术」）
  * ===================================================================== */
 G.module({
   id: "gift",
@@ -24,7 +25,7 @@ G.module({
     giftCats() {
       return [["stone", "灵石"], ["contrib", "贡献"], ["merit", "功德"], ["gf", "功法"], ["sp", "法术"], ["mf", "秘法"], ["fabao", "法宝"], ["eq", "装备"],
         ["herb", DATA.matKinds.herb], ["ore", DATA.matKinds.ore], ["tc", "特产"], ["dan", "丹药"], ["bp", "图纸"],
-        ["lj", DATA.smName("lj")], ["lz", DATA.smName("lz")], ["hx", DATA.HX]];
+        ["lj", DATA.smName("lj")], ["lz", DATA.smName("lz")], ["hx", DATA.HX], ["st", "神通"]];
     },
     giftSpecial() { return CFG.matsOther.SPECIAL; },
     giftJie() { return DATA.JIE.map((n, i) => [i, n]); },
@@ -40,6 +41,7 @@ G.module({
         const types = o.src === "tower" ? DATA.gongfaTypes.filter(t => DATA.TOWER_TYPES.includes(t.id)) : o.src === "shop" || o.src === "tianwai" ? DATA.gfTypesOf(o.src, o.star).filter(t => !t.sectOnly) : DATA.gfTypesOf(o.src, o.star);
         return [{ k: "src", label: "来源", opts: srcs.map(x => [x.id, srcName(x)]) }, { k: "type", label: "种类", opts: types.map(t => [t.id, t.name]) }];
       }
+      if (c === "st") return [{ k: "id", label: "神通", opts: ((CFG.yinshi.SHENTONG || {}).LIST || []).map(d => [d.id, `${d.name}（${d.type === "pas" ? "被动" : "主动"}）`]) }];
       if (c === "sp") return [{ k: "src", label: "门派", opts: [...DATA.sects, ...DATA.twSources].map(x => [x.id, srcName(x)]) }];
       if (c === "mf") return [{ k: "star", label: "星级", opts: Array.from({ length: DATA.SECT_STARS }, (_, i) => [i + 1, `${i + 1}星`]) },
         { k: "kind", label: "种类", opts: DATA.mifaKinds.map(k => [k.id, k.name]) }];
@@ -94,6 +96,7 @@ G.module({
           case "tc": return it.name + n;
           case "lj": case "lz": return DATA.smName(it.c, it.ft) + n;
           case "hx": return DATA.HX + n;
+          case "st": return `神通「${this.stName(it.id)}」`;
           case "dan": { const [k, t] = it.item.split(":"); return (k === "p" ? `${DATA.realms[it.g]}·${DATA.pills[t].name}` : DATA.danName(t, it.g)) + n; }
           case "bp": { const [k, t] = it.item.split(":"); return (k === "f" ? DATA.furnaceName(t, it.g) + "图纸" : DATA.ringBpName(it.g, +t)) + n; }
         }
@@ -119,6 +122,12 @@ G.module({
           return this.addMat(it.c, DATA.matName(it.c, it.g), it.g, n);
         case "lj": case "lz": return this.addSm(it.c, n, it.ft);
         case "hx": return this.addFire(n);
+        case "st": {   // 神通：直接修满（领悟），出战位有空就自动出战
+          if (!this.stDef(it.id)) return false;
+          const S = this.ysStFix(), had = this.ysStLv(it.id) >= this.ysStMax(); S[it.id] = this.ysStMax();
+          if (!had) { if (!this.stEqWhy(it.id)) this.stEqList().push(it.id); }
+          return true;
+        }
         case "tc": { if (it.name === DATA.smName("wdg")) return this.addSm("wdg", n); const m = DATA.matByName[it.name]; return !!m && this.addMat(m.kind, it.name, m.g, n); }
         case "dan": { const [k, t] = it.item.split(":"); return k === "p" ? this.addPill(t, it.g, n) : this.addDan(t, it.g, n); }
         case "bp": { const [k, t] = it.item.split(":");

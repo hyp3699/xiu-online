@@ -81,6 +81,9 @@ const G = {
     { const K = ["contrib", "stone", "merit"], BIG = 1e15;   // 测试模式（config/rates.js TEST）：贡献、灵石、功德随便花；打开时记下原数，关掉恢复
       if (DATA.isTest()) { if (!s._testBak) s._testBak = Object.fromEntries(K.map(k => [k, s[k] || 0])); for (const k of K) s[k] = BIG; }
       else if (s._testBak) { for (const k of K) s[k] = s._testBak[k] || 0; delete s._testBak; } }
+    {   // 灵矿删掉：老存档里正在挖矿的探索 / 出窍直接停掉（不结算本次收获，功能已不存在）
+      if (s.explore && s.explore.kuang) s.explore = null;
+      if (s.cq && s.cq.kuang) s.cq = null; }
     {   // 炼器仙炉（xqi）删掉：清掉老存档里的图纸、炉子、背包图纸 / 炉子、学习和炼制队列
       const X = o => o && (o.kind === "xqi" || o.k === "xqi");
       for (const f of ["blueprints", "furnaces", "furnaceUse"]) if (s[f]) delete s[f].xqi;
@@ -210,7 +213,7 @@ const G = {
     const ph = $("#pf-hp"), pm = $("#pf-mana");
     if ((ph || pm) && now - (this._pfT || 0) > 500) {
       this._pfT = now; const st = this.stats();
-      const h = `${U.fmt(this.s.hp)}/${U.fmt(st.hp)}`, m = `${U.fmt(this.s.mana)}/${U.fmt(st.mana)}`;
+      const h = `${U.full(this.s.hp)}/${U.full(st.hp)}`, m = `${U.full(this.s.mana)}/${U.full(st.mana)}`;
       if (ph && ph.textContent !== h) ph.textContent = h;
       if (pm && pm.textContent !== m) pm.textContent = m;
     }

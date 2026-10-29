@@ -25,11 +25,11 @@ G.module({
     // 这本功法 / 秘法占用多少神识（不占用 = 0）
     ssCost(id) {
       const C = CFG.shenshi, g = DATA.skillInfo(id, 1); if (!g || !g.star) return 0;
-      if (g.src === "yl") return 0;   // 游历功法不占灵识点
+      if (g.src === "yl" || g.src === "ys") return 0;   // 游历功法、隐世宗门功法不占灵识点
       const ok = g.kind === "mf" ? C.MIFA : g.kind === "gf" && (C.TYPES || []).includes(DATA.gfTypeKey(g.type.id));
       return ok ? ((C.STAR || [])[g.star - 1] || 0) : 0;
     },
-    ssForgettable(id) { const g = DATA.skillInfo(id, 1); return !!g && g.kind === "gf" && g.src !== "yl" && (CFG.shenshi.TYPES || []).includes(DATA.gfTypeKey(g.type.id)); },
+    ssForgettable(id) { const g = DATA.skillInfo(id, 1); return !!g && g.kind === "gf" && g.src !== "yl" && g.src !== "ys" && (CFG.shenshi.TYPES || []).includes(DATA.gfTypeKey(g.type.id)); },
     lsUsed() {
       const s = this.s; let n = 0;
       for (const id in s.gongfa) n += this.ssCost(id);
@@ -47,7 +47,8 @@ G.module({
       return c;
     },
     buyLingshi(n) {
-      const s = this.s; n = Math.min(n, this.lsCap() - s.lsMax);
+      // 原来 n=0.5 时 lsBuyCost(0.5)=0（循环一次都不跑），却 lsMax += 0.5，白嫖灵识。
+      const s = this.s; n = Math.min(Math.floor(+n), this.lsCap() - s.lsMax);
       if (n <= 0) return this.log("灵识点已达上限。", "sys");
       const c = this.lsBuyCost(n);
       if (c === null) return this.log("灵识点已达上限。", "sys");

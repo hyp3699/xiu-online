@@ -26,6 +26,7 @@ G.module({
     lingenGongfa(el) { return 1 + this.lingenPct((this.s.lingen || {})[el] || 0, "gf") / 100; },
     // 升级 el 灵根，最多 times 级
     upgradeLingen(el, times) {
+      times = Math.floor(+times);   // 小数向下取整，负数/0 走下面循环 0 次，只提示
       const s = this.s; let n = 0, why = "灵石不足。";
       while (n < times && s.lingen[el] < CFG.lingen.MAX) {
         const c = this.lingenCost(s.lingen[el]), ly = this.lingenLy(el, s.lingen[el]), ft = DATA.elIdx(el);
