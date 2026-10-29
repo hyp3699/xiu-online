@@ -1,7 +1,7 @@
 /* =====================================================================
  * 模块：修炼肉身（数值在 config/body.js）
  * ---------------------------------------------------------------------
- * 需要学会练体秘诀（宗门功法殿，gongfa 类型 tijue）。每 10 秒消耗灵气转化肉身修为，可开关自动修炼。
+ * 需要学会炼体秘诀（宗门功法殿，gongfa 类型 tijue）。每 10 秒消耗灵气转化肉身修为，可开关自动修炼。
  * 肉身境界 bodyL：-1 = 凡体，0 = 第一境界一层 …… 29 境界 × 10 层。每层手动突破，不需要雷劫。
  * 突破扣除攒够的气血（肉身修为），另消耗灵石、药材；每突破一层增加属性（bodyBonus，加进 player.js computeStats）。
  * ===================================================================== */
@@ -17,6 +17,12 @@ G.module({
   tick() {
     const s = this.s, B = CFG.body;
     if (!s.bodyAuto || !this.hasTijue() || this.exBlocksCult() || this.bodyMax()) return;
+    // 修为没在修炼时，修炼室的次数 / 贡献由肉身修炼来扣（免费最后一次也吃到加速）
+    let freeEnd = false;
+    if (!this.cultRoomOn()) {
+      if (this.freeCultOn()) { if (--s.freeCult.left <= 0) { s.freeCult.left = 1; freeEnd = true; } }
+      else if (s.room >= 0 && s.sect) { const c = this.roomCost(s.room); if (s.contrib >= c) s.contrib -= c; else { s.room = -1; this.dirty(); this.log("门派贡献不足，已离开修炼室。", "bad"); } }
+    }
     const sp = this.bodySpeed().total, rate = Math.max(0.0001, B.LING_RATE || 1), red = this.wdRed("body");   // red：神魂之道减掉的灵气消耗
     // 灵气不够且开了聚灵阵自动补充：用灵石补（和修为修炼一样）
     if (s.ling < sp * rate - red && s.array && s.array.autoRefill && s.stone >= 1) {
@@ -24,6 +30,7 @@ G.module({
       s.stone -= pay; s.ling += pay * per;
     }
     const per = Math.max(0, sp * rate - red) / Math.max(1e-9, sp), gain = per > 0 ? Math.min(sp, Math.floor(s.ling / per)) : sp;   // 每点肉身修为的灵气，按比例
+    if (freeEnd) { s.freeCult.left = 0; s.freeCult.on = false; this.dirty(); this.log(`${CFG.sect.freeRoom.name}次数已用完。`, "sys"); }
     if (gain <= 0) return;
     s.ling = Math.max(0, s.ling - gain * per); s.bodyExp += gain;
   },
@@ -31,7 +38,7 @@ G.module({
   api: {
     // 肉身此刻是否在自动修炼（进度条用）
     bodyActive() { return !!this.s.bodyAuto && this.hasTijue() && !this.exBlocksCult() && !this.bodyMax() && this.s.ling >= 1; },
-    hasTijue() { return this.hasGfStat("body"); },   // 任意一本练体秘诀（tijue / tijue2 / tijue3 …）
+    hasTijue() { return this.hasGfStat("body"); },   // 任意一本炼体秘诀（tijue / tijue2 / tijue3 …）
     bodyMaxL() { return CFG.body.names.length * DATA.LAYERS - 1; },
     bodyMax() { return this.s.bodyL >= this.bodyMaxL(); },
     // 肉身境界名：凡体 / 淬皮一层
@@ -39,14 +46,17 @@ G.module({
     // 升到第 T 层（= bodyL + 1）需要的肉身修为
     bodyNeed(T) { if (T === undefined) T = this.s.bodyL + 1; return Math.round(DATA.brNeed(CFG.realm.BODY_EXP, T, CFG.realm.BODY_EXP_RATE) * DATA.brRate()); },   // config/realm.js 的 BODY_EXP
     // 肉身修炼速度（每 10 秒）
+    // 修为修炼正在跑（由它扣修炼室）
+    cultRoomOn() { return !!(this.isCultivating && this.isCultivating() && this.hasMijue() && !this.exBlocksCult()); },
+    bodyRunning() { const s = this.s; return !!s.bodyAuto && this.hasTijue() && !this.exBlocksCult() && !this.bodyMax(); },
+    // 修炼室加成生效：修为或肉身任一在修炼
+    roomActive() { return this.cultRoomOn() || this.bodyRunning(); },
     bodySpeed() {
       const s = this.s, base = (CFG.body.BASE_SPEED || 0) * Math.pow(CFG.body.SPEED_GROW, s.mortal ? 0 : s.L);
       const M = this.mifaBonus(), gf = this.gongfaBonus().body || 0, mf = M.bodySpeed || 0;
-      // 修炼室加成同样作用于肉身修炼（免费修炼室优先，和修为修炼一致），
-      // 但前提是修为修炼也在跑、正在扣次数 / 贡献：只开肉身、关了修为时，
-      // cultivate.tick() 不会扣修炼室，肉身也不能白嫖这个加成。
-      const cultOn = this.isCultivating && this.isCultivating() && this.hasMijue() && !this.exBlocksCult();
-      const room = cultOn ? (this.freeCultOn && this.freeCultOn() ? this.freeCultPct() : s.room >= 0 && s.sect && this.roomPct ? this.roomPct(s.room) : 0) : 0;
+      // 修炼室加成同样作用于肉身修炼（免费修炼室优先，和修为修炼一致）。
+      // 修为修炼在跑时由 cultivate.tick() 扣次数 / 贡献；只开肉身时由 body tick 自己扣（bodyRoomCharge），不会白嫖。
+      const room = this.roomActive() ? (this.freeCultOn && this.freeCultOn() ? this.freeCultPct() : s.room >= 0 && s.sect && this.roomPct ? this.roomPct(s.room) : 0) : 0;
       const arr = this.arrayFactor ? Math.max(0, (this.arrayFactor() - 1) * 100) : 0;   // 聚灵阵效率 %，同修为修炼
       const pct = (M.bodySpeedPct || 0) + (this.servantPct ? this.servantPct("cult") : 0) + room + arr;   // 炼体秘法圆满额外 % + 道童辅助修炼 % + 修炼室 % + 聚灵阵 %
       const jm = this.jmFull ? this.jmFull().body : 0;   // 经脉穴位冲满：直接加数值（jingmai.js）
@@ -91,10 +101,10 @@ G.module({
       this.after();
     },
     toggleBodyAuto() { this.s.bodyAuto = !this.s.bodyAuto; this.log(this.s.bodyAuto ? "开启自动修炼肉身。" : "停止自动修炼肉身。", "sys"); this.after(); },
-    // 肉身突破加的属性合计（config/realm.js 的 BODY_GAIN，每层固定值）+ 宗门练体池
+    // 肉身突破加的属性合计（config/realm.js 的 BODY_GAIN，每层固定值）+ 宗门炼体池
     bodyBonus() {
       const n = (this.s.bodyL === undefined ? -1 : this.s.bodyL) + 1, out = { hp: 0, atk: 0, def: 0, mana: 0, speed: 0, hit: 0, dodge: 0, crit: 0, res: 0 };
-      const pg = this.s.poolGain || {}; for (const k in out) out[k] += (pg[k] || 0) + DATA.plBodyStat(n, k) + (n > 0 ? this.brRand("rs", k) : 0);   // 宗门练体池加的（sect.js）；brRand 突破随机
+      const pg = this.s.poolGain || {}; for (const k in out) out[k] += (pg[k] || 0) + DATA.plBodyStat(n, k) + (n > 0 ? this.brRand("rs", k) : 0);   // 宗门炼体池加的（sect.js）；brRand 突破随机
       out.resEl = Object.fromEntries(DATA.elements.map(e => [e.id, n > 0 ? this.brRand("rs", "res:" + e.id) : 0]));   // 抗性随机六系各不同
       return out;
     },
@@ -112,7 +122,7 @@ G.module({
     bodyView() {
       const s = this.s, sp = this.bodySpeed(), has = this.hasTijue(), max = this.bodyMax();
       const need = this.bodyNeed(), bb = this.bodyBonus();
-      const warn = !has ? "未学练体秘诀（宗门 → 功法殿）" : !s.bodyAuto ? "" : this.exBlocksCult() ? "历练 / 探索中，无法修炼" : s.ling < 1 ? "灵气耗尽" : "";
+      const warn = !has ? "未学炼体秘诀（宗门 → 功法殿）" : !s.bodyAuto ? "" : this.exBlocksCult() ? "历练 / 探索中，无法修炼" : s.ling < 1 ? "灵气耗尽" : "";
       const run = s.bodyAuto && has && !warn && !max;
       const names = { hp: "生命", atk: "攻击", def: "防御", mana: "法力", speed: "速度", hit: "命中", dodge: "闪避", crit: "暴击%" };
       // 抗性：每系（金木水火土雷）单独一行

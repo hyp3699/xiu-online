@@ -56,7 +56,7 @@ DATA.danLearnCost = (type, g) => (_AL.recipes[type].learnCost || [])[g] || 0;
 // 四界功德司丹方在背包里学习的时间（毫秒），ss = 神识强度
 DATA.danGdLearnMs = (g, ss) => { const R = _AL.GD_RECIPE || {}, d = (k, v) => R[k] === undefined ? v : R[k];
   ss = Math.max(0, ss || 0);
-  let sec = (d("LEARN_MIN", 720) + d("LEARN_STEP", 90) * g) * 60 - ss * d("SS_SEC", 10);
+  let sec = (d("LEARN_MIN", 5) + d("LEARN_STEP", 5) * g) * 60 - ss * d("SS_SEC", 10);
   sec *= 1 - Math.min(d("SS_PCT_MAX", 50), Math.floor(ss / 100) * d("SS_PCT", 2)) / 100;
   return Math.max(d("MIN_SEC", 30), sec) * 1000; };
 DATA.danGdCost = (g, shen) => { const R = _AL.GD_RECIPE || {}, m = shen && R.SHEN_MERIT !== undefined ? R.SHEN_MERIT : R.MERIT, st = shen && R.SHEN_STEP !== undefined ? R.SHEN_STEP : R.STEP; return (m === undefined ? 5000 : m) + (st === undefined ? 1000 : st) * g; };   // 四界功德司兑换丹方的功德（神界单独）

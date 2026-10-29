@@ -15,16 +15,16 @@ CFG.battle = {
   MIN_HIGH: 9,       // 保底伤害：出手方比对方每高一层 +
   MIN_LOW: 5,        // 保底伤害：出手方比对方每低一层 −
   MIN_FLOOR: 1,      // 保底伤害最少几点
-  REALM_DMG: 20,     // 境界伤害：怪物每比人物高一层，每次命中额外 + 几点（0 = 关闭）
-  DEF_RATE: 0.895,     // 普攻：对方防御抵消比例
+  REALM_DMG: 60,     // 境界伤害：怪物每比人物高一层，每次命中额外 + 几点（0 = 关闭）
+  DEF_RATE: 0.836,     // 普攻：对方防御抵消比例
   RAND_MIN: 0.95,     // 伤害随机下限（倍）
   RAND_MAX: 1.05,     // 伤害随机上限（倍）
-  CRIT_MULT: 2,      // 暴击伤害倍率
+  CRIT_MULT: 1.5,    // 暴击伤害倍率（150%）
   MAX_ROUNDS: 100,   // 一场最多回合，打满未击败对方算失败（雷劫不受限）
   TEST_ROUNDS: 200,  // 宗门「实力测试」最多回合
   // 命中率% = HIT_BASE ± 档数：相对差 = (命中 − 对方闪避) ÷ (对方闪避 + HIT_PAD) × 100
   //   高于对方每满 HIT_UP_STEP% 加 HIT_UP_ADD%；低于对方每满 HIT_DN_STEP% 减 HIT_DN_ADD%；结果限制在 HIT_MIN ~ HIT_MAX
-  HIT_BASE: 80, HIT_UP_STEP: 6, HIT_UP_ADD: 1, HIT_DN_STEP: 5, HIT_DN_ADD: 2.5, HIT_MAX: 96, HIT_MIN: 30, HIT_PAD: 0,
+  HIT_BASE: 85, HIT_UP_STEP: 7, HIT_UP_ADD: 1, HIT_DN_STEP: 2, HIT_DN_ADD: 1.43, HIT_MAX: 99, HIT_MIN: 35, HIT_PAD: 0,
   SPELL_HIT_ADD: 25,   // 法术命中率额外 +%（加完仍不超过 HIT_MAX）
   FABAO_HIT_ADD: 15,   // 法宝命中率额外 +%（同上）
   SPEED_RAND: [95, 105],   // 每场人物速度 × 随机[最小, 最大]%，速度高者先手（怪物不随机）
@@ -32,8 +32,8 @@ CFG.battle = {
 };
 
 // 属性抗性（法术 / 法宝减免，双方相同）
-CFG.battle.RES_RATE = 0.528;      // 对方防御 × 此值
-CFG.battle.RES_EL_RATE = 0.798;   // 对方该系抗性 × 此值
+CFG.battle.RES_RATE = 0.578;      // 对方防御 × 此值
+CFG.battle.RES_EL_RATE = 0.893;   // 对方该系抗性 × 此值
 // 以上 DEF_RATE / RES_RATE / RES_EL_RATE 只在旧公式（FORMULA: "sub"，直接相减）用
 
 /* 伤害公式（FORMULA: "ratio" 按比例减免，"sub" 旧的直接相减）

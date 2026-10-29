@@ -1,6 +1,6 @@
-/* ★ 修炼肉身（代码 modules/body.js）。需学会练体秘诀（config/gongfa.js）；所需气血、突破加属性见 config/realm.js 的 BODY_EXP / BODY_GAIN。
+/* ★ 修炼肉身（代码 modules/body.js）。需学会炼体秘诀（config/gongfa.js）；所需气血、突破加属性见 config/realm.js 的 BODY_EXP / BODY_GAIN。
  * T = 要突破到的总层序（第一境界一层 = 0，每境界 10 层）。
- * 修炼速度（每 10 秒）= (BASE_SPEED × SPEED_GROW^人物修为总层序 + 练体秘诀 + 炼体秘法) × (1 + (炼体圆满% + 道童% + 修炼室%)/100)
+ * 修炼速度（每 10 秒）= (BASE_SPEED × SPEED_GROW^人物修为总层序 + 炼体秘诀 + 炼体秘法) × (1 + (炼体圆满% + 道童% + 修炼室%)/100)
  *   耗灵气 = 所得 × LING_RATE − 神魂之道减免。
  * 突破：灵石 = STONE_BASE × STONE_RATE^T；药材按 HERB_SEG 分段，段外境界用 HERBS_XIAN 指数公式。
  * 药材名可写 config/items.js 的药材或 content/items.js 的自定义物品。 */

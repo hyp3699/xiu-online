@@ -38,7 +38,7 @@
       if (ids.length !== FAST_MODULES.length || ids.some((id, k) => id !== FAST_MODULES[k])) return -Infinity;
       if (s.explore || s.cq || s.trib) return -Infinity;               // 探索 / 渡劫：逐个结算
       const cs = s.cultSet;                                       // 修炼设置：快要自动去探索时逐个结算
-      if (cs && cs.on && cs.tgt && s.auto && s.stone < cs.low) return -Infinity;
+      if (cs && cs.on && cs.tgt && s.stone < cs.low) return -Infinity;
       if (!s.gfStudy && s.gfQueue && s.gfQueue.length) return -Infinity;
       // 北京时间下一个 0 点（免费修炼室 / 练功房重置、道童俸禄）
       const last = tk - DATA.TICK * 1000;
@@ -47,7 +47,7 @@
       if (this.autoTaskAny()) { const m5 = Math.floor((last + B) / D) * D - B + 5 * 60000; ev.push(s.autoTask.day === this.bjDay() || last >= m5 ? m5 + D : m5); }
       if (s.gfLearn) ev.push(s.gfLearn.end);
       if (s.cqzjL) ev.push(s.cqzjL.end);   // 出窍真诀学完
-      // 门派：练体池、事务堂、免费练功房到时
+      // 门派：炼体池、事务堂、免费练功房到时
       if (s.pool && s.pool.end) ev.push(s.pool.end);
       if (s.jd && s.jd.cur) ev.push(s.jd.cur.end);   // 讲道室听完
       const a = s.affair;
@@ -97,14 +97,14 @@
       // 修为修炼
       const cultOn = this.isCultivating() && this.hasMijue() && !this.exBlocksCult();
       if (cultOn) for (const t in DATA.pills) { const b = s.buffs[t]; if (s.autoPill[t] && (!b || b.left <= 0) && this.bestPillIndex(t) >= 0) return 0; }
-      const freeOn = cultOn && this.freeCultOn(), roomOn = cultOn && !freeOn && s.room >= 0 && !!s.sect, roomC = roomOn ? this.roomCost(s.room) : 0;
+      const bodyOn = !!s.bodyAuto && this.hasTijue() && !this.exBlocksCult() && !this.bodyMax(), anyOn = cultOn || bodyOn;   // 只开肉身时修炼室由肉身扣
+      const freeOn = anyOn && this.freeCultOn(), roomOn = anyOn && !freeOn && s.room >= 0 && !!s.sect, roomC = roomOn ? this.roomCost(s.room) : 0;
       const SP = sp.total, RED = this.wdRed("exp"), BRED = this.wdRed("body"), RATE = this.lingPerStone(), refill = !!s.array.autoRefill;
       const buffs = cultOn ? Object.values(s.buffs).filter(b => b.left > 0) : [];
       // 肉身修炼
-      const bodyOn = !!s.bodyAuto && this.hasTijue() && !this.exBlocksCult() && !this.bodyMax();
       const BSP = bodyOn ? this.bodySpeed().total : 0, BR = Math.max(0.0001, CFG.body.LING_RATE || 1);
       // 灵药园等灵气的田
-      const CS = s.cultSet, CSL = CS && CS.on && CS.tgt && s.auto ? CS.low : -Infinity;
+      const CS = s.cultSet, CSL = CS && CS.on && CS.tgt ? CS.low : -Infinity;
       const waitNeed = (s.fields || []).filter(f => f.g >= 0 && f.wait).map(f => DATA.herbGrow(f.g).ling);
       const waitMin = waitNeed.length ? Math.min(...waitNeed) : Infinity;
       // 道童自动发俸禄：灵石够了就是事件
@@ -149,7 +149,7 @@
             if (d2 >= gs.total) break;   // 修炼完成：事件
           }
         }
-        // 4. sect：0 点重置、练体池、事务堂都是事件（已算进时间）
+        // 4. sect：0 点重置、炼体池、事务堂都是事件（已算进时间）
         // 5. cultivate：修为修炼
         let ended = false;
         if (cultOn) {
@@ -166,6 +166,10 @@
         }
         // 7. body：肉身修炼
         if (bodyOn) {
+          if (!cultOn) {
+            if (freeOn) { if (--fl <= 0) break; }   // 免费修炼室次数用完：事件
+            else if (roomOn) { if (ct >= roomC) ct -= roomC; else break; }   // 贡献不足离开修炼室：事件
+          }
           if (L < BSP * BR - BRED && refill && sn >= 1) { const pay = Math.min(Math.ceil((BSP * BR - BRED - L) / RATE), Math.floor(sn)); sn -= pay; L += pay * RATE; }
           const BPER = Math.max(0, BSP * BR - BRED) / Math.max(1e-9, BSP), g = BPER > 0 ? Math.min(BSP, Math.floor(L / BPER)) : BSP;
           if (g > 0) { L = Math.max(0, L - g * BPER); be += g; }

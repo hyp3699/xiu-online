@@ -30,14 +30,16 @@ const API = {
   // 开关 / 设置类操作：先在本地改好显示，服务器结果到了再以服务器为准（失败会自动恢复）。
   OPTIMISTIC: new Set(["toggleAuto", "toggleAutoPill", "toggleBodyAuto", "toggleRefill", "bsetToggle", "bsetMove", "bsetFoe", "bsetRound", "bsetSet", "autoTaskSet", "cultSetSave", "atPickSet", "setHero", "setHeroSkin"]),
 
-  async req(path, body, method) {
+  async req(path, body, method, timeoutMs) {
     const opt = { method: method || (body === undefined ? "GET" : "POST"), headers: { "Content-Type": "application/json" }, cache: "no-store" };
+    // timeoutMs：超时就中断（ws-ticket 用，网络刚恢复时别让一次请求卡很久）
+    let tmo = 0; if (timeoutMs && typeof AbortController !== "undefined") { const ac = new AbortController(); opt.signal = ac.signal; tmo = setTimeout(() => ac.abort(), timeoutMs); }
     if (this.token) opt.headers["X-Token"] = this.token;
     if (body !== undefined && body !== null) opt.body = typeof body === "string" ? body : JSON.stringify(body);
     let r;
     try { r = await fetch(this.BASE + path, opt); }
-    catch (e) { console.warn("fetch failed:", e); throw new Error("网络连接失败（可能是网络不稳或服务器正在重启），请稍后再试"); }   // 浏览器原文是英文 Failed to fetch / Load failed
-    const j = await r.json().catch(() => ({ error: "服务器无响应" }));
+    catch (e) { clearTimeout(tmo); if (e && e.name === "AbortError") throw new Error("连接服务器超时"); console.warn("fetch failed:", e); throw new Error("网络连接失败（可能是网络不稳或服务器正在重启），请稍后再试"); }   // 浏览器原文是英文 Failed to fetch / Load failed
+    const j = await r.json().catch(() => ({ error: "服务器无响应" })); clearTimeout(tmo);
     if (!r.ok) { const e = new Error(j.error || "请求失败 " + r.status); e.status = r.status; throw e; }
     return j;
   },
@@ -290,15 +292,17 @@ const API = {
   },
   // 半断不断的连接不会触发 onclose：服务端平时最多 10 秒推一次快照，
   // 超过 35 秒没收到任何消息就判定为死连接，主动关掉它走重连循环。
+  PING_MS: 15000, DEAD_MS: 35000, CONNECT_TIMEOUT: 5000,
   startWatchdog() {
     clearInterval(this._watchdogTimer);
     this._lastMessageAt = Date.now();
     this._watchdogTimer = setInterval(() => {
       const s = this._socket;
       if (!s || s.readyState !== WebSocket.OPEN || !this.token || !this.serverState) return;
-      if (Date.now() - this._lastMessageAt > 35000) {
-        try { s.close(4000, "watchdog"); } catch {}
-      }
+      const idle = Date.now() - this._lastMessageAt;
+      if (idle > this.DEAD_MS) { try { s.close(4000, "watchdog"); } catch {} return; }
+      // 心跳：闲置超过 PING_MS 发一个 ping，服务器回 pong；既能让 NAT / 路由器不回收连接，也能及时发现死连接
+      if (idle > this.PING_MS) { try { s.send(JSON.stringify({ type: "ping" })); } catch {} }
     }, 5000);
   },
 
@@ -307,7 +311,7 @@ const API = {
     if (this._socket && this._socket.readyState === WebSocket.OPEN) return;
     if (this._connectPromise) return this._connectPromise;
     this._connectPromise = (async () => {
-      const { ticket } = await this.req("ws-ticket", {}, "POST");
+      const { ticket } = await this.req("ws-ticket", {}, "POST", this.CONNECT_TIMEOUT);
       const u = new URL(this.BASE + "ws", location.href);
       u.protocol = u.protocol === "https:" ? "wss:" : "ws:";
       u.searchParams.set("ticket", ticket);
@@ -315,14 +319,16 @@ const API = {
       this._socket = socket;
       await new Promise((resolve, reject) => {
         let opened = false;
-        const timeout = setTimeout(() => { if (!opened) { socket.close(); reject(new Error("连接游戏服务器超时")); } }, 10_000);
+        // 握手失败：把 _socket 清掉，否则切回来的 3 秒重试看到 _socket 还在就不会再试
+        const fail = msg => { clearTimeout(timeout); if (this._socket === socket) this._socket = null; try { socket.onopen = socket.onerror = null; socket.close(); } catch {} reject(new Error(msg)); };
+        const timeout = setTimeout(() => { if (!opened) fail("连接游戏服务器超时"); }, this.CONNECT_TIMEOUT);
         socket.onopen = () => { opened = true; clearTimeout(timeout); this._reconnectAttempts = 0; clearTimeout(this._reconnectTimer); this.startWatchdog(); resolve(); this.setSync("已连接服务器"); };
-        socket.onerror = () => { if (!opened) { clearTimeout(timeout); reject(new Error("无法连接游戏服务器")); } };
+        socket.onerror = () => { if (!opened) fail("无法连接游戏服务器"); };
       });
       socket.onmessage = event => { this._lastMessageAt = Date.now(); this.onSocketMessage(event.data); };
       socket.onclose = event => {
-        clearInterval(this._watchdogTimer);
-        this._watchdogTimer = null;
+        const cur = this._socket === socket || !this._socket;   // 旧连接晚到的 close 不要把新连接的看门狗关掉
+        if (cur) { clearInterval(this._watchdogTimer); this._watchdogTimer = null; }
         if (this._socket === socket) this._socket = null;
         for (const [id, pending] of this._pending) {
           clearTimeout(pending.timer); this.finishButtonPending(pending);
@@ -514,17 +520,13 @@ const API = {
     // 安卓版后台保持连接时，切回来服务器几百毫秒就推回状态：0.8 秒内完成就不显示「加载游戏中…」
     clearTimeout(this._resumeShow);
     this._resumeShow = setTimeout(() => { if (this._resumeWait) this.showResume(true); }, 800);
+    // 切后台后连接可能已经悄悄断了但 readyState 还是 OPEN：不再信任它，直接关掉旧连接马上重连
+    //   （新连接一接通服务器就会结算并推完整状态）；看门狗计时也从现在重新算
+    this._lastMessageAt = Date.now();
+    clearTimeout(this._reconnectTimer); this._reconnectAttempts = 0;
     const s = this._socket;
-    if (s && s.readyState === WebSocket.OPEN) {
-      try { s.send(JSON.stringify({ type: "resync" })); } catch {}
-      // 连接可能在后台已经断了但还没发现：1.5 秒没收到结算结果就换一条新连接
-      clearTimeout(this._resumeKick);
-      this._resumeKick = setTimeout(() => {
-        if (!this._resumeWait) return;
-        if (this._socket === s) { this._socket = null; s.onmessage = null; try { s.close(4000, "resume"); } catch {} }
-        this.connectSocket().catch(() => {});
-      }, 1500);
-    } else this.connectSocket().catch(() => {});
+    if (s) { this._socket = null; s.onmessage = null; try { s.close(4000, "resume"); } catch {} clearInterval(this._watchdogTimer); this._watchdogTimer = null; }
+    this.connectSocket().catch(() => {});
     // 连不上就每 3 秒再试一次；最多等 20 秒，之后关掉提示（后台继续自动重连）
     clearInterval(this._resumeRetry);
     this._resumeRetry = setInterval(() => {

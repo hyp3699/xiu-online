@@ -512,6 +512,7 @@ wss.on("connection", (socket, session) => {
     const now = Date.now();
     if (now - client.rateWindow >= 1000) { client.rateWindow = now; client.rateCount = 0; }
     let msg; try { msg = JSON.parse(raw.toString("utf8")); } catch { send(socket, { type: "error", error: "消息格式错误" }); return; }
+    if (msg && msg.type === "ping") { send(socket, { type: "pong", serverNow: now }); return; }   // 客户端心跳（不计入频率限制）
     if (++client.rateCount > 12) {   // 带上操作编号，客户端马上提示，不用等 15 秒超时
       const rid = msg && msg.type === "action" ? String(msg.id || "") : "";
       send(socket, rid ? { type: "result", id: rid, ok: false, error: "操作过于频繁，请稍后重试", serverNow: now, revision: client.revision } : { type: "error", error: "操作过于频繁，请稍后重试" }); return;

@@ -35,8 +35,8 @@ G.module({
     rankPass: -1,     // 已通过考验、可以晋升的职务序号（-1 = 没有）
     freeCult: { day: "", used: 0, left: 0, on: false },   // 免费修炼室：今天用了几次、本次剩余修炼次数
     freeGf: { day: "", used: 0, end: 0 },
-    pool: null,       // 练体池：{ i 池子, end 结束时间, gain 泡完加的属性, day, used }
-    poolGain: {},     // 练体池累计加的肉身属性                 // 免费练功房：今天用了几次、本次结束时间
+    pool: null,       // 炼体池：{ i 池子, end 结束时间, gain 泡完加的属性, day, used }
+    poolGain: {},     // 炼体池累计加的肉身属性                 // 免费练功房：今天用了几次、本次结束时间
     cqZj: [],         // 已学会的出窍真诀卷号（1~3），每卷地图每步 −CFG.cqzj.SEC 秒
     cqzjL: null,      // 正在学习的出窍真诀 { v 卷号, end 学会时间 }（不进功法学习队列，学会就生效，不用修炼）
     cqLearn: 0,       // 1 = 已学会元婴出窍秘法（每天次数 = 神识强度 ssPow）
@@ -282,10 +282,10 @@ G.module({
     freeCultOn() { const f = this.s.freeCult; return !!(this.s.sect && f && f.on && f.left > 0); },
     freeGfOn() { const f = this.s.freeGf; return !!(this.s.sect && f && this.now() < f.end); },
     freeUsed(f) { return f && f.day === this.bjDay() ? f.used || 0 : 0; },
-    /* ---------- 练体池（config/sect.js 的 sect.pool） ---------- */
+    /* ---------- 炼体池（config/sect.js 的 sect.pool） ---------- */
     poolCost(i) { const P = CFG.sect.pool, p = P.list[i]; return { contrib: Math.floor(p.contrib * P.STAR_MULT[this.sectInfo().star - 1]), hp: p.hp }; },
     poolGainOf(i, rnd) {
-      // v237 基础值（GAIN 第 i 行）× STAR_GAIN^(宗门星级 − 1)；rnd = true 时每种再随机 ± RAND（进入练体池时定下）
+      // v237 基础值（GAIN 第 i 行）× STAR_GAIN^(宗门星级 − 1)；rnd = true 时每种再随机 ± RAND（进入炼体池时定下）
       const P = CFG.sect.pool, G0 = P.GAIN || [], g = G0[i] || G0[G0.length - 1] || [], o = {};
       const mul = Math.pow(P.STAR_GAIN === undefined ? 1.2 : P.STAR_GAIN, Math.max(0, this.sectInfo().star - 1)), R = P.RAND || 0;
       (P.list[i].keys || P.KEYS || ["hp", "atk", "def"]).forEach((k, j) => { if (!g[j]) return;
@@ -741,7 +741,7 @@ G.module({
 
     // ---------- 已入门 ----------
     const x = this.sectInfo(), tab = this.sectTab || "hall";
-    const TABS = [["hall", "宗门大殿"], ["lib", "功法殿"], ["affair", "事务堂"], ["room", "修炼室"], ["gfroom", "练功房"], ["pool", "练体池"], ["treasury", "宗门宝库"],
+    const TABS = [["hall", "宗门大殿"], ["lib", "功法殿"], ["affair", "事务堂"], ["room", "修炼室"], ["gfroom", "练功房"], ["pool", "炼体池"], ["treasury", "宗门宝库"],
                   ["alchemy", "炼丹房"], ["forge", "炼器室"], ["wudao", "秘法殿"], ["tower", "试炼塔"], ["jiangdao", "讲道室"]]
       .map(([k, n]) => [k, DATA.nmPick(CFG.names.sectHall, k, n)]);   // 名字在 config/names.js 的 sectHall
     let h = `<div class="card"><h3>${x.name} <span class="tag">${x.star}星</span><span class="tag">${DATA.elById[x.el].name}</span><small>${DATA.ranks[s.rank].name} · 贡献 ${U.fmt(s.contrib)}</small></h3></div>

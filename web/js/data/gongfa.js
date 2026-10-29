@@ -36,7 +36,7 @@ DATA.gongfaTypes = [
   { id: "dunshu",   name: "遁术", suffix: "遁术", stat: "dodge",     label: "闪避" },
   { id: "fajue",    name: "法诀", suffix: "法诀", stat: "mana",      label: "法力上限" },
   { id: "zhenjue",  name: "真经", suffix: "真经", stat: "res",       label: "抗性" }, // 抗性属性 = 来源属性
-  { id: "tijue",    name: "练体秘诀", suffix: "炼体诀", stat: "body", label: "肉身修炼速度", sectOnly: true }, // 修炼肉身的前提；只在宗门功法殿学习
+  { id: "tijue",    name: "炼体秘诀", suffix: "炼体诀", stat: "body", label: "肉身修炼速度", sectOnly: true }, // 修炼肉身的前提；只在宗门功法殿学习
 ];
 
 DATA.gongfaTypes.forEach(t => { const n = (_NM.gfType || {})[t.id]; if (n) { t.name = DATA.nmPick(n, 0, t.name); t.suffix = DATA.nmPick(n, 1, t.suffix); } });
@@ -95,21 +95,40 @@ DATA.elements.forEach(e => { e.name = DATA.nmPick(_NM.element, e.id, e.name); })
 DATA.elById = Object.fromEntries(DATA.elements.map(e => [e.id, e]));
 // 某星级用哪一档起名词：键 = 档的起始星级，取 ≤ star 的最大一档
 DATA.gfWordsOf = star => { const W = _NM.gfWords || {}; let k = null; for (const x of Object.keys(W)) if (+x <= (star || 1) && (k === null || +x > +k)) k = x; return W[k === null ? Object.keys(W)[0] : k] || {}; };
-DATA.spellSuffix = typeof _NM.spellSuffix === "string" ? _NM.spellSuffix : "术";   // 法术后缀
+DATA.spellSuffix = typeof _NM.spellSuffix === "string" ? _NM.spellSuffix : "术";   // 法术后缀兜底
+// 法术后缀：只用 config/names.js spellSuffixes 里按系分的那组（术、印、诀、剑、雷、火），
+// 剑限金系、雷限雷系、火限火系，其它系的组里根本没有这三个后缀；同门派同系法术固定不变。
+// 印、诀的格式特殊：返回的是完整名字尾部「一字 + 属性 + 后缀」，调用方不要再在前面加词。
+DATA.spellSuffixOf = (sect, el, word) => {
+  const list = (_NM.spellSuffixes || {})[el.id] || [DATA.spellSuffix];
+  let sh = 0; for (const c of sect.id + ":" + el.id) sh = (sh + c.charCodeAt(0)) % list.length;
+  let suffix = list[sh];
+  // 系后缀不能跟词尾重复：词以雷结尾就不能再出雷，以火结尾就不能再出火，退回术
+  if ((suffix === "雷" || suffix === "火") && word && word.endsWith(suffix)) suffix = "术";
+  return suffix;
+};
 
-// 同一门派固定的随机词表：本星级档的本属性词 + 通用词，按门派 id 洗牌（结果每次都一样）
+// 同一门派、同一类型固定的随机词表：按门派 id + 类型洗牌（结果每次都一样）。
+// 每类功法用自己在 config/names.js gfTypeWords 里的一组词，不再所有类型共用一个词表：
+// 心法只从心法组出，秘诀只从秘诀组出（养元只在秘诀组），法术单独走本属性词（见 spellName）。
+// 没写进 gfTypeWords 的类型，退回旧的本属性词 + 通用词，保证不改名就不断。
 DATA._words = {};
-DATA.sectWords = sect => {
-  if (DATA._words[sect.id]) return DATA._words[sect.id];
-  const W = DATA.gfWordsOf(sect.star);
-  const list = [...(W[sect.el] || W.jin || []), ...(W.common || [])].filter(w => w !== sect.prefix);
-  let h = 0; for (const c of sect.id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+DATA.gfTypeWordsOf = (star, typeKey) => { const T = (_NM.gfTypeWords || {})[typeKey] || {}; let k = null; for (const x of Object.keys(T)) if (+x <= (star || 1) && (k === null || +x > +k)) k = x; return T[k === null ? Object.keys(T)[0] : k] || []; };
+DATA.sectWords = (sect, typeKey) => {
+  const key = sect.id + ":" + (typeKey || "");
+  if (DATA._words[key]) return DATA._words[key];
+  let list;
+  if (typeKey && (_NM.gfTypeWords || {})[typeKey]) list = [...DATA.gfTypeWordsOf(sect.star, typeKey)];
+  else { const W = DATA.gfWordsOf(sect.star); list = [...(W[sect.el] || W.jin || []), ...(W.common || [])]; }
+  list = list.filter(w => w !== sect.prefix);
+  let h = 0; for (const c of key) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   for (let i = list.length - 1; i > 0; i--) { h = (h * 1103515245 + 12345) >>> 0; const j = h % (i + 1); [list[i], list[j]] = [list[j], list[i]]; }
-  return (DATA._words[sect.id] = list);
+  return (DATA._words[key] = list);
 };
 // 功法名：门派前缀 + 随机词 + 类别后缀（每个类别 / 第几本用不同的词）
 DATA.gfCn = n => { const d = "零一二三四五六七八九"; return n < 10 ? d[n] : n < 20 ? "十" + (n % 10 ? d[n % 10] : "") : d[Math.floor(n / 10)] + "十" + (n % 10 ? d[n % 10] : ""); };
 DATA.gongfaName = (sect, type) => {
+  if (sect.src === "yl" && DATA.ylGfName) return DATA.ylGfName(sect, type);   // 游历功法（data/youli.js）
   if (sect.src === "cc") { const C = CFG.sect.chuancheng; return sect.name + C.WORD + (C.NAME[type.id] || type.suffix); }   // 宗门传承
   if (sect.src === "wdroom") return `${CFG.wudaoRoom.xiulian.NAME[type.id] || type.suffix}·第${DATA.cnNum(sect.juan)}卷`;   // 悟道室秘诀
   if (sect.book) return `${sect.prefix}${type.suffix}·第${sect.book}卷`;   // 试炼塔秘诀
@@ -118,8 +137,8 @@ DATA.gongfaName = (sect, type) => {
   const isSect = (sect.src || "sect") === "sect", bOf = f => isSect ? (_GF.BOOKS || {})[f] || 1 : 1;
   const nb = bOf(type.fam), old = !type.bk || type.bk <= nb || ["cc", "wdroom", "tianwai"].includes(sect.src);
   if (!old) {
-    const w = DATA.sectWords(sect), used = new Set(), extra = [];
-    for (const t of DATA.gongfaTypes) if (t.suffix === type.suffix) {   // 后缀相同的类（如身法、速法）一起排，保证不重名
+    const w = DATA.sectWords(sect, type.fam || type.id), used = new Set(), extra = [];
+    for (const t of DATA.gongfaTypes) if ((t.fam || t.id) === (type.fam || type.id)) {   // 同类（同词组）一起排，保证不重名
       const tb = bOf(t.fam || t.id);
       if (!t.bk || t.bk <= tb) used.add((t.ni * 4 + (t.book ? t.book - 1 : 0)) % w.length); else extra.push(t.id);
     }
@@ -128,14 +147,28 @@ DATA.gongfaName = (sect, type) => {
     return sect.prefix + w[i] + type.suffix;
   }
   if (sect.plain) return sect.prefix + DATA.nmPick(_NM.jieGfSuffix, type.id, type.suffix);   // 仙魔冥神坊市、功德司：地图名 + 后缀（config/names.js 的 jieGfSuffix）
-  const w = DATA.sectWords(sect);
+  const w = DATA.sectWords(sect, type.fam || type.id);
   return sect.prefix + w[(type.ni * 4 + (type.book ? type.book - 1 : 0)) % w.length] + type.suffix;   // 第 2、3 本用同类别后面的词
 };
-// 法术名：门派前缀 + 随机词 + 后缀（用本属性的词）
+// 法术名：门派前缀 + 本属性词 + 后缀，不再从通用词里抽（养元、清心、吐纳这类修炼词不会再变成法术名，
+// 如火系法术只从火系词里出：青阳烈焰术、青阳焚天术，而不是青阳养元术）
 DATA.spellName = (sect, el) => {
   if (sect.src === "cc") return sect.name + CFG.sect.chuancheng.WORD + CFG.sect.chuancheng.SPELL;   // 宗门传承法术
-  const w = DATA.sectWords(sect), d = (DATA.elements.indexOf(el) - DATA.elements.indexOf(DATA.elById[sect.el]) + 6) % 6;
-  return sect.prefix + w[(28 + (d * 4) % 12) % w.length] + DATA.spellSuffix;
+  const W = DATA.gfWordsOf(sect.star), key = sect.id + ":spell:" + el.id;
+  if (!DATA._words[key]) {
+    const list = [...(W[el.id] || W.jin || [])].filter(w => w !== sect.prefix);
+    let h = 0; for (const c of key) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    for (let i = list.length - 1; i > 0; i--) { h = (h * 1103515245 + 12345) >>> 0; const j = h % (i + 1); [list[i], list[j]] = [list[j], list[i]]; }
+    DATA._words[key] = list;
+  }
+  const w = DATA._words[key], word = w[0] || "", suffix = DATA.spellSuffixOf(sect, el, word);
+  if (suffix === "印" || suffix === "诀") {
+    // 印、诀：一字 + 属性 + 后缀，如火系青阳*火印、水系青阳*水印；* 取词里不是属性字的那个字
+    const elChar = el.name || "";
+    const one = word && elChar && word[0] === elChar ? (word[1] || word[0]) : (word[0] || "");
+    return sect.prefix + one + elChar + suffix;
+  }
+  return sect.prefix + word + suffix;
 };
 DATA.GONGFA_MAX = _GF.MAX;
 DATA.GF_QUEUE = _GF.QUEUE;
@@ -213,7 +246,7 @@ DATA.gfUnitOld = key => {
 DATA.gfRand = id => { const R = _GF.sect.RAND || 0; let h = 2166136261; for (const c of id) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0; return 1 + R * ((h % 20001) / 10000 - 1); };
 DATA.gfCalc = (o, typeId, key) => {
   const C = DATA.srcCfg(o), tm = (C.TYPE_MULT || {})[DATA.gfTypeKey(typeId)];
-  if (!C.TOTAL || C.TOTAL[key] === undefined || typeId === "spell") return 0;   // v121：只按 TOTAL 分配（v125 起秘诀、练体秘诀也是）
+  if (!C.TOTAL || C.TOTAL[key] === undefined || typeId === "spell") return 0;   // v121：只按 TOTAL 分配（v125 起秘诀、炼体秘诀也是）
   const ek = o.floor ? 1 : C.GF_K === undefined ? 1 : C.GF_K;   // v223 新版试炼塔秘诀：只看每本 mult   // 坊市 / 功德司 = 宗门 × PCT%
   const nw = DATA.GF_NEW_SRC.includes(DATA.srcType(o)) && !o.floor;   // 宗门、坊市、功德司按新算法（宗门每本 × PCT%）；其他按旧算法
   return (nw ? DATA.gfUnit(key) : DATA.gfUnitOld(key)) * ((nw ? C.STAT_STAR : C.STAT_STAR_OTHER || C.STAT_STAR)[o.star - 1] || 0) * (tm === undefined ? 1 : tm) * ek * (o.mult || DATA.gfRand((o.src === "cc" ? o.sectId : o.id) + ":" + typeId));   // 宗门传承：随机倍率同本门同类功法 → 正好 PCT%   // 悟道秘诀：固定倍率 o.mult
@@ -315,12 +348,12 @@ DATA.fuseTxt = fu => Object.keys(fu || {}).filter(k => fu[k] > 0).sort((a, b) =>
 DATA.spellFu = id => (typeof G !== "undefined" && G.s && G.s.spFuse && G.s.spFuse[id]) || null;
 
 // 通用：功法、法术或秘法
-// 法宝、法术攻击 = min(使用者修为 + 肉身突破的攻击, 上限 cap) + 其余全部攻击（v235：功法、装备、戒指、法宝、丹药、练体池等都算）
+// 法宝、法术攻击 = min(使用者修为 + 肉身突破的攻击, 上限 cap) + 其余全部攻击（v235：功法、装备、戒指、法宝、丹药、炼体池等都算）
 //   own = { br: 修为 + 肉身攻击, gf: 功法攻击 }，不写 = 玩家自己的
 DATA.ownAtk = () => {
   if (typeof G === "undefined" || !G.s || !G.gongfaBonus) return { br: 0, gf: 0 };
   const br = DATA.plRealmStat(G.s.mortal ? -1 : G.s.L, "atk") + (G.s.mortal || !G.brRand ? 0 : G.brRand("xw", "atk")) + ((G.bodyBonus ? G.bodyBonus() : {}).atk || 0);
-  // v235 上限只管 修为 + 肉身；其余全算（功法、装备、戒指、法宝、丹药、练体池……）= 人物总攻击 − 修为肉身
+  // v235 上限只管 修为 + 肉身；其余全算（功法、装备、戒指、法宝、丹药、炼体池……）= 人物总攻击 − 修为肉身
   //   属性正在计算中（还没有缓存）时退回只算功法攻击，避免循环
   const st = G._cache && G._cache.stats;
   return { br, gf: st ? Math.max(0, st.atk - br) : G.gongfaBonus().atk };

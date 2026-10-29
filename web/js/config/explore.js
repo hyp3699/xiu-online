@@ -26,4 +26,5 @@ CFG.explore = {
     TIME: 100,                            // 每次走多少步
     SHARE: 70,                            // 占本图东域灵石收益的 %
   },
+  // 地图格子游历的参数在 config/youli.js
 };

@@ -24,7 +24,7 @@ CFG.wudaoRoom = {
     FRUIT: 1, FRUIT_ADD: 1,     // 每次悟道果
     EXP_PCT: [2, 5],            // 修为 % 范围
     BOOKS: 10,                  // 每阶段秘诀本数
-    TYPES: ["mijue", "tijue"],  // 轮流给：修炼秘诀、练体秘诀
+    TYPES: ["mijue", "tijue"],  // 轮流给：修炼秘诀、炼体秘诀
     MULT: [1.5, 1.9],           // 秘诀效果倍率范围
     MAX_STAR: 10,               // 星级上限
     NAME: { mijue: "无名秘诀", tijue: "无名练体诀" },

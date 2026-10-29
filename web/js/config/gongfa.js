@@ -2,7 +2,7 @@
  * ★ 数值设置 · 功法 & 法术 ★（代码：data/gongfa.js、modules/gongfa.js）
  * 功法第 n 层效果 = 每层效果（见下面 sect.TOTAL）× LV_MULT[n-1] × 灵根加成；其他来源 = 宗门同星级 × 各自 PCT%
  * 法术伤害 = 法术攻击 × SPELL_LV_PCT[层]% × SPELL_MUL × TYPE_MULT.spell × EFFECT_PCT × 灵根 + 精研属性伤害 − 对方减免（config/battle.js）
- *   法术攻击 = min(修为 + 肉身攻击, REF 境界参考值) + 其余全部攻击（功法、装备、戒指、法宝、丹药、练体池等）
+ *   法术攻击 = min(修为 + 肉身攻击, REF 境界参考值) + 其余全部攻击（功法、装备、戒指、法宝、丹药、炼体池等）
  * 法力消耗 = REF 境界的修为突破法力 × MANA_PCT% × (1 + 该系灵根等级 × MANA_LINGEN) × (1 + (层 − 1) × MANA_LV) × 境界倍率（config/mobs.js magic.MANA_REALM，按人物当前大境界，与怪物共用），四舍五入，至少 1
  * 修炼升层：每层 STUDY_MIN 分钟；每 STUDY_STEP 秒扣灵气 STUDY_RATE × STUDY_STAR[星级-1] × STUDY_LING × STUDY_LV[当前层-1]（每层单独倍率）
  * ===================================================================== */
@@ -14,10 +14,10 @@ CFG.gongfa = {
   STUDY_STEP: 5,     // 修炼消耗计算单位（秒）
 
   STUDY_MIN: [5, 10, 30, 60, 180, 300, 480, 720, 960],   // 每层修炼分钟：1→2 层 …… 9→10 层
-  LEARN_MIN: [5, 10, 30, 60, 120, 180, 240, 360, 540, 720, 960, 1200, 1440, 1680, 1920],   // 首次学习分钟：1 星 ~ 15 星
+  LEARN_MIN: [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75],   // 首次学习分钟：1 星 ~ 15 星
   // 学习队列：MAX 最多排几个（不算正在学的）；MIFA_MUL 秘法学习时间 = 同星级功法 × 此倍
   //   可另加 BP_MIN / RBP_MIN：炉子 / 戒指图纸学习分钟（按阶，不写 = 同阶装备图谱）
-  LEARN_Q: { MAX: 5, MIFA_MUL: 5 },
+  LEARN_Q: { MAX: 5, MIFA_MUL: 1 },
   STUDY_LING: 1.5,   // 修炼灵气消耗倍率
   STUDY_RATE: 20,    // 修炼灵气消耗基础值
   STUDY_LV: [1, 1, 1, 1, 2, 2, 2, 2, 2],   // 每层修炼灵气倍率（单独设置）：1→2 层 …… 9→10 层（现在修炼到第 6~10 层消耗翻倍）
@@ -70,14 +70,14 @@ CFG.gongfa = {
 /* 宗门功法 & 法术（门派功法殿）
  * 每本每层 = TOTAL[属性] ÷ (Σ 1~10 星 STAT_STAR × 该星宗门数 × 该属性功法本数 × LV_MULT[MAX-1]) × STAT_STAR[星级-1] × 随机(1 ± RAND)
  * 学习贡献 = learn × LEARN_TYPE[类别] × LEARN_STAR[星级-1] × EFFECT_LEARN（取整）
- * 类别：xinfa 心法 gongjue 功诀 zhenjing 真诀（生命） mijue 秘诀 shenfa 身法 dunshu 遁术 fajue 法诀 zhenjue 真经（抗性） tijue 练体秘诀 spell 法术
+ * 类别：xinfa 心法 gongjue 功诀 zhenjing 真诀（生命） mijue 秘诀 shenfa 身法 dunshu 遁术 fajue 法诀 zhenjue 真经（抗性） tijue 炼体秘诀 spell 法术
  *   sufa 身法·速度（倍率 / 价格同 shenfa） */
 CFG.gongfa.sect = {
   TYPE_MULT: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1, tijue: 1 },   // 类别效果倍率
   // 1~10 星宗门功法（含各阶段多出来的书）全学满后每项属性合计（不算灵根）；res 按所有真经合计
   TOTAL: { def: 1997600, atk: 2197950, hp: 7496000, mana: 1795600, speed: 699390, dodge: 817000, res: 1938680, hit: 1029800,
     cultivate: 7586300,   // 秘诀 → 修炼速度
-    body: 7595800 },      // 练体秘诀 → 肉身修炼速度
+    body: 7595800 },      // 炼体秘诀 → 肉身修炼速度
   RAND: 0.05,        // 每本效果随机幅度（±5%，按书固定）
   STAT_STAR: [1, 1.29, 1.67, 2.15, 2.78, 3.59, 4.64, 5.99, 7.74, 10, 11, 12, 13, 14, 15],   // 功法效果星级倍率（每本）：1 星 ~ 15 星（10 星 = 1 星 × 10，11~15 星 = 1 星 × 11~15；宗门、坊市、功德司、天外天用；法术不用）
   STAT_STAR_OTHER: [1, 1.48, 2.2, 3.27, 4.86, 7.21, 10.7, 15.88, 23.58, 35],   // 旧星级倍率：宗门传承、悟道室、试炼塔秘诀仍按旧算法（不受分阶段影响）

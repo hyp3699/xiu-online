@@ -562,16 +562,23 @@ button small .cd{min-width:0}
   box-shadow:0 0 0 3px #e8b88a66,0 4px 10px #8a3a1a66,inset 0 -4px 8px #a0381a66}
 .cult-orb:active{transform:scale(.95);background:radial-gradient(circle at 50% 35%,#ffcf9a,#f08a50 55%,#c9502a)}
 .cult-orb.l{left:14px}.cult-orb.r{right:14px}
+/* 圆钮外圈进度：左 生命（红） 右 法力（蓝），--p 为百分比 */
+.cult-orb.ring{width:40px;height:40px;font-size:12px;letter-spacing:0;bottom:16px}
+.cult-orb.ring::before{content:"";position:absolute;inset:-7px;border-radius:50%;pointer-events:none;
+  background:conic-gradient(var(--rc) calc(var(--p) * 1%),#3a2c1e55 0);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3.5px));
+  mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3.5px))}
+.cult-orb.ring.hp{--rc:#e0402a}.cult-orb.ring.mp{--rc:#3a8ae8}
 /* 效率 / 进度 / 总修为横幅 / 状态 */
 .cult-info{position:absolute;left:0;right:0;bottom:0;z-index:2;padding:0 72px;text-align:center;pointer-events:none}
-.cult-eff{font-size:15px;color:#3a2c1e;white-space:nowrap;text-shadow:0 0 3px #f6efe2,0 0 6px #f6efe2}
+.cult-eff{font-size:13px;line-height:15px;color:#3a2c1e;white-space:nowrap;text-shadow:0 0 3px #f6efe2,0 0 6px #f6efe2}
 .cult-eff b{color:#3a2c1e;font-weight:normal}
-.cult-tick{height:7px;margin:3px auto 6px;max-width:200px;background:#a89a86;border:1px solid #8a7a66;border-radius:1px;overflow:hidden}
+.cult-tick{height:5px;margin:1px auto 2px;max-width:200px;background:#a89a86;border:1px solid #8a7a66;border-radius:1px;overflow:hidden}
 .cult-tick>div{height:100%;width:0;background:linear-gradient(90deg,#e05a1a,#f59a3a)}
-.cult-total{display:inline-block;min-width:78%;padding:3px 26px;font-size:15px;color:#f3e6cc;white-space:nowrap;
+.cult-total{display:inline-block;min-width:78%;padding:0 26px;font-size:13px;line-height:16px;color:#f3e6cc;white-space:nowrap;
   background:linear-gradient(90deg,transparent,#3a332bdd 12%,#2e2822ee 50%,#3a332bdd 88%,transparent)}
 .cult-total span{font-weight:bold}.cult-total b{font-weight:normal;color:#f7ecd4;margin-left:2px}
-.cult-wish{margin-top:4px;font-size:14px;color:#c0392b;letter-spacing:1px}
+.cult-wish{margin-top:1px;font-size:12px;line-height:15px;color:#c0392b;letter-spacing:1px}
 .cult-wish.bad{color:#a8321f}
 /* 境界 / 肉身 / 灵气三行（羊皮纸面板） */
 .cult-panel{flex:none;margin:0 6px 4px;padding:1px 8px;border:2px solid #b8a68a;border-radius:4px;
@@ -899,3 +906,61 @@ html.bg-light #tabs button{color:#3e3426;font-weight:600}
 html.bg-light .btv-info{background:rgba(252,248,238,.96);color:#1e1810;border-color:#a8864a;box-shadow:0 4px 14px rgba(0,0,0,.25);font-weight:500}
 html.bg-light .btv-info b{color:#7a4f0e}html.bg-light .btv-info small{color:#4c4132!important;opacity:1}
 
+
+/* 浅色背景：地图四域格子、探索页顶部生命/法力条文字 */
+html.bg-light .rgt{background:rgba(255,255,255,.45);border-color:rgba(150,110,40,.35)}
+html.bg-light .rgt b{color:var(--t-gold);text-shadow:none}
+html.bg-light .rgt small{color:var(--t-sub)}
+html.bg-light .mpage>.row.small{color:#f4ead2}
+/* 浅色背景：绿色「开/停止/跟随最新/当前页签」按钮用白字；探索信息浮层改浅底，标题和状态行用深色字 */
+html.bg-light button.on:not(.pill):not(.rib),html.bg-light .exov-head .sm.on,html.bg-light .exov-tabs button.on{background:#2f5a3c;border-color:#2f5a3c;color:#fff}
+html.bg-light .exov{background:var(--c-toast)}
+html.bg-light .exov-head b{color:var(--t-gold)}
+html.bg-light .exov-head small,html.bg-light .exov-st{color:var(--t-sub)}
+/* 背包上方（仿立绘界面）：12 格围着人物站立图（左右外侧各 4、内侧上下各 1）；中间上方 装备 / 法宝，下方 法术 / 秘术，和格子同一行居中对齐 */
+.bagstage{display:grid;grid-template-columns:1fr 1fr 2.4fr 1fr 1fr;grid-template-rows:repeat(4,auto);gap:3px;position:relative;overflow:hidden;padding:6px}
+.bagstage .slot-eq{position:relative;z-index:1;aspect-ratio:1;min-height:0;padding:2px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;
+  border-radius:6px;background:rgba(232,226,214,.88);border:2px solid rgba(200,190,170,.9);box-shadow:inset 0 0 0 1px rgba(255,255,255,.6),0 1px 3px rgba(0,0,0,.25)}
+.bagstage .slot-eq img.si{width:84%;height:84%;object-fit:contain;margin:0}
+.bagstage .slot-eq .nm{display:none}
+.bagstage .slot-eq b{margin:0;font-size:12px;color:#8a7d68}
+.bagstage .slot-eq.lock{opacity:.55}.bagstage .slot-eq.lock .nm{display:block;font-size:9px;line-height:1.1;color:#7a6d58}
+.bs-hero{position:relative;z-index:0;display:flex;align-items:center;justify-content:center;pointer-events:none;min-height:0;overflow:hidden}
+.bs-hero img{width:auto;max-width:100%;height:58%;object-fit:contain}
+.bs-top,.bs-bot{position:relative;z-index:2;display:flex;justify-content:center;min-width:0}
+.bs-top{align-self:start}.bs-bot{align-self:end}   /* 装备 / 法宝 贴格子顶，法术 / 秘术 贴格子底 */
+.rib-tabs{display:flex;justify-content:center;gap:4px;width:100%}
+.rib{flex:1;min-width:0;height:30px;padding:0;border-radius:6px;border:1px solid #bfb39c;font-size:14px;font-weight:700;letter-spacing:1px;color:#6b6155;
+  background:linear-gradient(180deg,#f6f2ea,#ddd6c7);box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.rib.on{color:#5a2f10;border-color:#c08a45;background:linear-gradient(180deg,#fdebc8,#ebc183 55%,#d8a35c);text-shadow:0 1px 0 rgba(255,240,210,.8)}
+/* 背包人物两侧圆钮：神通秘术 / 本命法宝（img/orb_*.webp），下面金边小标签 */
+.bs-orb{position:relative;z-index:2;align-self:center;justify-self:center;display:flex;flex-direction:column;align-items:center;gap:2px;padding:0;border:0!important;background:none!important;box-shadow:none;min-width:0;cursor:pointer}
+.bs-orb img{width:46px;height:46px;border-radius:50%;filter:drop-shadow(0 3px 5px rgba(80,40,0,.45));transition:transform .15s}
+.bs-orb:active img{transform:scale(.92)}
+.bs-orb span{font-size:11px;font-weight:700;letter-spacing:1px;white-space:nowrap;color:#5a2f10;padding:1px 6px;border-radius:8px;
+  background:linear-gradient(180deg,#fdebc8,#e6b874);border:1px solid #c08a45;text-shadow:0 1px 0 rgba(255,240,210,.8)}
+.rib.c{flex:0 0 70%}
+.bpage .bp-hero{display:flex;flex-direction:column;align-items:center;gap:8px;padding:24px 12px;text-align:center}
+.bpage .bp-hero img{width:96px;height:96px;border-radius:50%;filter:drop-shadow(0 4px 8px rgba(80,40,0,.45))}
+.bpage .bp-hero b{font-size:18px;letter-spacing:3px;color:var(--t-gold)}
+/* 渡劫页背景固定是深色：浅色背景主题下也用深色主题的配色，否则文字看不清 */
+html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-card:#1f1a16;--c-log:#18140f;--c-btn:#2c241d;--c-line:#3a3027;--c-edge:#4a3d31;--c-pri:#5b4627;--c-card2:#241d17;--c-cell:#191511;--c-card3:#2a221b;--c-tab:#241e18;--t-main:#e8dcc4;--t-gold:#e9c46a;--t-sub:#9c8d72;--t-dim:#8c7e66;--t-sub2:#b9a98a;--t-logt:#c9bb9f;--t-bad:#e07a5f;--t-good:#9fd3c7;--t-gold2:#f4d58d;color:var(--t-main)}
+
+/* 地图格子：铺满页面宽度（抵消 .mpage 左右内边距） */
+.rgt img.rg-go{cursor:pointer}
+.gpage{height:calc(100% + 20px)}
+.gpage>.mgwrap{flex:1 1 0;min-height:0}
+.mgwrap{--gcw:60px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-x;margin:6px -12px 8px;overscroll-behavior:contain;background:#050505}
+.mgrid{display:grid;gap:0;width:max-content;margin:0 auto;background-position:center;background-size:cover;background-repeat:no-repeat}
+.mgrid .gc{width:var(--gcw);height:var(--gcw);border-radius:0;background:rgba(6,6,6,.97);border:0;outline:1px solid rgba(232,200,120,.1);padding:0;min-width:0;min-height:0;cursor:pointer;transition:background .35s}
+.mgrid .gc:active{background:rgba(40,34,22,.95)}
+.mgrid .gc.on{background:transparent;outline:1px solid rgba(255,245,210,.28)}
+.mgrid .gc.me{box-shadow:inset 0 0 0 2px #ffd778,inset 0 0 10px rgba(255,215,120,.55)}
+.mgrid .gc:disabled{cursor:default;opacity:1;filter:none}
+.fback .gq{font-size:13px;line-height:1.15}
+.mgrid .gc.run{background:rgba(30,24,14,.85);box-shadow:inset 0 0 0 2px #ffd778,0 0 12px rgba(255,215,120,.7);display:flex;align-items:center;justify-content:center;animation:glpulse 1s ease-in-out infinite}
+.mgrid .gc.run span{font-size:12px;color:#ffe9a8;white-space:nowrap;text-shadow:0 1px 2px #000}
+.mgrid.busy .gc{pointer-events:none}
+@keyframes glpulse{50%{box-shadow:inset 0 0 0 2px #fff2c0,0 0 18px rgba(255,215,120,.95)}}
+.gridbar{display:flex;justify-content:center;font-size:13px;color:#fff3d6;background:rgba(20,16,12,.72);border-radius:6px;padding:5px 8px;margin:8px 0 0}
+.gridbar.gt{margin:0 0 2px}

@@ -25,10 +25,11 @@ G.module({
     // 这本功法 / 秘法占用多少神识（不占用 = 0）
     ssCost(id) {
       const C = CFG.shenshi, g = DATA.skillInfo(id, 1); if (!g || !g.star) return 0;
+      if (g.src === "yl") return 0;   // 游历功法不占灵识点
       const ok = g.kind === "mf" ? C.MIFA : g.kind === "gf" && (C.TYPES || []).includes(DATA.gfTypeKey(g.type.id));
       return ok ? ((C.STAR || [])[g.star - 1] || 0) : 0;
     },
-    ssForgettable(id) { const g = DATA.skillInfo(id, 1); return !!g && g.kind === "gf" && (CFG.shenshi.TYPES || []).includes(DATA.gfTypeKey(g.type.id)); },
+    ssForgettable(id) { const g = DATA.skillInfo(id, 1); return !!g && g.kind === "gf" && g.src !== "yl" && (CFG.shenshi.TYPES || []).includes(DATA.gfTypeKey(g.type.id)); },
     lsUsed() {
       const s = this.s; let n = 0;
       for (const id in s.gongfa) n += this.ssCost(id);

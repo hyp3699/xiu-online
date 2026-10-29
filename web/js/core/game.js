@@ -201,6 +201,12 @@ const G = {
     const tl = $("#tick-left");  // 本次修炼倒计时
     if (tl) tl.textContent = (cycleMs > 0 ? Math.ceil((cycleMs - phaseMs) / 1000) : 0) + " 秒";
     // 头像弹窗里的生命 / 法力：服务器每次结算恢复后实时刷新，不用关掉重开
+    const oh = $("#orb-hp"), om = $("#orb-mp");   // 修炼页圆钮外圈：生命 / 法力
+    if ((oh || om) && now - (this._orbT || 0) > 500) {
+      this._orbT = now;
+      if (oh) oh.style.setProperty("--p", this.orbPct("hp"));
+      if (om) om.style.setProperty("--p", this.orbPct("mana"));
+    }
     const ph = $("#pf-hp"), pm = $("#pf-mana");
     if ((ph || pm) && now - (this._pfT || 0) > 500) {
       this._pfT = now; const st = this.stats();
@@ -251,13 +257,25 @@ const G = {
     if (this._pressing && v.innerHTML !== "") { this._renderDeferred = true; return; }
     // 正在输入框里打字时也先不替换页面：否则输入框被换掉，手机输入法会自动收起
     if (this.editing(v)) { this._renderDeferred = true; return; }
-    const lg0 = document.getElementById("exov-log"), lgTop = lg0 ? lg0.scrollTop : -1;   // 探索信息浮层：重绘后保持位置，或「跟随最新」滚到底
+    const lg0 = document.getElementById("exov-log"), lgTop = lg0 ? lg0.scrollTop : -1;
+    const mw0 = document.getElementById("mgwrap"), mwPos = mw0 ? [mw0.scrollLeft, mw0.scrollTop] : null;   // 地图格子：重绘后保持拖动位置   // 探索信息浮层：重绘后保持位置，或「跟随最新」滚到底
     try { const html = this.views[this.tab] ? this.views[this.tab].call(this) : ""; if (html !== this._viewHtml || v.innerHTML === "") { v.innerHTML = html; this._viewHtml = html;
       const lg = document.getElementById("exov-log"); if (lg) lg.scrollTop = this.exFollow === false && lgTop >= 0 ? lgTop : 0;
+      const mw = document.getElementById("mgwrap");
+      if (mw) this.gridFit(mw);
+      if (mw) { if (mwPos) { mw.scrollLeft = mwPos[0]; mw.scrollTop = mwPos[1]; }
+        else { const n = +mw.dataset.n || 9, c = +mw.dataset.c || 0, cw = mw.scrollWidth / n;   // 第一次进入：上次游历的格子放在中间
+          mw.scrollLeft = (c % n + .5) * cw - mw.clientWidth / 2; mw.scrollTop = (Math.floor(c / n) + .5) * cw - mw.clientHeight / 2; } }
       this.syncLoopAnims(v); }
       this.exovFit(); }   // 最新一条在最上面
     catch (err) { console.error(err); this._viewHtml = null; v.innerHTML = `<div class="card"><h3>页面出错</h3><p class="desc">${String(err && err.message || err)}<br>如果刚改过 js/config/ 里的数值，请检查有没有写错（例如少了小数点、多了问号）。</p></div>`; }
     v.scrollTop = top;
+  },
+  // 地图格子：竖向 9 格刚好占满可用高度，横向超出就左右拖动
+  gridFit(mw) {
+    const n = +mw.dataset.n || 9, h = mw.clientHeight;
+    if (h > 0) mw.style.setProperty("--gcw", Math.max(28, Math.floor(h / n)) + "px");
+    if (!this._gridRs) { this._gridRs = 1; window.addEventListener("resize", () => { const m = document.getElementById("mgwrap"); if (m) this.gridFit(m); }); }
   },
   // 重绘后循环动画（人物上下浮动、光环、金丹）对齐到同一条时间线：新元素接着原来的进度，不会每次服务器结算重绘就跳回起点抖一下
   syncLoopAnims(root) {

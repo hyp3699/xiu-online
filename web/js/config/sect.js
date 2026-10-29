@@ -1,6 +1,6 @@
 /* =====================================================================
  * ★ 数值设置 · 门派 ★（代码：modules/sect.js、data/sects.js）
- * 大殿职务与俸禄、事务堂、修炼室、练功房、练体池、试炼塔、宗门秘境、宝库、晋升考验、元婴出窍、宗主清灵丹 / 传承功法
+ * 大殿职务与俸禄、事务堂、修炼室、练功房、炼体池、试炼塔、宗门秘境、宝库、晋升考验、元婴出窍、宗主清灵丹 / 传承功法
  * 星级倍率 = STAR_MULT[门派星级-1]；职务倍率 = RANK_MULT[职务序号]
  * 职务序号：0 外门 1 内门 2 真传 3 核心 4 长老 5 供奉 6 宗主
  * 境界序号：0 练气 1 筑基 2 金丹 3 元婴 4 出窍 5 化神 6 练虚 7 合体 8 洞真 9 大乘 10 渡劫 11 散仙
@@ -137,22 +137,22 @@ CFG.sect.affairFight = {
   CRIT: 5,                         // 怪物暴击%
 };
 
-/* 练体池：每天 DAILY 次，每次 MINUTES 分钟，泡完永久加肉身属性
+/* 炼体池：每天 DAILY 次，每次 MINUTES 分钟，泡完永久加肉身属性
  * 进入扣：贡献 contrib × 本池 STAR_MULT[宗门星级-1]（不读宗门通用 STAR_MULT）；扣肉身气血 hp 点
  * keys 加哪些属性（hp atk def dodge res hit mana crit）；rank 需要职务序号
  * 每次加 = round(GAIN[池序号][j] × STAR_GAIN^(宗门星级-1)) ± 随机 RAND，GAIN 每行顺序同该池 keys */
 CFG.sect.pool = {
-  name: "练体池",   
+  name: "炼体池",   
   MINUTES: 60,
   DAILY: 1,
   STAR_MULT: [1, 1.5, 2.5, 4, 6, 9, 13, 18, 25, 35],   // 1 星 ~ 10 星宗门
   list: [
-    { name: "免费练体池", contrib: 0,   hp: 10000,  keys: ["hp"] },
-    { name: "下品练体池", contrib: 100,  hp: 30000, keys: ["hp", "def"] },
-    { name: "中品练体池", contrib: 200, hp: 60000, keys: ["hp", "def", "atk"] },
-    { name: "上品练体池", contrib: 300, hp: 120000, keys: ["hp", "def", "atk", "dodge"] },
-    { name: "天品练体池", contrib: 400, hp: 240000, keys: ["hp", "def", "atk", "dodge", "res", "hit"] },
-    { name: "宗主练体池", contrib: 100, hp: 500000, keys: ["hp", "def", "atk", "dodge", "res", "hit"], rank: 6 },
+    { name: "免费炼体池", contrib: 0,   hp: 10000,  keys: ["hp"] },
+    { name: "下品炼体池", contrib: 100,  hp: 30000, keys: ["hp", "def"] },
+    { name: "中品炼体池", contrib: 200, hp: 60000, keys: ["hp", "def", "atk"] },
+    { name: "上品炼体池", contrib: 300, hp: 120000, keys: ["hp", "def", "atk", "dodge"] },
+    { name: "天品炼体池", contrib: 400, hp: 240000, keys: ["hp", "def", "atk", "dodge", "res", "hit"] },
+    { name: "宗主炼体池", contrib: 100, hp: 500000, keys: ["hp", "def", "atk", "dodge", "res", "hit"], rank: 6 },
   ],
   STAR_GAIN: 1.2,
   RAND: 3,
@@ -185,7 +185,7 @@ CFG.cqzj = {
   NAME: "出窍真诀",
   COST: [100, 200, 300],   // 第一卷 ~ 第五卷 兑换贡献（几个数 = 几卷）
   SEC: 0.5,          // 每卷减少地图每步秒数
-  LEARN_MIN: 10,     // 学习分钟
+  LEARN_MIN: 5,      // 学习分钟
 };
 
 /* 宗主清灵丹：大殿每天领 1 颗，名字 = 门派名 + NAME；永久加 STATS
@@ -204,7 +204,7 @@ CFG.sect.chuancheng = {
   WORD: "传承",
   TYPES: ["gongjue", "xinfa", "zhenjing", "fajue"],   // 有哪几类功法（另加一本法术）
   NAME: { gongjue: "攻诀", xinfa: "心法", zhenjing: "真诀", fajue: "法诀" },
-  SPELL: "神通",
+  SPELL: "诀",   // 法术后缀只保留术、印、诀、剑、雷、火，传承法术也用诀，不用神通
   PCT: 150,
   LEARN: 2,
 };

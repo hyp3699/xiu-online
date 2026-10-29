@@ -162,7 +162,7 @@ G.module({
     },
     // 所有已学功法的加成合计（法术不算）
     gongfaBonus() {
-      const b = { def: 0, atk: 0, hp: 0, cultivate: 0, speed: 0, hit: 0, dodge: 0, mana: 0, body: 0, res: {} };   // body：练体秘诀加的肉身修炼速度 // res：真诀加的各系抗性
+      const b = { def: 0, atk: 0, hp: 0, cultivate: 0, speed: 0, hit: 0, dodge: 0, mana: 0, body: 0, res: {} };   // body：炼体秘诀加的肉身修炼速度 // res：真诀加的各系抗性
       for (const id in this.s.gongfa) {
         if (DATA.isSpell(id)) continue;
         const info = DATA.gongfaInfo(id, this.s.gongfa[id]);
