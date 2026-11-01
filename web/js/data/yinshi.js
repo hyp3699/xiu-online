@@ -22,3 +22,7 @@
   // 宗门的 12 本功法 id（按 GF_KEYS 顺序）
   DATA.ysGfIds = ysId => (C.GF_KEYS || []).map(k => DATA.gongfaId("ys_" + ysId, DATA.ysTypeId(k))).filter(id => DATA.gongfaInfo(id, 1));
 })();
+
+// 宗门秘境掉落的技艺经验（背包 { t: "cxp", k: "dan" | "qi" | "ling", n }），每个使用后 +CFG.yinshi.MJ.CXP_VAL 点
+DATA.cxpName = k => k === "dan" ? "炼丹经验" : k === "qi" ? "炼器经验" : k === "ling" ? "灵药培育经验" : "技艺经验";
+DATA.cxpIcon = k => DATA.iconImg("cxp_" + (k === "qi" || k === "ling" ? k : "dan"));

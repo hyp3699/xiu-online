@@ -240,6 +240,16 @@ export class GameEngine {
       this.G._lastTick = s.last;
     }
     this.G._simNow = this.clock.now;
+    // 修炼室 / 练功房扣贡献、功法修炼完成：到点就结算，不等下一个 10 秒周期（否则倒计时到 0 会卡几秒）
+    try {
+      const a = s.affair, at = a && a.task >= 0 && this.DATA.affairs && this.DATA.affairs[a.task];
+      const affairDue = at && this.clock.now >= a.start + at.time * 60000;   // 事务堂奖励还没结算：留给 10 秒周期按时间先后一起算
+      if (!affairDue && typeof this.G.roomBill === "function" && (s.room >= 0 || s.gfRoom >= 0)) this.G.roomBill(this.clock.now);
+      if (s.gfStudy && typeof this.G.gfStudyEnd === "function") {
+        const end = this.G.gfStudyEnd(), gm = (this.G.modules || []).find(m => m.id === "gongfa");
+        if (end != null && this.clock.now >= end && gm && gm.tick) gm.tick.call(this.G, false);
+      }
+    } catch (err) { console.error("timed settle failed:", err?.stack || err); }
     if (typeof this.G.advanceExplore === "function" && (s.explore || s.cq)) this.G.advanceExplore();
     if (typeof this.G.advanceTrib === "function" && s.trib) this.G.advanceTrib();
     // Preserve the partial 10-second interval; the server owns this timestamp.
@@ -265,6 +275,11 @@ export class GameEngine {
         const HS = this.CFG.trib.HIT_SEC, nextHit = (Math.floor(t.sec / HS) + 1) * HS;
         times.push(t.start + Math.min(nextHit, t.time) * 1000);
       }
+    } catch {}
+    try {   // 修炼室 / 练功房下次扣贡献、功法修炼这一层结束
+      if (s && s.sect && s.room >= 0 && s.roomAt > 0) times.push(s.roomAt);
+      if (s && s.sect && s.gfRoom >= 0 && s.gfRoomAt > 0) times.push(s.gfRoomAt);
+      if (s && s.gfStudy && typeof this.G.gfStudyEnd === "function") { const e = this.G.gfStudyEnd(); if (e != null) times.push(e); }
     } catch {}
     const valid = times.filter(Number.isFinite);
     return valid.length ? Math.min(...valid) : this.clock.now + TICK_MS;

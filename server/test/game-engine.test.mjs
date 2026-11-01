@@ -75,7 +75,7 @@ test("passive shentong grows atk/def/hit each round and caps at n rounds", () =>
   const base = G.stats(), m = G.makeMob(0, 0, "boss"); m.hp = 1e13; m.atk = 1; m.mf = []; m.tf = []; m.shield = null;
   const seen = [];
   const r = G.battle(m, { onRound: (R, a) => seen.push(a) });
-  const per = 300, perHit = 50, n = 30;
+  const per = 80, perHit = 30, n = 20;
   assert.ok(seen.length >= 35);
   for (const R of [1, 2, 10, 30, 31, 35]) {
     const k = Math.min(R, n);
@@ -83,7 +83,7 @@ test("passive shentong grows atk/def/hit each round and caps at n rounds", () =>
     assert.equal(Math.round(seen[R - 1].def - base.def), per * k, `def round ${R}`);
     assert.equal(Math.round(seen[R - 1].hit - base.hit), perHit * k, `hit round ${R}`);
   }
-  assert.deepEqual(JSON.parse(JSON.stringify(r.detail.ps)), { atk: 9000, def: 9000, hit: 1500, dodge: 1500, speed: 1500 });
+  assert.deepEqual(JSON.parse(JSON.stringify(r.detail.ps)), { atk: 1600, def: 1600, hit: 600, dodge: 600, speed: 600 });
 });
 
 test("active shentong buff and passive growth stack in the same battle", () => {
@@ -100,8 +100,8 @@ test("active shentong buff and passive growth stack in the same battle", () => {
   }
   assert.ok(cast, "active shentong was cast");
   const C = cast[0], near = (a, b, msg) => assert.ok(Math.abs(a - b) <= 1, `${msg}: ${a} vs ${b}`);
-  for (let R = C + 1; R <= C + 9; R++) near(seen[R - 1].atk, (base.atk + 300 * Math.min(R, 30)) * 1.2, `buff+passive round ${R}`);
-  for (const R of [C + 10, 30, 35]) near(seen[R - 1].atk, base.atk + 300 * Math.min(R, 30), `passive only round ${R}`);
+  for (let R = C + 1; R <= C + 9; R++) near(seen[R - 1].atk, (base.atk + 80 * Math.min(R, 20)) * 1.2, `buff+passive round ${R}`);
+  for (const R of [C + 10, 30, 35]) near(seen[R - 1].atk, base.atk + 80 * Math.min(R, 20), `passive only round ${R}`);
 });
 
 test("shentong slots open by 神识 and passive capped at 2", () => {
@@ -115,4 +115,117 @@ test("shentong slots open by 神识 and passive capped at 2", () => {
   for (const id of ids) G.stEquip(id);
   assert.deepEqual(G.stEqList(), ["lihuo", "wangui", "jiuxiao", "wanjian"]);
   st.ssPow = 700; assert.equal(G.stEqList().length, 3);
+});
+
+test("sect cultivation room and gongfa room bill contribution every minute", () => {
+  const engine = new GameEngine(), D = engine.DATA, C = engine.CFG;
+  const t0 = 1_800_000_300_000;
+  let st = engine.createState("修炼室扣费测试", t0);
+  const sid = Object.keys(D.sectById).find(id => D.sectById[id].star === 1);
+  st.sect = sid; st.rank = 0; st.contrib = 1000;
+  // 没有宗门进不去
+  assert.equal(engine.act({ ...st, sect: null }, "enterRoom", [0], t0 + 1).state.room, -1);
+  const rc = D.rooms[0].cost, gc = D.gfRooms[0].cost;
+  assert.equal(C.sect.ROOM_BILL_SEC, 60);
+  // 进入立刻扣一次
+  let r = engine.act(st, "enterRoom", [0], t0 + 2);
+  assert.equal(r.state.room, 0); assert.equal(r.state.contrib, 1000 - rc); assert.equal(r.state.roomAt, t0 + 2 + 60000);
+  assert.equal(engine.G.roomNextSec("room"), 60);
+  r = engine.act(r.state, "enterGfRoom", [0], t0 + 3);
+  assert.equal(r.state.gfRoom, 0); assert.equal(r.state.contrib, 1000 - rc - gc);
+  // 59 秒内不再扣
+  let a = engine.advance(r.state, t0 + 59_000);
+  assert.equal(a.state.contrib, 1000 - rc - gc);
+  assert.equal(engine.G.roomNextSec("room"), 2);   // t0+2 进入 → t0+60002 再扣；t0+59000 时还剩 1.002 秒，向上取整为 2
+  // 满 1 分钟（下一个 10 秒结算）各扣一次
+  a = engine.advance(a.state, t0 + 70_000);
+  assert.equal(a.state.contrib, 1000 - 2 * rc - 2 * gc);
+  // 修炼 / 功法修炼本身不再扣贡献：开自动修炼跑 5 分钟，扣的正好是 5 次
+  a.state.auto = true;
+  const before = a.state.contrib;
+  a = engine.advance(a.state, t0 + 70_000 + 300_000);
+  assert.equal(before - a.state.contrib, 5 * (rc + gc));
+  // 离线补扣 + 贡献不够自动离开
+  a.state.contrib = rc * 3 + gc * 3 + 1;
+  a = engine.advance(a.state, t0 + 70_000 + 300_000 + 600_000);
+  assert.equal(a.state.room, -1); assert.equal(a.state.gfRoom, -1);
+  assert.ok(a.state.contrib >= 0);
+  // 离开后不扣；再次进入又立刻扣
+  const c2 = a.state.contrib = 500;
+  a = engine.advance(a.state, t0 + 2_000_000);
+  assert.equal(a.state.contrib, c2);
+  r = engine.act(a.state, "enterRoom", [0], t0 + 2_000_001);
+  assert.equal(r.state.contrib, c2 - rc);
+  // 再点一次 = 离开，不退不扣
+  r = engine.act(r.state, "enterRoom", [0], t0 + 2_000_002);
+  assert.equal(r.state.room, -1); assert.equal(r.state.contrib, c2 - rc);
+  // 贡献不够进不去
+  r.state.contrib = rc - 1;
+  r = engine.act(r.state, "enterRoom", [0], t0 + 2_000_003);
+  assert.equal(r.state.room, -1); assert.equal(r.state.contrib, rc - 1);
+  // 一次补算（快速结算）和每 10 秒逐个结算结果一致
+  const mk = () => { const e = new GameEngine(); let x = e.createState("对照", t0); x.sect = sid; x.contrib = 10_000; x.auto = true;
+    x = e.act(x, "enterRoom", [1], t0 + 5).state; x = e.act(x, "enterGfRoom", [1], t0 + 7).state; return [e, x]; };
+  const [e1, s1] = mk(), [e2, s2] = mk();
+  const big = e1.advance(s1, t0 + 3_600_000).state;
+  let small = s2; for (let t = t0 + 10_000; t <= t0 + 3_600_000; t += 10_000) small = e2.advance(small, t).state;
+  assert.equal(big.contrib, small.contrib);
+  assert.equal(big.contrib, 10_000 - 60 * (D.rooms[1].cost + D.gfRooms[1].cost));   // 进入 1 次 + 之后 59 次（第 60 次在 t0+3600005，还没到）
+});
+
+test("free cultivation room pauses paid room billing", () => {
+  const engine = new GameEngine(), D = engine.DATA;
+  const t0 = 1_800_000_400_000;
+  let st = engine.createState("免费修炼室测试", t0);
+  st.sect = Object.keys(D.sectById).find(id => D.sectById[id].star === 1); st.contrib = 1000;
+  st = engine.act(st, "enterRoom", [0], t0 + 1).state;
+  st.freeCult = { day: engine.G.bjDay(), used: 1, left: 999, on: true };
+  const c = st.contrib;
+  const a = engine.advance(st, t0 + 600_000).state;
+  assert.equal(a.contrib, c);
+  assert.equal(a.room, 0);
+});
+
+test("room billing interleaves with sect affair rewards in time order", () => {
+  const D0 = new GameEngine().DATA, sid = Object.keys(D0.sectById).find(id => D0.sectById[id].star === 1);
+  const t0 = 1_800_000_500_000;
+  const setup = () => {
+    const e = new GameEngine(); let x = e.createState("事务扣费测试", t0);
+    x.sect = sid; x.rank = 0; x.contrib = 0;
+    x = e.act(x, "startAffair", [0], t0).state;                  // 打扫山门：每 5 分钟 +贡献
+    x.contrib = 2;
+    x = e.act(x, "enterRoom", [0], t0 + 242_000).state;           // 4分02秒进修炼室：扣 1
+    x = e.act(x, "enterGfRoom", [0], t0 + 242_000).state;         // 同时进练功房：扣 1 → 贡献 0
+    return [e, x];
+  };
+  const [e, x] = setup();
+  assert.equal(x.contrib, 0);
+  const AC = e.G.affairContrib(0), RC = D0.rooms[0].cost, GC = D0.gfRooms[0].cost;
+  // 5:00 事务奖励，5:02 扣费，在同一次 10 秒结算里：要先拿奖励再扣，不能被踢出去
+  let a = e.advance(x, t0 + 310_000).state;
+  assert.equal(a.room, 0); assert.equal(a.gfRoom, 0);
+  assert.equal(a.contrib, AC - RC - GC);
+  // 独立按时间顺序模拟 2 小时，和游戏结果逐分钟对照（一次补算 / 每 10 秒结算都要一致）
+  const expect = until => {
+    let c = 0, rAt = t0 + 302_000, gAt = t0 + 302_000, inR = true, inG = true, nextA = t0 + 300_000;
+    const evs = [];
+    for (let t = nextA; t <= until; t += 300_000) evs.push([t, "a"]);
+    for (let t = rAt; t <= until; t += 60_000) evs.push([t, "r"]);
+    evs.sort((p, q) => p[0] - q[0] || (p[1] === "a" ? -1 : 1));
+    for (const [, k] of evs) {
+      if (k === "a") c += AC;
+      else { if (inR) { if (c >= RC) c -= RC; else inR = false; } if (inG) { if (c >= GC) c -= GC; else inG = false; } }
+    }
+    return { c, inR, inG };
+  };
+  for (const until of [t0 + 600_000, t0 + 1_800_000, t0 + 3_600_000, t0 + 7_200_000]) {
+    const tick = Math.floor((until - t0) / 10_000) * 10_000 + t0;   // 游戏按 10 秒结算
+    const want = expect(tick);
+    const [e1, x1] = setup(), big = e1.advance(x1, until).state;
+    const [e2, x2] = setup(); let small = x2; for (let t = t0 + 250_000; t <= until; t += 10_000) small = e2.advance(small, t).state;
+    for (const r of [big, small]) {
+      assert.equal(r.contrib, want.c, `贡献 @${(until - t0) / 60000}分钟`);
+      assert.equal(r.room === 0, want.inR); assert.equal(r.gfRoom === 0, want.inG);
+    }
+  }
 });

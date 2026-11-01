@@ -28,11 +28,15 @@ DATA.COLOR_Q = [0, 1, 3, 4];                                // 颜色 → 品质
 
 DATA.forgeEqName = (slot, g) => DATA.XING[g] + "·" + DATA.forgeNames[slot][g];
 DATA.forgeEqMats = g => DATA.parseMats(_FG.equip.mats[g]);
-// 精炼阶（装备 / 法宝 / 戒指的 e.rj，0 = 一阶 … 9 = 十阶）：刚炼出、升星后都是一阶；升星要上一星十阶的同类
-DATA.RJ_MAX = 10;
-DATA.rjOf = e => Math.max(0, Math.min(DATA.RJ_MAX - 1, (e && e.rj) || 0));
-DATA.rjName = e => DATA.JIE[DATA.rjOf(e)];
-DATA.rjTop = e => DATA.rjOf(e) >= DATA.RJ_MAX - 1;
+// 精炼（装备 / 法宝 / 戒指通用）：e.rj 是精炼次数，每星上限 = 星 × 10 次（星 = e.g + 1）；旧存档的阶数（0~9）直接当作次数沿用
+//   升星不看精炼次数、也不清除精炼次数（升星和精炼完全分开）；精炼只加主属性，附加属性和暴击不加
+DATA.rjCap = e => (Math.max(0, (e && e.g) || 0) + 1) * 10;
+DATA.rjCount = e => Math.max(0, Math.min(DATA.rjCap(e), (e && e.rj) || 0));
+DATA.rjTop = e => DATA.rjCount(e) >= DATA.rjCap(e);
+DATA.rjName = e => `已精炼${DATA.rjCount(e)}次`;
+DATA.rjOf = DATA.rjCount;   // 旧名兼容：原来是阶（0~9），现在是次数
+// 法宝精炼材料：同炼制同星法宝的材料（三种矿石 + 同属性耀石 YAOSHI.fabao，数量种类都一样）
+DATA.refineSm = e => { if (!e || e.slot !== "fabao") return []; const n = (((_FG.YAOSHI || {}).fabao || [])[e.g] || 0); return n ? [{ k: "ys", ft: DATA.elIdx(e.el), n }] : []; };
 // 精炼材料：炼制这一星时的三种矿石（数量相同）
 DATA.refineMats = e => e.slot === "ring" ? DATA.ringMats(e.g) : DATA.forgeEqMats(e.g);
 DATA.forgeEqTime = g => _FG.equip.time[g] * 60000;
@@ -73,13 +77,21 @@ DATA.smKey = (k, ft) => k + (ft === undefined ? "" : ":" + ft);
 DATA.smParse = key => { const [k, f] = key.split(":"); return { k, ft: f === undefined ? undefined : +f }; };
 DATA.forgeSlots = Object.keys(DATA.forgeNames);            // 能炼的部位（含法宝）
 DATA.eqSlots6 = DATA.forgeSlots.filter(x => x !== "fabao"); // 头盔 ~ 吊坠
-// v25：戒指 9 种（主属性见 config/forge.js 的 forge.ring.main）
-DATA.ringNames = ["破军戒", "磐石戒", "长生戒", "灵犀戒", "疾风戒", "鹰眼戒", "幻影戒", "烈阳戒", "玄武戒"];
+// 戒指 6 种（主属性见 config/forge.js 的 forge.ring.main）
+DATA.ringNames = ["破军戒", "磐石戒", "长生戒", "灵犀戒", "烈阳戒", "玄武戒"];
 DATA.NM_DEF.ring = DATA.ringNames.slice();                  // 原名（读档对照用）；名字在 config/names.js 的 ring
 DATA.ringNames = DATA.nmArr(CFG.names.ring, DATA.ringNames);
 DATA.ringName = (r, g) => DATA.XING[g] + "·" + DATA.ringNames[r];
 DATA.ringMats = g => DATA.parseMats(_FG.ring.mats[g]);
+DATA.ringMatsFor = (r, g) => (_FG.ring.SPECIAL || {})[r] ? DATA.ringMats(g).slice(0, 1) : DATA.ringMats(g);   // 灵犀 / 烈阳 / 玄武戒只要一种矿石
 DATA.ringTime = g => _FG.ring.time[g] * 60000;
+// 戒指：还在的种类（删掉的不产出、不能炼制）/ 专用材料戒指设置 / 专用材料数量 / 图纸价格
+DATA.ringOK = r => !!DATA.ringNames[r];
+DATA.ringList = () => DATA.ringNames.map((n, r) => r).filter(DATA.ringOK);
+DATA.ringSp = r => ((_FG.ring.SPECIAL || {})[r]) || null;
+DATA.ringSmNeed = g => { const A = _FG.ring.SM_NEED || []; return A[g] !== undefined ? A[g] : (A[A.length - 1] || 0); };
+DATA.ringBpCost = (r, g) => { const S = DATA.ringSp(r); return S ? S.BP_COST + g * (S.BP_STEP || 0) : 0; };
+DATA.ringBonus = r => (((_FG.ring.BONUS || {})[r]) || 0);
 DATA.ringBpName = (g, r) => DATA.XING[g] + (DATA.ringNames[r] || "戒指") + "图纸";   // v26：图纸分戒指种类（r）
 // 法宝属性名（额外伤害 elDmg 带一个属性 el）
 DATA.fbAttrNames = { uses: "祭出次数", pct: "伤害", elDmg: "额外伤害", ignRes: "无视抗性", manaCut: "法力消耗减少%",
@@ -90,7 +102,7 @@ for (const k in DATA.fbAttrNames) DATA.fbAttrNames[k] = DATA.nmPick(CFG.names.fb
 DATA.fbRange = k => { const F = _FG.fabao; return (F.MAIN || {})[k] || (F.AFFIX || {})[k] || (F.SPECIAL || {})[k]; };
 DATA.fbPct = a => { const R = DATA.fbRange(a.k), r = R && (R[a.c] || R[R.length - 1]), q = a.k === "shHpMain" || a.k === "shDef" ? 100 : 10;   // v167 盾主属性比例保留两位小数
   return r ? Math.round((r[0] + (r[1] - r[0]) * (a.p || 0)) * q) / q : 0; };
-DATA.fbRj = (k, e) => (((_FG.fabao.REFINE || {})[k]) || 0) * DATA.rjOf(e);   // 法宝精炼加的百分点
+DATA.fbRj = (k, e) => k === "mana" ? 0 : 0.5 * DATA.rjCount(e);   // 法宝精炼加的百分点：每次 +0.5%，直接加进主属性 % 里（不另乘）；法力不吃精炼
 // 比例 × 哪个参考属性（不写 = 本身就是 %）
 DATA.FB_REF_OF = { shHpMain: "hp", shHp: "hp", sAtk: "atk", dSAtk: "atk", sHit: "hit" };
 
@@ -102,13 +114,14 @@ DATA.rangeMult = (a, g) => { const [lo, hi] = DATA.colorRange(a.c, g); return lo
 // 强化：整件 e.enh 级（config/forge.js 的 forge.enhance.equip / fabao；法宝见 DATA.fbEnh，装备 / 戒指见 DATA.eqEnh）
 DATA.enhCfg = e => CFG.forge.enhance[e && e.slot === "fabao" ? "fabao" : "equip"];
 // 装备 / 戒指：强化后这条主属性加多少（固定数值）；不是主属性、PER 里没写（暴击）= 0
-DATA.eqEnhPer = (e, k) => (((CFG.forge.enhance.equip.PER || {})[k]) || [])[e.g] || 0;
-DATA.eqEnh = (a, e) => e && e.slot !== "fabao" && a.m ? (e.enh || 0) * DATA.eqEnhPer(e, a.k) : 0;
+DATA.eqEnhAdd = e => { const E = CFG.forge.enhance.equip; if (!e || e.slot === "fabao") return {};
+  return (e.slot === "ring" ? (E.RING || [])[e.r] : (E.ADD || {})[e.slot]) || {}; };   // 每强化一次加的属性，不分星级
+DATA.eqEnhPer = (e, k) => DATA.eqEnhAdd(e)[k] || 0;
 // 一条属性的数值（e = 整件装备，用来区分法宝 / 戒指），含强化
 DATA.attrVal = (a, g, e) => DATA.attrBase(a, g, e);   // v156 强化属性单独算（DATA.eqEnhStats），不并进属性条，洗练不影响
 // v156 装备 / 戒指强化属性：{ 属性: 数值 }，按主属性种类 × 强化等级，只随升阶（每级数值）变化
 DATA.eqEnhStats = e => { const o = {}; if (!e || !e.attrs || e.slot === "fabao" || !e.enh) return o;
-  for (const a of e.attrs) if (a.m && !(a.k in o)) { const v = e.enh * DATA.eqEnhPer(e, a.k); if (v > 0) o[a.k] = v; } return o; };
+  const A = DATA.eqEnhAdd(e); for (const k in A) if (A[k] > 0) o[k] = e.enh * A[k]; return o; };
 // 一条属性没强化时的数值
 // 装备 / 戒指：REF[阶] 境界的修为突破 + 肉身突破属性 × PCT[颜色]%（暴击除外）
 DATA._eqRef = {};
@@ -117,7 +130,8 @@ DATA.eqPctOK = a => a.k !== "crit";
 DATA.eqPct = a => { const R = _FG.attr.PCT, r = R[a.c] || R[R.length - 1]; return Math.round((r[0] + (r[1] - r[0]) * DATA.attrPos(a)) * 100) / 100; };
 DATA.attrBase = (a, g, e) => {
   const A = _FG.attr, fb = e && e.slot === "fabao" && e.attrs;
-  if (!fb && DATA.eqPctOK(a)) return (DATA.eqRef(g)[a.k] || 0) * (DATA.eqPct(a) + (a.m && e ? DATA.rjOf(e) * ((CFG.forge.refine || {}).PCT || 0) : 0)) / 100 * (e && e.slot === "ring" ? (_FG.ring.MULT || 1) : 1);
+  const rm = e && e.slot === "ring" ? (_FG.ring.MULT || 1) * (a.m ? 1 + DATA.ringBonus(e.r) / 100 : 1) : 1;   // 戒指倍率；灵犀 / 烈阳 / 玄武主属性另加 %
+  if (!fb && DATA.eqPctOK(a)) return (DATA.eqRef(g)[a.k] || 0) * (DATA.eqPct(a) + (a.m && e ? 0.5 * DATA.rjCount(e) : 0)) / 100 * rm;   // 精炼只加主属性（暴击走下面，不吃精炼）
   // 附加暴击单独设置了「每阶金色最高值」（AFFIX_TOP，装备 / 戒指）
   const TOP = !a.m && !fb && A.AFFIX_TOP;
   if (TOP && TOP[a.k] && TOP[a.k][g] !== undefined) {
@@ -126,17 +140,17 @@ DATA.attrBase = (a, g, e) => {
   }
   if (fb) {   // v108 法宝：比例 %（按颜色随机）；FB_REF_OF 里的 = 参考属性 × %，盾 = 参考生命 / 防御 × SHIELD_MULT × %；鼎 = 回合数
     if (a.k === "sDing") return (_FG.fabao.DING_ROUNDS || [])[a.c] || 1;
-    const v = DATA.fbPct(a) + DATA.fbRj(a.k, e), ref = DATA.fbRef(g);
+    const v = DATA.fbPct(a) + (a.m && a.k !== "crit" ? DATA.fbRj(a.k, e) : 0), ref = DATA.fbRef(g);   // 精炼只加主属性，附加属性和暴击不加
     // v165 盾（方案 A，同攻击法宝）：基数 = 自己修为 + 肉身（不超过参考值）+ 功法
     // v167 盾主属性：法宝对应境界（参考）生命 / 防御 × SHIELD_MULT（3.8）× %
     const SM = _FG.fabao.SHIELD_MULT || 1;
     if (a.k === "shHpMain") return ref.hp * SM * v / 100;
     if (a.k === "shDef") return ref.def * SM * v / 100;
-    if (a.k === "shHp") { let m = 0; for (const b of e.attrs) if (b.k === "shHpMain") m += ref.hp * SM * (DATA.fbPct(b) + DATA.fbRj(b.k, e)) / 100; return m * v / 100; }   // v170 附加护盾值 = 盾主属性护盾值 × %（不算强化）
+    if (a.k === "shHp") { let m = 0; for (const b of e.attrs) if (b.k === "shHpMain") m += ref.hp * SM * (DATA.fbPct(b) + (b.m && b.k !== "crit" ? DATA.fbRj(b.k, e) : 0)) / 100; return m * v / 100; }   // v170 附加护盾值 = 盾主属性护盾值 × %（不算强化）
     return DATA.FB_REF_OF[a.k] ? ref[DATA.FB_REF_OF[a.k]] * v / 100 : v;
   }
   // 主属性暴击%：base.crit × 阶数 × 颜色范围倍率（附加暴击都在上面 AFFIX_TOP）
-  return (A.base[a.k] || 0) * (g + 1) * DATA.rangeMult(a, g) * (e && e.slot === "ring" ? (_FG.ring.MULT || 1) : 1);
+  return (A.base[a.k] || 0) * (g + 1) * DATA.rangeMult(a, g) * rm;
 };
 DATA.bestQ = attrs => DATA.COLOR_Q[Math.max(...attrs.map(a => a.c))];
 // 随机一条属性（颜色 + 位置）；w = 颜色权重（不填 = attr.colors 的 weight）
@@ -169,7 +183,7 @@ DATA.rollForged = (slot, g, r, el) => {
     for (let i = 0; i < n; i++) attrs.push(DATA.fbAffix(U.pick(DATA.fbPoolLeft(pool, attrs)), W));   // v164 祭出次数最多一条
     return { slot, g, ft, el: elv, name: DATA.fabaoName(ft, g), enh: 0, q: DATA.bestQ(attrs), attrs, uid: DATA.newUid() };
   }
-  if (slot === "ring" && r === undefined) r = Math.floor(Math.random() * DATA.ringNames.length);
+  if (slot === "ring" && r === undefined) r = U.pick(DATA.ringList());
   const main = (slot === "ring" ? _FG.ring.main[r] : A.main[slot] || []).slice(0, 2), W = DATA.equipNewW(), attrs = main.map(k => DATA.rollAttr(k, 1, undefined, W));
   const pool = A.pool.filter(k => !main.includes(k)), n = Math.min(pool.length, DATA.affixRollN(A.AFFIX_COUNT, g));
   for (let i = 0; i < n; i++) { const j = Math.floor(Math.random() * pool.length); attrs.push(DATA.rollAttr(pool.splice(j, 1)[0], 0, undefined, W)); }
@@ -177,12 +191,12 @@ DATA.rollForged = (slot, g, r, el) => {
   if (slot === "ring") e.r = r;
   return e;
 };
-// 升阶：颜色、位置都不变，只改阶和名字（数值按新阶自动变大）
+// 升阶：颜色、位置都不变，只改阶和名字（数值按新阶自动变大）；升星不清除精炼次数（装备 / 法宝 / 戒指都一样）
 DATA.upgradeForged = (prev, g) => {
   const e = JSON.parse(JSON.stringify(prev));
   if (!e.uid) e.uid = DATA.newUid();
   if (e.enh > 0) { const E = DATA.enhCfg(e); e.enh = Math.max(0, e.enh - Math.max(E.DOWN_MIN === undefined ? 1 : E.DOWN_MIN, Math.floor(e.enh * (E.DOWN_PCT || 0) / 100))); }   // v152 法宝升阶：强化等级 −20%，最少 −1
-  e.g = g; e.rj = 0;   // 升星后回到一阶
+  e.g = g;   // 升星不清除精炼次数
   e.name = e.slot === "ring" ? DATA.ringNames[e.r] : e.slot === "fabao" ? DATA.fabaoName(e.ft, g) : DATA.forgeNames[e.slot][g];
   return e;
 };
@@ -249,7 +263,7 @@ DATA.fbRef = g => DATA._fbRef[g] || (DATA._fbRef[g] = (() => { const r = (_FG.fa
 // 法宝战斗数值（atk 已含剑 / 刀的专属攻击；hit、critAdd = 刀 / 锤攻击时额外命中、暴击%）：{ el, atk, pct, mana, ign, cutPct, extra: [{ el, pct }], crit（锤暴击伤害%）, shield, ding, yin }
 DATA.fabaoInfo = (e, own) => {
   const F = _FG.fabao, T = DATA.fabaoTypes[e.ft] || {}, ref = DATA.fbRef(e.g);
-  const o = { name: DATA.fabaoName(e.ft, e.g, e.name), el: e.el, ft: e.ft, atk: DATA.capAtk(ref.atk, own), pct: 0, ign: 0, cutPct: 0, extra: [], fuPct: DATA.fusePct ? DATA.fusePct(e.fu) : 0 };   // fuPct 融合：伤害结果 +%
+  const o = { name: DATA.fabaoName(e.ft, e.g, e.name), el: e.el, ft: e.ft, atk: DATA.capAtk(ref.atk, own), pct: 0, ign: 0, cutPct: 0, extra: [] };
   let shHp = 0, shDef = 0, red = 0, ding = 0, yin = 0, yinC = 0;
   o.uses = F.USES === undefined ? 1 : F.USES;   // 每场战斗最多祭出几次
   if (T.shield) shHp += DATA.fbEnh(e); else o.addDmg = DATA.fbEnh(e);   // 强化：护盾值 / 附加伤害
@@ -280,8 +294,7 @@ DATA.fabaoInfo = (e, own) => {
   o.pct *= rv(F.DMG_REALM);
   // 法力 = 该阶对应境界的修为突破法力 × MANA_PCT[主属性颜色]%；颜色只看第一条主属性
   const main = e.attrs.find(a => a.m === 1) || {};
-  o.mana = Math.max(0, ref.manaBr * (((F.MANA_PCT || [])[main.c || 0] || 0) + DATA.fbRj("mana", e)) / 100 * (1 - o.cutPct / 100) * DATA.manaRealmK(R * DATA.LAYERS)   // × 法力境界倍率（config/mobs.js magic.MANA_REALM，按人物当前大境界，与怪物共用）
-    * (1 + (typeof G !== "undefined" && G.s && G.s.lingen ? G.s.lingen[e.el] || 0 : 0) * ((CFG.gongfa || {}).MANA_LINGEN || 0)));   // × 灵根倍率（config/gongfa.js MANA_LINGEN，法宝属性那一系灵根，与法术共用）
+  o.mana = Math.max(0, ref.manaBr * (((F.MANA_PCT || [])[main.c || 0] || 0) + DATA.fbRj("mana", e)) / 100 * (1 - o.cutPct / 100) * DATA.manaRealmK(R * DATA.LAYERS));   // × 法力境界倍率（config/mobs.js magic.MANA_REALM，按人物当前大境界，与怪物共用；灵根不再影响法力）
   return o;
 };
 
@@ -292,7 +305,7 @@ DATA.fabaoInfo = (e, own) => {
  *   img/icons/pill_丹药id.png 修炼丹、dan_类型.png 属性丹、fu_dan / fu_qi.png 炉子、ss.png 空间石
  *   fbs形状_属性.png 法宝（7 种形状 × 6 种属性）、sm_ys属性.png 耀石、mifa.png 秘法、seed.png 种子、stone.png 灵石、cu_misc.png 自定义物品
  *   hx.png 火髓、bp.png 图纸 */
-DATA.IMG_V = 40;
+DATA.IMG_V = 57;
 DATA.matImg = (kind, g) => `img/mats/${kind}${g}.png?v=${DATA.IMG_V}`;
 DATA.iconImg = n => `img/icons/${n}.png?v=${DATA.IMG_V}`;
 DATA.ICON_EQ = ["helmet", "armor", "weapon", "legs", "boots", "pendant", "ring"];

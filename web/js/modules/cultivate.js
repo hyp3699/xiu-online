@@ -48,11 +48,7 @@ G.module({
     let freeExhausted = false;
     if (this.freeCultOn()) {
       if (--s.freeCult.left <= 0) { s.freeCult.left = 0; freeExhausted = true; this.dirty(); this.log(`${CFG.sect.freeRoom.name}次数已用完。`, "sys"); }
-    } else if (s.room >= 0 && s.sect) {
-      const c = this.roomCost(s.room);
-      if (s.contrib >= c) s.contrib -= c;
-      else { s.room = -1; this.dirty(); this.log("门派贡献不足，已离开修炼室。", "bad"); }
-    }
+    }   // 付费修炼室按分钟扣贡献（modules/sect.js roomBill）
 
     // 3. 灵气不足且开了自动补充：用灵石补
     if (freeExhausted) s.freeCult.left = 1;
@@ -144,10 +140,11 @@ G.module({
       const lack = act ? s.ling < Math.max(1, R.need) : this.cultLack();   // 都没开：按修为修炼一次的灵气判断「灵气不足」
       if (norm && (mine ? (ours || act) : (!ours && act))) {
         // 灵气 ≥ 修炼速度 × 倍数（最多到灵气上限）就回来修炼；修为、肉身自动修炼都没开：不回来
-        if (act && s.ling >= Math.min(this.lingCap(), per * Math.max(1, c.mul || 10))) {
-          c.went = false; this.stopExplore("灵气已恢复，停止探索");
-          this.log(s.auto ? "开始修炼。" : "开始修炼肉身。", "sys"); this.dirty();   // v208 不再重置结算计时（会丢聚灵）
-        }
+        // v255 不立即打断：标记 x.back，等本次探索结算完再回来（world.js exAdvance1）；原地休养中（两次探索之间）直接回来
+        const enough = act && s.ling >= Math.min(this.lingCap(), per * Math.max(1, c.mul || 10));
+        if (enough && x.rest) { c.went = false; this.stopExplore("灵气已恢复，停止探索"); this.cultBackLog(); }
+        else if (enough && !x.back) { x.back = 1; this.log("本次探索结束后继续修炼", "sys"); this.dirty(); }
+        else if (!enough && x.back) { delete x.back; this.dirty(); }
         return;
       }
       // 修炼设置自动去的探索，但「前往」已改成别处（例如改成青云山林东）：停下当前的，下面按新地点重新出发
@@ -160,6 +157,7 @@ G.module({
         if (this.s.explore) { c.went = true; this.s.explore.cs = 1; this.exploreOpen = false; this.log("灵石不足且灵气不够修炼，自动前往探索。", "sys"); }
       }
     },
+    cultBackLog() { this.log(this.s.auto ? "开始修炼。" : "开始修炼肉身。", "sys"); this.dirty(); },   // v208 不再重置结算计时（会丢聚灵）
     // 修炼设置在设置页里显示时直接刷新设置页（选「前往」等弹窗返回也回到设置页）
     openCultSet() {
       if (this.cultView === "set") { if (!this.s.cultSet.tgt) { const T = this.cultTargets(); if (T.length) this.s.cultSet.tgt = T[0][0]; } return this.openSettings("cult"); }
@@ -169,8 +167,8 @@ G.module({
       const s = this.s, c = s.cultSet, T = this.cultTargets(), a = s.array;
       if (!c.tgt && T.length) c.tgt = T[0][0];
       return `<h2>修炼设置</h2>
-        <p class="desc">灵石低于下限且灵气不足，自动去探索；灵气恢复到修炼速度（每次修炼消耗）的设定倍数以上，停止探索回来修炼。修炼速度按开着的自动修炼算：只开修为看修为，只开肉身看肉身，都开看两者相加；都没开不会自动回来。</p>
-        <div class="line"><div>自动探索<small>手动开启的探索也按这里的条件回来修炼</small></div><button data-refresh="openCultSet" class="sm ${c.on ? "on" : ""}" onclick="G.cultSetSave('on')">${c.on ? "开" : "关"}</button></div>
+        <p class="desc">灵石低于下限且灵气不足，自动去探索；灵气恢复到修炼速度（每次修炼消耗）的设定倍数以上，等本次探索结束后回来修炼。</p>
+        <div class="line"><div>自动探索</div><button data-refresh="openCultSet" class="sm ${c.on ? "on" : ""}" onclick="G.cultSetSave('on')">${c.on ? "开" : "关"}</button></div>
         <div class="line"><div>灵石低于</div><input id="cs-low" type="number" min="0" value="${c.low}" style="width:130px" onchange="G.cultSetSave()"></div>
         <div class="line"><div>灵气高于修炼速度（倍）<small>当前修炼速度 ${this.csRate().act ? U.fmt(this.csRate().per) : "未开自动修炼"}</small></div><input id="cs-high" type="number" min="1" value="${c.mul === undefined ? 10 : c.mul}" style="width:130px" onchange="G.cultSetSave()"></div>
         <div class="line"><div>前往</div><button class="sm" onclick="G.openAtPick('tgt')">${(T.find(t => t[0] === c.tgt) || T[0] || [0, "暂无可去的地方"])[1]} ▾</button></div>
@@ -237,7 +235,7 @@ G.module({
     // 从修炼页进去的坊市，返回时回到修炼页（world.js backFromShop）
     openFanShop() { this.tab = "world"; this.worldId = "fan"; this.atlasOn = false; this.atlasSub = null; this.setMapSel("shop"); this.shopFromCult = true; this.render(); },
     /* ---------- 人物形象：存在角色存档（服务器 s.hero，换设备也生效），修炼页、神识、悟道室、头像、战斗页（img/bt_形象.webp）一起换 ---------- */
-    HEROES: [["", "默认（男修）"], ["f1", "仙子 · 粉裳"], ["f2", "仙子 · 红裳"], ["f3", "魅影 · 黑纱"], ["f4", "狐仙 · 绯蕾"], ["f5", "冰仙 · 蓝蕾"], ["f6", "金冠 · 白衣"], ["f7", "月仙 · 银蓝"], ["f8", "桃仙 · 粉霞"], ["f9", "紫宸 · 仙后"], ["f10", "魅姬 · 黑蕾"], ["f11", "雪莲 · 金纱"], ["f12", "白莲 · 素纱"], ["f13", "魔后 · 赤纱"], ["f14", "星灵 · 幻纱"]],
+    HEROES: [["", "默认（男修）"], ["f1", "仙子 · 粉裳"], ["f2", "仙子 · 红裳"], ["f3", "魅影 · 黑纱"], ["f4", "狐仙 · 绯蕾"], ["f5", "冰仙 · 蓝蕾"], ["f6", "金冠 · 白衣"], ["f7", "月仙 · 银蓝"], ["f8", "桃仙 · 粉霞"], ["f9", "紫宸 · 仙后"], ["f10", "魅姬 · 黑蕾"], ["f11", "雪莲 · 金纱"], ["f12", "白莲 · 素纱"], ["f13", "魔后 · 赤纱"], ["f14", "星灵 · 幻纱"], ["f15", "金凤 · 鹅黄"]],
     heroId() { let k = this.s && typeof this.s.hero === "string" ? this.s.hero : ""; if (!(this.s && "hero" in this.s)) try { k = localStorage.getItem("xiu_hero") || ""; } catch (e) {} return this.HEROES.some(h => h[0] === k) ? k : ""; },
     // 每位仙子另外 3 套服装：img/hero_形象_s1~s3.webp（打坐）、img/bt_形象_s1~s3.webp（战斗），0 = 原装
     HERO_SKINS: {
@@ -245,7 +243,7 @@ G.module({
       f4: ["翠羽 · 鹤影", "夜阑 · 云纹", "紫藤 · 金缕"], f5: ["莲粉 · 牡丹", "墨梅 · 映雪", "紫夜 · 星月"], f6: ["赤焰 · 祥云", "碧空 · 鹤浪", "翡翠 · 金莲"],
       f7: ["赤羽 · 凤鸣", "翠竹 · 清风", "墨韵 · 山河"], f8: ["碧空 · 鹤影", "碧水 · 金莲", "星河 · 夜阑"], f9: ["朱焰 · 流金", "霜华 · 映雪", "墨翠 · 牡丹"],
       f10: ["牡丹 · 赤纱", "云鹤 · 青霄", "紫藤 · 幽梦", "雪蕾 · 白纱"], f11: ["霜华 · 冰绡", "樱落 · 绯纱", "凤羽 · 紫霓"], f12: ["青鹤 · 云裳", "牡丹 · 华裳", "紫莲 · 梵衣"],
-      f13: ["碧鳞 · 幽姬", "翡翠 · 魅影", "紫蝶 · 幻魅"], f14: ["樱华 · 月纱", "冰澜 · 雪纱", "金羽 · 曦纱"],
+      f13: ["碧鳞 · 幽姬", "翡翠 · 魅影", "紫蝶 · 幻魅"], f14: ["樱华 · 月纱", "冰澜 · 雪纱", "金羽 · 曦纱"], f15: ["玄夜 · 墨金", "素雪 · 银白", "红色", "紫色", "紫凤 · 墨紫", "白凤 · 雪绡"],
     },
     heroSkin(k) { k = k === undefined ? this.heroId() : k; const n = ((this.s && this.s.heroSkin) || {})[k] | 0, L = this.HERO_SKINS[k] || []; return n > 0 && n <= L.length ? n : 0; },
     heroFile(k) { k = k === undefined ? this.heroId() : k; const n = this.heroSkin(k); return n ? `${k}_s${n}` : k; },

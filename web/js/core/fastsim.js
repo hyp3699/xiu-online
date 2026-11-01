@@ -46,6 +46,7 @@
       // v230 自动执行任务：北京时间 0:05（今天还没执行就是今天的，执行过就是明天的）
       if (this.autoTaskAny()) { const m5 = Math.floor((last + B) / D) * D - B + 5 * 60000; ev.push(s.autoTask.day === this.bjDay() || last >= m5 ? m5 + D : m5); }
       if (s.gfLearn) ev.push(s.gfLearn.end);
+      if (s.studyBuff && s.studyBuff.end) ev.push(s.studyBuff.end);   // 悟真丹到期：重新算练功房倍率
       if (s.cqzjL) ev.push(s.cqzjL.end);   // 出窍真诀学完
       // 门派：炼体池、事务堂、免费练功房到时
       if (s.pool && s.pool.end) ev.push(s.pool.end);
@@ -53,6 +54,8 @@
       const a = s.affair;
       if (s.sect && a && a.task !== undefined && a.task >= 0) { const t = DATA.affairs[a.task]; if (!t) return -Infinity; ev.push(a.start + t.time * 60000); }
       if (s.freeGf && s.sect && last < s.freeGf.end) ev.push(s.freeGf.end);
+      // 修炼室 / 练功房按分钟扣贡献：到点逐个结算（旧存档还没起算的先逐个结算一次）
+      for (const k of ["room", "gfRoom"]) if (s.sect && s[k] >= 0) { if (!s[k + "At"]) return -Infinity; ev.push(s[k + "At"]); }
       // 星君官位俸禄
       const H = (CFG.xingjun.HOUR || 3600) * 1000;
       for (const w in s.offices || {}) { const o = s.offices[w]; if (!o) continue; if (!o.T) return -Infinity; ev.push(o.T + H); }
@@ -93,7 +96,7 @@
       // 功法修炼
       const gs = s.gfStudy, STEP = DATA.STUDY_STEP * 1000;
       if (gs && gs.ling !== 1) return 0;   // v246 旧存档还没转成灵气：逐个结算
-      const GR = gs ? this.gfRoomNow() : null, RU = this.gfRoomUnits();
+      const GR = gs ? this.gfRoomNow(DATA.skillInfo(gs.id, s.gongfa[gs.id] || 1)) : null, RU = this.gfRoomUnits();
       // 修为修炼
       const cultOn = this.isCultivating() && this.hasMijue() && !this.exBlocksCult();
       if (cultOn) for (const t in DATA.pills) { const b = s.buffs[t]; if (s.autoPill[t] && (!b || b.left <= 0) && this.bestPillIndex(t) >= 0) return 0; }
@@ -134,7 +137,6 @@
             a2 += steps * 2 * STEP;
             const mul = GR ? GR.mul : 1, per = gs.per * mul, sps = (gs.stone || 0) * mul;
             const rem = Math.ceil((gs.total - d2) / (STEP * mul)), want = Math.min(2 * steps, rem);
-            if (GR && GR.cost > 0 && Math.floor((ru2 + want) / RU) * GR.cost > ct) break;   // 离开练功房：事件
             if (L < want * per && refill) { const pay = Math.min(Math.ceil((want * per - L) / RATE), Math.floor(sn - (sps ? want * sps : 0))); if (pay > 0) { sn -= pay; L += pay * RATE; } }
             // 同 gongfa.js：灵石为负时 can 不能为负，否则会倒加灵气 / 贡献。
             let can = Math.max(0, Math.min(want, Math.floor(L / per), sps ? Math.floor(sn / sps) : Infinity));
@@ -144,7 +146,6 @@
               const C = gs.sc || Math.round(gs.stone * Math.ceil(gs.total / STEP)); su2 += can * mul;
               const tgt = d2 >= gs.total ? C : Math.min(C, Math.round(gs.stone * su2)), pay = Math.max(0, tgt - (ss2 || 0));
               sn -= pay; ss2 = (ss2 || 0) + pay; }
-            if (GR) { ct -= Math.floor((ru2 + can) / RU) * GR.cost; ru2 = (ru2 + can) % RU; }
             sl2 = can < want && d2 < gs.total;
             if (d2 >= gs.total) break;   // 修炼完成：事件
           }
@@ -153,8 +154,7 @@
         // 5. cultivate：修为修炼
         let ended = false;
         if (cultOn) {
-          if (freeOn) { if (--fl <= 0) break; }   // 免费修炼室次数用完：事件
-          else if (roomOn) { if (ct >= roomC) ct -= roomC; else break; }   // 贡献不足离开修炼室：事件
+          if (freeOn) { if (--fl <= 0) break; }   // 免费修炼室次数用完：事件（付费修炼室按分钟扣贡献，见 fastNextEvent）
           if (L < SP - RED && refill && sn >= 1) { const pay = Math.min(Math.ceil((SP - RED - L) / RATE), Math.floor(sn)); sn -= pay; L += pay * RATE; }
           const PER = Math.max(0, SP - RED) / Math.max(1e-9, SP), gain = PER > 0 ? Math.min(SP, Math.floor(L / PER)) : SP;
           if (gain <= 0) { if (!lk) lk = true; }
@@ -168,7 +168,6 @@
         if (bodyOn) {
           if (!cultOn) {
             if (freeOn) { if (--fl <= 0) break; }   // 免费修炼室次数用完：事件
-            else if (roomOn) { if (ct >= roomC) ct -= roomC; else break; }   // 贡献不足离开修炼室：事件
           }
           if (L < BSP * BR - BRED && refill && sn >= 1) { const pay = Math.min(Math.ceil((BSP * BR - BRED - L) / RATE), Math.floor(sn)); sn -= pay; L += pay * RATE; }
           const BPER = Math.max(0, BSP * BR - BRED) / Math.max(1e-9, BSP), g = BPER > 0 ? Math.min(BSP, Math.floor(L / BPER)) : BSP;

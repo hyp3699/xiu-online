@@ -2,7 +2,7 @@
  * ★ 洞府 · 道童居 ★ 代码见 js/modules/servant.js
  * 选拔：花 PICK_COST 灵石等 PICK_SEC 秒出一个道童（资质天地玄黄按 QUAL_W，五行、头像随机），最多 MAX 个
  * 升级：灵石 1→2 级 UP_FIRST、升满最后一次 UP_LAST；同五行灵元 LY_FIRST → LY_LAST；中间每次 × 同一个倍率；以上是天品，其余品 × QUAL_COST%
- * 差事效果：1 级 LV1%，满级 MAX%，中间按 HALF_PCT 曲线；减时间的与炉子、秘法等相加，上限见 config/wudao.js TIME_CUT_MAX
+ * 差事效果：1 级 LV1%，满级 MAX%，中间按 HALF_PCT 曲线；炼丹 / 炼器 / 种植速度与炉子、技艺、秘法等相加，没有上限（时间 ÷ (1 + 速度%)）
  * 俸禄：1 级 SALARY.LV1 → 满级 SALARY.MAX，每级 × 固定倍率
  * ===================================================================== */
 window.CFG = window.CFG || {};
@@ -23,10 +23,11 @@ CFG.servant = {
   LY_LAST: 1000,       // 最后一次升级要的同五行灵元
   // 差事：els 可派五行（每种五行每个差事限 1 个），LV1 / MAX = 1 级 / 满级效果 %
   JOB: {
-    dan:  { name: "辅助炼丹", els: ["huo"], LV1: 0.1, MAX: 25 },   // 炼丹时间 −%
-    qi:   { name: "辅助炼器", els: ["jin"], LV1: 0.1, MAX: 25 },   // 炼器时间 −%
+    dan:  { name: "辅助炼丹", els: ["huo"], LV1: 1, MAX: 150 },   // 炼丹速度 +%
+    qi:   { name: "辅助炼器", els: ["jin"], LV1: 1, MAX: 150 },   // 炼器速度 +%
     cult: { name: "辅助修炼", els: ["shui"], LV1: 0.6, MAX: 150 },   // 修为、肉身修炼速度 +%
-    ling: { name: "灵田种植", els: ["mu"], LV1: 0.1, MAX: 25 },   // 灵药生长时间 −%
+    ling: { name: "灵田种植", els: ["mu"], LV1: 0.5, MAX: 50,   // 种植速度 +%（生长时间 ÷ (1 + %)）
+            YIELD_LV1: 0.5, YIELD_MAX: 50 },   // 灵药产量 +%
     zhen: { name: "阵法辅助", els: ["jin", "mu", "shui", "huo", "tu"], LV1: 0.1, MAX: 25,   // 聚灵效果 +%，多个相加
             FLAT_LV1: 30, FLAT_MAX: 3000 },   // 另加固定聚灵（每 10 秒，不吃任何 % 加成）：1 级 FLAT_LV1 → 满级 FLAT_MAX，每级 × 同一倍率，多个相加
   },

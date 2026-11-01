@@ -46,14 +46,14 @@ G.module({
       const p = xh > 0 && xh < 1 ? Math.log(h) / Math.log(xh) : 1;
       return Math.pow((Math.min(lv, M) - 1) / (M - 1), p);
     },
-    svEff(d, job) {
-      const C = CFG.servant, J = C.JOB[job]; if (!J) return 0;
-      const a = J.LV1 || 0;
-      return Math.round((a + (J.MAX - a) * this.svCurve(d.lv)) * 100) / 100;   // 每级都提升（保留 2 位小数）
+    svEff(d, job, f = "") {   // f = "YIELD_"：灵田种植的产量
+      const C = CFG.servant, J = C.JOB[job]; if (!J || J[f + "MAX"] === undefined) return 0;
+      const a = J[f + "LV1"] || 0;
+      return Math.round((a + (J[f + "MAX"] - a) * this.svCurve(d.lv)) * 100) / 100;   // 每级都提升（保留 2 位小数）
     },
-    svEffTxt(job, v, flat) { return job === "zhen" ? `聚灵 +${U.num(v)}%${flat ? `，固定聚灵 +${U.fmt(flat)}` : ""}` : `${job === "cult" ? "+" : "−"}${U.num(v)}%`; },
-    svJobTotal(job) { return job === "zhen" ? `聚灵 +${U.num(this.gatherServant() + this.servantFlat())}` : this.svEffTxt(job, this.servantPct(job)); },   // 差事按钮：阵法辅助显示所有道童合计增加的聚灵（每 10 秒）
-    servantPct(job) { return (this.s.servants || []).filter(d => d.job === job).reduce((t, d) => t + this.svEff(d, job), 0); },
+    svEffTxt(job, v, flat, y) { if (job === "ling") return `种植速度 +${U.num(v)}%，产量 +${U.num(y || 0)}%`; return job === "zhen" ? `聚灵 +${U.num(v)}%${flat ? `，固定聚灵 +${U.fmt(flat)}` : ""}` : `${job === "cult" || job === "dan" || job === "qi" || job === "ling" ? "+" : "−"}${U.num(v)}%`; },
+    svJobTotal(job) { return job === "zhen" ? `聚灵 +${U.num(this.gatherServant() + this.servantFlat())}` : this.svEffTxt(job, this.servantPct(job), 0, this.servantPct(job, "YIELD_")); },   // 差事按钮：阵法辅助显示所有道童合计增加的聚灵（每 10 秒）
+    servantPct(job, f = "") { return (this.s.servants || []).filter(d => d.job === job).reduce((t, d) => t + this.svEff(d, job, f), 0); },
     svStartPick() {
       const s = this.s, C = CFG.servant, p = s.svPick;
       if (p && !p.end) return this.openSvPick();
@@ -99,7 +99,7 @@ G.module({
       const d = this.s.servants[i]; if (!d) return this.closeModal();
       const C = CFG.servant, max = d.lv >= C.MAX_LV, c = this.svUpCost(d), ly = this.svUpLy(d), lyf = this.svLyFt(d), lyOk = this.smCount("ly", lyf) >= ly, J = C.JOB[d.job], ow = this.svOwed(d), owc = ow * this.svSalary(d), au = this.s.svAuto;
       this.modal(`<h2>${this.svName(d)}</h2><div class="sv-pick"><img src="${this.svImg(d)}" alt=""><div>
-        资质 ${this.svQName(d)} · 五行 ${C.EL[d.el]}<br>等级 ${d.lv} / ${C.MAX_LV}<br>差事：${J ? `${J.name} ${this.svEffTxt(d.job, this.svEff(d, d.job), d.job === "zhen" ? this.svFlat(d) : 0)}` : "空闲"}<br>每日俸禄 ${U.fmt(this.svSalary(d))} 灵石${ow ? `<br><span class="q5">欠发 ${ow} 天</span>` : ""}</div></div>
+        资质 ${this.svQName(d)} · 五行 ${C.EL[d.el]}<br>等级 ${d.lv} / ${C.MAX_LV}<br>差事：${J ? `${J.name} ${this.svEffTxt(d.job, this.svEff(d, d.job), d.job === "zhen" ? this.svFlat(d) : 0, this.svEff(d, d.job, "YIELD_"))}` : "空闲"}<br>每日俸禄 ${U.fmt(this.svSalary(d))} 灵石${ow ? `<br><span class="q5">欠发 ${ow} 天</span>` : ""}</div></div>
         <div class="btns"><button class="${au ? "on" : ""}" onclick="G.svAutoToggle(${i})">自动发放俸禄：${au ? "开" : "关"}</button><button onclick="G.svPay(${i})" ${owc && this.s.stone >= owc ? "" : "disabled"}>发放俸禄${owc ? `（${U.fmt(owc)} 灵石）` : ""}</button></div>
         <div class="btns"><button class="primary" onclick="G.svUp(${i})" ${max || this.s.stone < c || !lyOk ? "disabled" : ""}>${max ? "已满级" : `升级（${U.fmt(c)} 灵石、${DATA.smName("ly", lyf)} ${U.fmt(ly)}）`}</button>
         <button onclick="G.svFire(${i})">遣散</button><button onclick="G.closeModal()">关闭</button></div>

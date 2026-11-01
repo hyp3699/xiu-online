@@ -325,9 +325,8 @@ DATA.spellInfo = (id, lv = 1, own) => {
     // 法术攻击 = 自己修为 + 肉身攻击（不超过该星级对应境界的）+ 功法攻击（own 不写 = 玩家自己的）；伤害 = 法术攻击 × pct% × mul（mul = SPELL_MUL × 来源倍率，不显示）
     uses: (U0 => v(U0[lv - 1], U0[U0.length - 1]))(_GF.SPELL_USES || [99]),   // v152 每场战斗最多施展几次
     atk: DATA.capAtk(DATA.spellRef(sect.star).atk, own), pct: lp(lv), next: lp(lv + 1), mul: v(_GF.SPELL_MUL) * tm * v(C.EFFECT_PCT),
-    // 法力消耗 = 该星级对应境界的修为突破法力（REF）× MANA_PCT% × 灵根倍率（灵根倍率 = 1 + 该系灵根等级 × MANA_LINGEN）
+    // 法力消耗 = 该星级对应境界的修为突破法力（REF）× MANA_PCT% × (1 + (层 − 1) × MANA_LV) × 境界倍率（灵根不再影响法力）
     mana: Math.max(1, Math.round(DATA.spellManaBase(sect.star) * v(_GF.MANA_PCT, 0) / 100
-      * (1 + (typeof G !== "undefined" && G.s && G.s.lingen ? G.s.lingen[el.id] || 0 : 0) * v(_GF.MANA_LINGEN, 0))
       * (1 + (Math.max(1, lv) - 1) * v(_GF.MANA_LV, 0))   // 层消耗倍率
       * DATA.manaRealmK(typeof G !== "undefined" && G.s && !G.s.mortal ? G.s.L : 0))),   // 法力境界倍率（config/mobs.js magic.MANA_REALM，按人物当前大境界，与怪物共用）
     cost: DATA.gfLearnCost(sect, "spell"),
@@ -340,10 +339,11 @@ DATA.spellInfo = (id, lv = 1, own) => {
 DATA.jyStep = (star, k) => { const A = _GF[k] || [0]; return A[Math.min(Math.max(0, star - 1), A.length - 1)] || 0; };
 // 第 n+1 次精研的消耗（n = 已精研次数）：初始 + floor(n / N) × 每段增加
 DATA.jyCost = (star, n) => { const U0 = _GF.JY_UP || {}, k = U0.N > 0 ? Math.floor((n || 0) / U0.N) : 0;
-  return { xd: DATA.jyStep(star, "JY_COST") + k * (U0.XD || 0), stone: DATA.jyStep(star, "JY_STONE") + k * (U0.STONE || 0) }; };
+  const sn = U0.STONE_N > 0 ? U0.STONE_N : U0.N, ks = sn > 0 ? Math.floor((n || 0) / sn) : 0;   // 灵石可单独设每几次涨
+  return { xd: DATA.jyStep(star, "JY_COST") + k * (U0.XD || 0), stone: DATA.jyStep(star, "JY_STONE") + ks * (U0.STONE || 0) }; };
 DATA.spellJy = id => (typeof G !== "undefined" && G.s && G.s.spJy && G.s.spJy[id]) || 0;
-// 融合（config/gongfa.js FUSE）：fu = { 星级: 个数 }，返回伤害结果 +%
-DATA.fuseCfg = () => Object.assign({ PER_STAR: 5, PCT: [0.5, 0.5, 0.5, 0.7, 0.7, 0.7, 0.9, 0.9, 0.9, 1.15, 1.15, 1.15, 1.5, 1.5], FB_RJ: 5 }, _GF.FUSE || {});
+// 融合（config/gongfa.js FUSE）：fu = { 星级: 个数 }，返回伤害结果 +%（每本 +1%，不分星级）
+DATA.fuseCfg = () => Object.assign({ PER_STAR: 5, PCT: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], FB_RJ: 5 }, _GF.FUSE || {});
 DATA.fusePct = fu => { const P = DATA.fuseCfg().PCT || [0]; let t = 0; for (const k in fu || {}) t += (+fu[k] || 0) * (P[Math.min(+k - 1, P.length - 1)] || 0); return t; };
 DATA.fuseTxt = fu => Object.keys(fu || {}).filter(k => fu[k] > 0).sort((a, b) => a - b).map(k => `${k}星×${fu[k]}`).join("、");
 DATA.spellFu = id => (typeof G !== "undefined" && G.s && G.s.spFuse && G.s.spFuse[id]) || null;
@@ -385,12 +385,12 @@ DATA.mifaKinds = [
   { id: "expSpeed",  name: "聚元秘法", label: "修为修炼速度", unit: "", sign: "+", el: "huo" },
   { id: "bodySpeed", name: "炼体秘法", label: "气血修炼速度", unit: "", sign: "+", el: "tu" },
   { id: "explore",   name: "神行秘法", label: "地图每步", unit: "秒", sign: "-", el: "jin" },
-  { id: "danTime",   name: "丹火秘法", label: "炼丹时间", unit: "%", sign: "-", el: "huo" },
+  { id: "danTime",   name: "丹火秘法", label: "炼丹速度", unit: "%", sign: "+", el: "huo" },
   { id: "danRate",   name: "丹心秘法", label: "炼丹成功率", unit: "%", sign: "+", el: "huo" },
   { id: "danExtra",  name: "丹灵秘法", label: "炼丹额外一颗几率", unit: "%", sign: "+", el: "huo" },
-  { id: "qiTime",    name: "器火秘法", label: "炼器时间", unit: "%", sign: "-", el: "jin" },
+  { id: "qiTime",    name: "器火秘法", label: "炼器速度", unit: "%", sign: "+", el: "jin" },
   { id: "qiRate",    name: "器心秘法", label: "炼器成功率", unit: "%", sign: "+", el: "jin" },
-  { id: "plantTime", name: "育灵秘法", label: "灵药生长时间", unit: "%", sign: "-", el: "mu" },
+  { id: "plantTime", name: "育灵秘法", label: "种植速度", unit: "%", sign: "+", el: "mu" },
   { id: "plantYield",name: "丰灵秘法", label: "灵药收获数量", unit: "%", sign: "+", el: "mu" },
   { id: "lianxing",  name: "连星秘法", label: "连续出手几率", unit: "%", sign: "+", el: "lei", full: true, cfg: "LIANXING" },   // 圆满才生效（config/wudao.js LIANXING）
   { id: "yutian",    name: "御天秘法", label: "致命伤害保命几率", unit: "%", sign: "+", el: "tu", full: true, cfg: "YUTIAN" },
@@ -416,7 +416,7 @@ DATA.mifaLearnCost = (star, kind) => { const W = CFG.wudao, m = (W.STAR_COST || 
 DATA.mifaInfo = (id, lv = 1) => {
   const [w, , kind] = id.split(":"), star = +w.slice(1), K = DATA.mifaKindById[kind], W = CFG.wudao;
   if (!K || !(star >= 1 && star <= 10)) return null;
-  const per = K.cfg ? (((W[K.cfg] || {}).STAR || [])[star - 1] || 0) : kind === "explore" && W.SHENXING ? (W.SHENXING[star - 1] || 0) : kind === "gfStudy" && W.WUDAO ? (W.WUDAO[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : kind === "spStudy" && W.WUFA ? (W.WUFA[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : K.cfg2 && W[K.cfg2] ? ((W[K.cfg2].FLAT || [])[star - 1] || 0) : kind === "danTime" && W.DANHUO ? (W.DANHUO[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : kind === "qiTime" && W.QIHUO ? (W.QIHUO[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : (W.base[kind] || 0) * ((W.STAR_MULT || [])[star - 1] || 1), max = DATA.GONGFA_MAX;
+  const per = K.cfg ? (((W[K.cfg] || {}).STAR || [])[star - 1] || 0) : kind === "explore" && W.SHENXING ? (W.SHENXING[star - 1] || 0) : kind === "gfStudy" && W.WUDAO ? (W.WUDAO[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : kind === "spStudy" && W.WUFA ? (W.WUFA[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : K.cfg2 && W[K.cfg2] ? ((W[K.cfg2].FLAT || [])[star - 1] || 0) : kind === "danTime" && W.DANHUO ? (W.DANHUO[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : kind === "qiTime" && W.QIHUO ? (W.QIHUO[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : kind === "plantTime" && W.YULING ? (W.YULING[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : kind === "plantYield" && W.FENGLING ? (W.FENGLING[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : (W.base[kind] || 0) * ((W.STAR_MULT || [])[star - 1] || 1), max = DATA.GONGFA_MAX;
   // 神行：修到圆满才生效一次（不乘层数）
   const val = l => kind === "explore" || K.full ? (l >= max ? per : 0) : per * DATA.lvMul(l);
   return { kind: "mf", id, star, mk: K, lv, el: DATA.elById[K.el], label: K.label,

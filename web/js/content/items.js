@@ -25,6 +25,9 @@ ITEMS.list = {
   "黄泉冥草": { type: "misc",  q: 3, desc: "冥界灵药，散仙以上肉身突破所需。冥界掉落。", sell: 100 },
   "魔血藤":   { type: "misc",  q: 3, desc: "魔界灵药，散仙以上肉身突破所需。魔界掉落。", sell: 100 },
   "噬魂魔果": { type: "misc",  q: 3, desc: "魔界灵药，散仙以上肉身突破所需。魔界掉落。", sell: 100 },
+  // 灵地首领掉落的新灵药：悟真丹材料（炼丹时按自定义物品消耗），背包「药材」分类下也能看到（herb: 1）
+  "瑶池玉蕊": { type: "misc",  q: 3, herb: 1, img: "img/icons/cu_yaochi_yurui.png", desc: "瑶池仙境灵药，瑶池圣母·青鸾仙后掉落。", sell: 100 },
+  "蟠桃灵果": { type: "misc",  q: 3, herb: 1, img: "img/icons/cu_pantao_lingguo.png", desc: "蟠桃灵园灵药，蟠桃园主·千年桃仙掉落。", sell: 100 },
 };
 
 /* ---------------- 2. 坊市 ----------------

@@ -70,10 +70,37 @@ const G = {
     s.brRandOk = 1; s.brRandV = 2;
     if (this.mobElInit) this.mobElInit(s);   // 首领 / 天将 / 星君 / 界主属性：第一次进游戏随机定死
     s._nm = DATA.nmSnap();   // 新存档记下当前用的名字（config/names.js），以后改名读档时对照
+    s._oreV2 = 1;   // v254 矿石表新版（见 migrate）
     return s;
+  },
+  // v254 矿石表：去掉仙 / 冥 / 魔特色矿石（仙霞玉髓、冥河寒晶、魔焰晶），三者都并入新的通用矿石（序号 11），神辉金及神界矿石序号 -2
+  //   老存档里所有 { kind: "ore", g, name } 和收获表的 "ore|名字" 键都换成新序号、新名字（背包里同名的几格不合并，数量按名字合计照常可用）
+  oreV2(s) {
+    if (!s || s._oreV2) return;
+    const OLD = ["铁精", "寒铁", "赤铜精", "玄冥铁", "星辰砂", "虚空石", "天外陨铁", "玄晶石", "星辰金", "混沌铜", "太虚玉",
+      "仙霞玉髓", "冥河寒晶", "魔焰晶", "神辉金", "神陨星铁", "太初神晶", "曜日神金", "九天玄玉", "混元神石"];
+    const cur = DATA.ores, mine = s._nm && Array.isArray(s._nm.ore) && s._nm.ore.length === OLD.length ? s._nm.ore : OLD;
+    const nj = i => i < 11 ? i : i <= 13 ? 11 : i - 2, byName = {};
+    OLD.forEach((n, i) => { byName[n] = nj(i); }); mine.forEach((n, i) => { if (typeof n === "string") byName[n] = nj(i); });
+    const fix = o => { const j = typeof o.name === "string" && o.name in byName ? byName[o.name] : typeof o.g === "number" && o.g >= 0 && o.g < OLD.length ? nj(o.g) : null;
+      if (j === null || cur[j] === undefined) return; o.g = j; if (typeof o.name === "string") o.name = cur[j]; };
+    const seen = new Set(), walk = o => {
+      if (!o || typeof o !== "object" || seen.has(o)) return; seen.add(o);
+      if (Array.isArray(o)) { o.forEach(walk); return; }
+      if (o.kind === "ore" && (typeof o.g === "number" || typeof o.name === "string")) fix(o);
+      for (const k of Object.keys(o)) {
+        walk(o[k]);
+        if (k.startsWith("ore|")) { const v = o[k], nm = v && v.name ? v.name : (j => j === undefined ? null : cur[j])(byName[k.slice(4)]);
+          if (nm && "ore|" + nm !== k) { const nk = "ore|" + nm; if (o[nk] && typeof o[nk] === "object") o[nk].n = (o[nk].n || 0) + ((v && v.n) || 0); else o[nk] = v; delete o[k]; } }
+      }
+    };
+    walk(s);
+    if (s._nm) s._nm.ore = cur.slice();
+    s._oreV2 = 1;
   },
   // 存档缺字段时，用模块默认值补上（以后加新功能不会坏档）
   migrate(s) {
+    this.oreV2(s);   // 要在 nmMigrate 之前：矿石序号变了
     DATA.nmMigrate(s);   // 存档里的旧名字 → config/names.js 的新名字
     { const n = ((CFG.cqzj || {}).COST || []).length;   // 出窍真诀删掉的卷（第 4、5 卷）从存档里清掉
       if (Array.isArray(s.cqZj)) s.cqZj = s.cqZj.filter(v => v >= 1 && v <= n);
@@ -81,6 +108,9 @@ const G = {
     { const K = ["contrib", "stone", "merit"], BIG = 1e15;   // 测试模式（config/rates.js TEST）：贡献、灵石、功德随便花；打开时记下原数，关掉恢复
       if (DATA.isTest()) { if (!s._testBak) s._testBak = Object.fromEntries(K.map(k => [k, s[k] || 0])); for (const k of K) s[k] = BIG; }
       else if (s._testBak) { for (const k of K) s[k] = s._testBak[k] || 0; delete s._testBak; } }
+    {   // 渡劫准备格子减到 3 个：老存档里多余格子直接去掉（格子里的东西本身不消耗，丹药用时才从背包扣，法宝/法术只是引用）
+      const n = (CFG.trib || {}).SLOTS;
+      if (Array.isArray(s.tribSlots) && Number.isFinite(n) && s.tribSlots.length > n) s.tribSlots.length = n; }
     {   // 灵矿删掉：老存档里正在挖矿的探索 / 出窍直接停掉（不结算本次收获，功能已不存在）
       if (s.explore && s.explore.kuang) s.explore = null;
       if (s.cq && s.cq.kuang) s.cq = null; }

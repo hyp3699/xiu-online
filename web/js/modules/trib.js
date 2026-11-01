@@ -95,6 +95,7 @@ G.module({
     tribPut(i, k, v) {
       const sl = this.s.tribSlots;
       while (sl.length < this.tribSlotN()) sl.push(null);
+      if (sl.length > this.tribSlotN()) sl.length = this.tribSlotN();   // 格子数下调：多余格子里的东西不动（丹药用时才从背包扣，法宝/法术只是引用），只不再显示
       sl[i] = !k ? null : k === "fb" ? { k, uid: v } : k === "sp" ? { k, id: v } : { k, name: v };
       this.closeModal(); this.tribRender(true); this.save && this.save();
     },
@@ -140,7 +141,7 @@ G.module({
         s.hp -= d; x.taken += d; x.hits++;
         hit = { n: x.hits, d, c, ab, el: el.id };
         x.last = hit;   // 最近一击：联网时客户端按它画闪电、飘伤害
-        x.log.unshift(`第${x.sec}秒：${el.name}属性劫雷劈中你 ${U.fmt(d)}${c ? "（暴击）" : ""}${ab ? `（护盾抵挡 ${U.fmt(ab)}）` : ""}${brk ? "，护盾破碎" : ""}`);
+        x.log.unshift(`${el.name}属性劫雷劈中你 ${U.fmt(d)}${c ? "（暴击）" : ""}${ab ? `（护盾抵挡 ${U.fmt(ab)}）` : ""}${brk ? "，护盾破碎" : ""}`);
         if (x.log.length > 60) x.log.length = 60;
         if (s.hp <= 0) this.endTrib(false);
         else if (x.sec >= x.time) this.endTrib(true);
@@ -305,7 +306,7 @@ G.module({
     // 渡劫页的格子：显示冷却秒数、丹药已用
     tribRunSlots() {
       const x = this.s.trib; if (!x) return "";
-      return (this.s.tribSlots || []).map((c, i) => {
+      return (this.s.tribSlots || []).slice(0, this.tribSlotN()).map((c, i) => {
         const f = this.tribFind(c); if (!f) return "";
         const used = x.used && x.used[i], left = Math.ceil(((x.cd || {})[i] - this.now()) / 1000);
         return `<div class="tj-slot on sm${used || left > 0 ? " cd" : ""}" onclick="G.tribUse(${i})">${f.img ? `<img src="${f.img}" alt="">` : `<span class="tj-ic">${f.tag.slice(0, 1)}</span>`}<small>${f.name}</small>${used ? `<b class="tj-cdn">已用</b>` : left > 0 ? `<b class="tj-cdn">${left}</b>` : ""}</div>`;

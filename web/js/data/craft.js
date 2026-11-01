@@ -13,15 +13,16 @@ const _AL = CFG.alchemy, _FU = CFG.furnace, _GA = CFG.garden;
 DATA.matByName = {};
 DATA.herbs.forEach((n, g) => DATA.matByName[n] = { kind: "herb", g });
 DATA.ores.forEach((n, g) => DATA.matByName[n] = { kind: "ore", g });
-DATA.matName = (kind, g) => kind === "sm" ? DATA.smName(g) : (kind === "herb" ? DATA.herbs : DATA.ores)[g];
+DATA.matName = (kind, g) => kind === "sm" ? DATA.smName(g) : kind === "cu" ? g : (kind === "herb" ? DATA.herbs : DATA.ores)[g];
 // 显示名：药材、矿石都不显示品阶
 DATA.matFull = (kind, g) => DATA.matName(kind, g);
 // [[名字, 数量], ...] → [{ kind, g, n }]，名字写错会在控制台报错
 DATA.parseMats = list => list.map(([name, n]) => {
   const sm = !DATA.matByName[name] && DATA.smByName(name); if (sm) return { kind: "sm", g: sm.k, n };   // 秘境专用材料（养神露等），g = 代号
   const m = DATA.matByName[name];
-  if (!m) { console.error("js/config/ 数值文件 里有不存在的材料名：" + name); return { kind: "herb", g: 0, n: 1e15 }; }
-  return { kind: m.kind, g: m.g, n };
+  if (m) return { kind: m.kind, g: m.g, n };
+  if (typeof ITEMS !== "undefined" && ITEMS.list && ITEMS.list[name]) return { kind: "cu", g: name, n };   // 自定义物品（瑶池玉蕊、蟠桃灵果），g = 物品名
+  console.error("js/config/ 数值文件 里有不存在的材料名：" + name); return { kind: "herb", g: 0, n: 1e15 };
 });
 
 /* ---------- 丹方 / 属性丹 / 修炼速度丹 ---------- */
@@ -44,11 +45,11 @@ DATA.isSpeedRecipe = type => !!(_AL.recipes[type] && _AL.recipes[type].speed);
 // 一阶破军丹；修炼速度丹显示为 一阶聚气丹（练气期）
 // 上古丹名（不含阶）：上古 + 原名去掉「丹」+ 分类名（config/alchemy.js 的 SHANGGU）
 DATA.sgDanBase = type => ((_AL.SHANGGU || {}).PREFIX || "上古") + _AL.recipes[type].name.replace(/丹$/, "") + (_AL.CATS[DATA.danCat(type)] || "丹");
-DATA.danName = (type, g, sg) => DATA.recipeItem(type) ? _AL.recipes[type].name : DATA.JIE[g] + (sg ? DATA.sgDanBase(type) : _AL.recipes[type].name) + (DATA.isSpeedRecipe(type) ? `（${DATA.realmLabel(DATA.pillGrade(type, g))}）` : "");
+DATA.danName = (type, g, sg) => type === "wuzhen" ? _AL.recipes[type].name : DATA.recipeItem(type) ? _AL.recipes[type].name : DATA.JIE[g] + (sg ? DATA.sgDanBase(type) : _AL.recipes[type].name) + (DATA.isSpeedRecipe(type) ? `（${DATA.realmLabel(DATA.pillGrade(type, g))}）` : "");
 // 丹方效果说明
-DATA.recipeEffect = (type, g) => DATA.recipeItem(type) ? (_AL.recipes[type].effect || "养神用") : DATA.isSpeedRecipe(type) ? `修炼速度+${Math.round(DATA.pillPct(type, DATA.pillGrade(type, g)))}%` : `${_AL.recipes[type].label}+${U.num(_AL.recipes[type].val[g])}`;
-DATA.danVal = (type, g) => _AL.recipes[type].val[g];
-DATA.danLimit = (type, g) => _AL.recipes[type].limit[g];
+DATA.recipeEffect = (type, g) => type === "wuzhen" ? (_AL.recipes[type].effect || "") : DATA.recipeItem(type) ? (_AL.recipes[type].effect || "养神用") : DATA.isSpeedRecipe(type) ? `修炼速度+${Math.round(DATA.pillPct(type, DATA.pillGrade(type, g)))}%` : `${_AL.recipes[type].label}+${U.num(_AL.recipes[type].val[g])}`;
+DATA.danVal = (type, g) => (_AL.recipes[type].val || [])[g] || 0;
+DATA.danLimit = (type, g) => (_AL.recipes[type].limit || [])[g] || 0;
 DATA.danRecipe = (type, g) => DATA.parseMats(_AL.recipes[type].herbs[g]);
 DATA.danTime = (type, g) => _AL.recipes[type].time[g] * 60000;     // 毫秒（未算炉子加成）
 DATA.danLearnTime = (type, g) => _AL.recipes[type].learnTime[g] * 60000;

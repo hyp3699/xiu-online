@@ -41,7 +41,7 @@ G.module({
       if (s.auto && this.hasMijue() && !this.exBlocksCult()) u += Math.max(0, this.speed().total - this.wdRed("exp"));
       if (s.bodyAuto && this.hasTijue() && !this.exBlocksCult() && !this.bodyMax()) u += Math.max(0, this.bodySpeed().total * Math.max(0.0001, CFG.body.LING_RATE || 1) - this.wdRed("body"));
       const st = s.gfStudy;
-      if (st && st.done < st.total) { const R = this.gfRoomNow(); u += st.per * (R ? R.mul : 1) * 2; }
+      if (st && st.done < st.total) { const R = this.gfRoomNow(DATA.skillInfo(st.id, s.gongfa[st.id] || 1)); u += st.per * (R ? R.mul : 1) * 2; }
       return u;
     },
     lingPerStone() { return DATA.array.STONE_LING; }, // 固定数值

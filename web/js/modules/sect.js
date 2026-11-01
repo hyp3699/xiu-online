@@ -25,6 +25,7 @@ G.module({
     rank: 0,          // 职务（DATA.ranks 下标）
     room: -1,         // 正在使用的修炼室（原练功房），-1 为未使用
     gfRoom: -1,       // v27：宗门练功房（加快功法修炼）
+    roomAt: 0, gfRoomAt: 0,   // 修炼室 / 练功房下次扣贡献的时间（毫秒）
     merit: 0,         // v27：功德
     salaryDay: "",    // 上次领取俸禄的日期
     affair: { task: -1, start: 0, count: 0 },     // 事务堂：正在循环执行的任务（-1 = 无）
@@ -53,12 +54,16 @@ G.module({
     this.freeRoomDaily(); this.poolTick(); this.jdSettle(); this.cqzjTick();
     if (this.s.sect) this.affairGen();
     this.autoTaskCheck();   // v229 每天北京时间 0:05 自动执行任务（修炼设置）；v230 离线补算到 0:05 也执行
-    const s = this.s, a = s.affair;
-    if (!s.sect || !a || a.task === undefined || a.task < 0) return;
-    const t = DATA.affairs[a.task]; if (!t) { a.task = -1; return; }
-    const T = t.time * 60000, now = this.now();
-    let guard = 0;
-    while (now >= a.start + T && guard++ < 1e5) { a.start += T; a.count++; this.affairReward(a.task); }
+    const s = this.s, a = s.affair, now = this.now();
+    const t = s.sect && a && a.task >= 0 ? DATA.affairs[a.task] : null;
+    if (s.sect && a && a.task >= 0 && !t) a.task = -1;
+    // 事务堂奖励和修炼室 / 练功房扣贡献按时间先后结算（同一次结算里先到的先算，离线补算也一样）
+    if (t) {
+      const T = t.time * 60000;
+      let guard = 0;
+      while (now >= a.start + T && guard++ < 1e5) { this.roomBill(a.start + T); a.start += T; a.count++; this.affairReward(a.task); }
+    }
+    this.roomBill(now);
   },
 
   api: {
@@ -66,23 +71,45 @@ G.module({
     // 星级倍率、职务倍率（config/sect.js 的 STAR_MULT / RANK_MULT）
     starMul() { const v = (CFG.sect.STAR_MULT || [])[this.sectInfo().star - 1]; return v === undefined ? this.sectInfo().star : v; },
     rankMul(i = this.s.rank) { const v = (CFG.sect.RANK_MULT || [])[i]; return v === undefined ? 1 : v; },
-    roomPct(i) { return DATA.rooms[i].pct * this.starMul(); },
+    // 两星一档：1~2 星第 0 档、3~4 星第 1 档、5~6 星第 2 档、7~8 星第 3 档、9~10 星第 4 档
+    starStep() { const st = (this.sectInfo() || {}).star || 1; return Math.max(0, Math.floor((st - 1) / 2)); },
+    roomPct(i) { return DATA.rooms[i].pct + 30 * this.starStep(); },   // 修炼室：每两星直接 +30 点，不再 × 星数
     roomCost(i) { return DATA.rooms[i].cost; },   // v99：写多少就是多少，不乘星级
     roomLocked(i) { return (DATA.rooms[i].rank || 0) > this.s.rank; },
-    gfRoomPct(i) { return DATA.gfRooms[i].pct; },   // v97：减少修炼时间 %，不乘星级
+    gfStarBonus() { return 10 * this.starStep(); },   // 练功房：每两星 +10（3~4 星 +10 … 9~10 星 +40）
+    gfRoomPct(i) { return DATA.gfRooms[i].pct + this.gfStarBonus(); },
     gfRoomCost(i) { return DATA.gfRooms[i].cost; },   // v98：写多少就是多少，不乘星级
     gfRoomUnits() { return Math.max(1, Math.round((CFG.sect.gfRoomSec || 5) / DATA.STUDY_STEP)); },   // 几个 5 秒单位扣一次贡献
     gfRoomSec() { return this.gfRoomUnits() * DATA.STUDY_STEP; },
     gfRoomLocked(i) { return (DATA.gfRooms[i].rank || 0) > this.s.rank; },
+    // 功法减少%（不含练功房）：同 gongfa.js studySec 的 red 口径
+    //   功法：悟道 + 经脉；法术：悟法（经脉不减）；秘法 / 开局功法书：0
+    // 悟真丹：功法/法术修炼时间 -120%，持续 360 分钟；效果不叠加（pct 固定），时间可叠加（再服 end += 360 分钟）
+    //   存档字段 s.studyBuff = { pct, end }（毫秒时间戳）；秘法（mf）不吃此效果，功法/法术（含开局功法书 noEl）吃
+    studyPillPct() { const b = this.s && this.s.studyBuff; if (!b || !b.end) return 0; return this.now() < b.end ? (b.pct || 0) : 0; },
+    studyPillLeft() { const b = this.s && this.s.studyBuff; if (!b || !b.end) return 0; return Math.max(0, b.end - this.now()); },
+    gfRedFor(g) {
+      if (!g || g.noEl || g.kind === "mf") return 0;
+      const m = this.mifaBonus ? this.mifaBonus() : {};
+      return g.kind === "sp" ? (m.spStudy || 0) : (m.gfStudy || 0) + (this.jmGfCut ? this.jmGfCut() : 0);
+    },
+    // 练功房进度倍率：先把练功房 % 加进秘法/经脉减少%里一起除，再换算回进度倍率
+    //   实际时间 = base ÷ (1 + (red + roomPct)%) = studySec ÷ mul，
+    //   所以 mul = (100 + red + roomPct) ÷ (100 + red)；每 5 秒灵气也 × mul，总灵气不变，
+    //   时间缩短多少，每 10 秒灵气就对应增加多少（不是直接 × (1 + roomPct%)）
+    gfRoomMul(red, pct) { const r = Math.max(0, red), p = Math.max(0, pct); return (100 + r + p) / (100 + r); },   // red/pct 都是 % 数：(1+(red+pct)/100) ÷ (1+red/100)
     // 当前练功房：{ name, pct, mul, cost, cur: "contrib" } 或 null
-    // pct = 减少修炼时间 %；mul = 修炼进度倍率 = 100 ÷ (100 − pct)
-    gfRoomNow() {
-      const s = this.s, M = p => 100 / (100 - Math.min(95, Math.max(0, p)));
-      if (this.freeGfOn()) { const p = this.freeGfPct(); return { name: CFG.sect.freeGfRoom.name, pct: p, mul: M(p), cost: 0, cur: "contrib", free: true }; }
-      if (s.gfRoom >= 0 && s.sect && DATA.gfRooms[s.gfRoom]) { const p = this.gfRoomPct(s.gfRoom); return { name: DATA.gfRooms[s.gfRoom].name, pct: p, mul: M(p), cost: this.gfRoomCost(s.gfRoom), cur: "contrib" }; }
+    //   g 不传时按正在修炼的那部算；没有正在修炼的按 red = 0 算（mul = 1 + pct%）
+    gfRoomNow(g) {
+      const s = this.s;
+      if (!g && s.gfStudy && DATA.skillInfo) g = DATA.skillInfo(s.gfStudy.id, s.gongfa[s.gfStudy.id] || 1);
+      const red = this.gfRedFor(g), pill = g && g.kind !== "mf" ? this.studyPillPct() : 0, M = p => this.gfRoomMul(red, p + pill);
+      if (this.freeGfOn()) { const p = this.freeGfPct(); return { name: CFG.sect.freeGfRoom.name, pct: p, pill, mul: M(p), cost: 0, cur: "contrib", free: true }; }
+      if (s.gfRoom >= 0 && s.sect && DATA.gfRooms[s.gfRoom]) { const p = this.gfRoomPct(s.gfRoom); return { name: DATA.gfRooms[s.gfRoom].name, pct: p, pill, mul: M(p), cost: this.gfRoomCost(s.gfRoom), cur: "contrib" }; }
+      if (pill > 0) return { name: "悟真丹", pct: pill, pill, mul: M(0), cost: 0, cur: null, pillOnly: true };   // 不在练功房时，悟真丹仍生效
       return null;
     },
-    leaveGfRoom(why) { const r = this.gfRoomNow(); this.s.gfRoom = -1; if (r && why) this.log(`${why}，已离开${r.name}。`, "bad"); this.dirty(); },
+    leaveGfRoom(why) { const r = this.gfRoomNow(); this.s.gfRoom = -1; this.s.gfRoomAt = 0; if (r && why) this.log(`${why}，已离开${r.name}。`, "bad"); this.dirty(); },
     setSectStar(n) { this.sectStar = n; this.render(); },
     setSectTab(t) { this.sectTab = t; this.render(); },
 
@@ -90,7 +117,7 @@ G.module({
     joinSect(id) {
       const x = DATA.sectById[id];
       if (!this.realmOK(x.reqRealm)) return;
-      Object.assign(this.s, { sect: id, rank: 0, room: -1, rankPass: -1, affair: { task: -1, start: 0, count: 0 } });
+      Object.assign(this.s, { sect: id, rank: 0, room: -1, roomAt: 0, gfRoom: -1, gfRoomAt: 0, rankPass: -1, affair: { task: -1, start: 0, count: 0 } });
       this.sectTab = "hall";
       const O = CFG.origin || {}, yr = this.oriSum ? this.oriSum("sectRank") : 0;   // 出身「宗门遗孤」：第一次加入 SECT_STAR 星宗门直接是真传，加贡献
       if (yr > 0 && !this.s.oriSect && x.star === (O.SECT_STAR || 1)) {
@@ -106,7 +133,7 @@ G.module({
       if (!confirm(`叛出门派将扣除贡献 ${U.fmt(c)}、清空职务（已学功法保留），确定？`)) return;
       this.log(`你离开了${this.sectInfo().name}，扣除贡献 ${U.fmt(c)}。`, "bad");
       this.s.contrib -= c;
-      this.s.sect = null; this.s.room = -1; this.s.affair = { task: -1, start: 0, count: 0 }; this.s.rank = 0; this.s.rankPass = -1; this.after();
+      this.s.sect = null; this.s.room = -1; this.s.roomAt = 0; this.s.gfRoom = -1; this.s.gfRoomAt = 0; this.s.affair = { task: -1, start: 0, count: 0 }; this.s.rank = 0; this.s.rankPass = -1; this.after();
     },
 
     /* ---------- 宗门大殿 ---------- */
@@ -117,7 +144,7 @@ G.module({
       if (o !== undefined) return o;
       const t = DATA.mobExam(I.star, i); return t ? t[0] : I.reqRealm;
     },
-    rankCost(i) { return Math.floor(DATA.ranks[i].cost * this.starMul()); },
+    rankCost(i) { const P = CFG.sect.RANK_COST_STAR_PCT; const m = P == null ? this.starMul() : 1 + (this.sectInfo().star - 1) * P / 100; return Math.floor(DATA.ranks[i].cost * m + 1e-9); },   // 晋升贡献：1 星起每星 +RANK_COST_STAR_PCT%
     promote() {
       const i = this.s.rank + 1; if (i >= DATA.ranks.length) return;
       if (!this.realmOK(this.rankReqRealm(i)) || this.s.contrib < this.rankCost(i)) return;
@@ -214,8 +241,8 @@ G.module({
     },
 
     /* ---------- 事务堂 ---------- */
-    affairContrib(i) { return Math.floor(DATA.affairs[i].contrib * this.starMul() * this.rankMul()); },
-    affairStone(i) { return Math.floor(DATA.affairs[i].stone * this.starMul() * this.rankMul()); },
+    affairContrib(i) { return Math.floor(DATA.affairs[i].contrib * this.rankMul()); },
+    affairStone(i) { return Math.floor(DATA.affairs[i].stone * this.rankMul()); },
     affairReward(i) {
       const c = this.affairContrib(i), st = this.affairStone(i);
       this.s.contrib += c; this.s.stone += st;
@@ -257,7 +284,7 @@ G.module({
       this.log(`提交 ${nm} ×${t.n}，贡献 +${U.fmt(c)}。`, "good"); this.after();
     },
     affairFightMul(t) { return (CFG.sect.affairFight.GROUPS[t.grp] || {}).mul || 1; },
-    affairFightWin(t) { const W = CFG.sect.affairFight.WIN, m = this.affairFightMul(t); return { stone: W.stone * m * this.sectInfo().star, contrib: W.contrib * m }; },
+    affairFightWin(t) { const W = CFG.sect.affairFight.WIN, m = this.affairFightMul(t); return { stone: W.stone * m, contrib: W.contrib * m }; },
     affairFightRow(t) { return [t.realm, t.lay, 0, [1, t.pct, t.gf], [2, 0, 0], [3, 0, 0], 1]; },
     fightAffair(i) {
       this.affairGen(); const s = this.s, t = (s.affairFights || [])[i]; if (!s.sect || !t || t.done || t.failed) return;
@@ -277,8 +304,8 @@ G.module({
     setAffairTab(t) { this.affairTab = t; this.render(); },
 
     /* ---------- 免费修炼室 / 免费练功房（config/sect.js 的 freeRoom / freeGfRoom） ---------- */
-    freeCultPct() { const p = CFG.sect.freeRoom.pct; return p ? p * this.starMul() : this.roomPct(0); },
-    freeGfPct() { const p = CFG.sect.freeGfRoom.pct; return p ? p : this.gfRoomPct(0); },
+    freeCultPct() { const p = CFG.sect.freeRoom.pct; return p ? p + 30 * this.starStep() : this.roomPct(0); },
+    freeGfPct() { const p = CFG.sect.freeGfRoom.pct; return p ? p + this.gfStarBonus() : this.gfRoomPct(0); },
     freeCultOn() { const f = this.s.freeCult; return !!(this.s.sect && f && f.on && f.left > 0); },
     freeGfOn() { const f = this.s.freeGf; return !!(this.s.sect && f && this.now() < f.end); },
     freeUsed(f) { return f && f.day === this.bjDay() ? f.used || 0 : 0; },
@@ -374,15 +401,46 @@ G.module({
     },
 
     /* ---------- 练功房 ---------- */
+    /* 修炼室 / 练功房按分钟扣贡献：进入时先扣一次，之后每 ROOM_BILL_SEC 秒扣一次（离线也补扣），贡献不够就离开 */
+    roomBillMs() { return (CFG.sect.ROOM_BILL_SEC || 60) * 1000; },
+    roomPay(k, i) {   // k = "room" / "gfRoom"：进入时先扣一次；不够返回 false
+      const s = this.s, c = k === "room" ? this.roomCost(i) : this.gfRoomCost(i);
+      if (s.contrib < c) { this.log(`门派贡献不足（需要 ${U.fmt(c)}）。`, "sys"); return false; }
+      s.contrib -= c; s[k + "At"] = this.now() + this.roomBillMs();
+      this.log(`进入${(k === "room" ? DATA.rooms : DATA.gfRooms)[i].name}，扣除 ${U.fmt(c)} 贡献，${Math.round(this.roomBillMs() / 1000)} 秒后再次扣贡献。`, "good"); return true;
+    },
+    roomNextSec(k) { const at = this.s[k + "At"] || 0; return at ? Math.max(0, Math.ceil((at - this.now()) / 1000)) : Math.ceil(this.roomBillMs() / 1000); },   // 还有几秒再扣贡献
+    roomBill(upTo) {   // 结算到 upTo（毫秒，默认现在）为止该扣的贡献
+      const s = this.s, now = upTo == null ? this.now() : Math.min(upTo, this.now()), T = this.roomBillMs();
+      for (const k of ["room", "gfRoom"]) {
+        const i = s[k], R = (k === "room" ? DATA.rooms : DATA.gfRooms)[i];
+        if (!(i >= 0) || !R || !s.sect) { s[k + "At"] = 0; continue; }
+        if (k === "room" && this.freeCultOn()) { s.roomAt = now + T; continue; }   // 免费修炼室使用中：付费修炼室不扣
+        if (!s[k + "At"]) { s[k + "At"] = now + T; continue; }   // 旧存档：从现在起算
+        if (now < s[k + "At"]) continue;
+        const c = k === "room" ? this.roomCost(i) : this.gfRoomCost(i), n = Math.floor((now - s[k + "At"]) / T) + 1, can = c > 0 ? Math.min(n, Math.floor(s.contrib / c)) : n;
+        s.contrib -= can * c; s[k + "At"] += can * T;
+        if (can < n) { s[k] = -1; s[k + "At"] = 0; this.log(`门派贡献不足，已离开${R.name}。`, "bad"); }
+        this.dirty();
+      }
+    },
     enterRoom(i) {
-      if (this.s.room !== i && this.roomLocked(i)) return this.log(`需要职务【${DATA.ranks[DATA.rooms[i].rank].name}】。`, "sys");
-      this.s.room = this.s.room === i ? -1 : i;
-      if (this.s.room >= 0 && this.s.freeCult) this.s.freeCult.on = false;   // 换到付费修炼室：免费修炼室暂停（剩余次数保留）
+      const s = this.s;
+      if (s.room !== i && this.roomLocked(i)) return this.log(`需要职务【${DATA.ranks[DATA.rooms[i].rank].name}】。`, "sys");
+      if (s.room === i) { s.room = -1; s.roomAt = 0; return this.after(); }
+      if (!s.sect) return;
+      if (!this.roomPay("room", i)) return;
+      s.room = i;
+      if (s.freeCult) s.freeCult.on = false;   // 换到付费修炼室：免费修炼室暂停（剩余次数保留）
       this.after();
     },
     enterGfRoom(i) {
-      if (this.s.gfRoom !== i && this.gfRoomLocked(i)) return this.log(`需要职务【${DATA.ranks[DATA.gfRooms[i].rank].name}】。`, "sys");
-      this.s.gfRoom = this.s.gfRoom === i ? -1 : i; this.after();
+      const s = this.s;
+      if (s.gfRoom !== i && this.gfRoomLocked(i)) return this.log(`需要职务【${DATA.ranks[DATA.gfRooms[i].rank].name}】。`, "sys");
+      if (s.gfRoom === i) { s.gfRoom = -1; s.gfRoomAt = 0; return this.after(); }
+      if (!s.sect) return;
+      if (!this.roomPay("gfRoom", i)) return;
+      s.gfRoom = i; this.after();
     },
     /* ---------- 宗门宝库 ---------- */
     treasuryCost(it) { return it.kind === "chuqiao" ? this.cqCost() : it.kind === "cqzj" ? (CFG.cqzj.COST || [])[it.v - 1] || 0 : it.cost; },
@@ -659,12 +717,13 @@ G.module({
 
     /* ---------- 讲道室（config/sect.js 的 jiangdao） ---------- */
     jdCfg() { return CFG.sect.jiangdao; },
-    jdCost() { return (this.jdCfg().COST || 0) * this.sectInfo().star; },
+    jdCost() { return this.jdCfg().COST || 0; },
     jdStatOf(k) { if (k.startsWith("res_")) return k; const t = DATA.gongfaTypes.find(x => x.id === k); return t ? t.stat : ""; },
     jdLabel(st) { return st.startsWith("res_") ? ((DATA.elById[st.slice(4)] || {}).name || "") + "抗" : DATA.QL_LABEL[st] || st; },
-    jdVal(k) { const P = this.jdCfg().STAT || [25, 45], n = this.sectInfo().star; return [P[0] * n, P[1] * n]; },   // 加的属性 = 门派星数 × STAT 随机
-    jdNeed(k) { const C = CFG.craftsman, c = this.craftInfo(k), E = C[k].EXP || C.EXP; return c.lv >= this.craftMax(k) ? 0 : E[c.lv - 1] ?? (64 + 32 * (c.lv - 1)) * 13 * c.lv; },
-    jdExp(k) { const n = this.jdNeed(k), P = this.jdCfg().EXP_PCT || [5, 10]; return [Math.floor(n * P[0] / 100), Math.floor(n * P[1] / 100)]; },
+    jdInterp(a, b) { const n = this.sectInfo().star, t = Math.min(9, Math.max(0, n - 1)) / 9; return [Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t)]; },   // 1 星 a 到 10 星 b 按星级线性插值
+    jdVal(k) { return this.jdInterp(this.jdCfg().STAT1 || [15, 35], this.jdCfg().STAT10 || [70, 110]); },   // 功法属性：1 星 STAT1 到 10 星 STAT10 按星级线性插值
+    jdNeed(k) { const c = this.craftInfo(k); return c.lv >= this.craftMax(k) ? 0 : this.craftNeed(k, c.lv); },
+    jdExp(k) { if (!this.jdNeed(k)) return [0, 0]; return this.jdInterp(this.jdCfg().EXP1 || [20, 40], this.jdCfg().EXP10 || [180, 260]); },   // 炼丹/炼器经验：1 星 EXP1 到 10 星 EXP10 按星级线性插值（满阶不加）
     jdRoll(r) { return Math.floor(r[0] + Math.random() * (r[1] - r[0] + 1)); },
     jdRange(r) { return r[0] === r[1] ? U.fmt(r[0]) : `${U.fmt(r[0])}~${U.fmt(r[1])}`; },
     // 当天的长老按「日期 + 角色名 + 门派」固定随机：客户端、服务器算出来一样，刷新页面也不变
@@ -803,22 +862,22 @@ G.module({
       }
     } else if (tab === "room") {
       const FC = CFG.sect.freeRoom, fc = s.freeCult || {}, fcOn = this.freeCultOn(), fcLeft = fc.left > 0, fcDone = !fcLeft && this.freeUsed(fc) >= FC.daily;
-      h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "room", "修炼室")}<small>加快修炼 · 每次修炼消耗贡献</small></h3>
+      h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "room", "修炼室")}<small>加快修炼 · 进入先扣一次贡献，之后每分钟扣一次</small></h3>
         <div class="line"><div>${FC.name}<span class="tag">+${U.num(this.freeCultPct())}%</span><small>${fcLeft ? `本次剩余 ${fc.left} 次修炼` : `每天 ${FC.daily} 次 · 每次 ${FC.times} 次修炼 · 不消耗贡献`}</small></div>
           <button class="sm ${fcOn ? "on" : ""}" onclick="G.enterFreeRoom()" ${fcDone ? "disabled" : ""}>${fcOn ? "使用中" : fcDone ? "今日已用" : "进入"}</button></div>` + DATA.rooms.map((r, i) => {
         const on = s.room === i, lock = !on && this.roomLocked(i);
-        return `<div class="line"><div>${r.name}<span class="tag">+${U.num(this.roomPct(i))}%</span>${r.rank ? `<span class="tag">${DATA.ranks[r.rank].name}专用</span>` : ""}<small>每次修炼消耗 ${U.fmt(this.roomCost(i))} 贡献</small></div>
+        return `<div class="line"><div>${r.name}<span class="tag">+${U.num(this.roomPct(i))}%</span>${r.rank ? `<span class="tag">${DATA.ranks[r.rank].name}专用</span>` : ""}<small>每分钟 ${U.fmt(this.roomCost(i))} 贡献${on ? (this.freeCultOn() ? " · 免费修炼室使用中，暂不扣" : ` · ${this.roomNextSec("room")} 秒后再次扣贡献`) : ""}</small></div>
           <button class="sm ${on ? "on" : ""}" onclick="G.enterRoom(${i})" ${lock ? "disabled" : ""}>${on ? "使用中" : lock ? "职务不足" : "进入"}</button></div>`;
       }).join("") + `</div>`;
     } else if (tab === "gfroom") {
       const FG = CFG.sect.freeGfRoom, fg = s.freeGf || {}, fgOn = this.freeGfOn(), fgDone = !fgOn && this.freeUsed(fg) >= FG.daily;
-      h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "gfroom", "练功房")}<small>减少功法修炼时间 · 修炼功法时每 ${this.gfRoomSec()} 秒消耗贡献</small></h3>
+      h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "gfroom", "练功房")}<small>减少功法修炼时间 · 进入先扣一次贡献，之后每分钟扣一次</small></h3>
         <div class="line"><div>${FG.name}<span class="tag">修炼时间 -${U.num(this.freeGfPct())}%</span><small>${fgOn ? `剩余 ${U.cd(Math.ceil((fg.end - this.now()) / 1000))}` : `每天 ${FG.daily} 次 · 每次 ${FG.minutes} 分钟 · 不消耗贡献`}</small></div>
           <button class="sm ${fgOn ? "on" : ""}" onclick="G.enterFreeGfRoom()" ${fgOn || fgDone ? "disabled" : ""}>${fgOn ? "使用中" : fgDone ? "今日已用" : "进入"}</button></div>` + DATA.gfRooms.map((r, i) => {
         const on = s.gfRoom === i, lock = !on && this.gfRoomLocked(i);
-        return `<div class="line"><div>${r.name}<span class="tag">修炼时间 -${U.num(this.gfRoomPct(i))}%</span>${r.rank ? `<span class="tag">${DATA.ranks[r.rank].name}专用</span>` : ""}<small>每 ${this.gfRoomSec()} 秒消耗 ${U.fmt(this.gfRoomCost(i))} 贡献</small></div>
+        return `<div class="line"><div>${r.name}<span class="tag">修炼时间 -${U.num(this.gfRoomPct(i))}%</span>${r.rank ? `<span class="tag">${DATA.ranks[r.rank].name}专用</span>` : ""}<small>每分钟 ${U.fmt(this.gfRoomCost(i))} 贡献${on ? ` · ${this.roomNextSec("gfRoom")} 秒后再次扣贡献` : ""}</small></div>
           <button class="sm ${on ? "on" : ""}" onclick="G.enterGfRoom(${i})" ${lock ? "disabled" : ""}>${on ? "使用中" : lock ? "职务不足" : "进入"}</button></div>`;
-      }).join("") + `<p class="desc">只在功法修炼队列有功法在修炼时才消耗；功法修炼时间缩短，消耗的修为不变。</p></div>`;
+      }).join("") + `<p class="desc">待在练功房就按分钟扣贡献（没在修炼也扣），贡献不够自动离开；功法修炼时间缩短，消耗的修为不变。</p></div>`;
     } else if (tab === "pool") {
       const P = CFG.sect.pool, p = s.pool, on = this.poolOn(), done = !on && this.poolUsed() >= P.DAILY;
       h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "pool", P.name)}<small>每天 ${P.DAILY} 次 · 每次 ${P.MINUTES} 分钟</small></h3>` + P.list.map((d, i) => {
@@ -849,7 +908,7 @@ G.module({
                 : `<button class="sm" onclick="G.exchange(${i})" ${L || s.contrib < c ? "disabled" : ""}>${L ? "学习中" : "学习"}</button>`}</div>`];
           }
           const c = this.treasuryCost(it), lock = (it.star || 1) > x.star;
-          const desc = it.kind === "furnace" ? `${it.fk === "dan" ? "炼丹" : "炼器"}时间 -${DATA.furnaceBonus(it.fk, it.g)}% · `
+          const desc = it.kind === "furnace" ? `${it.fk === "dan" ? "炼丹" : "炼器"}速度 +${DATA.furnaceBonus(it.fk, it.g)}% · `
             : "";
           const img = it.kind === "furnace" ? DATA.furnaceIcon(it.fk) : it.kind === "pill" ? DATA.pillIcon(it.type) : DATA.iconImg("stone");
           return [0, `<div class="line"><div>${DATA.li(img)}${this.treasuryName(it)}<small>${desc}${U.fmt(c)} 贡献</small></div>
@@ -860,6 +919,7 @@ G.module({
           return `<div class="line"><div>${DATA.li(DATA.matImg("herb", g))}${n}种子<small>${U.fmt(c)} 贡献 · ${U.dur(DATA.growTime(g) / 1000)}成熟</small></div>
             <button class="sm" onclick="G.exchangeSeed(${g})" ${has || lock || s.contrib < c ? "disabled" : ""}>${has ? "已拥有" : lock ? `${lock}星宗门可兑换` : "兑换"}</button></div>`; }).join("") + `</div>`;
       } else if (tt === "bp") {
+        h += this.ringShopHtml();   // 灵犀戒图纸、灵犀晶（6 星以上宗门）
         h += U.doneCards(DATA.FURNACE_KINDS.map(k => ({ head: `<h3>${DATA.furnaces[k].name}图纸<small>放进背包后点「学习」</small></h3>`, rows: DATA.JIE.slice(0, DATA.DAN_JIE_N).map((jn, g) => g).filter(g => DATA.blueprintStar(k, g) <= x.star).map(g => {   // 只显示本宗门星级能兑换的
           const c = DATA.blueprintCost(k, g), has = s.blueprints[k].includes(g) || s.bag.some(it => it.t === "bp" && it.kind === k && it.g === g), need = DATA.blueprintStar(k, g), lock = need > x.star;
           return [s.blueprints[k].includes(g), `<div class="line"><div>${DATA.li(DATA.iconImg("bp"))}${DATA.furnaceName(k, g)}图纸<small>${U.fmt(c)} 贡献</small></div>

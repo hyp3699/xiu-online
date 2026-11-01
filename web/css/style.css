@@ -326,6 +326,8 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 .tj-ic{width:28px;height:28px;border-radius:50%;background:var(--c-line);color:var(--t-gold);display:flex;align-items:center;justify-content:center;font-size:14px}
 @keyframes tjDraw{to{stroke-dashoffset:0}}
 .tj-slots.run{margin-top:8px}
+.tj-prep .tj-slots{grid-template-columns:repeat(3,1fr);max-width:420px;margin:10px auto 6px}
+.tj-slots.run{grid-template-columns:repeat(3,1fr);max-width:420px;margin:8px auto 6px}
 .tj-prep{min-height:calc(100vh - 40px);display:flex;flex-direction:column;justify-content:center}
 .tj-prep-title{text-align:center;color:var(--t-gold);font-size:20px;letter-spacing:4px;margin-bottom:10px}
 .bar.mp>div{background:linear-gradient(90deg,#3d5a99,#6c8fd8)}
@@ -354,7 +356,7 @@ button.sm{white-space:nowrap;flex-shrink:0}
 body.nologin #app, body.nologin #toast { display: none; }
 /* ---------- 战斗过程画面（world.js playBattle） ---------- */
 .modal-box:has(.btv){padding:0;overflow:hidden;max-height:none}
-.btv{display:flex;flex-direction:column;height:min(88vh,780px);background:#efe6cf;border:2px solid #b89a63;border-radius:12px;overflow:hidden;color:#3b2f22}
+.btv{position:relative;display:flex;flex-direction:column;height:min(88vh,780px);background:#efe6cf;border:2px solid #b89a63;border-radius:12px;overflow:hidden;color:#3b2f22}
 .btv-title{flex:none;text-align:center;font-size:18px;font-weight:bold;color:#8a2b1c;letter-spacing:4px;padding:8px 0 6px;background:linear-gradient(#f6eed8,#e6d6b0);border-bottom:1px solid #b89a63}
 .btv-stage{flex:none;position:relative;aspect-ratio:16/9;background-size:cover;background-position:center;overflow:hidden;border-bottom:2px solid #b89a63}
 .btv-hp{position:absolute;top:6%;width:40%;height:16px}
@@ -493,7 +495,7 @@ button small .cd{min-width:0}
 
 /* v181 战斗画面点怪物看属性 */
 .btv-u.r{cursor:pointer}
-.btv-info{position:absolute;left:4%;right:4%;top:14%;z-index:5;background:rgba(20,16,10,.92);border:1px solid #a8864a;border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.6;color:#eee}
+.btv-info{position:absolute;left:4%;right:4%;top:64px;max-height:calc(100% - 130px);overflow-y:auto;z-index:20;background:rgba(20,16,10,.92);border:1px solid #a8864a;border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.6;color:#eee}
 .btv-info b{color:#f0c060}.btv-info p{margin:0}.btv-info small{opacity:.6}
 
 /* v193 学习列表：已学会的排到最后并变灰 */

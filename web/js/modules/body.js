@@ -21,7 +21,6 @@ G.module({
     let freeEnd = false;
     if (!this.cultRoomOn()) {
       if (this.freeCultOn()) { if (--s.freeCult.left <= 0) { s.freeCult.left = 1; freeEnd = true; } }
-      else if (s.room >= 0 && s.sect) { const c = this.roomCost(s.room); if (s.contrib >= c) s.contrib -= c; else { s.room = -1; this.dirty(); this.log("门派贡献不足，已离开修炼室。", "bad"); } }
     }
     const sp = this.bodySpeed().total, rate = Math.max(0.0001, B.LING_RATE || 1), red = this.wdRed("body");   // red：神魂之道减掉的灵气消耗
     // 灵气不够且开了聚灵阵自动补充：用灵石补（和修为修炼一样）

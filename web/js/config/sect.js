@@ -18,18 +18,19 @@ CFG.sect = {
   LEAVE_COST: [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000],   // 叛出门派扣贡献：1 星 ~ 10 星门派（不够不能叛出）
   STAR_MULT: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],   // 星级倍率：1 星 ~ 10 星门派
   RANK_MULT: [1, 1, 1, 1, 1, 1, 1],             // 职务倍率（俸禄、事务堂奖励）：按职务序号
-  // 大殿职务（逐级晋升，先过晋升考验）：cost 晋升贡献 × 星级倍率；daily 每日俸禄灵石 × 星级倍率 × 职务倍率
+  RANK_COST_STAR_PCT: 50,   // 晋升贡献：1 星门派 = cost，每高 1 星多 cost 的 50%（2 星 ×1.5，10 星 ×5.5）
+  // 大殿职务（逐级晋升，先过晋升考验）：cost 晋升贡献（星级见 RANK_COST_STAR_PCT）；daily 每日俸禄灵石 × 星级倍率 × 职务倍率
   //   需要境界：外门 = REQ_REALM，其余见 config/mobs.js 的 sect 考官
   ranks: [
     { name: "外门弟子", cost: 0,      daily: 1000 },
     { name: "内门弟子", cost: 200,    daily: 2000 },
     { name: "真传弟子", cost: 500,   daily: 3000 },
-    { name: "核心弟子", cost: 800,   daily: 4000 },
-    { name: "宗门长老", cost: 1200,  daily: 5000 },
-    { name: "宗门供奉", cost: 2000,  daily: 6000 },
-    { name: "宗主",     cost: 3000, daily: 8000 },
+    { name: "核心弟子", cost: 1000,  daily: 4000 },
+    { name: "宗门长老", cost: 1600,  daily: 5000 },
+    { name: "宗门供奉", cost: 2400,  daily: 6000 },
+    { name: "宗主",     cost: 3600, daily: 8000 },
   ],
-  // 事务堂（自动循环，离线继续）：rank 最低职务序号  time 每次分钟  contrib / stone 每次奖励 × 星级倍率 × 职务倍率
+  // 事务堂（自动循环，离线继续）：rank 最低职务序号  time 每次分钟  contrib / stone 每次奖励 × 职务倍率（不随宗门星级）
   affair: {
     tasks: [
       { name: "打扫山门",     rank: 0, time: 5,   contrib: 5,   stone: 5 },
@@ -41,29 +42,33 @@ CFG.sect = {
       { name: "统御宗门",     rank: 6, time: 5, contrib: 30, stone: 30 },
     ],
   },
-  // 修炼室：pct 修为修炼速度 +% × 星级倍率  cost 每 10 秒贡献（不乘倍率）  rank 需要职务序号（不写 = 所有人）
+  // 修炼室：pct 是 1~2 星基础修为修炼速度 +%（不改这个表）；实际值 = 基础 + 两星加成：
+  //   1~2 星 +0、3~4 星 +30、5~6 星 +60、7~8 星 +90、9~10 星 +120（见 modules/sect.js roomPct，
+  //   直接加百分点，不是 ×1.3；不再用上面的 STAR_MULT × 星数）  cost 每次扣的贡献（不乘倍率；进入时先扣一次，之后每 ROOM_BILL_SEC 秒扣一次，不管在不在修炼）  rank 需要职务序号（不写 = 所有人）
   rooms: [
-    { name: "下品修炼室", pct: 20,  cost: 1 },
-    { name: "中品修炼室", pct: 30,  cost: 2 },
-    { name: "上品修炼室", pct: 50, cost: 3 },
-    { name: "天品修炼室", pct: 80, cost: 4 },
-    { name: "宗主修炼室", pct: 120, cost: 2, rank: 6 },
+    { name: "下品修炼室", pct: 50,  cost: 1 },
+    { name: "中品修炼室", pct: 70,  cost: 2 },
+    { name: "上品修炼室", pct: 100, cost: 3 },
+    { name: "天品修炼室", pct: 150, cost: 4 },
+    { name: "宗主修炼室", pct: 150, cost: 3, rank: 6 },
   ],
 };
 
 // 门派入门境界序号：1 星 ~ 10 星；同星级坊市功法 / 法术、试炼塔守关者也用
 CFG.sect.REQ_REALM = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18];
 // 讲道室：每天（北京时间 0 点）随机来 2 + LECTURES 位长老；炼丹、炼器长老必出，其余讲功法（从 TYPES 里随机不重复）
-//   每天最多听 DAILY 位不同长老，每次 MIN 分钟，听完结算；每天第一次免费，之后每次 COST × 门派星数 贡献
-//   炼丹/炼器：经验 = 当前阶升级所需经验 × 随机 EXP_PCT[0]~[1]%（满阶不加）
-//   功法：永久加属性 = 门派星数 × 随机 STAT[0]~[1] 点（1 星 25~45，2 星 50~90，3 星 75~135 …）
+//   每天最多听 DAILY 位不同长老，每次 MIN 分钟，听完结算；每天第一次免费，之后每次 COST 贡献（固定，不随门派星级）
+//   炼丹/炼器：经验在 EXP1（1 星）到 EXP10（10 星）之间按星级线性插值（满阶不加）
+//   功法：永久加属性在 STAT1（1 星）到 STAT10（10 星）之间按星级线性插值
 CFG.sect.jiangdao = {
   MIN: 10,
   COST: 100,
   LECTURES: 4,
   DAILY: 3,      // 每天最多听几位（不同长老）
-  EXP_PCT: [5, 10],
-  STAT: [25, 45],
+  EXP1: [20, 40],    // 1 星炼丹 / 炼器经验随机区间
+  EXP10: [180, 260], // 10 星炼丹 / 炼器经验随机区间
+  STAT1: [15, 35],   // 1 星功法属性随机区间
+  STAT10: [70, 110], // 10 星功法属性随机区间
   // 防御、攻击、生命、法力、命中、速度、闪避、金木水火土雷六种抗性（每种单独）
   TYPES: ["xinfa", "gongjue", "zhenjing", "fajue", "shenfa", "sufa", "dunshu", "res_jin", "res_mu", "res_shui", "res_huo", "res_tu", "res_lei"],
   LOG: 20,   // 闻道日志保留条数
@@ -105,14 +110,17 @@ CFG.sect.trial = {
   },
 };
 
-// 练功房：pct 功法修炼时间 −%（不乘星级，最多 95）  cost 每 gfRoomSec 秒扣一次的贡献（不乘倍率，只在修炼功法时扣）  rank 需要职务序号
-CFG.sect.gfRoomSec = 10;   // 练功房多少秒扣一次贡献（按 5 秒取整，最少 5）
+// 练功房：pct 是悟道/经脉那种除法 %（时间 ÷ (1 + pct%)，不是时间 × (1 − pct%)；
+//   旧算法 mul = 100 ÷ (100 − pct) 已废弃）  下面是 1~2 星基础值，3~4 星 +10、5~6 星 +20、
+//   7~8 星 +30、9~10 星 +40（见 modules/sect.js gfRoomPct 的星级加成）
+//   cost 每次扣的贡献（不乘倍率；进入时先扣一次，之后每 ROOM_BILL_SEC 秒扣一次，不管在不在修炼）  rank 需要职务序号
+CFG.sect.ROOM_BILL_SEC = 60;   // 修炼室 / 练功房多少秒扣一次贡献
 CFG.sect.gfRooms = [
-  { name: "下品练功房", pct: 18, cost: 1 },
-  { name: "中品练功房", pct: 24, cost: 2 },
-  { name: "上品练功房", pct: 32, cost: 3 },
-  { name: "天品练功房", pct: 40, cost: 4 },
-  { name: "宗主练功房", pct: 40, cost: 2, rank: 6 },
+  { name: "下品练功房", pct: 30, cost: 1 },
+  { name: "中品练功房", pct: 50, cost: 2 },
+  { name: "上品练功房", pct: 70, cost: 3 },
+  { name: "天品练功房", pct: 100, cost: 4 },
+  { name: "宗主练功房", pct: 100, cost: 3, rank: 6 },
 ];
 // 晋升考验（考官属性见 config/mobs.js 的 sect）：每次消耗贡献 = cost[目标职务序号] × 星级倍率，输赢都扣
 CFG.sect.rankTrial = {
@@ -132,7 +140,7 @@ CFG.sect.affairFight = {
     { n: 3, realm: 0, lay: [1, 5],  pct: [1, 20],  gf: [1, 3], mul: 1 },
     { n: 3, realm: 1, lay: [6, 10], pct: [21, 50], gf: [3, 6], mul: 2 },
   ],
-  // 胜利奖励 × mul（灵石再 × 宗门星级）：贡献前 3 个 100、后 3 个 200；失败不扣任何东西，但当天该任务显示「已失败」不能再执行
+  // 胜利奖励 × mul：贡献前 3 个 100、后 3 个 200；失败不扣任何东西，但当天该任务显示「已失败」不能再执行
   WIN: { stone: 1000, contrib: 100 },
   CRIT: 5,                         // 怪物暴击%
 };
@@ -166,9 +174,10 @@ CFG.sect.pool = {
   ],
 };
 
-// 免费修炼室 / 练功房（每天北京时间 0 点重置，不扣贡献）：pct 写 0 = 同最低一档；修炼室 pct × 星级倍率，练功房不乘
+// 免费修炼室 / 练功房（每天北京时间 0 点重置，不扣贡献）：pct 写 0 = 同最低一档；
+//   修炼室按 modules/sect.js roomPct 的两星 +30 阶梯算，练功房按 gfRoomPct 的两星 +10 阶梯算
 CFG.sect.freeRoom   = { name: "免费修炼室", pct: 0, times: 500, daily: 1 };   // 每天 daily 次，每次 times 次修炼（每次 10 秒）
-CFG.sect.freeGfRoom = { name: "免费练功房", pct: 15, minutes: 120, daily: 1 };  // 每天 daily 次，每次 minutes 分钟
+CFG.sect.freeGfRoom = { name: "免费练功房", pct: 30, minutes: 120, daily: 1 };  // 每天 daily 次，每次 minutes 分钟；1~2 星基础 30%，同练功房阶梯
 
 // 元婴出窍秘法：宝库兑换；每天出窍次数 = 神识强度（config/shenshi.js）
 CFG.chuqiao = {

@@ -41,10 +41,10 @@ G.module({
   api: {
     // 生长时间缩短 %（灵植夫 + 秘法，有上限）、收获增加 %
     //   g = 药材序号：凡界药材按灵植夫，仙界药材（序号 ≥ 凡界种数）按仙植师（v42）
-    plantCraft() { return "ling"; },   // 灵植夫统一 1~20 阶（11~20 阶显示为仙植师）
-    plantCut(g = 0) { const k = this.plantCraft(g), L = CFG.craftsman[k]; return Math.min(CFG.wudao.TIME_CUT_MAX.plantTime || 80, (L.GROW_CUT[this.craftLv(k) - 1] || 0) + (this.mifaBonus().plantTime || 0) + this.servantPct("ling")); },
-    plantYieldPct(g = 0) { const k = this.plantCraft(g); return (CFG.craftsman[k].YIELD_ADD[this.craftLv(k) - 1] || 0) + (this.mifaBonus().plantYield || 0); },
-    fieldTime(g) { return Math.ceil(DATA.growTime(g) * (1 - this.plantCut(g) / 100)); },
+    plantCraft() { return "ling"; },   // 灵植夫统一 1~30 阶（11~20 阶显示为仙植师，21~30 阶神植师）
+    plantCut(g = 0) { const k = this.plantCraft(g), L = CFG.craftsman[k]; return (L.GROW_CUT[this.craftLv(k) - 1] || 0) + (this.mifaBonus().plantTime || 0) + this.servantPct("ling"); },   // 种植速度 %（没上限）
+    plantYieldPct(g = 0) { const k = this.plantCraft(g); return (CFG.craftsman[k].YIELD_ADD[this.craftLv(k) - 1] || 0) + (this.mifaBonus().plantYield || 0) + (this.servantPct ? this.servantPct("ling", "YIELD_") : 0); },   // 技艺 + 丰灵秘法 + 道童
+    fieldTime(g) { return Math.ceil(DATA.growTime(g) / (1 + Math.max(0, this.plantCut(g)) / 100)); },   // 生长时间 ÷ (1 + 种植速度%)
     // 开始新的一季：扣灵气，不够就等待
     payField(f, at) {
       const need = DATA.herbGrow(f.g).ling;

@@ -24,12 +24,12 @@ CFG.lingdi = {
     { name: "瑶池仙境", w: "xian", find: { map: 0, chance: 5 },   // 第 1 处：仙冥魔神任一界第 1 张图都能发现
       bossName: "瑶池圣母·青鸾仙后", monsters: ["瑶池仙鹤", "碧波仙鲤", "守池仙娥", "琼花灵"],
       extra: {
-        boss: [{ item: "火髓", chance: 100, n: [5, 15] }, { item: "空间晶核", chance: 50, n: [1, 5] }, { item: "耀石", chance: 50, n: [1, 5] }],
+        boss: [{ item: "火髓", chance: 100, n: [5, 15] }, { item: "空间晶核", chance: 50, n: [1, 5] }, { item: "耀石", chance: 50, n: [1, 5] }, { item: "瑶池玉蕊", chance: 100, n: [10, 30] }],
       } },
     { name: "蟠桃灵园", w: "xian", find: { map: 1, chance: 5 },   // 第 2 处：仙冥魔神任一界第 2 张图都能发现
       bossName: "蟠桃园主·千年桃仙", monsters: ["桃林仙猿", "护园力士", "蟠桃花妖", "仙果灵童"],
       extra: {
-        boss: [{ item: "火髓", chance: 100, n: [5, 15] }, { item: "空间晶核", chance: 50, n: [1, 5] }, { item: "耀石", chance: 50, n: [1, 5] }],
+        boss: [{ item: "火髓", chance: 100, n: [5, 15] }, { item: "空间晶核", chance: 50, n: [1, 5] }, { item: "耀石", chance: 50, n: [1, 5] }, { item: "蟠桃灵果", chance: 100, n: [10, 30] }],
       } },
     { name: "九天云阙", w: "xian", find: { map: 2, chance: 5 },   // 第 3 处：仙冥魔神任一界第 3 张图都能发现
       bossName: "云阙天尊·九天玄鹤", monsters: ["云阙天兵", "九天雷鹏", "云中仙将", "飞霞剑灵"],

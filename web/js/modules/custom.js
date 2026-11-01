@@ -20,7 +20,7 @@ G.module({
     customItemHtml(i, it, sell) {
       const d = this.cuDef(it.name);
       if (!d) return `<p>此物已失传（物品库里没有这个名字）。</p><div class="btns"><button onclick="G.removeAt(${i},${it.n});G.closeModal();G.after()">丢弃</button></div>`;
-      return `<p>杂物${d.desc ? "<br>" + d.desc : ""}</p><div class="btns">${(d.sell || 0) > 0 ? sell : ""}</div>`;
+      return `<p>${d.herb ? "药材" : "杂物"}${d.desc ? "<br>" + d.desc : ""}</p><div class="btns">${(d.sell || 0) > 0 ? sell : ""}</div>`;
     },
   },
 });

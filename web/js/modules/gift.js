@@ -47,7 +47,7 @@ G.module({
         { k: "kind", label: "种类", opts: DATA.mifaKinds.map(k => [k.id, k.name]) }];
       if (c === "fabao") return [{ k: "ft", label: "形状", opts: DATA.fabaoTypes.map((t, i) => [i, t.name]) }, { k: "el", label: "属性", opts: DATA.elements.map(e => [e.id, e.name]) },
         { k: "g", label: "阶", opts: jie }, N];
-      if (c === "eq") return [{ k: "slot", label: "部位", opts: [...DATA.eqSlots6.map(x => [x, DATA.slots[x]]), ...DATA.ringNames.map((n, r) => ["ring:" + r, n])] }, { k: "g", label: "阶", opts: jie }, N];
+      if (c === "eq") return [{ k: "slot", label: "部位", opts: [...DATA.eqSlots6.map(x => [x, DATA.slots[x]]), ...DATA.ringList().map(r => ["ring:" + r, DATA.ringNames[r]])] }, { k: "g", label: "阶", opts: jie }, N];
       if (c === "herb" || c === "ore") {
         const sp = this.giftSpecial(), list = (c === "herb" ? DATA.herbs : DATA.ores).map((n, g) => [g, n]).filter(([, n]) => !sp.includes(n));
         if (c === "ore") list.push(...CFG.mijing.items.ys.names.map((n, i) => [1000 + i, n]));   // v152 耀石放在矿石里：g = 1000 + 属性序号
@@ -57,11 +57,14 @@ G.module({
       if (c === "dan") {
         const items = [...Object.keys(DATA.pills).map(t => ["p:" + t, DATA.pills[t].name]),
           ...Object.keys(DATA.dans).map(t => ["d:" + t, DATA.recipes[t].name])];
-        const it = a.item || items[0][0], gs = it[0] === "p" ? DATA.realms.map((n, i) => [i, DATA.realmLabel(i)]) : (DATA.recipes[it.slice(2)].val || []).map((_, i) => [i, DATA.JIE[i]]);
+        const it = a.item || items[0][0], R = DATA.recipes[it.slice(2)] || {};
+        // 阶数按配方行数算（悟真丹没有 val 数组，只有 1 行配方，不能按 val 算，否则阶下拉为空，giftNorm 在第 80 行崩）
+        const tiers = it[0] === "p" ? 0 : Math.max(1, (R.herbs || R.val || []).length);
+        const gs = it[0] === "p" ? DATA.realms.map((n, i) => [i, DATA.realmLabel(i)]) : Array.from({ length: tiers }, (_, i) => [i, DATA.JIE[i]]);
         return [{ k: "item", label: "丹药", opts: items }, { k: "g", label: it[0] === "p" ? "品质" : "阶", opts: gs }, N];
       }
       if (c === "bp") {
-        const items = [...DATA.FURNACE_KINDS.map(k => ["f:" + k, DATA.furnaceKinds[k] + "图纸"]), ...DATA.ringNames.map((n, r) => ["r:" + r, n + "图纸"])];
+        const items = [...DATA.FURNACE_KINDS.map(k => ["f:" + k, DATA.furnaceKinds[k] + "图纸"]), ...DATA.ringList().map(r => ["r:" + r, DATA.ringNames[r] + "图纸"])];
         const it = a.item || items[0][0], gs = it[0] === "f" ? ((DATA.furnaces[it.slice(2)] || {}).blueprint || DATA.JIE).map((_, i) => [i, DATA.JIE[i]]) : jie;
         return [{ k: "item", label: "图纸", opts: items }, { k: "g", label: "阶", opts: gs }, N];
       }
@@ -77,7 +80,7 @@ G.module({
     },
     giftNorm(c, a) {   // 存进礼包的干净对象（数字字段转数字）
       const it = { c };
-      for (const f of this.giftFields(c, a)) { const v = a[f.k]; it[f.k] = f.num || typeof f.opts[0][0] === "number" ? +v : v; }
+      for (const f of this.giftFields(c, a)) { const v = a[f.k]; it[f.k] = f.num || (f.opts.length && typeof f.opts[0][0] === "number") ? +v : v; }
       return it;
     },
     giftLabel(it) {

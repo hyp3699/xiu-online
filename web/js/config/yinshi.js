@@ -35,8 +35,7 @@ CFG.yinshi = {
     { id: "zhuque",   w: "shen", m: 7, name: "朱雀神庭", star: 14, st: ["zhuque", "zhenyue"] },
     { id: "dari",     w: "shen", m: 9, name: "大日神宗", star: 15, st: ["dari", "leiji"] },
   ],
-  FIXED: {
-    zangjian: { a: 0, r: 0, i: 40 },   // 葬剑宗先放在青云山林东域正中，直接已发现
+  FIXED: {   // 测试用：把某宗门固定放到 { a: 地图, r: 区域, i: 格子 } 并直接已发现；正式全部留空（首次游历随机定位）
   },
   // 事务堂：每天每个宗门刷新 HERB 个药材任务 + ORE 个矿石任务（本宗门所在界的药材 / 矿石，凡界宗门就是凡界的），每个提交 NUM 个，好感度 + FAV
   TASK: { HERB: 2, ORE: 2, NUM: 200, FAV: 10 },
@@ -49,7 +48,7 @@ CFG.yinshi = {
     jin: "太白金经", mu: "青帝木经", shui: "玄冥水经", huo: "南明火经", tu: "厚土宝经", lei: "九霄雷经",
     mijue: "聚元秘诀", mijue2: "归墟秘诀", tijue: "金刚炼体诀", tijue2: "不灭炼体诀" },
   HALL_FAV: 1000,   // 进入宗门大殿需要好感度达到（不消耗）
-  HALL_FREE: ["zangjian"],   // 测试用：这些宗门进大殿、修神通不看好感度（测完删掉）
+  HALL_FREE: [],   // 测试用：写宗门 id 则进大殿、修神通不看好感度；正式留空
   // 宗门大殿学神通：每个宗门一种，NODES 个节点按「天地玄黄宇宙洪荒日月星辰」排，从最下面的「辰」开始往上修，最后修「天」；每个节点 LV 级
   //   学习：修炼顺序第 n 个节点（1 起，辰 = 1 …… 天 = 12）每级消耗神通碎片 COST[n-1] 个、灵石 STONE[n-1]
   //   某种神通要单独设置，在 LIST 里给它写 learn: { frag: [12 个数], stone: [12 个数] }（不写就用这里的 COST / STONE）
@@ -67,11 +66,11 @@ CFG.yinshi = {
      * 被动神通：出战就生效，每回合开始触发，数值见各自 fx；只能修炼，不能精研
      * 修炼：最多 UP_MAX 级，每种神通单独设置（LIST 里的 up）：第 n+1 级消耗本宗门神通碎片 frag + n × fragAdd 个、灵石 stone + n × stoneAdd
      * 精研（只有主动，所有神通共用 JY_COST）：不限次数，第 n+1 次消耗碎片 frag + floor(n ÷ EVERY) × fragAdd 个、灵石 stone + floor(n ÷ EVERY) × stoneAdd
-     *   现在：学习每级 12 碎片 1万灵石；修炼每级 360 碎片 100万灵石；精研每次 120 碎片 10万灵石（都不涨） */
+     *   现在：学习每级 12 碎片 1万灵石；修炼每级 360 碎片 100万灵石（满级 100 级，每级 +1.6% 伤害，满级 260%）；精研每次 120 碎片 10万灵石（都不涨）；主动神通命中固定 99%，不看命中 / 闪避 */
     EQ_MAX: 4,
     SLOT_SS: [0, 350, 700, 1000],   // 神通位：第 1~4 个位需要的神识强度（0 = 一开始就有）
     PAS_MAX: 2,                     // 被动神通最多出战几个（主动不限，只受神通位数限制）
-    PCT: 100, LV_PCT: 2, USES: 1, MANA_PCT: 0, UP_MAX: 36, JY_DMG: 36,
+    PCT: 100, LV_PCT: 1.6, USES: 1, MANA_PCT: 0, UP_MAX: 100, JY_DMG: 36,
     JY_COST: { frag: 120, stone: 100000, EVERY: 100, fragAdd: 0, stoneAdd: 0 },
     /* 主动附加效果 fx（r = 持续回合，再次触发刷新回合数，不叠加）：
      *   buff  自身 k +p%（atk 攻击 / def 防御 / res 本系抗性）     deb  对手 k −p%（atk / def / res 本系抗性 / hit 命中 / dodge 闪避 / speed 速度，k 可写数组）
@@ -79,7 +78,7 @@ CFG.yinshi = {
      *   （另有 shield 护盾 / drain 降当前法力 / pshield 破盾增伤 / hp50 对手半血以上增伤，现在没用上）
      * 被动 fx（每回合开始，都是具体数字）：
      *   regen  恢复生命 p 点
-     *   mana   恢复法力 p 点，并且属性伤害（法术 / 法宝 / 神通命中后）每回合 +eld 点
+     *   mana   恢复法力 p 点，并且属性伤害（法术 / 法宝 / 神通命中后）每回合 +eld 点，最多累加 n 回合（到顶后不再增加，但之后每次命中照样加上顶格的数值）
      *   grow   自身 k（数组：atk / def / hit / dodge / speed）每回合 +p 点
      *   n = 最多累加几回合（之后不再增加）：最高 = 每回合数值 × n，例如每回合 +10 攻击、n 30 → 最多 +300
      *   修炼每级：每回合数值 + lvP（mana 的属性伤害 + lvE） */
@@ -90,15 +89,15 @@ CFG.yinshi = {
      * 背包「神通秘术」的图标 img: "img/st/xxx.webp"（不写就按 animCol / 属性颜色画一个带名字的圆章） */
     LIST: [
       // 被动
-      { id: "xuehe",    name: "血海长生", img: "img/st/xuehe.webp", el: "mu",   type: "pas", fx: { t: "regen", p: 1000, lvP: 50 },
+      { id: "xuehe",    name: "血海长生", img: "img/st/xuehe.webp", el: "mu",   type: "pas", fx: { t: "regen", p: 360, lvP: 360 },
         up: { frag: 360, fragAdd: 0, stone: 1000000, stoneAdd: 0 } },
-      { id: "xuanming", name: "玄冥归元", img: "img/st/xuanming.webp", el: "shui", type: "pas", fx: { t: "mana", p: 300, lvP: 15, eld: 100, lvE: 5, n: 30 },
+      { id: "xuanming", name: "玄冥归元", img: "img/st/xuanming.webp", el: "shui", type: "pas", fx: { t: "mana", p: 100, lvP: 100, eld: 18, lvE: 18, n: 20 },
         up: { frag: 360, fragAdd: 0, stone: 1000000, stoneAdd: 0 } },
-      { id: "kuchan",   name: "寂灭无相", img: "img/st/kuchan.webp", el: "shui", type: "pas", fx: { t: "grow", k: ["hit", "dodge", "speed"], p: 50, lvP: 3, n: 30 },
+      { id: "kuchan",   name: "寂灭无相", img: "img/st/kuchan.webp", el: "shui", type: "pas", fx: { t: "grow", k: ["hit", "dodge", "speed"], p: 30, lvP: 30, n: 20 },
         up: { frag: 360, fragAdd: 0, stone: 1000000, stoneAdd: 0 } },
-      { id: "lihuo",    name: "离火燎原", img: "img/st/lihuo.webp", el: "huo",  type: "pas", fx: { t: "grow", k: ["atk"], p: 300, lvP: 15, n: 30 },
+      { id: "lihuo",    name: "离火燎原", img: "img/st/lihuo.webp", el: "huo",  type: "pas", fx: { t: "grow", k: ["atk"], p: 80, lvP: 80, n: 20 },
         up: { frag: 360, fragAdd: 0, stone: 1000000, stoneAdd: 0 } },
-      { id: "wangui",   name: "万鬼护体", img: "img/st/wangui.webp", el: "tu",   type: "pas", fx: { t: "grow", k: ["def"], p: 300, lvP: 15, n: 30 },
+      { id: "wangui",   name: "万鬼护体", img: "img/st/wangui.webp", el: "tu",   type: "pas", fx: { t: "grow", k: ["def"], p: 80, lvP: 80, n: 20 },
         up: { frag: 360, fragAdd: 0, stone: 1000000, stoneAdd: 0 } },
       // 主动
       { id: "jiuxiao",  name: "九霄引雷", img: "img/st/jiuxiao.webp", el: "lei",  fx: { t: "stun", chance: 100, r: 1 }, anim: "rain", animN: 9,
@@ -141,11 +140,11 @@ CFG.yinshi = {
         up: { frag: 360, fragAdd: 0, stone: 1000000, stoneAdd: 0 } },
     ],
   },
-  // 宗门秘境：好感度达到 FAV_REQ 才能进，每次进入消耗 FAV_COST 好感度，每天 DAILY 次，走 TIME 步；怪物 = 宗门所在地图北域
-  //   每次走完的总量（随机分到各怪物步，[最少, 最多]）：FRAG_N 本宗神通碎片（放背包）、HERB_N 药材、ORE_N 矿石（宗门所在地图的表）、STONE 灵石
+  // 宗门秘境：没有好感度门槛（FAV_REQ 0），每次进入消耗 FAV_COST 好感度，每天 DAILY 次，走 TIME 步；怪物 = 宗门所在地图北域
+  //   每次走完的总量（随机分到各怪物步，[最少, 最多]）：FRAG_N 本宗神通碎片（放背包）、CXP_N 炼丹 / 炼器 / 灵药培育经验（放背包，每个使用后加 CXP_VAL 点对应技艺经验）、HERB_N 药材、ORE_N 矿石（宗门所在地图的表）、STONE 灵石
   MJ: {
-    FAV_REQ: 1200, FAV_COST: 20, DAILY: 1, TIME: 100, MONSTERS: 12, ELITES: 5, BOSS: 1, HERB: 0, ORE: 0,
-    FRAG_N: [30, 60], HERB_N: [50, 100], ORE_N: [50, 100], STONE: [10000, 30000],
+    FAV_REQ: 0, FAV_COST: 5, DAILY: 1, TIME: 100, MONSTERS: 12, ELITES: 5, BOSS: 1, HERB: 0, ORE: 0,
+    FRAG_N: [30, 60], CXP_N: { dan: [10, 20], qi: [10, 20], ling: [10, 30] }, CXP_VAL: 10,   // 每次掉落个数 [最少, 最多]：dan 炼丹 / qi 炼器 / ling 灵药培育；CXP_VAL 每个加几点经验 HERB_N: [50, 100], ORE_N: [50, 100], STONE: [10000, 30000],
   },
   // 炼丹房：用本宗好感度兑换丹药，兑换后直接服用；每颗固定 +VAL 对应属性，每种最多服 MAX 颗（所有宗门合计），每颗 FAV 好感度
   //   k：hp 生命 atk 攻击 def 防御 mana 法力 hit 命中 dodge 闪避 speed 速度 res_属性 该系抗性
@@ -155,6 +154,7 @@ CFG.yinshi = {
     { k: "res_jin", name: "庚金护心丹" }, { k: "res_mu", name: "乙木护心丹" }, { k: "res_shui", name: "癸水护心丹" },
     { k: "res_huo", name: "丙火护心丹" }, { k: "res_tu", name: "戊土护心丹" }, { k: "res_lei", name: "紫雷护心丹" },
   ] },   // 图片：img/ysdan/<k>.webp
+  // 心得的配置在本文件末尾 CFG.xinde（隐世宗门 + 四界坊市共用）
   PLACES: [
     { id: "hall",  name: "宗门大殿", x: 55, y: 21 },
     { id: "dan",   name: "炼丹房",   x: 25, y: 39 },
@@ -163,4 +163,20 @@ CFG.yinshi = {
     { id: "shiwu", name: "事务堂",   x: 28, y: 71 },
     { id: "mj",    name: "宗门秘境", x: 70, y: 87 },
   ],
+};
+
+/* ★ 心得（炼丹心得 / 炼器心得）：隐世宗门炼丹房 / 炼器室（ys）+ 四界坊市（js）★（代码：modules/world.js xd*）
+ *   ys：每个隐世宗门第 1 ~ VOLS 卷；js：仙冥魔神每张地图的坊市各 VOLS 卷（VOLS 1 = 不写卷号）
+ *   每卷只能买一次，灵石购买，放背包，学习 MIN 分钟（炼丹心得走丹方学习队列，炼器心得走炼器图谱学习队列）
+ *   学完：加对应技艺经验，并永久 +SPD% 炼丹 / 炼器速度（每卷；超过 100% 也生效：时间 ÷ (1 + 速度%)）
+ *   经验：一组（ys 或 js）全部学完合计 = 该技艺 1 阶升到满阶总经验 × PCT%；组内按地图从前到后排，第 r 卷（0 起）权重 = (r + 1) ^ CURVE（越后面越多）
+ *   价格：按每卷给的经验算，同一种心得（炼丹 / 炼器）里经验最少的 = PRICE[0]，最多的 = PRICE[1]，中间按经验线性
+ *   图片：img/icons/xd_dan.png、xd_qi.png */
+CFG.xinde = {
+  PRICE: [100000, 3000000],   // 灵石价格：最便宜 10 万、最贵 300 万（v 翻倍）
+  MIN: 30,
+  SPD: 1,
+  ys: { VOLS: 10, PCT: 42, RATIO: 20 },   // 隐世：22 宗 × 10 卷，合计满阶经验 42%；最后一卷经验 = 第一卷 × RATIO
+  js: { VOLS: 1,  PCT: 12 },   // 四界坊市：每张地图 1 本，合计 12%；最后一本 = 隐世第一卷 × 30（价格 300 万）
+  // 价格 = 经验 × 固定单价：最便宜（隐世第一卷）PRICE[0]，最贵（四界最后一本）PRICE[1]
 };
