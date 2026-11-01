@@ -91,7 +91,7 @@ G.module({
     gfRedFor(g) {
       if (!g || g.noEl || g.kind === "mf") return 0;
       const m = this.mifaBonus ? this.mifaBonus() : {};
-      return g.kind === "sp" ? (m.spStudy || 0) : (m.gfStudy || 0) + (this.jmGfCut ? this.jmGfCut() : 0);
+      return g.kind === "sp" ? (m.spStudy || 0) : (m.gfStudy || 0) + (this.jmGfCut ? this.jmGfCut() : 0) + (this.arrayGfCut ? this.arrayGfCut() : 0);
     },
     // 练功房进度倍率：先把练功房 % 加进秘法/经脉减少%里一起除，再换算回进度倍率
     //   实际时间 = base ÷ (1 + (red + roomPct)%) = studySec ÷ mul，
@@ -190,6 +190,7 @@ G.module({
       s.qlDay = this.today(); this.log(`领取宗主俸禄：${DATA.qlName(s.sect)} ×1。`, "good"); this.after();
     },
     eatQl(i, n) {
+      if (this.tribBusy && this.tribBusy()) return this.log("渡劫中不能服用丹药。", "sys");   // v259
       const s = this.s, it = s.bag[i]; if (!it || it.t !== "ql") return;
       s.qlEaten = s.qlEaten || {};
       const used = s.qlEaten[it.sect] || 0; n = Math.min(Math.floor(+n), it.n, DATA.qlLimit(it.sect) - used);
@@ -260,7 +261,7 @@ G.module({
 
     /* ---------- 事务堂 · 物品任务 / 特殊任务（config/sect.js 的 affairItem / affairFight，每天北京时间 0 点重置） ---------- */
     affairGen() {
-      const s = this.s, day = this.bjDay(); if (!s.sect || s.affairDay === day) return;
+      const s = this.s, day = this.bjDay(); if (!s.sect || (s.affairDay === day && s.affairSect === s.sect)) return;   // v257 换了宗门（升星 / 转投）当天也按新宗门重新生成
       const x = this.sectInfo(), I = CFG.sect.affairItem, F = CFG.sect.affairFight, SP = CFG.matsOther.SPECIAL || [];
       const pool = kind => { const L = kind === "herb" ? DATA.herbs : DATA.ores, fn = kind === "herb" ? DATA.FAN_HERB_N : DATA.FAN_ORE_N;
         return L.map((n, g) => g).filter(g => x.star <= I.FAN_STAR ? g < fn : g >= fn && !SP.includes(L[g])); };
@@ -271,8 +272,8 @@ G.module({
       const mobs = DATA.maps.slice(0, DATA.FAN_MAP_N).flatMap((m, a) => (m.monsters || []).map(name => ({ name, a }))), R = a => U.rand(a[0], a[a.length - 1]);
       s.affairFights = [];
       F.GROUPS.forEach((G0, gi) => { for (let k = 0; k < G0.n; k++) s.affairFights.push({ ...(mobs[U.rand(0, mobs.length - 1)] || { name: "妖兽", a: 0 }), grp: gi,
-        realm: Math.min(DATA.realms.length - 1, x.reqRealm + G0.realm), lay: R(G0.lay), pct: R(G0.pct), gf: R(G0.gf), done: false }); });
-      s.affairDay = day;
+        realm: Math.min(DATA.realms.length - 1, x.reqRealm + G0.realm), star: Math.min(DATA.sects.reduce((m, o) => Math.max(m, o.star), 1), x.star + G0.realm), lay: R(G0.lay), pct: R(G0.pct), gf: R(G0.gf), done: false }); });
+      s.affairDay = day; s.affairSect = s.sect;
     },
     affairItemContrib() { const I = CFG.sect.affairItem; return I.CONTRIB + this.s.rank * I.RANK_ADD; },
     submitAffairItem(i) {
@@ -285,7 +286,8 @@ G.module({
     },
     affairFightMul(t) { return (CFG.sect.affairFight.GROUPS[t.grp] || {}).mul || 1; },
     affairFightWin(t) { const W = CFG.sect.affairFight.WIN, m = this.affairFightMul(t); return { stone: W.stone * m, contrib: W.contrib * m }; },
-    affairFightRow(t) { return [t.realm, t.lay, 0, [1, t.pct, t.gf], [2, 0, 0], [3, 0, 0], 1]; },
+    affairFightRow(t) { return [t.realm, t.lay, t.star || 0, [1, t.pct, t.gf],   // v257 功法星级：前 3 个 = 宗门星级，后 3 个 = 宗门星级 + 1
+      [2, 0, 0], [3, 0, 0], 1]; },
     fightAffair(i) {
       this.affairGen(); const s = this.s, t = (s.affairFights || [])[i]; if (!s.sect || !t || t.done || t.failed) return;
       if (s.hp < this.stats().hp * CFG.battle.TOWER_HP_MIN) return this.log("生命不足三成，先休养片刻。", "sys");
@@ -683,7 +685,7 @@ G.module({
       const v = (x, k) => x * DATA.mobRnd(k);   // 和地图普通怪一样每项随机浮动
       const p = this.testPick(), a = Math.floor(p.a / 4), r = p.a % 4, mp = DATA.maps[a];   // v180 名字 / 图同地图里的怪（图按名字找）
       const nm = kd === "boss" ? DATA.regionBoss(a, r) : (kd === "elite" ? "精英·" : "") + U.pick(mp.monsters);
-      const m = this.addMagic({ name: nm, a, kind: kd, elKey: kd === "boss" ? `b:${a}:${r}` : "", boss: kd === "boss", elite: kd === "elite", hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.resEl || b.res, manaBr: b.manaBr, L: b.L, crit: b.crit }, kd);
+      const m = this.addMagic({ name: nm, a, mapA: a, kind: kd, elKey: kd === "boss" ? `b:${a}:${r}` : "", boss: kd === "boss", elite: kd === "elite", hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.resEl || b.res, manaBr: b.manaBr, L: b.L, crit: b.crit }, kd);
       const res = this.battle(m, { test: true, foe: kd === "boss" ? "boss" : kd === "elite" ? "elite" : "mob" });
       this.playBattle(res.detail, "实力测试", "", true, [], false, { test: true, tname: this.testMobName() });
     },
@@ -838,7 +840,7 @@ G.module({
             return [this.hasGongfa(g.id), `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">法术</span><small>${this.spellDmgTxt(g)} · 耗法力 ${U.fmt(g.mana)} · ${U.fmt(g.cost)} 贡献 · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>${btn(g)}</div>`];
           })()]) })));
     } else if (tab === "affair") {
-      const at = this.affairTab || "normal", fresh = s.affairDay === this.bjDay();
+      const at = this.affairTab || "normal", fresh = s.affairDay === this.bjDay() && s.affairSect === s.sect;
       h += `<div class="room-grid three">${[["normal", "普通任务"], ["item", "物品任务"], ["fight", "特殊任务"]].map(([k, n]) => `<button class="${at === k ? "active" : ""}" onclick="G.setAffairTab('${k}')">${n}</button>`).join("")}</div>`;
       if (at === "item") {
         h += `<div class="card"><h3>物品任务</h3>` +

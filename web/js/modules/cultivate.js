@@ -335,7 +335,7 @@ G.module({
       if (this.s.trib) return this.openTrib();
       if (!this.canBreak()) return;
       const s = this.s, major = this.isMajor();
-      if (this.needTrib()) return this.openTrib();   // 进渡劫准备页
+      if (this.needTrib()) return this.startTrib();   // v259 没有准备页，直接渡劫
       if (s.mortal) { // 凡人 → 练气期一层
         s.exp -= this.needExp(); s.mortal = false; this.brRoll("xw", s.L); this.dirty();
         const st = this.stats(); s.hp = st.hp; s.mana = st.mana;
@@ -361,6 +361,7 @@ G.module({
       return best;
     },
     usePill(i, silent) {
+      if (this.tribBusy && this.tribBusy()) return this.log("渡劫中不能服用丹药。", "sys");   // v259
       const it = this.s.bag[i];
       if (!it || it.t !== "pill") return false;
       if (!this.canUsePill(it.g)) { this.log(`${this.itemName(it)}品质过低，你已无法服用。`, "sys"); return false; }

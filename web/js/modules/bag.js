@@ -561,7 +561,6 @@ G.module({
       const s = this.s;
       delete s.gongfa[id]; if (s.spJy) delete s.spJy[id]; if (s.spFuse) delete s.spFuse[id];
       s.spellSlots = s.spellSlots.map(x => x === id ? to || null : x).filter((x, i, a) => x && a.indexOf(x) === i);
-      (s.tribSlots || []).forEach((x, i, a) => { if (x && x.k === "sp" && x.id === id) a[i] = to ? { k: "sp", id: to } : null; });
       // 战斗设置里也引用了法术键名（sp:id），不更新会一直指向已删除的法术。
       const b = s.bset;
       if (b) {

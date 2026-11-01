@@ -108,9 +108,11 @@ const G = {
     { const K = ["contrib", "stone", "merit"], BIG = 1e15;   // 测试模式（config/rates.js TEST）：贡献、灵石、功德随便花；打开时记下原数，关掉恢复
       if (DATA.isTest()) { if (!s._testBak) s._testBak = Object.fromEntries(K.map(k => [k, s[k] || 0])); for (const k of K) s[k] = BIG; }
       else if (s._testBak) { for (const k of K) s[k] = s._testBak[k] || 0; delete s._testBak; } }
-    {   // 渡劫准备格子减到 3 个：老存档里多余格子直接去掉（格子里的东西本身不消耗，丹药用时才从背包扣，法宝/法术只是引用）
-      const n = (CFG.trib || {}).SLOTS;
-      if (Array.isArray(s.tribSlots) && Number.isFinite(n) && s.tribSlots.length > n) s.tribSlots.length = n; }
+    {   // v261 灵珠初始聚灵 10 → 1000：已放入的灵珠补上差值（强化部分不变），只补一次
+      if (!s.lzB1000 && Array.isArray(s.lzSlot)) s.lzSlot.forEach(z => { if (z && Number.isFinite(z.v)) z.v += 990; });
+      s.lzB1000 = true; }
+    {   // v259 渡劫准备格子去掉：老存档的格子记录删掉；进行中的渡劫护盾、格子冷却清掉
+      delete s.tribSlots; if (s.trib) { s.trib.shield = null; delete s.trib.cd; delete s.trib.used; } }
     {   // 灵矿删掉：老存档里正在挖矿的探索 / 出窍直接停掉（不结算本次收获，功能已不存在）
       if (s.explore && s.explore.kuang) s.explore = null;
       if (s.cq && s.cq.kuang) s.cq = null; }

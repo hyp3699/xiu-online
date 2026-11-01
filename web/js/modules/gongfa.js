@@ -181,7 +181,7 @@ G.module({
     //   功法：悟道秘法 + 经脉光点冲满（jingmai.js jmGfCut）；法术：悟法秘法（经脉不减法术）；减少% 可以超过 100%
     studySec(g) {
       if (g.noEl) return Math.max(1, ((g.studyMin || [])[g.lv - 1] || 1) * 60);   // 开局功法书：config/start.js 的 STUDY_MIN
-      const m = this.mifaBonus(), red = g.kind === "mf" ? 0 : g.kind === "sp" ? m.spStudy : m.gfStudy + (this.jmGfCut ? this.jmGfCut() : 0);
+      const m = this.mifaBonus(), red = g.kind === "mf" ? 0 : g.kind === "sp" ? m.spStudy : m.gfStudy + (this.jmGfCut ? this.jmGfCut() : 0) + (this.arrayGfCut ? this.arrayGfCut() : 0);
       const base = DATA.studyMin[g.lv - 1] * 60;
       return Math.max(Math.min(CFG.wudao.STUDY_MIN_SEC || 10, base), base / (1 + Math.max(0, red) / 100));
     },
@@ -217,9 +217,19 @@ G.module({
       }
     },
     removeQueue(i) { this.s.gfQueue.splice(i, 1); this.after(); },
-    stopStudy() {
-      if (!this.s.gfStudy || !confirm("中断修炼，已消耗的灵气不退还，确定？")) return;
-      this.s.gfStudy = null; this.nextStudy(); this.after();
+    // 「功法加成」：所有正在生效、减少功法 / 法术修炼时间的来源（v261 替代原来的「中断」）
+    gfBonusView() {
+      const m = this.mifaBonus(), ori = this.oriSum ? this.oriSum("gfStudyPct") : 0, K = id => (DATA.mifaKinds.find(k => k.id === id) || {}).name || id;
+      const pill = this.studyPillPct ? this.studyPillPct() : 0, R = this.gfRoomNow ? this.gfRoomNow() : null;
+      const room = R && !R.pillOnly ? [`${R.name}${R.free ? "（免费）" : ""}`, R.pct] : null;
+      const gf = [[K("gfStudy"), (m.gfStudy || 0) - ori], ["出身「书香门第」", ori], ["经脉", this.jmGfCut ? this.jmGfCut() : 0], [`聚灵阵（${(this.s.array || {}).lv || 0} 级）`, this.arrayGfCut ? this.arrayGfCut() : 0]];
+      const sp = [[K("spStudy"), m.spStudy || 0]];
+      const shared = [room, pill > 0 ? [`悟真丹（剩 ${U.dur(this.studyPillLeft() / 1000)}）`, pill] : null].filter(Boolean);
+      const sec = (t, a) => { const r = a.filter(x => x && x[1] > 0), tot = r.reduce((s, x) => s + x[1], 0);
+        return `<h3>${t}<small>合计 -${U.num(tot)}%</small></h3>${r.length ? r.map(x => `<div class="line"><div>${x[0]}</div><b>-${U.num(x[1])}%</b></div>`).join("") : `<p class="desc">暂无</p>`}`; };
+      this.modal(`<h2>功法加成</h2><p class="desc">修炼时间 = 基础时间 ÷ (1 + 减少% 合计)，秘法不吃这些加成。</p>
+        ${sec("功法", gf.concat(shared))}${sec("法术", sp.concat(shared))}
+        <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
     setGfFilter(t) { this.gfFilter = t; this.render(); },
     // 排序 / 隐藏满级：「按等级」「按星级」一直开着，点击切换方向（v42）
@@ -260,8 +270,8 @@ G.module({
         acc = left;
         html += `<div class="card"><h3>修炼中 ·《${info ? info.name : st.id}》${info ? this.gfLvTo(info.lv) : ""}</h3>
         <div class="bar tick"><div style="width:${done / st.total * 100}%"></div></div>
-        <div class="row small"><span>${st.stalled ? `<b class='q5'>${st.stone ? "灵气或灵石" : "灵气"}不足，暂停中</b>` : `倒计时 <b>${this.countdown(left)}</b>`}</span><button class="sm" onclick="G.stopStudy()">中断</button></div>
-        <div class="row small"><span>每 10 秒消耗 <b>${U.fmt(st.per * mul * 2)}</b> 灵气${st.stone ? ` + ${U.fmt(Math.round(st.stone * mul * 2))} 灵石` : ""} · 已消耗 <b>${U.fix(U.fmt(st.spent))}</b> / ${U.fmt(st.per * st.total / (DATA.STUDY_STEP * 1000))}</span><span>${R ? `${R.pillOnly ? "" : R.name + " -" + U.num(R.pct) + "%"}${R.pill ? `${R.pillOnly ? "" : " · "}悟真丹 -${U.num(R.pill)}%` : ""}` : "未进练功房"}</span></div></div>`;
+        <div class="row small"><span>${st.stalled ? `<b class='q5'>${st.stone ? "灵气或灵石" : "灵气"}不足，暂停中</b>` : `倒计时 <b>${this.countdown(left)}</b>`}</span><button class="sm" onclick="G.gfBonusView()">功法加成</button></div>
+        <div class="row small"><span>每 10 秒消耗 <b>${U.fmt(st.per * mul * 2)}</b> 灵气${st.stone ? ` + ${U.fmt(Math.round(st.stone * mul * 2))} 灵石` : ""} · 已消耗 <b>${U.fix(U.fmt(st.spent))}</b> / ${U.fmt(st.per * st.total / (DATA.STUDY_STEP * 1000))}</span></div></div>`;
       } else html += `<div class="card"><p class="desc">当前没有在修炼的功法。在各分类里点「修炼」加入队列。</p></div>`;
       const lvPlan = {};
       if (s.gfStudy) lvPlan[s.gfStudy.id] = (s.gongfa[s.gfStudy.id] || 1) + 1;

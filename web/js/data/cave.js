@@ -11,12 +11,12 @@
 // 数值在 js/config/ 下的数值文件 的 array 部分
 const _A = CFG.array;
 // 分段数值：第 lv 级（1 起）所在段的数值 C[key][段]（超出数组用最后一段）
-DATA.segIdx = (C, lv) => Math.floor((Math.max(1, lv) - 1) / (C.STEP || 30));
-DATA.segVal = (C, key, lv) => { const a = C[key] || [0]; return a[Math.min(DATA.segIdx(C, lv), a.length - 1)] || 0; };
+DATA.segIdx = (C, lv, key) => Math.floor((Math.max(1, lv) - 1) / ((key && C.STEPS && C.STEPS[key]) || C.STEP || 30));   // STEPS[key]：该数组单独的每段级数
+DATA.segVal = (C, key, lv) => { const a = C[key] || [0]; return a[Math.min(DATA.segIdx(C, lv, key), a.length - 1)] || 0; };
 // 升到 lv 级的灵石：升到 2 级 = COST_BASE，之后每级 × 所在段的 COST_RATE
 DATA.segCost = (C, lv) => { let c = C.COST_BASE || 0; for (let l = 3; l <= lv; l++) c *= DATA.segVal(C, "COST_RATE", l); return Math.floor(c); };
 // 聚灵量：第 lv 级 = GATHER_INIT × GATHER_RATE^(lv−1) × 所在段 GATHER_SEG
-DATA.gatherLv = (C, lv) => { const g = C.GATHER_SEG || [1]; return (C.GATHER_INIT || 0) * Math.pow(C.GATHER_RATE || 1, lv - 1) * (g[Math.min(DATA.segIdx(C, lv), g.length - 1)] ?? 1); };
+DATA.gatherLv = (C, lv) => { const g = C.GATHER_SEG || [1]; return (C.GATHER_INIT || 0) * Math.pow(C.GATHER_RATE || 1, lv - 1) * (g[Math.min(DATA.segIdx(C, lv, "GATHER_SEG"), g.length - 1)] ?? 1); };
 DATA.segSum = (C, key, lv) => { let t = 0; lv = Math.min(lv, C.MAX); for (let l = 1; l <= lv; l++) t += DATA.segVal(C, key, l); return t; };
 DATA.array = {
   MAX: _A.MAX,
@@ -27,6 +27,7 @@ DATA.array = {
   flat: lv => DATA.segSum(_A, "GATHER_FLAT", lv),   // 固定聚灵（不吃任何加成）
   gather: lv => { let t = _A.GATHER_BASE; for (let l = 1; l <= Math.min(lv, _A.MAX); l++) t += DATA.gatherLv(_A, l); return t; },
   cost: lv => DATA.segCost(_A, lv + 1),
+  gfStudy: lv => { const n = Math.floor(Math.min(lv, _A.MAX) / (_A.GF_STEP || 30)); let t = 0; for (let i = 0; i < n; i++) t += (_A.GF_STUDY || [])[i] || 0; return Math.round(t * 100) / 100; },   // 聚灵阵减少功法修炼时间 %
 };
 DATA.LING_CAP_GATHER = _A.CAP_GATHER;
 DATA.LING_CAP_SPEED = _A.CAP_SPEED;

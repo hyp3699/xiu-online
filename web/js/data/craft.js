@@ -34,12 +34,14 @@ DATA.recipeHas = (type, g) => !!(_AL.recipes[type] && _AL.recipes[type].herbs[g]
 // v41：丹方分类（0 凡丹 1 仙丹 2 冥丹 3 魔丹 4 神丹）、学习需要的门派星级、加成的属性
 DATA.danCat = type => (_AL.recipes[type] && _AL.recipes[type].cat) || 0;
 // 凡丹：N 星宗门有一阶~N 阶（用户定，2026-10-20）；仙冥魔神丹在四界功德司学，这里的星级只作旧配置兼容
-DATA.danStar = (type, g) => (_AL.recipes[type] || {}).star || (Math.min(5, Math.floor(g / (_AL.SECT_STAR_TIERS || 2)) + 1));   // 凡丹学习需要的门派星级：1~5 星宗门每星两阶（一二阶 1 星 … 九十阶 5 星），6~10 星宗门全部；仙冥魔神丹在功德司学
+DATA.danStar = (type, g) => DATA.danSectX(type) ? ((_AL.SECT_XMM.STAR || [])[g] || 10) : (_AL.recipes[type] || {}).star || (Math.min(5, Math.floor(g / (_AL.SECT_STAR_TIERS || 2)) + 1));   // 凡丹学习需要的门派星级：1~5 星宗门每星两阶（一二阶 1 星 … 九十阶 5 星），6~10 星宗门全部；仙冥魔神丹在功德司学
 DATA.danStat = type => (_AL.recipes[type] && _AL.recipes[type].stat) || type;
 // v42：仙冥魔神丹（cat ≥ 1）用炼丹仙炉、炼丹仙师；修炼丹的品质 = 阶 + REALM0
 DATA.danFu = type => DATA.danCat(type) === 4 ? "sdan" : DATA.danCat(type) ? "xdan" : "dan";   // 神丹用炼丹神炉
 DATA.danCraft = type => DATA.danCat(type) ? "xdan" : "dan";
-DATA.danSect = type => DATA.danCat(type) === 0;   // 在宗门炼丹房学的丹方：只有凡丹（仙冥魔神丹在四界功德司）
+// v256 仙 / 冥 / 魔丹的命中、速度、闪避、生命、法力丹方在宗门炼丹房学（config/alchemy.js SECT_XMM）
+DATA.danSectX = type => { const X = _AL.SECT_XMM, r = _AL.recipes[type]; return !!(X && r && !r.speed && !r.item && (X.CATS || []).includes(r.cat || 0) && (X.STATS || []).includes(DATA.danStat(type))); };
+DATA.danSect = type => DATA.danCat(type) === 0 || DATA.danSectX(type);   // 在宗门炼丹房学的丹方：凡丹 + 上面这些（其余仙冥魔神丹在四界功德司）
 DATA.pillGrade = (type, g) => g + ((_AL.recipes[type] && _AL.recipes[type].REALM0) || 0);
 DATA.isSpeedRecipe = type => !!(_AL.recipes[type] && _AL.recipes[type].speed);
 // 一阶破军丹；修炼速度丹显示为 一阶聚气丹（练气期）
@@ -53,7 +55,7 @@ DATA.danLimit = (type, g) => (_AL.recipes[type].limit || [])[g] || 0;
 DATA.danRecipe = (type, g) => DATA.parseMats(_AL.recipes[type].herbs[g]);
 DATA.danTime = (type, g) => _AL.recipes[type].time[g] * 60000;     // 毫秒（未算炉子加成）
 DATA.danLearnTime = (type, g) => _AL.recipes[type].learnTime[g] * 60000;
-DATA.danLearnCost = (type, g) => (_AL.recipes[type].learnCost || [])[g] || 0;
+DATA.danLearnCost = (type, g) => DATA.danSectX(type) ? (_AL.SECT_XMM.COST || 0) + (_AL.SECT_XMM.STEP || 0) * g : (_AL.recipes[type].learnCost || [])[g] || 0;
 // 四界功德司丹方在背包里学习的时间（毫秒），ss = 神识强度
 DATA.danGdLearnMs = (g, ss) => { const R = _AL.GD_RECIPE || {}, d = (k, v) => R[k] === undefined ? v : R[k];
   ss = Math.max(0, ss || 0);

@@ -650,6 +650,7 @@ G.module({
     },
     danLeft(type, g) { return DATA.danLimit(type, g) - (this.s.danEaten[type + "|" + g] || 0); },
     eatDan(i, n) {
+      if (this.tribBusy && this.tribBusy()) return this.log("渡劫中不能服用丹药。", "sys");   // v259
       const it = this.s.bag[i]; if (!it || it.t !== "dan") return;
       n = Math.min(Math.floor(+n), it.n, this.danLeft(it.type, it.g));
       if (n <= 0) return this.log(`${DATA.danName(it.type, it.g, it.sg)}已达服用上限。`, "sys");
@@ -660,6 +661,7 @@ G.module({
     },
     // 悟真丹：效果不叠加（pct 固定 120%），时间可叠加——生效中再服，结束时间 += 360 分钟
     eatWuzhen(i) {
+      if (this.tribBusy && this.tribBusy()) return this.log("渡劫中不能服用丹药。", "sys");   // v259
       const it = this.s.bag[i]; if (!it || it.t !== "dan" || it.type !== "wuzhen") return;
       const R = CFG.alchemy.recipes.wuzhen || {}, pct = R.studyPct || 120, mins = R.studyMin || 360, now = this.now();
       const wasOn = !!(this.s.studyBuff && this.s.studyBuff.end > now);
@@ -923,11 +925,11 @@ G.sectForgeView = function () {
   return h;
 };
 
-/* 门派 · 炼丹房：学习凡丹丹方（sect.js 调用）。1~5 星宗门每星两阶，6~10 星宗门全部凡丹丹方（DATA.danStar）；仙冥魔神丹方在四界功德司 */
+/* 门派 · 炼丹房：学习凡丹丹方 + 仙冥魔丹的命中/速度/闪避/生命/法力丹方（6~10 星，DATA.danSectX）（sect.js 调用）。1~5 星宗门每星两阶，6~10 星宗门全部凡丹丹方（DATA.danStar）；仙冥魔神丹方在四界功德司 */
 G.sectAlchemyView = function () {
   const s = this.s, star = this.sectInfo().star;
   let h = this.lqCard("dan");   // v173 学习队列
-  const hall = DATA.nmPick(CFG.names.sectHall, "alchemy", "炼丹房"), types = Object.keys(DATA.recipes).filter(t => !DATA.danCat(t));
+  const hall = DATA.nmPick(CFG.names.sectHall, "alchemy", "炼丹房"), types = Object.keys(DATA.recipes).filter(t => DATA.danSect(t));
   const cards = [];
   for (let g = 0; g < DATA.DAN_JIE_N; g++) {
     const rows = types.filter(t => DATA.recipeHas(t, g) && DATA.danStar(t, g) <= star).map(t => {
@@ -938,5 +940,5 @@ G.sectAlchemyView = function () {
     });
     if (rows.length) cards.push({ head: `<h3>${hall} · ${DATA.JIE[g]}丹方</h3>`, rows });
   }
-  return h + U.doneCards(cards) + `<p class="desc">仙丹、冥丹、魔丹、神丹的丹方在四界各地图的功德司用功德兑换。</p>`;
+  return h + U.doneCards(cards) + `<p class="desc">仙丹、冥丹、魔丹的命中、速度、闪避、生命、法力丹方在 6~10 星宗门学习；其余仙丹、冥丹、魔丹、神丹丹方在四界各地图的功德司用功德兑换。</p>`;
 };

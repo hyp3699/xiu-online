@@ -217,7 +217,6 @@ const API = {
   // 需要玩家确认的操作：先在本地弹确认框，取消就不发给服务器（服务器端 confirm 一律视为确定）
   CONFIRMS: {
     leaveSect: () => G.s.sect && G.s.contrib >= G.leaveCost() ? `叛出门派将扣除贡献 ${U.fmt(G.leaveCost())}、清空职务（已学功法保留），确定？` : "",
-    stopStudy: () => G.s.gfStudy ? "中断修炼，已消耗的灵气不退还，确定？" : "",
     svFire: () => "遣散这个道童？",
     svStartPick: () => !G.s.svPick && G.s.servants.length < CFG.servant.MAX && G.s.stone >= CFG.servant.PICK_COST ? `花费 ${U.fmt(CFG.servant.PICK_COST)} 灵石选拔道童（${CFG.servant.PICK_SEC} 秒出结果），确定？` : "",
     forgetGongfa: id => {
@@ -403,8 +402,6 @@ const API = {
     if (name === "startChuqiao" && G.s.cq && G.s.cq.start !== cqStart) { G.exploreOpen = true; G.exInfo = "cq"; G.render(); }
     // These actions combine a server state change with a purely visual transition.
     if (name === "startTrib") { G.tribOpen = true; if (G.tribRender) G.tribRender(true); }
-    if (name === "tribPut") { G.closeModal(); if (G.tribOpen && G.tribRender) G.tribRender(true); }
-    if (name === "tribUse" && G.tribRender) G.tribRender(false);
     if (name === "startChuqiao") { G.closeModal(); G.exploreOpen = true; G.render(); }
     if (["autoTaskSet", "atPickSet"].includes(name) && G.openCultSet) G.openCultSet();
     if (["learnBook", "learnGfBook", "learnBlueprint", "learnRingBp", "installFurnace", "equipItem", "unequip", "sellItem", "slotSpell", "swapFabao", "unslotSpell", "useStone", "useFurnace", "eatDan", "eatWuzhen", "eatQl", "eatYsDan", "eatYb", "useCxp", "learnXd", "learnDanScroll", "plantField", "clearField", "svAccept", "spellAdv"].includes(name) && G.closeModal) G.closeModal();
@@ -432,7 +429,9 @@ const API = {
       // 炼法宝还没选类型 / 属性：在本地打开选择窗口，选好后再发给服务器
       if (name === "craftFurnace" && args[2] === "fabao" && !(DATA.fabaoTypes[args[3]] && DATA.elById[args[4]])) { G.openFabaoPick(args[1]); return false; }
       // 突破要渡劫（如练气十层 → 筑基）：渡劫准备页只在本地打开，点「开始突破」才发 startTrib 给服务器
-      if (name === "breakthrough" && (G.s.trib || (G.canBreak() && G.needTrib()))) { G.openTrib(); return false; }
+      // v259 去掉准备页：有渡劫在进行就看渡劫页，否则直接开始渡劫
+      if (name === "breakthrough" && G.s.trib) { G.openTrib(); return false; }
+      if (name === "breakthrough" && G.canBreak() && G.needTrib()) return this.sendAction("startTrib", []);
       // 悟道：读条动画在本地播放，结束时让服务器结算
       if (name === "wudao") {
         const dao = args[0];

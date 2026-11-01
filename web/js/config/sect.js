@@ -135,7 +135,7 @@ CFG.sect.affairItem = {
   CONTRIB: 100, RANK_ADD: 25,      // 奖励贡献 = CONTRIB + 职务序号 × RANK_ADD（不看星级）
 };
 CFG.sect.affairFight = {
-  // 前 3 个 = 入门境界，后 3 个 = 入门境界的下一个境界；lay 怪物层 pct 宗门功法学% gf 功法层，都是 [最小, 最大] 随机
+  // 前 3 个 = 本星宗门入门境界、本星功法，后 3 个 = 入门境界的下一个境界、星级 + 1 的功法（realm 加几就加几星）；换宗门当天重新生成；lay 怪物层 pct 宗门功法学% gf 功法层，都是 [最小, 最大] 随机
   GROUPS: [
     { n: 3, realm: 0, lay: [1, 5],  pct: [1, 20],  gf: [1, 3], mul: 1 },
     { n: 3, realm: 1, lay: [6, 10], pct: [21, 50], gf: [3, 6], mul: 2 },

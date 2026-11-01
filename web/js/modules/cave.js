@@ -30,6 +30,7 @@ G.module({
     // 其他房间的页面（炼丹房、炼器室、灵药园在各自模块里登记：G.caveViews.房间id = function）
     caveViews: {},
     arrayFactor() { return DATA.array.factor(this.s.array.lv); },
+    arrayGfCut() { return DATA.array.gfStudy ? DATA.array.gfStudy((this.s.array || {}).lv || 0) : 0; },   // 聚灵阵每 30 级减少功法修炼时间 %
     // 每 10 秒聚灵量（只由等级决定，开关不影响）
     gatherAmount() { return DATA.array.gather(this.s.array.lv) + this.gatherLz() + this.gatherServant() + DATA.array.flat(this.s.array.lv) + (this.servantFlat ? this.servantFlat() : 0); },   // 固定聚灵最后加，不吃道童等加成
     gatherServant() { return (DATA.array.gather(this.s.array.lv) + this.gatherLz()) * (this.servantPct ? this.servantPct("zhen") : 0) / 100; },   // 道童阵法辅助：聚灵 +%

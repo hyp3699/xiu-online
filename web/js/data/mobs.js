@@ -108,6 +108,10 @@ DATA.mobMeet = (grp, kind) => { const t = grp && grp._t && grp._t[kind]; return 
     CFG.monster.MAP_REALM[a] = c["进入"] || 0;
     m.mob = c;   // 天将 / 星君 / 界主，就任境界「天将需」「星君需」
   }
+  // v258 地图等级（法术 / 法宝伤害加成用）：凡界 1~9，仙魔冥第 N 张 9+N，神界第 N 张 19+N
+  DATA.mapLv = a => { const m = DATA.maps[a]; if (!m) return 0; if (!m.w || m.w === "fan") return a + 1; return (m.wi || 0) + (m.w === "shen" ? 20 : 10); };
+  // 不在地图上的怪：按怪物境界折算，练气 = 1 级，每个大境界 +1（和凡界 / 仙界地图的区域境界一一对应），最多 29
+  DATA.mapLvByL = L => Math.min(29, Math.max(1, Math.floor((L || 0) / DATA.LAYERS) + 1));
 })();
 DATA.mobTj = a => (DATA.maps[a].mob || {})["天将"] || DATA.MOB_NONE;
 DATA.mobXj = (a, i) => { const l = (DATA.maps[a].mob || {})["星君"] || []; return l[i] || l[l.length - 1] || DATA.MOB_NONE; };

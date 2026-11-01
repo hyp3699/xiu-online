@@ -85,7 +85,7 @@ CFG.gongfa.sect = {
 
   learn: 100,        // 学习贡献基础值
   LEARN_TYPE: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1.5, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1, tijue: 1.5 },   // 学习贡献类别倍率
-  LEARN_STAR: [1, 5, 10, 20, 40, 60, 80, 110, 150, 200, 250, 300, 360, 430, 510],   // 学习贡献星级倍率：1 星 ~ 15 星
+  LEARN_STAR: [1, 1.3, 1.8, 2.4, 3.2, 4.3, 5.8, 7.7, 10.4, 13.9, 18.6, 25, 33.4, 44.8, 60],   // 学习贡献星级倍率：1 星 1 ~ 15 星 60，每星约 ×1.34
   EFFECT_LEARN: 1,   // 学习贡献总倍率
 };
 

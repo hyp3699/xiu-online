@@ -34,7 +34,7 @@ G.module({
     svUpLy(d) { const C = CFG.servant; return Math.round(DATA.geoStep(C.LY_FIRST ?? 1, C.LY_LAST ?? 1000, d.lv - 1, C.MAX_LV - 1) * this.svQMul(d)); },
     svLyFt(d) { return DATA.elIdx(d.el); },
     // 阵法辅助的固定聚灵（不吃 % 加成）：所有派去的道童相加
-    svFlat(d) { const J = CFG.servant.JOB.zhen || {}; return Math.round(this.svGeo(J.FLAT_LV1 ?? 30, J.FLAT_MAX ?? 3000, d.lv)); },
+    svFlat(d) { const J = CFG.servant.JOB.zhen || {}; return Math.round(this.svGeo(J.FLAT_LV1 ?? 30, J.FLAT_MAX ?? 240000, d.lv)); },
     servantFlat() { return (this.s.servants || []).filter(d => d.job === "zhen").reduce((t, d) => t + this.svFlat(d), 0); },
     svSalary(d) { const S = CFG.servant.SALARY; return Math.round(this.svGeo(S.LV1, S.MAX, d.lv)); },   // 只看等级，不看资质
     svOwed(d) { return Math.max(0, Math.round((Date.parse(this.bjDay()) - Date.parse(d.paid || this.bjDay())) / 864e5)); },
@@ -51,7 +51,7 @@ G.module({
       const a = J[f + "LV1"] || 0;
       return Math.round((a + (J[f + "MAX"] - a) * this.svCurve(d.lv)) * 100) / 100;   // 每级都提升（保留 2 位小数）
     },
-    svEffTxt(job, v, flat, y) { if (job === "ling") return `种植速度 +${U.num(v)}%，产量 +${U.num(y || 0)}%`; return job === "zhen" ? `聚灵 +${U.num(v)}%${flat ? `，固定聚灵 +${U.fmt(flat)}` : ""}` : `${job === "cult" || job === "dan" || job === "qi" || job === "ling" ? "+" : "−"}${U.num(v)}%`; },
+    svEffTxt(job, v, flat, y) { if (job === "ling") return `种植速度 +${U.num(v)}%，产量 +${U.num(y || 0)}%`; return job === "zhen" ? `${v ? `聚灵 +${U.num(v)}%，` : ""}固定聚灵 +${U.fmt(flat || 0)}` : `${job === "cult" || job === "dan" || job === "qi" || job === "ling" ? "+" : "−"}${U.num(v)}%`; },
     svJobTotal(job) { return job === "zhen" ? `聚灵 +${U.num(this.gatherServant() + this.servantFlat())}` : this.svEffTxt(job, this.servantPct(job), 0, this.servantPct(job, "YIELD_")); },   // 差事按钮：阵法辅助显示所有道童合计增加的聚灵（每 10 秒）
     servantPct(job, f = "") { return (this.s.servants || []).filter(d => d.job === job).reduce((t, d) => t + this.svEff(d, job, f), 0); },
     svStartPick() {

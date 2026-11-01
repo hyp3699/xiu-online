@@ -291,6 +291,7 @@ G.module({
       this.log(`好感度 −${cost}，兑换${this.ysDanName(id, k)} ×${n}，已放入背包。`, "good"); this.after();
     },
     eatYsDan(i, n) {
+      if (this.tribBusy && this.tribBusy()) return this.log("渡劫中不能服用丹药。", "sys");   // v259
       const it = this.s.bag[i]; if (!it || it.t !== "ysd") return; const D = this.ysDanCfg();
       n = Math.min(Math.floor(+n) || 1, it.n, D.MAX - this.ysDanEatN(it.ys, it.k));
       if (n <= 0) return this.log(`${this.ysDanName(it.ys, it.k)}已达服用上限。`, "sys");
@@ -677,7 +678,7 @@ G.module({
       const R = DATA.region(a, r), b = DATA.mobMeet(R, kind), map = DATA.maps[a];   // v168 每次遇到随机层 / 功法
       const v = (x, k) => x * DATA.mobRnd(k);   // × 随机浮动
       const name = kind === "boss" ? DATA.regionBoss(a, r) : (kind === "elite" ? "精英·" : "") + U.pick(map.monsters);
-      return this.addMagic({ name, Lm: R.L, kind, boss: kind === "boss", elite: kind === "elite", elKey: kind === "boss" ? `b:${a}:${r}` : "",
+      return this.addMagic({ name, mapA: a, Lm: R.L, kind, boss: kind === "boss", elite: kind === "elite", elKey: kind === "boss" ? `b:${a}:${r}` : "",
         hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.resEl || b.res, manaBr: b.manaBr, L: b.L, crit: b.crit }, kind);
     },
 
@@ -701,8 +702,11 @@ G.module({
         if (m.res[ke] !== undefined) m.res[ke] *= Math.max(0, 1 - rr(ER.DOWN) / 100);
         m.weakEl = ke;
       }
-      const cv = c => c ? { chance: c.几率 || 0, pct: c.伤害 || 0, mana: c.消耗 || [0, 1] } : null;
-      m.spell = cv(M.法术); m.fabao = cv(M.法宝);
+      // v258 伤害% = 基础 + (地图等级 − 起始等级) × 每级加成（config/mobs.js magic.SPELL_LV / FABAO_LV）；mapA = 所在地图，没有按境界折算
+      const kn = { normal: "普通", elite: "精英", boss: "首领", tower: "试炼塔" }[kind] || kind;
+      const lv = m.mapA >= 0 ? DATA.mapLv(m.mapA) : DATA.mapLvByL(m.L), dl = (MG.NO_LV || []).includes(kn) ? 0 : Math.max(0, lv - ((MG.LV_START || {})[kn] || 1));
+      const cv = (c, st) => c ? { chance: c.几率 || 0, pct: (c.伤害 || 0) + dl * (+MG[st] || 0), mana: c.消耗 || [0, 1] } : null;
+      m.spell = cv(M.法术, "SPELL_LV"); m.fabao = cv(M.法宝, "FABAO_LV"); m.mapLv = lv;
       m.manaK = DATA.manaRealmK(m.L);   // 法术、法宝法力消耗的境界倍率（config/mobs.js magic.MANA_REALM）
       const MR = +((CFG.rates || {}).MOB ?? 1);   // config/rates.js 怪物属性总倍率（暴击%不乘；雷劫不走这里）
       if (MR !== 1 && MR >= 0) { for (const k of ["hp", "atk", "def", "speed", "hit", "dodge"]) if (typeof m[k] === "number") m[k] *= MR; m.mana = m.maxMana = m.mana * MR; for (const e in m.res) m.res[e] *= MR; }
@@ -2291,7 +2295,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
     gdRecipeList(a) {
       const S = CFG.alchemy.SHANGGU || {}, w = (DATA.maps[a] || {}).w, cat = (S.WORLD_CAT || {})[w], g = (DATA.worldMapIdx[w] || []).indexOf(a);
       if (!cat || g < 0) return [];
-      return Object.keys(DATA.recipes).filter(t => DATA.danCat(t) === cat && DATA.recipeHas(t, g)).map(type => ({ type, g, cost: CFG.alchemy.recipes[type].gdCost !== undefined ? CFG.alchemy.recipes[type].gdCost : DATA.danGdCost(g, w === "shen") }));   // gdCost 单独定价的丹方（悟真丹 8000）不受 GD_RECIPE 通用计价影响
+      return Object.keys(DATA.recipes).filter(t => DATA.danCat(t) === cat && DATA.recipeHas(t, g) && !DATA.danSectX(t)).map(type => ({ type, g, cost: CFG.alchemy.recipes[type].gdCost !== undefined ? CFG.alchemy.recipes[type].gdCost : DATA.danGdCost(g, w === "shen") }));   // gdCost 单独定价的丹方（悟真丹 8000）不受 GD_RECIPE 通用计价影响
     },
     learnGdRecipe(a, type) {
       const s = this.s, o = DATA.jieGfOf("gd", a), d = this.gdRecipeList(a).find(x => x.type === type); if (!o || !d) return;
