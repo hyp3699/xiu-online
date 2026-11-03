@@ -255,7 +255,7 @@ const API = {
 
   async loadSave() {
     const j = await this.req("session");
-    this.isAdmin = !!j.admin; DATA._admin = this.isAdmin;   // 测试模式只对管理员生效
+    this.isAdmin = !!j.admin; DATA._admin = this.isAdmin; DATA._debug = !!j.debug;   // 测试模式：管理员 + TEST，或调试人物
     this.syncClock(j.serverNow);
     this.installActions(j.actions || []);
     this.installResume();
@@ -420,6 +420,7 @@ const API = {
       G.render();
     }
     if (name === "skipBattle") G.render();
+    if (["bmFuse", "bmFuseAll"].includes(name) && result && G.bmFuseDone) G.bmFuseDone(result);   // 熔炼后弹出增加的属性
   },
 
   async sendAction(name, args) {
@@ -501,6 +502,10 @@ const API = {
   async userList() { return this.req("admin/users"); },
   async setRegOpen(open) { return this.req("admin/reg", { open }); },
   async userDelete(id) { return this.req("admin/user/del", { id }); },
+  async charList() { return this.req("admin/chars"); },
+  async charNew(debug) { return this.req("admin/char/new", { debug: !!debug }); },
+  async charSwitch(id) { return this.req("admin/char/switch", { id }); },
+  async charDel(id) { return this.req("admin/char/del", { id }); },
   // ---- 从后台切回游戏：显示「加载游戏中…」，等服务器把离开这段时间结算完、推回完整状态再关闭 ----
   _hiddenAt: 0, _resumeWait: false, _resumeShow: 0, _resumeTimer: 0, _resumeKick: 0, _resumeRetry: 0,
   RESUME_MIN_MS: 1500,   // 离开不到 1.5 秒（如下拉通知栏）不显示

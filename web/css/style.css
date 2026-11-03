@@ -351,6 +351,35 @@ button.sm{white-space:nowrap;flex-shrink:0}
 .fb-huo,.fb-huo .nm{color:#ff6a4a}.cell.fb-huo,.slot-eq.fb-huo,.ico.fb-huo{border-color:#a84a32}
 .fb-tu,.fb-tu .nm{color:#d8a868}.cell.fb-tu,.slot-eq.fb-tu,.ico.fb-tu{border-color:#8a6a3a}
 .fb-lei,.fb-lei .nm{color:#b98aff}.cell.fb-lei,.slot-eq.fb-lei,.ico.fb-lei{border-color:#6e4fa8}
+/* ---------- 法宝按星级（DATA.eqCls 的 fbt1~10）：每星一张手绘图（img/icons/fb形状s星.png），图本身不加滤镜；六星起流光（光色按属性） ---------- */
+.fbel.fbt img,img.fbel.fbt{filter:none;animation:none}
+/* 格子不加底色 / 边框光，只改法宝本身（盖掉 eqt 的格子外观） */
+.cell.fbel.fbt,.slot-eq.fbel.fbt{background:var(--c-cell);box-shadow:none;animation:none}
+.cell.fbel.fbt::after,.slot-eq.fbel.fbt::after,.cell.fbel.fbt::before,.slot-eq.fbel.fbt::before{content:none}
+/* 法宝图外层 .fbw（DATA.fbArt）：::after 是流光，用法宝图做遮罩，只落在法宝身上 */
+.fbw{position:relative;display:block;aspect-ratio:1;line-height:0;isolation:isolate}
+.fbw>img{display:block;width:100%;height:100%;object-fit:contain;margin:0}
+.cell .fbw.mi{width:58%;margin-bottom:1px;pointer-events:none}
+.slot-eq .fbw.si{width:34px;margin:0 auto 2px}
+.equip.bagslots .slot-eq .fbw.si{width:58%;margin:0 auto 1px}
+.bagstage .slot-eq .fbw.si{width:84%;max-height:84%;margin:0 auto}
+.fbw.item-img{height:72px;width:72px}
+/* 六星起流光：一道光沿法宝形状（遮罩 = 法宝图）慢慢划过，光色按属性（金木水火土雷），星级越高越亮越快 */
+.fbw::after{content:"";position:absolute;inset:0;pointer-events:none;-webkit-mask:var(--m) center/contain no-repeat;mask:var(--m) center/contain no-repeat;
+  background:linear-gradient(115deg,transparent 40%,rgba(var(--fl,255,240,190),.35) 46%,rgba(var(--fl,255,240,190),.95) 50%,rgba(var(--fl,255,240,190),.35) 54%,transparent 60%) no-repeat;background-size:300% 100%;background-position:100% 0;mix-blend-mode:screen;opacity:0}
+.fb-jin .fbw,.fbw.fb-jin{--fl:255,226,120}
+.fb-mu .fbw,.fbw.fb-mu{--fl:140,255,160}
+.fb-shui .fbw,.fbw.fb-shui{--fl:120,200,255}
+.fb-huo .fbw,.fbw.fb-huo{--fl:255,110,70}
+.fb-tu .fbw,.fbw.fb-tu{--fl:240,190,110}
+.fb-lei .fbw,.fbw.fb-lei{--fl:200,140,255}
+.fbt6 .fbw::after,.fbt6.fbw::after{opacity:.7;animation:fbShine 4.6s ease-in-out infinite}
+.fbt7 .fbw::after,.fbt7.fbw::after{opacity:.8;animation:fbShine 4.1s ease-in-out infinite}
+.fbt8 .fbw::after,.fbt8.fbw::after{opacity:.9;animation:fbShine 3.6s ease-in-out infinite}
+.fbt9 .fbw::after,.fbt9.fbw::after{opacity:1;animation:fbShine 3.1s ease-in-out infinite}
+.fbt10 .fbw::after,.fbt10.fbw::after{opacity:1;animation:fbShine 2.6s ease-in-out infinite}
+@keyframes fbShine{0%{background-position:100% 0}65%,100%{background-position:0 0}}
+@media (prefers-reduced-motion:reduce){.fbw::after{animation:none!important}}
 
 /* 未登录：只显示登录框，游戏界面全部隐藏 */
 body.nologin #app, body.nologin #toast { display: none; }
@@ -726,7 +755,7 @@ html[data-bg="xuanzhi"] .bar-img,html[data-bg="xinghuang"] .bar-img,html[data-bg
 .wscroll{position:relative;margin:-10px -12px;min-height:calc(100% + 20px);box-sizing:border-box;padding:14px 6px 70px;background-size:100% 100%;background-repeat:no-repeat;box-shadow:inset 0 0 40px rgba(0,0,0,.35)}
 .wsi{position:relative;display:flex;align-items:center;justify-content:center;gap:4px;margin:-4px 0;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .wsi.l{padding-right:8%}.wsi.r{flex-direction:row-reverse;padding-left:8%}
-.wsi img{width:72%;max-width:400px;filter:drop-shadow(0 10px 10px rgba(0,0,0,.45));transition:transform .15s}
+.wsi img{width:72%;max-width:400px;height:auto;filter:drop-shadow(0 10px 10px rgba(0,0,0,.45));transition:transform .15s}
 .wsi:active img{transform:scale(.96)}
 .wsi.lock img{filter:grayscale(.85) brightness(.55) drop-shadow(0 10px 10px rgba(0,0,0,.45))}
 .wsn{display:flex;flex-direction:column;align-items:center;gap:4px;flex:none}
@@ -902,7 +931,7 @@ html.bg-light .ico.eqt10,html.bg-light .ico.j10{color:#1a7aa0}html.bg-light .ico
 html.bg-light .ori-it{background:rgba(255,255,255,.55);border-color:rgba(150,110,40,.35)}
 html.bg-light .ori-it b{color:var(--t-gold)}html.bg-light .ori-it small{color:var(--t-sub)}
 /* 浅色背景：整体文字再压深一档，提示框、日志、底栏加粗一点更清楚 */
-html.bg-light{--t-main:#1e1810;--t-sub:#4c4132;--t-dim:#5a4e3c;--t-sub2:#463b2b;--t-logt:#2a2318;--t-gold:#7a4f0e;--t-gold2:#83540a}
+html.bg-light{--t-main:#1e1810;--t-sub:#4c4132;--t-dim:#5a4e3c;--t-sub2:#463b2b;--t-logt:#2a2318;--t-gold:#7a4f0e;--t-gold2:#83540a;--t-bad:#b23a24;--t-good:#1c7660;--t-blue:#2858be;--t-purple:#803ab0;--t-orange:#be5024}
 html.bg-light #toast{background:rgba(252,248,238,.97);color:#1e1810;font-size:14px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 html.bg-light #log p{font-weight:500}
 html.bg-light #tabs button{color:#3e3426;font-weight:600}
@@ -945,7 +974,32 @@ html.bg-light .exov-head small,html.bg-light .exov-st{color:var(--t-sub)}
 .rib.c{flex:0 0 70%}
 .bpage .bp-hero{display:flex;flex-direction:column;align-items:center;gap:8px;padding:24px 12px;text-align:center}
 .bpage .bp-hero img{width:96px;height:96px;border-radius:50%;filter:drop-shadow(0 4px 8px rgba(80,40,0,.45))}
+.bpage .bm-hero{position:relative}.bpage .bm-ttl{position:absolute;left:14px;top:10px;font-size:16px;font-weight:bold;letter-spacing:2px;color:var(--t-gold)}
 .bpage .bp-hero b{font-size:18px;letter-spacing:3px;color:var(--t-gold)}
+.bm-art{position:relative;width:132px;height:132px}
+.bpage .bm-art img{width:100%;height:100%;border-radius:0;filter:drop-shadow(0 0 10px rgba(90,170,255,.45))}
+.bm-art::after{content:"";position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen;   /* 本命流光：一道金光沿法宝形状慢慢划过（遮罩 = 法宝图本身） */
+  background:linear-gradient(115deg,transparent 40%,rgba(255,214,110,.35) 46%,rgba(255,240,190,.95) 50%,rgba(255,214,110,.35) 54%,transparent 60%) no-repeat;background-size:300% 100%;
+  -webkit-mask:var(--m) center/contain no-repeat;mask:var(--m) center/contain no-repeat;animation:bmflow 4.8s ease-in-out infinite}
+@keyframes bmflow{0%{background-position:100% 0}65%,100%{background-position:0 0}}
+@media (prefers-reduced-motion:reduce){.bm-art::after{animation-duration:9s}}
+.bm-btns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:6px}
+.bm-btn{display:flex;align-items:center;gap:6px;padding:7px 20px 7px 8px;border-radius:999px;border:1px solid #e9c46a;font-size:15px;letter-spacing:2px;color:#fff6dc;
+  background:linear-gradient(180deg,#b8862b,#7a4f12);box-shadow:inset 0 1px 0 rgba(255,240,190,.6),0 3px 8px rgba(90,50,0,.35)}
+.bm-btn i{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;font-style:normal;font-size:13px;letter-spacing:0;color:#7a4f12;background:radial-gradient(circle at 35% 30%,#fff7d6,#f0c75e 60%,#b98420)}
+.bm-btn:disabled{opacity:.9;filter:saturate(.85)}
+.bm-fx{display:flex;justify-content:space-between;gap:6px;padding:4px 2px}
+.bm-fx-i{flex:1;max-width:64px;padding:0;border:0;background:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px}
+.bm-fx-i span{font-size:12px;color:var(--t-gold);letter-spacing:1px}
+.bm-fx-i img{width:100%;aspect-ratio:1;border-radius:50%;filter:drop-shadow(0 2px 6px rgba(120,80,0,.5))}
+.bm-fx-i:active img{transform:scale(.94)}
+.bm-attr{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin-top:12px;padding-top:10px;border-top:1px dashed rgba(180,140,60,.35)}
+.bm-attr div{display:flex;justify-content:space-between}
+.bm-attr .wide{grid-column:1/-1}
+.bm-attr b{color:var(--t-gold)}
+.bm-tip{text-align:center}
+.bm-fs img{width:32px;height:32px;object-fit:contain;vertical-align:middle;margin-right:6px}
+.bm-tip img{width:88px;height:88px;border-radius:50%}
 /* 渡劫页背景固定是深色：浅色背景主题下也用深色主题的配色，否则文字看不清 */
 html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-card:#1f1a16;--c-log:#18140f;--c-btn:#2c241d;--c-line:#3a3027;--c-edge:#4a3d31;--c-pri:#5b4627;--c-card2:#241d17;--c-cell:#191511;--c-card3:#2a221b;--c-tab:#241e18;--t-main:#e8dcc4;--t-gold:#e9c46a;--t-sub:#9c8d72;--t-dim:#8c7e66;--t-sub2:#b9a98a;--t-logt:#c9bb9f;--t-bad:#e07a5f;--t-good:#9fd3c7;--t-gold2:#f4d58d;color:var(--t-main)}
 

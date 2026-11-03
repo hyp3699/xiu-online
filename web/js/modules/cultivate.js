@@ -111,7 +111,7 @@ G.module({
     // 修炼页左右圆钮外圈：生命 / 法力百分比（0~100）
     orbPct(k) { const m = this.stats()[k] || 0; return m > 0 ? Math.max(0, Math.min(100, Math.round(this.s[k] / m * 1000) / 10)) : 0; },
     cultLack() { return this.s.ling < this.speed().total - this.wdRed("exp"); },   // 灵气不够修炼一次
-    cultTargets() {   // [[值, 名称]]：历练通过的区域（灵矿已删除，不再列 k:地图）
+    cultTargets() {   // [[值, 名称]]：历练通过的区域
       const out = [];
       DATA.maps.forEach((m, a) => {
         if (!this.mapOpen(a)) return;
@@ -128,7 +128,6 @@ G.module({
     cultSetCheck() {
       const s = this.s, c = s.cultSet; if (!c || !c.on || !c.tgt) return;   // 不再要求自动修炼开着：灵石低于下限且灵气不够就去
       if (c.mul === undefined) { c.mul = 10; delete c.pct; }   // 旧存档：「灵气高于 %」改成「灵气高于修炼速度几倍」
-      if (c.tgt[0] === "k") { const x0 = s.explore; if (x0 && x0.cs && x0.kuang) { c.went = false; this.stopExplore("灵矿已删除"); } const T = this.cultTargets(); c.tgt = T.length ? T[0][0] : ""; if (!c.tgt) return; }   // 灵矿已删除：旧的「前往灵矿」改成第一个可探索区域
       const x = s.explore, p = c.tgt.split(":").map(Number);
       const mine = x && !x.cq && !x.once && x.map === p[1] && x.reg === p[2];
       const norm = x && !x.cq && !x.once && x.mj === undefined;   // 普通自动探索（不含历练、出窍、秘境）
@@ -184,29 +183,30 @@ G.module({
       const sel = (k, list, v) => { const c = list.find(([x]) => String(x) === String(v)) || list[0]; return `<button class="sm" style="margin-left:8px" onclick="G.openAtPick('${k}')">${c ? c[1] : "暂无"} ▾</button>`; };
       const P = this.atList("poolI"), W = ((CFG.wudaoRoom || {}).daos || []);
       const dn = id => (W.find(d => d.id === id) || {}).name || id;
-      return `<div class="line"><div>${CFG.sect.freeRoom.name}</div>${sw("free")}</div>
-        <div class="line"><div>${CFG.sect.freeGfRoom.name}</div>${sw("gf")}</div>
+      return `<div class="line"><div style="display:flex;align-items:center;gap:4px;white-space:nowrap">${CFG.sect.freeRoom.name}<span>用完接续</span>${sel("roomNext", this.atList("roomNext"), A.roomNext)}</div>${sw("free")}</div>
+        <div class="line"><div style="display:flex;align-items:center;gap:4px;white-space:nowrap">${CFG.sect.freeGfRoom.name}<span>到期接续</span>${sel("gfNext", this.atList("gfNext"), A.gfNext)}</div>${sw("gf")}</div>
         <div class="line"><div>${CFG.sect.pool.name}${sel("poolI", P, A.poolI)}</div>${sw("pool")}</div>
+        <div class="line"><div>自动领取宗门俸禄</div>${sw("salary")}</div>
         <div class="line"><div>${dn("xiulian")}悟道</div>${sw("xiulian")}</div>
         <div class="line"><div>${dn("shenhun")}悟道</div>${sw("shenhun")}</div>
         <div class="line"><div>${dn("zhandou")}悟道</div>${sw("zhandou")}</div>
         <div class="line"><div>自动出窍${sel("cqT", this.atList("cqT"), A.cqT)}</div>${sw("cq")}</div>`;
     },
-    atList(k) { return k === "poolI" ? CFG.sect.pool.list.map((d, i) => [i, d.name]) : this.cultTargets(); },
+    atList(k) { return k === "poolI" ? CFG.sect.pool.list.map((d, i) => [i, d.name]) : k === "roomNext" ? [[-1, "不接续"]].concat(DATA.rooms.map((r, i) => [i, r.name])) : k === "gfNext" ? [[-1, "不接续"]].concat(DATA.gfRooms.map((r, i) => [i, r.name])) : this.cultTargets(); },
     // 前往 / 自动出窍：「隐藏」按钮进入隐藏模式，逐个地图点隐藏 / 显示；隐藏的地图平时不列出（s.atHide[k] 存隐藏的目标）
     openAtPick(k, mode) {
       if (mode !== undefined) this._atHideMode = !!mode;
       const A = k === "tgt" ? this.s.cultSet : this.autoTask(), L = this.atList(k), cur = A[k] === "" || A[k] === undefined ? (L[0] || [])[0] : A[k];
-      const canHide = k !== "poolI", hm = canHide && this._atHideMode, H = canHide ? ((this.s.atHide || {})[k] || []) : [], hid = x => H.includes(String(x));
+      const canHide = k === "tgt" || k === "cqT", hm = canHide && this._atHideMode, H = canHide ? ((this.s.atHide || {})[k] || []) : [], hid = x => H.includes(String(x));
       const rows = L.map(([x, n], i) => hm
         ? `<div class="line"><div class="${hid(x) ? "muted" : ""}">${n}${hid(x) ? "（已隐藏）" : ""}</div><button class="sm ${hid(x) ? "on" : ""}" onclick="G.atHideSet('${k}',${i})">${hid(x) ? "显示" : "隐藏"}</button></div>`
         : hid(x) ? "" : `<div class="line"><div>${n}</div><button class="sm ${String(x) === String(cur) ? "on" : ""}" onclick="G.atPickSet('${k}',${i})">${String(x) === String(cur) ? "已选" : "选择"}</button></div>`).join("");
-      this.modal(`<h2>${k === "poolI" ? CFG.sect.pool.name : k === "tgt" ? "前往" : "自动出窍"}${hm ? "<small>点地图右边按钮隐藏 / 显示</small>" : ""}</h2>
+      this.modal(`<h2>${k === "poolI" ? CFG.sect.pool.name : k === "tgt" ? "前往" : k === "roomNext" ? "免费修炼室用完接续" : k === "gfNext" ? "免费练功房到期接续" : "自动出窍"}${hm ? "<small>点地图右边按钮隐藏 / 显示</small>" : ""}</h2>
         ${rows || `<p class="desc">${L.length ? "地图都已隐藏，点「隐藏」可以重新显示" : "暂无可选"}</p>`}
         <div class="btns">${canHide ? `<button class="${hm ? "on" : ""}" onclick="G.openAtPick('${k}',${hm ? 0 : 1})">${hm ? "完成" : "隐藏"}</button>` : ""}<button onclick="G._atHideMode=false;G.openCultSet()">返回</button></div>`);
     },
     atHideSet(k, i) {
-      const it = this.atList(k)[i]; if (!it || k === "poolI") return;
+      const it = this.atList(k)[i]; if (!it || k === "poolI" || k === "roomNext" || k === "gfNext") return;
       const s = this.s; s.atHide = s.atHide || {}; const H = s.atHide[k] = s.atHide[k] || [], x = String(it[0]), j = H.indexOf(x);
       if (j >= 0) H.splice(j, 1); else H.push(x);
       this.openAtPick(k); this.after();

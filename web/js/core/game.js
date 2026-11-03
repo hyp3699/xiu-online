@@ -108,14 +108,12 @@ const G = {
     { const K = ["contrib", "stone", "merit"], BIG = 1e15;   // 测试模式（config/rates.js TEST）：贡献、灵石、功德随便花；打开时记下原数，关掉恢复
       if (DATA.isTest()) { if (!s._testBak) s._testBak = Object.fromEntries(K.map(k => [k, s[k] || 0])); for (const k of K) s[k] = BIG; }
       else if (s._testBak) { for (const k of K) s[k] = s._testBak[k] || 0; delete s._testBak; } }
+    if (DATA.isTest() && this.ysEnsure) { const o = this.s; this.s = s; try { this.ysEnsure(); } finally { this.s = o; } }   // 测试模式格子全亮：先定下隐世宗门位置，才能显示在格子上
     {   // v261 灵珠初始聚灵 10 → 1000：已放入的灵珠补上差值（强化部分不变），只补一次
       if (!s.lzB1000 && Array.isArray(s.lzSlot)) s.lzSlot.forEach(z => { if (z && Number.isFinite(z.v)) z.v += 990; });
       s.lzB1000 = true; }
     {   // v259 渡劫准备格子去掉：老存档的格子记录删掉；进行中的渡劫护盾、格子冷却清掉
       delete s.tribSlots; if (s.trib) { s.trib.shield = null; delete s.trib.cd; delete s.trib.used; } }
-    {   // 灵矿删掉：老存档里正在挖矿的探索 / 出窍直接停掉（不结算本次收获，功能已不存在）
-      if (s.explore && s.explore.kuang) s.explore = null;
-      if (s.cq && s.cq.kuang) s.cq = null; }
     {   // 炼器仙炉（xqi）删掉：清掉老存档里的图纸、炉子、背包图纸 / 炉子、学习和炼制队列
       const X = o => o && (o.kind === "xqi" || o.k === "xqi");
       for (const f of ["blueprints", "furnaces", "furnaceUse"]) if (s[f]) delete s[f].xqi;
@@ -138,7 +136,6 @@ const G = {
     return s;
   },
   save() { /* 服务器持有唯一权威存档；禁止浏览器保存或上传状态。 */ },
-  async upload() { /* 兼容旧 UI 调用，不再上传客户端状态。 */ },
   // 账号在别的设备进入了游戏：本设备停止运行和上传，点按钮重新读取服务器上的最新进度
   kicked() {
     this._stopped = true; this._lockModal = true;
@@ -370,7 +367,7 @@ const G = {
       if (n && t && t.nodeType === 3) t.textContent = n;
     });
     document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
-      this.tab = b.dataset.tab; $("#view").scrollTop = 0; this.render();
+      this.tab = b.dataset.tab; $("#view").scrollTop = 0; this.render(); if (this.tab === "world" && this.wsFirst) this.wsFirst();   // 回到四界地图卷轴：定位到第一张图
     });
     // 记录是否正在按住屏幕；抬起后再补一次重绘
     const press = on => () => {

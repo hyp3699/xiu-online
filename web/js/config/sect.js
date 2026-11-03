@@ -183,7 +183,7 @@ CFG.sect.freeGfRoom = { name: "免费练功房", pct: 30, minutes: 120, daily: 1
 CFG.chuqiao = {
   NAME: "元婴出窍秘法",
   LEARN_CONTRIB: 3000,   // 兑换贡献（不乘星级）
-  LU_MJ_REALM: 3, LU_DROP: 10,            // 境界为 LU_MJ_REALM 的秘境首领必掉 LU_DROP 个养神露（只有这里掉）
+  LU_MJ_REALM: 2, LU_DROP: 10,            // 境界为 LU_MJ_REALM 的秘境首领必掉 LU_DROP 个养神露（只有这里掉）
   REALM: 3,        // 兑换、出窍需要的境界序号
   STAR: 1,         // 兑换需要的门派星级
 };

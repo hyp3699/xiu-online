@@ -48,7 +48,7 @@ G.module({
     // 汇总装备加成
     equipTotal() {
       const add = { atk: 0, hp: 0, def: 0, mana: 0, crit: 0, hit: 0, dodge: 0, speed: 0 };
-      const all = [...Object.values(this.s.equip), ...this.s.fabao.slice(0, this.slotCount())]; // 装备 + 法宝
+      const all = [...Object.values(this.s.equip), ...this.s.fabao.slice(0, this.slotCount()), this.bmEq ? this.bmEq() : null]; // 装备 + 法宝 + 本命法宝
       for (const e of all) if (e) {
         const st = this.equipStats(e);
         for (const k in st) if (k in add) add[k] += st[k];
@@ -98,17 +98,19 @@ G.module({
       const eq = this.equipTotal(), gf = this.gongfaBonus(), dn0 = this.danBonus();
       const dn = {}; for (const k of ["hp", "atk", "def", "mana", "hit", "dodge", "crit"]) dn[k] = dn0[k] || 0; // 属性丹；gongfaBonus 见 gongfa.js，danBonus（属性丹）见 craft.js
       const bd = this.bodyBonus ? this.bodyBonus() : {}; for (const k of ["hp", "atk", "def", "mana", "hit", "dodge", "crit"]) dn[k] += bd[k] || 0;   // 肉身突破加成（body.js）
+      const wb = this.wdBat ? this.wdBat() : {}; for (const k of ["hp", "atk", "def"]) dn[k] += wb[k] || 0;   // 悟道室战斗之道每悟道随机属性（wudaoshi.js）
+      const bmb = this.bmBonus ? this.bmBonus() : {}; for (const k of ["hp", "atk", "def", "hit", "dodge"]) dn[k] += bmb[k] || 0;   // 本命法宝额外属性（bag.js）
       return {
         hp:      R("hp") + eq.hp + gf.hp + dn.hp,
         atk:     R("atk") + eq.atk + gf.atk + dn.atk,
         def:     R("def") + eq.def + gf.def + dn.def,
         mana:    R("mana") + eq.mana + gf.mana + dn.mana,
         cultivate: R("cultivate"),
-        speed:   R("speed") + eq.speed + gf.speed + (bd.speed || 0) + (dn0.speed || 0),
+        speed:   R("speed") + eq.speed + gf.speed + (bd.speed || 0) + (dn0.speed || 0) + (bmb.speed || 0),
         hit:     R("hit") + eq.hit + gf.hit + dn.hit,
         dodge:   R("dodge") + eq.dodge + gf.dodge + dn.dodge,
         crit:    Math.min(DATA.CRIT_CAP, F.crit + eq.crit + dn.crit),
-        res:     Object.fromEntries(DATA.elements.map(e => [e.id, R("res") + (L < 0 ? 0 : this.brRand("xw", "res:" + e.id)) + (gf.res[e.id] || 0) + (bd.res || 0) + ((bd.resEl || {})[e.id] || 0) + (dn0.res || 0) + ((dn0.resEl || {})[e.id] || 0)])),
+        res:     Object.fromEntries(DATA.elements.map(e => [e.id, R("res") + (L < 0 ? 0 : this.brRand("xw", "res:" + e.id)) + (gf.res[e.id] || 0) + (bd.res || 0) + ((bd.resEl || {})[e.id] || 0) + (dn0.res || 0) + ((dn0.resEl || {})[e.id] || 0) + ((wb.res || {})[e.id] || 0) + ((bmb.res || {})[e.id] || 0)])),
       };
     },
   },

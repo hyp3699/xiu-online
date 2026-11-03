@@ -17,6 +17,7 @@
  *   lj / lz {ft, n}                     灵晶 / 灵珠（ft = 金木水火土 0~4）
  *   hx {n}                              火髓
  *   st {id}                             神通（直接学会 = 宗门大殿修满，进背包「神通秘术」）
+ *   bm {}                               本命法宝炼制图纸（放进背包，学习后打开本命法宝页面）
  * ===================================================================== */
 G.module({
   id: "gift",
@@ -25,7 +26,7 @@ G.module({
     giftCats() {
       return [["stone", "灵石"], ["contrib", "贡献"], ["merit", "功德"], ["gf", "功法"], ["sp", "法术"], ["mf", "秘法"], ["fabao", "法宝"], ["eq", "装备"],
         ["herb", DATA.matKinds.herb], ["ore", DATA.matKinds.ore], ["tc", "特产"], ["dan", "丹药"], ["bp", "图纸"],
-        ["lj", DATA.smName("lj")], ["lz", DATA.smName("lz")], ["hx", DATA.HX], ["st", "神通"]];
+        ["lj", DATA.smName("lj")], ["lz", DATA.smName("lz")], ["hx", DATA.HX], ["st", "神通"], ["bm", "本命法宝图纸"]];
     },
     giftSpecial() { return CFG.matsOther.SPECIAL; },
     giftJie() { return DATA.JIE.map((n, i) => [i, n]); },
@@ -100,6 +101,7 @@ G.module({
           case "lj": case "lz": return DATA.smName(it.c, it.ft) + n;
           case "hx": return DATA.HX + n;
           case "st": return `神通「${this.stName(it.id)}」`;
+          case "bm": return this.bmCfg().MIFA;
           case "dan": { const [k, t] = it.item.split(":"); return (k === "p" ? `${DATA.realms[it.g]}·${DATA.pills[t].name}` : DATA.danName(t, it.g)) + n; }
           case "bp": { const [k, t] = it.item.split(":"); return (k === "f" ? DATA.furnaceName(t, it.g) + "图纸" : DATA.ringBpName(it.g, +t)) + n; }
         }
@@ -125,6 +127,7 @@ G.module({
           return this.addMat(it.c, DATA.matName(it.c, it.g), it.g, n);
         case "lj": case "lz": return this.addSm(it.c, n, it.ft);
         case "hx": return this.addFire(n);
+        case "bm": if (this.bmBpHave()) return true; if (this.bagFull()) return false; this.s.bag.push({ t: "bmbp" }); return true;   // 本命法宝炼制图纸：已有就不再给
         case "st": {   // 神通：直接修满（领悟），出战位有空就自动出战
           if (!this.stDef(it.id)) return false;
           const S = this.ysStFix(), had = this.ysStLv(it.id) >= this.ysStMax(); S[it.id] = this.ysStMax();

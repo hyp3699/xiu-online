@@ -34,7 +34,7 @@ const _R = CFG.realm, _P = CFG.player;
 DATA.brRow = (rows, r) => { let o = null; for (const x of rows || []) if (x[0] <= r && (!o || x[0] >= o[0])) o = x; return o; };
 // 突破到第 T 层需要的修为 / 气血：行 = [境界, 一层需要, 十层需要]，中间每层平均加，最后 × 总倍率 rate
 DATA.brNeed = (rows, T, rate) => { T = Math.max(0, T); const x = DATA.brRow(rows, Math.floor(T / DATA.LAYERS)); return x ? Math.round((x[1] + ((x[2] || x[1]) - x[1]) / (DATA.LAYERS - 1) * (T % DATA.LAYERS)) * (rate || 1)) : 0; };
-DATA.isTest = () => +((CFG.rates || {}).TEST) === 1 && !!DATA._admin;   // config/rates.js 测试模式：只对管理员账号生效（服务器 setAdmin / 网页 API.isAdmin 设 DATA._admin）
+DATA.isTest = () => !!DATA._debug || (+((CFG.rates || {}).TEST) === 1 && !!DATA._admin);   // 测试模式：调试人物始终开（DATA._debug），或 config/rates.js TEST=1 时对管理员账号生效（服务器 setAdmin/setDebug，网页 API 设）
 DATA.brRate = () => DATA.isTest() ? 0 : +((CFG.rates || {}).BREAK ?? 1) || 0;   // config/rates.js 突破需要总倍率（测试模式 = 0，突破不需要修为 / 气血）
 DATA.needExp = L => Math.round(DATA.brNeed(_R.EXP, L + 1, _R.EXP_RATE) * DATA.brRate());   // 第 L 层 → 第 L+1 层
 DATA.MORTAL_EXP = Math.round(DATA.brNeed(_R.EXP, 0, _R.EXP_RATE) * DATA.brRate());          // 凡人 → 练气一层

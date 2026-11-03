@@ -34,11 +34,12 @@ DATA.rjCap = e => (Math.max(0, (e && e.g) || 0) + 1) * 10;
 DATA.rjCount = e => Math.max(0, Math.min(DATA.rjCap(e), (e && e.rj) || 0));
 DATA.rjTop = e => DATA.rjCount(e) >= DATA.rjCap(e);
 DATA.rjName = e => `已精炼${DATA.rjCount(e)}次`;
-DATA.rjOf = DATA.rjCount;   // 旧名兼容：原来是阶（0~9），现在是次数
-// 法宝精炼材料：同炼制同星法宝的材料（三种矿石 + 同属性耀石 YAOSHI.fabao，数量种类都一样）
-DATA.refineSm = e => { if (!e || e.slot !== "fabao") return []; const n = (((_FG.YAOSHI || {}).fabao || [])[e.g] || 0); return n ? [{ k: "ys", ft: DATA.elIdx(e.el), n }] : []; };
-// 精炼材料：炼制这一星时的三种矿石（数量相同）
-DATA.refineMats = e => e.slot === "ring" ? DATA.ringMats(e.g) : DATA.forgeEqMats(e.g);
+// 法宝精炼材料：同炼制对应档星级法宝的材料（三种矿石 + 同属性耀石 YAOSHI.fabao）
+// 精炼材料按次数分档：第 1~10 次用 1 星的材料，第 11~20 次用 2 星……（不超过本身星级）
+DATA.rjMatG = e => Math.min(Math.max(0, (e && e.g) || 0), Math.floor(DATA.rjCount(e) / 10));
+DATA.refineSm = e => { if (!e || e.slot !== "fabao") return []; const n = (((_FG.YAOSHI || {}).fabao || [])[DATA.rjMatG(e)] || 0); return n ? [{ k: "ys", ft: DATA.elIdx(e.el), n }] : []; };
+// 精炼材料：炼制对应档星级时的三种矿石（数量相同）
+DATA.refineMats = e => e.slot === "ring" ? DATA.ringMats(DATA.rjMatG(e)) : DATA.forgeEqMats(DATA.rjMatG(e));
 DATA.forgeEqTime = g => _FG.equip.time[g] * 60000;
 DATA.stoneName = g => DATA.JIE[g] + DATA.SS;
 DATA.stoneMats = g => DATA.parseMats(_FG.stone.mats[g]);
@@ -118,7 +119,8 @@ DATA.eqEnhAdd = e => { const E = CFG.forge.enhance.equip; if (!e || e.slot === "
   return (e.slot === "ring" ? (E.RING || [])[e.r] : (E.ADD || {})[e.slot]) || {}; };   // 每强化一次加的属性，不分星级
 DATA.eqEnhPer = (e, k) => DATA.eqEnhAdd(e)[k] || 0;
 // 一条属性的数值（e = 整件装备，用来区分法宝 / 戒指），含强化
-DATA.attrVal = (a, g, e) => DATA.attrBase(a, g, e);   // v156 强化属性单独算（DATA.eqEnhStats），不并进属性条，洗练不影响
+DATA.bmPct = e => { const B = CFG.forge.benming || {}; return (B.PCT || 105) + Math.min(e.bmRf || 0, B.RF_MAX || 300) * (B.RF_PCT === undefined ? 0.5 : B.RF_PCT); };   // 本命法宝伤害%：PCT + 精炼次数 e.bmRf × RF_PCT
+DATA.attrVal = (a, g, e) => e && e.bm && a.k === "pct" ? DATA.bmPct(e) : DATA.attrBase(a, g, e);   // 本命法宝：伤害固定 攻击×PCT%（config/benming.js）   // v156 强化属性单独算（DATA.eqEnhStats），不并进属性条，洗练不影响
 // v156 装备 / 戒指强化属性：{ 属性: 数值 }，按主属性种类 × 强化等级，只随升阶（每级数值）变化
 DATA.eqEnhStats = e => { const o = {}; if (!e || !e.attrs || e.slot === "fabao" || !e.enh) return o;
   const A = DATA.eqEnhAdd(e); for (const k in A) if (A[k] > 0) o[k] = e.enh * A[k]; return o; };
@@ -247,6 +249,7 @@ DATA.attrText = (a, e) => {
       sAtk: `法宝攻击时额外增加攻击 +${v}`, dSAtk: `法宝攻击时额外增加攻击 +${v}`, sHit: `法宝攻击时额外增加命中 +${v}`, sCrit: `法宝攻击时额外增加暴击 +${p}%`, sCritDmg: `暴击伤害 ${p}%`, sMana: `本法宝法力消耗 -${p}%`,
       sDing: `击中后降低对方属性 ${v} 回合`, sYin: `眩晕几率 ${p}%（${(F.YIN_ROUNDS || [])[a.c] || 1} 回合）`,
       shHpMain: `护盾值 ${v}`, shDef: `防御 ${v}`, shHp: `护盾值 +${v}`, dmgRed: `受到伤害 -${p}%`, uses: `每场战斗祭出次数 +${Math.round(p)}` }[a.k] || DATA.fbAttrNames[a.k] || a.k;
+    if (e.bm) return t;   // 本命法宝：不分颜色
     const txt = `${a.m === 2 ? "专属 " : a.m ? "" : a.k === "elDmg" ? "附加伤害 " : "附加 "}${t}（${col}）`;
     // v157 属性和法宝不同的附加伤害 / 无视抗性不生效：红字标出
     return (a.k === "elDmg" || a.k === "ignRes") && a.el !== e.el ? `<span class="fb-bad">${txt} 与法宝属性不合</span>` : txt;
@@ -282,7 +285,7 @@ DATA.fabaoInfo = (e, own) => {
   }
   const ui = DATA.fbUsesIdx(e); if (ui >= 0) o.uses += Math.round(DATA.attrVal(e.attrs[ui], e.g, e));   // v164 祭出次数一件法宝最多一条
   const CAP = F.CAP || {}, at = (arr, d) => { const x = (arr || [])[e.g]; return x === undefined ? d : x; };
-  o.pct *= (T.mul === undefined ? 1 : T.mul) * (F.DMG_MUL === undefined ? 1 : F.DMG_MUL);   // 形状倍率、DMG_MUL（不显示）
+  o.pct *= (e.bm || T.mul === undefined ? 1 : T.mul) * (F.DMG_MUL === undefined ? 1 : F.DMG_MUL);   // 形状倍率、DMG_MUL（不显示）
   if (T.shield) o.shield = { def: shDef, hp: shHp, red: Math.min(CAP.dmgRed === undefined ? 100 : CAP.dmgRed, red) };   // 盾
   if (T.ding) { const D = F.DING || {}; o.ding = { speed: at(D.SPEED, 0), hit: at(D.HIT, 0), dodge: at(D.DODGE, 0), rounds: ding || 1 }; }   // 鼎
   if (T.yin) o.yin = { chance: yin, rounds: (F.YIN_ROUNDS || [])[yinC] || 1 };   // 印
@@ -305,7 +308,7 @@ DATA.fabaoInfo = (e, own) => {
  *   img/icons/pill_丹药id.png 修炼丹、dan_类型.png 属性丹、fu_dan / fu_qi.png 炉子、ss.png 空间石
  *   fbs形状_属性.png 法宝（7 种形状 × 6 种属性）、sm_ys属性.png 耀石、mifa.png 秘法、seed.png 种子、stone.png 灵石、cu_misc.png 自定义物品
  *   hx.png 火髓、bp.png 图纸 */
-DATA.IMG_V = 57;
+DATA.IMG_V = 61;
 DATA.matImg = (kind, g) => `img/mats/${kind}${g}.png?v=${DATA.IMG_V}`;
 DATA.iconImg = n => `img/icons/${n}.png?v=${DATA.IMG_V}`;
 DATA.ICON_EQ = ["helmet", "armor", "weapon", "legs", "boots", "pendant", "ring"];
@@ -314,7 +317,8 @@ DATA.cuIcon = d => d && d.img || DATA.iconImg("cu_misc");
 // 装备 / 法宝的图片
 DATA.eqIcon = e => {
   if (!e) return "";
-  if (e.slot === "fabao") return DATA.iconImg("fbs" + e.ft + "_" + DATA.elIdx(e.el));   // 炼制法宝按形状 + 属性
+  if (e.slot === "fabao" && e.bm) return DATA.iconImg("bm" + e.ft);   // 本命法宝：每种形状一张（不分属性），本命页面上用 CSS 加流光
+  if (e.slot === "fabao") return DATA.iconImg("fb" + e.ft + "s" + Math.max(1, Math.min(10, (e.g || 0) + 1)));   // 炼制法宝：每种形状每星一张手绘图（fb形状s星），属性靠流光颜色和名字颜色区分   // 炼制法宝按形状 + 属性   // 炼制法宝按形状 + 属性
   return DATA.ICON_EQ.includes(e.slot) ? DATA.iconImg("eq_" + e.slot) : "";
 };
 DATA.PILL_ICONS = ["juqi", "juling", "peiyuan", "taixu", "jiuxuan", "hongmeng"];
@@ -329,7 +333,13 @@ DATA.skillIcon = g => g.kind === "mf" || g.noEl ? DATA.iconImg("mifa") : DATA.ic
 DATA.skillIco = g => `<span class="ico ${g.kind === "mf" ? "t-mifa" : "t-gf"}"><img src="${DATA.skillIcon(g)}" alt="" loading="lazy">${g.kind === "mf" ? `<b>秘</b>` : ""}</span>`;
 // 炼制物品（装备 / 戒指 / 法宝）的小图标：按阶换边框
 // 炼制装备 / 法宝按阶（一阶~十阶）加外观：越高阶越亮、光晕越强，高阶有流光（css/style.css 的 .eqt0 ~ .eqt9）
-DATA.eqCls = e => e && e.attrs ? ` eqt eqt${Math.max(0, Math.min(11, e.g || 0))}${e.slot === "fabao" && e.el ? ` fbel fb-${e.el}` : ""}` : "";   // 法宝按金木水火土雷显示颜色
+DATA.eqCls = e => e && e.attrs ? ` eqt eqt${Math.max(0, Math.min(11, e.g || 0))}${e.slot === "fabao" && e.el ? ` fbel fb-${e.el}${e.bm ? "" : ` fbt fbt${Math.max(1, Math.min(10, (e.g || 0) + 1))}`}` : ""}` : "";   // 法宝按金木水火土雷显示颜色；fbt1~10 按星级显示外观（style.css「法宝按星级」）
+// 法宝图：普通法宝套一层 .fbw（按星级叠渐变色 + 纹理 + 流光，遮罩 = 法宝图本身，见 style.css「法宝按星级」）；其他物品原样 <img>
+DATA.fbArt = (e, src, cls = "") => {
+  if (!(e && e.slot === "fabao" && e.el && !e.bm && src)) return `<img class="${cls}" src="${src}" alt="">`;
+  const abs = typeof location !== "undefined" ? new URL(src, location.href).href : src;   // CSS 变量里的相对地址会按 style.css 目录解析，用绝对地址
+  return `<span class="fbw ${cls}" style="--m:url('${abs}')"><img src="${src}" alt=""></span>`;
+};
 DATA.fbElCls = e => e && e.slot === "fabao" && e.el ? ` fb-${e.el}` : "";
 // 炼器室列表（宗门、洞府）用：按第 g 阶显示同样的外观
 DATA.eqTierIco = (src, g) => `<span class="ico j${g} eqt eqt${Math.max(0, Math.min(11, g))}"><img src="${src}" alt="" loading="lazy"><b>${g + 1}</b></span>`;

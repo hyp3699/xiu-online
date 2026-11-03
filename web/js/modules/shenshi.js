@@ -26,6 +26,7 @@ G.module({
     ssCost(id) {
       const C = CFG.shenshi, g = DATA.skillInfo(id, 1); if (!g || !g.star) return 0;
       if (g.src === "yl" || g.src === "ys") return 0;   // 游历功法、隐世宗门功法不占灵识点
+      if (g.sect && g.sect.dao === "zhandou") return 0;   // 悟道室战斗之道功法不占灵识点（修炼之道秘诀不受影响）
       const ok = g.kind === "mf" ? C.MIFA : g.kind === "gf" && (C.TYPES || []).includes(DATA.gfTypeKey(g.type.id));
       return ok ? ((C.STAR || [])[g.star - 1] || 0) : 0;
     },

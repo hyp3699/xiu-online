@@ -131,7 +131,7 @@ DATA.gongfaName = (sect, type) => {
   if (sect.src === "yl" && DATA.ylGfName) return DATA.ylGfName(sect, type);   // 游历功法（data/youli.js）
   if (sect.src === "ys" && DATA.ysGfName) return DATA.ysGfName(sect, type);   // 隐世宗门功法（data/yinshi.js）
   if (sect.src === "cc") { const C = CFG.sect.chuancheng; return sect.name + C.WORD + (C.NAME[type.id] || type.suffix); }   // 宗门传承
-  if (sect.src === "wdroom") return `${CFG.wudaoRoom.xiulian.NAME[type.id] || type.suffix}·第${DATA.cnNum(sect.juan)}卷`;   // 悟道室秘诀
+  if (sect.src === "wdroom") { const W = CFG.wudaoRoom || {}, NM = (sect.dao && W[sect.dao] && W[sect.dao].NAME) || W.xiulian.NAME || {}; return `${NM[type.id] || type.suffix}·第${DATA.cnNum(sect.juan)}卷`; }   // 悟道室秘诀（修炼之道 / 战斗之道各用自己的名字）
   if (sect.book) return `${sect.prefix}${type.suffix}·第${sect.book}卷`;   // 试炼塔秘诀
   if (sect.plain && type.fam === "zhenjue") return sect.prefix + (DATA.elById[(sect.els || {})[type.id]] || {}).name + type.suffix;   // 四界真经 6 本：地图名 + 属性 + 真经（梵度天火真经）
   // 分阶段多出来的书：也用随机词起名（跳过同类原有书已用的词，同类不重名；宗门原来就有的第 2、3 本不变）
@@ -220,7 +220,7 @@ DATA.ccSrcOf = sectId => DATA.gfSrcById["cc_" + sectId];
 DATA.ccIds = sectId => { const o = DATA.ccSrcOf(sectId); return o ? [...(CFG.sect.chuancheng.TYPES || []).map(t => DATA.gongfaId(o.id, t)), DATA.spellId(o.id, o.el)] : []; };
 // 所有来源：门派（src = "sect"）+ 坊市 + 试炼塔 + 天外天
 DATA.gfSrcById = Object.assign({}, ...DATA.sects.map(x => ({ [x.id]: x })), ...DATA.shopSources.map(x => ({ [x.id]: x })), ...DATA.twSources.map(x => ({ [x.id]: x })), ...DATA.towerSources.map(x => ({ [x.id]: x })), ...DATA.towerBooks.map(x => ({ [x.id]: x })), ...DATA.ccSources.map(x => ({ [x.id]: x })));
-DATA.gfSrc = sid => DATA.gfSrcById[sid] || (DATA.wdSrc ? DATA.wdSrc(sid) : null);   // 悟道室秘诀的来源现算（modules/wudaoshi.js）
+DATA.gfSrc = sid => DATA.gfSrcById[sid] || (DATA.wdSrc ? DATA.wdSrc(sid) : null) || (DATA.wzSrc ? DATA.wzSrc(sid) : null);   // 悟道室秘诀 / 战斗功法的来源现算（modules/wudaoshi.js）
 DATA.srcType = o => o.src || "sect";
 DATA.srcCfg = o => DATA.gfSources[DATA.srcType(o)].cfg();
 
@@ -343,7 +343,7 @@ DATA.jyCost = (star, n) => { const U0 = _GF.JY_UP || {}, k = U0.N > 0 ? Math.flo
   return { xd: DATA.jyStep(star, "JY_COST") + k * (U0.XD || 0), stone: DATA.jyStep(star, "JY_STONE") + ks * (U0.STONE || 0) }; };
 DATA.spellJy = id => (typeof G !== "undefined" && G.s && G.s.spJy && G.s.spJy[id]) || 0;
 // 融合（config/gongfa.js FUSE）：fu = { 星级: 个数 }，返回伤害结果 +%（每本 +1%，不分星级）
-DATA.fuseCfg = () => Object.assign({ PER_STAR: 5, PCT: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], FB_RJ: 5 }, _GF.FUSE || {});
+DATA.fuseCfg = () => Object.assign({ PER_STAR: 5, PCT: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] }, _GF.FUSE || {});
 DATA.fusePct = fu => { const P = DATA.fuseCfg().PCT || [0]; let t = 0; for (const k in fu || {}) t += (+fu[k] || 0) * (P[Math.min(+k - 1, P.length - 1)] || 0); return t; };
 DATA.fuseTxt = fu => Object.keys(fu || {}).filter(k => fu[k] > 0).sort((a, b) => a - b).map(k => `${k}星×${fu[k]}`).join("、");
 DATA.spellFu = id => (typeof G !== "undefined" && G.s && G.s.spFuse && G.s.spFuse[id]) || null;

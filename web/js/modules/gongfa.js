@@ -99,6 +99,7 @@ G.module({
       if (k === "dan" || k === "dfb" || (!k && x.key && x.key.includes("|"))) { const [t, g] = x.key.split("|"); return `丹方《${DATA.danName(t, +g)}》`; }
       if (k === "bp") return DATA.furnaceName(x.kind, x.g) + "图纸";
       if (k === "rbp") return DATA.ringBpName(x.g, x.r);
+      if (k === "bmbp") return this.bmCfg().MIFA;
       if (x.key !== undefined) return this.forgeKeyName(x.key);
       const g = DATA.skillInfo(x.id, 1); return g ? `《${g.name}》` : "功法";
     },
@@ -123,10 +124,10 @@ G.module({
       }
     },
     // 背包里正在学 / 排队的那本（学完才从背包消失）
-    lqBagIdx(c) { return this.s.bag.findIndex(it => it.lq && it.t === c.k && (c.k === "gfb" ? it.id === c.id : c.k === "dfb" ? it.type === c.type && it.g === c.g : it.kind === c.kind && it.g === c.g && it.r === c.r)); },
+    lqBagIdx(c) { return this.s.bag.findIndex(it => it.lq && it.t === c.k && (c.k === "gfb" ? it.id === c.id : c.k === "bmbp" ? true : c.k === "dfb" ? it.type === c.type && it.g === c.g : it.kind === c.kind && it.g === c.g && it.r === c.r)); },
     lqDone(ch, c) {
       const s = this.s, name = this.lqName(c);
-      if (c.k === "gfb" || c.k === "bp" || c.k === "rbp" || c.k === "dfb") { const i = this.lqBagIdx(c); if (i >= 0) { const it = s.bag[i]; this.removeAt(i, 1); if (s.bag[i] === it) delete it.lq; } }   // 叠在一起的只用掉一个
+      if (c.k === "gfb" || c.k === "bp" || c.k === "rbp" || c.k === "dfb" || c.k === "bmbp") { const i = this.lqBagIdx(c); if (i >= 0) { const it = s.bag[i]; this.removeAt(i, 1); if (s.bag[i] === it) delete it.lq; } }   // 叠在一起的只用掉一个
       if (c.k === "xd") { this.xdLearnDone(c); if (this._off) this._off.learn.push(name); this.dirty(); return; }
       if (ch === "gf") {
         s.gongfa[c.id] = Math.max(1, s.gongfa[c.id] || 0);
@@ -136,6 +137,9 @@ G.module({
       } else if (ch === "dan") {
         if (!s.recipes.includes(c.key)) s.recipes.push(c.key);
         this.log(`学会${name}，可在洞府炼丹房炼制。`, "gold");
+      } else if (c.k === "bmbp") {
+        s.bmLearn = true;
+        this.log(`学会${name}，可在「背包 → ${this.bmCfg().NAME}」炼制。`, "gold");
       } else if (c.k === "bp") {
         const bp = s.blueprints[c.kind]; if (!bp.includes(c.g)) bp.push(c.g);
         this.log(`学会${name}，可在洞府炼器室炼制。`, "gold");
@@ -298,7 +302,7 @@ G.module({
       const MX = g.max || DATA.GONGFA_MAX, s = this.s, max = g.lv >= MX, plan = this.plannedLv(g.id), full = plan >= MX;
       // 灵根只对修炼速度类功法生效：秘诀（cultivate）、炼体秘诀（body）；其他功法不显示灵根、不吃加成
       const spd = g.type && (g.type.stat === "cultivate" || g.type.stat === "body" || g.type.stat2 === "cultivate" || g.type.stat2 === "body");
-      const lg = g.kind === "mf" || g.noEl || !spd ? 0 : this.s.lingen[g.el.id] || 0, lgTxt = lg ? `（${g.el.name}灵根 +${U.dec(this.lingenPct(lg, g.kind))}%）` : "";
+      const lg = g.kind === "mf" || g.noEl || !spd ? 0 : this.s.lingen[g.el.id] || 0, lgTxt = lg ? `（${g.el.name}灵根 +${U.dec(this.lingenPct(lg))}%）` : "";
       // 属性数值颜色：没有灵根加成 = 白色，有加成 = 绿色（数值已含加成）
       const lgK = lg ? this.lingenGongfa(g.el.id) : 1;
       const cv = v => `<b class="${lg ? "gf-up" : "gf-base"}">${v}</b>`;

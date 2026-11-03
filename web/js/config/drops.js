@@ -39,7 +39,7 @@ CFG.dropTotal = {
 CFG.mapDrops = {
   herb: ["青灵草", "凝露花", "赤血参", "紫灵芝", "幽冥花", "星辰草"],
   ore:  ["铁精", "寒铁", "赤铜精", "玄冥铁", "星辰砂", "虚空石"],
-  fixed: {},   // 例：2: { boss: { 某物品: [最少, 最多] } }（养神露只在元婴期秘境首领掉，见 config/sect.js chuqiao.LU_DROP）
+  fixed: {},   // 例：2: { boss: { 某物品: [最少, 最多] } }（养神露只在金丹期秘境首领掉，见 config/sect.js chuqiao.LU_DROP）
 };
 
 // 四界地图的药材 / 矿石名（等概率抽）

@@ -39,6 +39,11 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS gifts(code TEXT PRIMARY KEY, payload TEXT NOT NULL, max_uses INTEGER NOT NULL DEFAULT 1, used_count INTEGER NOT NULL DEFAULT 0, expires_at INTEGER, created_at INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS gift_uses(code TEXT NOT NULL REFERENCES gifts(code) ON DELETE CASCADE, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, used_at INTEGER NOT NULL, PRIMARY KEY(code,user_id));
 `);
+// 管理员的多个人物：每个人物是一个账号（users 行），owner_id = 主账号 id；主账号 owner_id 为空
+{ const cols = db.prepare("PRAGMA table_info(users)").all().map(c => c.name);
+  if (!cols.includes("owner_id")) db.exec("ALTER TABLE users ADD COLUMN owner_id INTEGER");
+  if (!cols.includes("debug")) db.exec("ALTER TABLE users ADD COLUMN debug INTEGER NOT NULL DEFAULT 0"); }   // debug = 调试人物：始终是测试模式
+const CHAR_MAX = 20;   // 每个管理员最多几个人物（含主账号）
 const q = {
   byName: db.prepare("SELECT * FROM users WHERE username=?"),
   byId: db.prepare("SELECT * FROM users WHERE id=?"),
@@ -67,7 +72,7 @@ function readUpdateLog() {
 function getEngine(userId) {
   let entry = engines.get(userId);
   if (!entry) { entry = { engine: new GameEngine(), lastUsed: Date.now() }; engines.set(userId, entry);
-    try { entry.engine.setAdmin(!!(q.byId.get(userId) || {}).is_admin); } catch (err) { console.error("setAdmin failed", err); } }   // 测试模式只对管理员生效
+    try { const u = q.byId.get(userId) || {}; entry.engine.setAdmin(!!u.is_admin); entry.engine.setDebug(!!u.debug); } catch (err) { console.error("setAdmin failed", err); } }   // 测试模式：管理员 + rates.TEST，或调试人物
   entry.lastUsed = Date.now();
   return entry.engine;
 }
@@ -269,7 +274,7 @@ const server = http.createServer(async (req, res) => {
         data = getState(user.id);
         if (data) { data = getEngine(user.id).advance(data, Date.now()).state; persist(user.id, data); }
       }
-      return sendJson(res, 200, { data, serverNow: Date.now(), actions: [...ACTIONS], admin: !!user.is_admin });
+      return sendJson(res, 200, { data, serverNow: Date.now(), actions: [...ACTIONS], admin: !!user.is_admin, debug: !!user.debug });
     }
     if (req.method === "GET" && route === "/api/hist") {
       const rows = db.prepare("SELECT id,at,data FROM hist WHERE user_id=? ORDER BY id DESC LIMIT ?").all(user.id, HIST_KEEP);
@@ -363,8 +368,33 @@ const server = http.createServer(async (req, res) => {
       db.prepare("INSERT INTO settings(key,value) VALUES('registration_open',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(body.open ? "true" : "false");
       return sendJson(res, 200, { ok: true, open: registrationOpen(), reg_open: registrationOpen() });
     }
+    // ---- 管理员多人物：创建 / 切换 / 删除。没切过去的人物照常结算（下次进入时按离线补算） ----
+    if (user.is_admin && req.method === "GET" && route === "/api/admin/chars") {
+      const root = user.owner_id || user.id;
+      const rows = db.prepare("SELECT u.id,u.username,u.owner_id,u.debug,u.created_at,s.updated_at,json_extract(s.data,'$.name') AS name FROM users u LEFT JOIN saves s ON s.user_id=u.id WHERE u.id=? OR u.owner_id=? ORDER BY u.id").all(root, root);
+      return sendJson(res, 200, { cur: user.id, max: CHAR_MAX, list: rows.map(r => ({ id: r.id, main: !r.owner_id, debug: !!r.debug, name: r.name || "", created: Math.floor(r.created_at / 1000), updated: r.updated_at ? Math.floor(r.updated_at / 1000) : 0 })) });
+    }
+    if (user.is_admin && req.method === "POST" && route === "/api/admin/char/new") {
+      const body = await readBody(req), debug = body.debug ? 1 : 0;
+      const root = q.byId.get(user.owner_id || user.id); if (!root) return error(res, 400, "主账号不存在");
+      const n = db.prepare("SELECT COUNT(*) n FROM users WHERE id=? OR owner_id=?").get(root.id, root.id).n;
+      if (n >= CHAR_MAX) return error(res, 400, `最多 ${CHAR_MAX} 个人物`);
+      let k = n + 1, name; while (q.byName.get(name = `${root.username}#${k}`)) k++;
+      const salt = crypto.randomBytes(16).toString("hex");   // 小号不能用密码登录，只能从管理员切换过去
+      const r = db.prepare("INSERT INTO users(username,salt,password_hash,is_admin,created_at,owner_id,debug) VALUES(?,?,?,1,?,?,?)").run(name, salt, passwordHash(crypto.randomBytes(24).toString("hex"), salt), Date.now(), root.id, debug);
+      return sendJson(res, 201, { id: Number(r.lastInsertRowid) });
+    }
+    if (user.is_admin && req.method === "POST" && (route === "/api/admin/char/switch" || route === "/api/admin/char/del")) {
+      const body = await readBody(req), id = Number(body.id), root = user.owner_id || user.id, t = Number.isSafeInteger(id) ? q.byId.get(id) : null;
+      if (!t || (t.id !== root && t.owner_id !== root)) return error(res, 400, "没有这个人物");
+      if (route.endsWith("/switch")) return sendJson(res, 200, { token: issueToken(t.id), username: t.username, admin: !!t.is_admin });
+      if (!t.owner_id || t.id === user.id) return error(res, 400, "不能删除主账号或当前人物");
+      db.prepare("DELETE FROM users WHERE id=?").run(t.id); engines.delete(t.id);
+      const online = clients.get(t.id); if (online) { clients.delete(t.id); online.socket.close(4003, "人物已删除"); }
+      return sendJson(res, 200, { ok: true });
+    }
     if (user.is_admin && req.method === "GET" && route === "/api/admin/users") {
-      const rows = db.prepare("SELECT u.id,u.username,u.is_admin,u.created_at,s.updated_at FROM users u LEFT JOIN saves s ON s.user_id=u.id ORDER BY u.id").all();
+      const rows = db.prepare("SELECT u.id,u.username,u.is_admin,u.created_at,s.updated_at FROM users u LEFT JOIN saves s ON s.user_id=u.id WHERE u.owner_id IS NULL ORDER BY u.id").all();
       const list = rows.map(row => ({ id: row.id, username: row.username, admin: !!row.is_admin, created: Math.floor(row.created_at / 1000), updated: row.updated_at ? Math.floor(row.updated_at / 1000) : 0 }));
       return sendJson(res, 200, { list, reg_open: registrationOpen() });
     }

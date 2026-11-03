@@ -7,7 +7,7 @@
  * 药材矿石：总数见 config/drops.js 的 dropTotal.mijing，从第 drops 张凡界地图的药材 / 矿石表等概率抽（不含 fixed）
  * extra 额外掉落：按事件分（monster / elite / boss / herbEvent / oreEvent），每条 { item, chance 几率%, n [最少, 最多] } 单独判定
  *   item：火髓、空间晶核、养神露；"耀石" / "灵晶" = 随机属性，或 "火耀石" 这样指定；也可写药材 / 矿石名或 content/items.js 的物品
- * 元婴期秘境首领另必掉养神露（config/sect.js 的 chuqiao.LU_DROP），普通地图不掉
+ * 金丹期秘境首领另必掉养神露（config/sect.js 的 chuqiao.LU_DROP），普通地图不掉
  * ===================================================================== */
 window.CFG = window.CFG || {};
 
@@ -38,7 +38,7 @@ CFG.mijing = {
     rlx:  { name: "灵犀晶", sell: 5, desc: "炼制、升星灵犀戒的专用材料。6 星以上宗门宝库用贡献兑换。" },
     rly:  { name: "烈阳晶", sell: 5, desc: "炼制、升星烈阳戒的专用材料。仙界观星阁炼器室用好感度兑换。" },
     rxw:  { name: "玄武晶", sell: 5, desc: "炼制、升星玄武戒的专用材料。神界万化神宫炼器室用好感度兑换。" },
-    lu:   { name: "养神露", sell: 20, desc: "炼制养神丹的材料，元婴期秘境首领掉落。" },
+    lu:   { name: "养神露", sell: 20, desc: "炼制养神丹的材料，金丹期秘境首领掉落。" },
     wdg:  { name: "悟道果", sell: 10, desc: "在「洞府 → 悟道室」悟道时消耗。四界功德司用功德购买。" },
     cmd:  { name: "冲脉丹", sell: 50, desc: "在「修炼 → 经脉」冲穴，每层消耗 1 颗。2 星宗门炼丹房学丹方炼制。" },
     yd:   { name: "养神丹", sell: 50, desc: "在「修炼 → 神识」养神，提升神识强度（每天可元婴出窍的次数）。2 星宗门炼丹房学丹方炼制。" },
