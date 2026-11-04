@@ -34,3 +34,17 @@ test("共用引擎与每人一个引擎结果一致，界面字段不串号", ()
   for (const id of ["A", "B", "C"]) assert.deepEqual(JSON.parse(JSON.stringify(a[id])), JSON.parse(JSON.stringify(b[id])));
   shared.drop("A"); shared.use("A"); assert.equal(shared.G.bagFilter, undefined);
 });
+
+test("删当前所有者后重进，界面字段为空且不复活", () => {
+  const e = new GameEngine();
+  e.use("A"); e.G.bagFilter = "dan";
+  e.drop("A");   // 此时 A 恰是当前 owner，旧实现会把 bagFilter 重新存回 _sides
+  assert.equal(e._sides.has("A"), false);
+  e.use("A"); assert.equal(e.G.bagFilter, undefined);
+  // 删非当前所有者仍正常，且不影响当前玩家
+  e.use("B"); e.G.bagFilter = "herb";
+  e.use("A"); e.G.bagFilter = "dan";
+  e.use("B"); e.drop("A");
+  e.use("A"); assert.equal(e.G.bagFilter, undefined);
+  e.use("B"); assert.equal(e.G.bagFilter, "herb");
+});

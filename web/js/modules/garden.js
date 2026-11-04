@@ -29,7 +29,7 @@ G.module({
         const end = f.start + this.fieldTime(f.g), Y = DATA.herbGrow(f.g).yield;
         const n = Math.floor(U.rand(Y[0], Y[1]) * (1 + this.plantYieldPct(f.g) / 100)), ck = this.plantCraft(f.g);
         this.addMat("herb", DATA.herbs[f.g], f.g, n);   // 背包满时进传音暂存，不再丢药材却照算经验
-        { const K = CFG.craftsman[ck], IE = K.ITEM_EXP; this.addCraftExp(ck, n * (IE ? (IE[f.g] ?? IE[IE.length - 1] ?? 0) : (f.g + 1) * (K.EXP_RATE || 0))); }   // 每株 ITEM_EXP[品级−1]   // 品级按药材总序号（仙界药材接在凡界后面）
+        { const K = CFG.craftsman[ck], IE = K.ITEM_EXP, lm = CFG.craftsman.LING_EXP_MULT ?? 1; this.addCraftExp(ck, n * (IE ? (IE[f.g] ?? IE[IE.length - 1] ?? 0) : (f.g + 1) * (K.EXP_RATE || 0)) * lm); }   // 每株 ITEM_EXP[品级−1]，再 × 种植经验总倍率   // 品级按药材总序号（仙界药材接在凡界后面）
         if (f.next != null) { f.g = f.next; f.next = null; } // 当季结束才换种
         if (this.payField(f, end)) nNew++;                   // 下一季：扣灵气
       }

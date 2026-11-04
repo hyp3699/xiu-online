@@ -1983,7 +1983,7 @@ G.module({
             s.explore = null; break;
           }
           if (x.cq && x.count >= x.cq) {   // 元婴出窍：探索够次数就回来
-            this.log(`出窍探索 ${x.count} 次已完成，元婴归窍。`, "gold");
+            this.log(`出窍探索 ${x.count} 次已完成。`, "gold");
             s.explore = null; break;
           }
           if (x.back) {   // v255 修炼设置：灵气已足，本次探索结束后回来修炼（cultivate.js cultSetCheck）

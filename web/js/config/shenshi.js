@@ -5,7 +5,7 @@
 window.CFG = window.CFG || {};
 
 CFG.shenshi = {
-  YANGSHEN: { BASE: 1, ADD: 1, EVERY: 10 },   // 养神一次的养神丹（公式见开头）
+  YANGSHEN: { BASE: 1, ADD: 1, EVERY: 36 },   // 养神一次的养神丹（公式见开头）
   INIT: 100,        // 初始灵识点
   STAR: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],          // 1 ~ 10 星每本占用灵识点
   TYPES: ["gongjue", "xinfa", "mijue", "tijue"],  // 占用灵识点、可遗忘的功法类别

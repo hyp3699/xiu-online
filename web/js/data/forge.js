@@ -311,11 +311,11 @@ DATA.fabaoInfo = (e, own) => {
 /* ---------- 图片 ----------
  * 浏览器缓存 30 天（nginx 设置）；换了图片把 IMG_V 加 1，玩家就会重新下载
  *   img/mats/herb0.png ……  药材、矿石（按 config/items.js 里的顺序）
- *   img/icons/eq_部位.png  装备、戒指；fb_属性.png 法宝；gf_属性.png 功法；sp_属性.png 法术
+ *   img/icons/eq_部位.png  装备；戒指按种类分图 eq_ring0~5（破军/磐石/长生/灵犀/烈阳/玄武，手绘，视角与原戒指一致，只改宝石和花纹），缺失时回退 eq_ring.png；戒指按星分档 eq_ring<种>s<档>（档 3/5/7/10，1-2 星用 1 星图，3-4 星用 3 星图，5-6 星用 5 星图，7-9 星用 7 星图，10 星用 10 星图，高星多彩非纯色）；fb_属性.png 法宝；gf_属性.png 功法；sp_属性.png 法术
  *   img/icons/pill_丹药id.png 修炼丹、dan_类型.png 属性丹、fu_dan / fu_qi.png 炉子、ss.png 空间石
  *   fbs形状_属性.png 法宝（7 种形状 × 6 种属性）、sm_ys属性.png 耀石、mifa.png 秘法、seed.png 种子、stone.png 灵石、cu_misc.png 自定义物品
  *   hx.png 火髓、bp.png 图纸 */
-DATA.IMG_V = 61;
+DATA.IMG_V = 64;
 DATA.matImg = (kind, g) => `img/mats/${kind}${g}.png?v=${DATA.IMG_V}`;
 DATA.iconImg = n => `img/icons/${n}.png?v=${DATA.IMG_V}`;
 DATA.ICON_EQ = ["helmet", "armor", "weapon", "legs", "boots", "pendant", "ring"];
@@ -324,6 +324,12 @@ DATA.cuIcon = d => d && d.img || DATA.iconImg("cu_misc");
 // 装备 / 法宝的图片
 DATA.eqIcon = e => {
   if (!e) return "";
+  if (e.slot === "ring") {   // 戒指按种类分图（0 破军红宝剑纹、1 磐石琥珀山纹、2 长生绿宝藤叶、3 灵犀紫宝眼纹、4 烈阳橙宝日焰、5 玄武蓝宝龟甲），r 缺失/越界回退原 eq_ring.png；按星分档：1-2 星用 1 星图，3-4 星用 3 星图，5-6 星用 5 星图，7-9 星用 7 星图，10 星用 10 星图（高星多彩非纯色）；无 g 时（炼制列表外）默认 1 星图，流光另走 eqCls 的 rgt
+    if (!DATA.ringOK(e.r)) return DATA.iconImg("eq_ring");
+    const st = (e.g === undefined || e.g === null) ? 1 : Math.max(1, Math.min(10, e.g + 1));
+    const tier = st <= 2 ? 1 : st <= 4 ? 3 : st <= 6 ? 5 : st <= 9 ? 7 : 10;
+    return DATA.iconImg("eq_ring" + e.r + (tier === 1 ? "" : "s" + tier));
+  }
   if (e.slot === "fabao" && e.bm) return DATA.iconImg("bm" + e.ft);   // 本命法宝：每种形状一张（不分属性），本命页面上用 CSS 加流光
   if (e.slot === "fabao") return DATA.iconImg("fb" + e.ft + "s" + Math.max(1, Math.min(10, (e.g || 0) + 1)));   // 炼制法宝：每种形状每星一张手绘图（fb形状s星），属性靠流光颜色和名字颜色区分   // 炼制法宝按形状 + 属性   // 炼制法宝按形状 + 属性
   return DATA.ICON_EQ.includes(e.slot) ? DATA.iconImg("eq_" + e.slot) : "";
@@ -340,13 +346,24 @@ DATA.skillIcon = g => g.kind === "mf" || g.noEl ? DATA.iconImg("mifa") : DATA.ic
 DATA.skillIco = g => `<span class="ico ${g.kind === "mf" ? "t-mifa" : "t-gf"}"><img src="${DATA.skillIcon(g)}" alt="" loading="lazy">${g.kind === "mf" ? `<b>秘</b>` : ""}</span>`;
 // 炼制物品（装备 / 戒指 / 法宝）的小图标：按阶换边框
 // 炼制装备 / 法宝按阶（一阶~十阶）加外观：越高阶越亮、光晕越强，高阶有流光（css/style.css 的 .eqt0 ~ .eqt9）
-DATA.eqCls = e => e && e.attrs ? ` eqt eqt${Math.max(0, Math.min(11, e.g || 0))}${e.slot === "fabao" && e.el ? ` fbel fb-${e.el}${e.bm ? "" : ` fbt fbt${Math.max(1, Math.min(10, (e.g || 0) + 1))}`}` : ""}` : "";   // 法宝按金木水火土雷显示颜色；fbt1~10 按星级显示外观（style.css「法宝按星级」）
-// 法宝图：普通法宝套一层 .fbw（按星级叠渐变色 + 纹理 + 流光，遮罩 = 法宝图本身，见 style.css「法宝按星级」）；其他物品原样 <img>
+DATA.eqCls = e => e && e.attrs ? ` eqt eqt${Math.max(0, Math.min(11, e.g || 0))}${e.slot === "fabao" && e.el ? ` fbel fb-${e.el}${e.bm ? "" : ` fbt fbt${Math.max(1, Math.min(10, (e.g || 0) + 1))}`}` : ""}${e.slot === "ring" ? ` ring rgt${Math.max(1, Math.min(10, (e.g || 0) + 1))}` : ""}` : "";   // 法宝按金木水火土雷显示颜色；fbt1~10 按星级显示外观（style.css「法宝按星级」）；戒指 rgt1~10 按星级显示流光（style.css「戒指按星级流光」）
+// 法宝图 / 戒指图：普通法宝和戒指都套一层 .fbw（流光遮罩 = 图本身，见 style.css「法宝按星级」「戒指按星级流光」）；其他物品原样 <img>
 DATA.fbArt = (e, src, cls = "") => {
-  if (!(e && e.slot === "fabao" && e.el && !e.bm && src)) return `<img class="${cls}" src="${src}" alt="">`;
+  if (!(e && src)) return `<img class="${cls}" src="${src}" alt="">`;
   const abs = typeof location !== "undefined" ? new URL(src, location.href).href : src;   // CSS 变量里的相对地址会按 style.css 目录解析，用绝对地址
-  return `<span class="fbw ${cls}" style="--m:url('${abs}')"><img src="${src}" alt=""></span>`;
+  if (e.slot === "fabao" && e.el && !e.bm) return `<span class="fbw ${cls}" style="--m:url('${abs}')"><img src="${src}" alt=""></span>`;
+  if (e.slot === "ring") return `<span class="fbw ringw ${cls}" style="--m:url('${abs}')"><img src="${src}" alt=""></span>`;
+  return `<img class="${cls}" src="${src}" alt="">`;
 };
 DATA.fbElCls = e => e && e.slot === "fabao" && e.el ? ` fb-${e.el}` : "";
 // 炼器室列表（宗门、洞府）用：按第 g 阶显示同样的外观
-DATA.eqTierIco = (src, g) => `<span class="ico j${g} eqt eqt${Math.max(0, Math.min(11, g))}"><img src="${src}" alt="" loading="lazy"><b>${g + 1}</b></span>`;
+// ring=true 时（仅戒指）：图标内套 .fbw ringw 遮罩，6 星起一道光沿戒指形状划过，
+// 与背包/装备/详情的 fbArt 一致；外层同时带 ring/rgt，CSS 会停用整格扫光避免双重扫光
+DATA.eqTierIco = (src, g, ring = false) => {
+  const tier = Math.max(0, Math.min(11, g));
+  if (ring && src) {
+    const abs = typeof location !== "undefined" ? new URL(src, location.href).href : src;
+    return `<span class="ico j${g} eqt eqt${tier} ring rgt${Math.max(1, Math.min(10, g + 1))}"><span class="fbw ringw" style="--m:url('${abs}')"><img src="${src}" alt="" loading="lazy"></span><b>${g + 1}</b></span>`;
+  }
+  return `<span class="ico j${g} eqt eqt${tier}"><img src="${src}" alt="" loading="lazy"><b>${g + 1}</b></span>`;
+};

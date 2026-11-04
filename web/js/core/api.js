@@ -268,7 +268,10 @@ const API = {
     this.installResume();
     this.checkLines();
     this.serverState = j.data || null;
-    if (j.data) await this.connectSocket();
+    // 首屏不等 WS 握手：先把存档交给界面渲染，WS 在后台接；按钮操作本身
+    // 会在 socket 未就绪时先 connectSocket 再发，握手失败则走后台重连循环，
+    // 不会因为一次握手失败就让已打开的游戏收不到 10 秒结算推送。
+    if (j.data) this.connectSocket().catch(() => this.scheduleReconnect());
     return j.data;
   },
 
@@ -277,7 +280,7 @@ const API = {
     this.serverState = j.data;
     this.syncClock(j.serverNow);
     this.installResume();
-    await this.connectSocket();
+    this.connectSocket().catch(() => this.scheduleReconnect());
     return j.data;
   },
 
@@ -512,6 +515,7 @@ const API = {
   async userList() { return this.req("admin/users"); },
   async setRegOpen(open) { return this.req("admin/reg", { open }); },
   async userDelete(id) { return this.req("admin/user/del", { id }); },
+  async userRename(id, username) { return this.req("admin/user/rename", { id, username }); },
   async charList() { return this.req("admin/chars"); },
   async charNew(debug) { return this.req("admin/char/new", { debug: !!debug }); },
   async charSwitch(id) { return this.req("admin/char/switch", { id }); },

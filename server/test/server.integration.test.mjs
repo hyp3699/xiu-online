@@ -161,6 +161,24 @@ test("HTTP auth and WebSocket actions use authoritative server state", { timeout
   const users = await fetch(`${base}/api/admin/users`, { headers: { "X-Token": token } }).then(r => r.json());
   assert.equal(users.list[0].admin, true);
   assert.equal(typeof users.reg_open, "boolean");
+  // Admin rename: any account can be renamed; password and saves are untouched (they hang off user_id).
+  const adminName = users.list[0].username;
+  const renameOld = `rn_${String(Date.now()).slice(-8)}`, renameNew = `rm_${String(Date.now()).slice(-8)}`;
+  await post(base, "/api/register", null, { username: renameOld, password: "test-password-789" });
+  const renameId = (await fetch(`${base}/api/admin/users`, { headers: { "X-Token": token } }).then(r => r.json())).list.find(u => u.username === renameOld).id;
+  const renamed = await post(base, "/api/admin/user/rename", token, { id: renameId, username: renameNew });
+  assert.equal(renamed.username, renameNew);
+  const usersAfter = await fetch(`${base}/api/admin/users`, { headers: { "X-Token": token } }).then(r => r.json());
+  assert.ok(usersAfter.list.some(u => u.username === renameNew));
+  assert.ok(!usersAfter.list.some(u => u.username === renameOld));
+  await assert.rejects(post(base, "/api/login", null, { username: renameOld, password: "test-password-789" }), /账号或密码错误/);
+  const relogin = await post(base, "/api/login", null, { username: renameNew, password: "test-password-789" });
+  assert.ok(relogin.token);
+  await assert.rejects(post(base, "/api/admin/user/rename", token, { id: renameId, username: adminName }), /账号已存在/);
+  const nonAdminToken = relogin.token;
+  await assert.rejects(post(base, "/api/admin/user/rename", nonAdminToken, { id: renameId, username: `nope_${Date.now()}` }));
+  const usersFinal = await fetch(`${base}/api/admin/users`, { headers: { "X-Token": token } }).then(r => r.json());
+  assert.ok(usersFinal.list.some(u => u.username === renameNew));
   await post(base, "/api/admin/gift", token, { code: "SERVERTESTGIFT", items: [{ c: "stone", n: 25 }], uses: 1 });
   const gifts = await fetch(`${base}/api/admin/gifts`, { headers: { "X-Token": token } }).then(r => r.json());
   assert.equal(gifts.list[0].code, "SERVERTESTGIFT");
@@ -173,7 +191,7 @@ test("HTTP auth and WebSocket actions use authoritative server state", { timeout
   assert.ok(cfgList.list.some(f => f.name === "start.js"));
   const original = await fetch(`${base}/api/config/start.js`).then(r => r.text());
   const loaderBefore = await fetch(`${base}/api/config-loader.js`).then(r => r.text());
-  assert.match(loaderBefore, /api\/config\/start\.js\?h=[0-9a-f]{12}/);
+  assert.match(loaderBefore, /api\/config-bundle\.js\?h=[0-9a-f]{12}/);
   const bad = await fetch(`${base}/api/admin/config/save`, { method: "POST", headers: { "Content-Type": "application/json", "X-Token": token }, body: JSON.stringify({ name: "start.js", content: "CFG.start = {" }) });
   assert.equal(bad.status, 400);
   const edited = original + "\n// edited-by-admin-test\n";
@@ -182,7 +200,8 @@ test("HTTP auth and WebSocket actions use authoritative server state", { timeout
   await configNotice;
   assert.equal(await fetch(`${base}/api/config/start.js`).then(r => r.text()), edited);
   const loaderAfter = await fetch(`${base}/api/config-loader.js`).then(r => r.text());
-  assert.notEqual(loaderAfter.match(/start\.js\?h=\w+/)[0], loaderBefore.match(/start\.js\?h=\w+/)[0], "edited config gets a new URL");
+  assert.notEqual(loaderAfter.match(/config-bundle\.js\?h=\w+/)[0], loaderBefore.match(/config-bundle\.js\?h=\w+/)[0], "edited config gets a new URL");
+  assert.ok((await fetch(`${base}/api/config-bundle.js`).then(r => r.text())).includes("// edited-by-admin-test"), "edited config is served in the bundle immediately");
   const notAdmin = await fetch(`${base}/api/admin/config/file?name=start.js`).then(r => r.status);
   assert.equal(notAdmin, 401);
   await post(base, "/api/admin/config/reset", token, { name: "start.js" });

@@ -268,12 +268,26 @@ const server = http.createServer(async (req, res) => {
     }
 
     // 游戏参数脚本（浏览器和服务器用同一份；管理员改过的优先）。
-    // config-loader.js 每次都不缓存，按内容哈希写出各参数文件的地址：参数一改地址就变，
-    // 不会被浏览器 / Cloudflare 缓存住旧参数；地址带对哈希的文件可以长期缓存。
+    // config-loader.js 每次都不缓存，按内容哈希写出参数包的地址：参数一改地址就变，
+    // 不会被浏览器 / Cloudflare 缓存住旧参数；地址带对哈希的包可以长期缓存。
+    // 以前是 35 个参数文件各一个 document.write 脚本、串行加载；现在合成一个包，
+    // 顺序和原来 configNames() 的顺序完全一致，内容用 "\n;\n" 隔开（防上一文件末尾
+    // 没分号和下一文件首句连在一起），进游戏少 34 个请求。
+    const configBundle = () => {
+      const code = configNames().map(name => readConfig(name)).join("\n;\n");
+      return { code, hash: configHash(code) };
+    };
     if (req.method === "GET" && route === "/api/config-loader.js") {
-      const tags = configNames().map(name => `api/config/${name}?h=${configHash(readConfig(name))}`);
-      const data = Buffer.from(`(function(){var a=${JSON.stringify(tags)};for(var i=0;i<a.length;i++)document.write('<script src="'+a[i]+'"><\\/script>');})();\n`);
+      const { hash } = configBundle();
+      const data = Buffer.from(`(function(){document.write('<script src="api/config-bundle.js?h=${hash}"><\\/script>');})();\n`);
       res.writeHead(200, { "Content-Type": "application/javascript; charset=utf-8", "Content-Length": data.length, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });
+      return res.end(data);
+    }
+    if (req.method === "GET" && route === "/api/config-bundle.js") {
+      const { code, hash } = configBundle();
+      const data = Buffer.from(code);
+      const cache = url.searchParams.get("h") === hash ? "public, max-age=31536000, immutable" : "no-store";
+      res.writeHead(200, { "Content-Type": "application/javascript; charset=utf-8", "Content-Length": data.length, "Cache-Control": cache, "X-Content-Type-Options": "nosniff" });
       return res.end(data);
     }
     const cfgRoute = route.match(/^\/api\/config\/([^/]+)$/);
@@ -433,6 +447,27 @@ const server = http.createServer(async (req, res) => {
       db.prepare("DELETE FROM users WHERE id=?").run(id); dropEngine(id);
       const online = clients.get(id); if (online) { clients.delete(id); online.socket.close(4003, "账号已删除"); }
       return sendJson(res, 200, { ok: true });
+    }
+    if (user.is_admin && req.method === "POST" && route === "/api/admin/user/rename") {
+      // 管理员可改任何账号的账号名（包括其他管理员和自己）：只改 users.username，密码、存档、
+      // 令牌都按 user_id 挂着，所以改名不影响登录状态和存档，下次登录用新名。
+      const body = await readBody(req), id = Number(body.id);
+      let name; try { name = validUsername(body.username); } catch (e) { return error(res, 400, e.message); }
+      if (!Number.isSafeInteger(id)) return error(res, 400, "没有这个账号");
+      const t = q.byId.get(id); if (!t) return error(res, 400, "没有这个账号");
+      if (name === t.username) return sendJson(res, 200, { ok: true, username: name, renamed: 0 });
+      // 主号改名时，它的小号（名字是「主号名#序号」）跟着换前缀，保持命名一致；小号先改，
+      // 主号后改，这样主号的新名即使撞上某个小号的旧名也不会触发唯一约束。
+      const subs = t.owner_id ? [] : db.prepare("SELECT id,username FROM users WHERE owner_id=?").all(t.id);
+      const renames = subs.filter(s => s.username.startsWith(t.username + "#"))
+        .map(s => ({ id: s.id, name: name + s.username.slice(t.username.length) }));
+      renames.push({ id: t.id, name });
+      for (const r of renames) {
+        const clash = q.byName.get(r.name);
+        if (clash && !renames.some(x => x.id === clash.id)) return error(res, 409, "账号已存在");
+      }
+      db.transaction(() => { for (const r of renames) db.prepare("UPDATE users SET username=? WHERE id=?").run(r.name, r.id); })();
+      return sendJson(res, 200, { ok: true, username: name, renamed: renames.length });
     }
     if (user.is_admin && req.method === "GET" && route === "/api/admin/gifts") {
       const rows = db.prepare("SELECT code,payload,max_uses,used_count FROM gifts ORDER BY created_at DESC").all();

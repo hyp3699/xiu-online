@@ -194,7 +194,13 @@ export class GameEngine {
     return this;
   }
   // 玩家下线久了：丢掉他留在引擎里的界面字段
-  drop(key) { this._sides.delete(key); if (key === this._owner) { this.use(Symbol("none")); } }
+  // 注意：若 key 恰是当前 owner，不能先删 side 再 use()，因为 use() 切换前会把当前
+  // owner 的界面字段重新存回 _sides[key]，等于把刚删的复活。先把 _owner 置空，
+  // use() 就不会保存上一任 owner，也就不会留下一个 Symbol 的 side 条目。
+  drop(key) {
+    this._sides.delete(key);
+    if (key === this._owner) { this._owner = null; this.use(Symbol("none")); }
+  }
 
   seedRandom() {
     let state = crypto.randomBytes(4).readUInt32LE(0) || 0x9e3779b9;

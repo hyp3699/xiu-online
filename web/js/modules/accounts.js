@@ -2,8 +2,8 @@
  * 模块：账号管理（只有管理员看得到：世界 → 设置 → 账号管理）
  * ---------------------------------------------------------------------
  * 所有玩家：设置 → 账号 → 修改密码（改完其他设备上的登录会失效）。
- * 管理员：开启 / 关闭注册；查看所有注册的账号；删除账号（连同服务器上的存档，管理员账号不能删）。
- * 接口在 server/server.py：admin/users、admin/reg、admin/user/del
+ * 管理员：开启 / 关闭注册；查看所有注册的账号；修改任何账号的账号名；删除账号（连同服务器上的存档，管理员账号不能删）。
+ * 接口在 server/server.mjs：admin/users、admin/reg、admin/user/del、admin/user/rename
  * ===================================================================== */
 G.module({
   id: "accounts",
@@ -24,6 +24,24 @@ G.module({
       if (!(await this.ask(`删除账号「${u.username}」？存档会一起删除，无法恢复。`))) return;
       try { await API.userDelete(id); this.log(`已删除账号 ${u.username}。`, "sys"); this.loadAccs(); }
       catch (e) { this.log("删除失败：" + e.message, "bad"); }
+    },
+    // ---- 管理员改账号名：任何账号都能改（包括其他管理员和自己），只改登录用的账号名，
+    // 密码、存档、在线状态都不动；主号改名时它的小号（主号名#序号）跟着换前缀 ----
+    accRenameForm(id) {
+      const u = (this.accList || []).find(x => x.id === id); if (!u) return;
+      this.accRename = { id, name: u.username }; this.render();
+    },
+    accRenameCancel() { this.accRename = null; this.render(); },
+    async accRenameSave(id) {
+      const u = (this.accList || []).find(x => x.id === id), F = this.accRename || {}; if (!u) return;
+      const name = String(F.name || "").trim();
+      if (!name) return this.log("账号名不能为空。", "sys");
+      if (name === u.username) { this.accRename = null; this.render(); return; }
+      try {
+        const j = await API.userRename(id, name);
+        this.accRename = null; this.log(`已把账号「${u.username}」改名为「${j.username}」${j.renamed > 1 ? `（连同 ${j.renamed - 1} 个人物小号一起改名）` : ""}，密码不变，下次登录用新名。`, "sys");
+        this.render(); this.loadAccs();
+      } catch (e) { this.log("改名失败：" + e.message, "bad"); }
     },
     // ---- 管理员多人物 ----
     async loadChars() {
@@ -71,10 +89,15 @@ G.module({
         <div class="btns"><button class="primary" onclick="G.changePw()">确认修改</button><button onclick="G.openPwForm(false)">取消</button></div>` : "";
     },
     accAdminView() {
-      const esc = x => String(x).replace(/&/g, "&amp;").replace(/</g, "&lt;"), L = this.accList;
-      const rows = (L || []).map(u => `<div class="line"><div>${esc(u.username)}${u.admin ? `<span class="tag">管理员</span>` : ""}
+      const esc = x => String(x).replace(/&/g, "&amp;").replace(/</g, "&lt;"),
+        escQ = x => String(x).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;"), L = this.accList, R = this.accRename;
+      const rows = (L || []).map(u => {
+        const editing = R && R.id === u.id;
+        return `<div class="line"><div>${editing ? `<input value="${escQ(R.name)}" oninput="G.accRename.name=this.value" style="width:12em">` : `${esc(u.username)}${u.admin ? `<span class="tag">管理员</span>` : ""}`}
           <small>注册 ${this.accDate(u.created)} · 最后存档 ${this.accDate(u.updated)}</small></div>
-        ${u.admin ? "" : `<button class="sm" onclick="G.accDel(${u.id})">删除</button>`}</div>`).join("");
+        <span>${editing ? `<button class="sm primary" onclick="G.accRenameSave(${u.id})">确认</button><button class="sm" onclick="G.accRenameCancel()">取消</button>`
+          : `<button class="sm" onclick="G.accRenameForm(${u.id})">改名</button>${u.admin ? "" : `<button class="sm" onclick="G.accDel(${u.id})">删除</button>`}`}</span></div>`;
+      }).join("");
       return `<div class="row" style="margin:6px 0"><b>账号管理</b><button class="sm" onclick="G.openAccAdmin(false)">返回</button></div>
         ${this.charView()}
         <div class="card"><h3>注册<small>${this.accRegOpen ? "已开启" : "已关闭"}</small></h3>

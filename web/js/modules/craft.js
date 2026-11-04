@@ -64,15 +64,18 @@ G.module({
     craftTitle(k, lv) { const C = CFG.craftsman, u = this.craftUnit(k), z = n => this.cnNum(n) + u; lv = lv || this.craftLv(k); return lv > 20 && C["s" + k] ? `${C["s" + k].name} · ${z(lv - 20)}` : lv > 10 && C["x" + k] ? `${C["x" + k].name} · ${z(lv - 10)}` : `${C[k].name} · ${z(lv)}`; },   // 炼丹师 · 一阶；21~30 阶显示为炼丹神师
     cnNum(n) { const D = "零一二三四五六七八九"; return n <= 10 ? (n === 10 ? "十" : D[n]) : n < 20 ? "十" + D[n - 10] : D[Math.floor(n / 10)] + "十" + (n % 10 ? D[n % 10] : ""); },
     craftUnit(k) { return k === "qi" ? "星" : "阶"; },   // 炼器师按星显示
-    // 炼丹 / 炼器一件给的经验：物品阶 ≥ 技艺阶才给，g = 物品阶序号（0 = 一阶）
+    // 炼丹 / 炼器一件给的经验：物品阶 ≥ 技艺阶才给，g = 物品阶序号（0 = 一阶）；再 × 对应经验总倍率（DAN_EXP_MULT / QI_EXP_MULT，初始 1）
     itemExp(k, g, ok) {
       const C = CFG.craftsman, K = C[k] || {};
       const e = K.ITEM_EXP ? (K.ITEM_EXP[g] ?? K.ITEM_EXP[K.ITEM_EXP.length - 1] ?? 0) : (g + 1) * (K.EXP_RATE || 0);
-      return e * (ok ? 1 : (C.FAIL_EXP || 0));
+      const m = k === "dan" ? (C.DAN_EXP_MULT ?? 1) : k === "qi" ? (C.QI_EXP_MULT ?? 1) : 1;
+      return e * (ok ? 1 : (C.FAIL_EXP || 0)) * m;
     },
-    // 第 lv 阶升下一阶要的经验 = EXP[lv−1] × 总倍率 EXP_MULT（config/craftsman.js）
+    // 第 lv 阶升下一阶要的经验 = EXP[lv−1] × 总倍率 EXP_MULT × 各自升级总倍率（DAN_NEED_MULT / QI_NEED_MULT / LING_NEED_MULT，初始 1；xling 等别名归到本系）
     craftNeed(k, lv) { const C = CFG.craftsman, E = (C[k] || {}).EXP || C.EXP || [], m = C.EXP_MULT > 0 ? C.EXP_MULT : 1;
-      return Math.max(1, Math.round((E[lv - 1] ?? (64 + 32 * (lv - 1)) * 13 * lv) * m)); },
+      const kk = k === "xdan" || k === "sdan" ? "dan" : k === "xling" || k === "sling" ? "ling" : k;
+      const km = kk === "dan" ? (C.DAN_NEED_MULT ?? 1) : kk === "qi" ? (C.QI_NEED_MULT ?? 1) : kk === "ling" ? (C.LING_NEED_MULT ?? 1) : 1;
+      return Math.max(1, Math.round((E[lv - 1] ?? (64 + 32 * (lv - 1)) * 13 * lv) * m * km)); },
     // 加经验，满了升阶
     addCraftExp(k, n) {
       const c = this.craftInfo(k), M = this.craftMax(k);
@@ -518,7 +521,7 @@ G.module({
       const full = s.forgeJob && s.forgeQueue.length >= CFG.furnace.QUEUE, has = s.furnaceUse.qi >= 0;
       return list.map(([i, e]) => {
         const top = DATA.rjTop(e), mats = DATA.refineMats(e), sm = DATA.refineSm(e), img = DATA.eqIcon(e);
-        return `<div class="line"><div>${img ? DATA.eqTierIco(img, e.g) : ""}<span class="q${e.q}">${this.itemName({ t: "eq", e })}</span><span class="tag">${DATA.rjName(e)}</span>
+        return `<div class="line"><div>${img ? DATA.eqTierIco(img, e.g, e.slot === "ring") : ""}<span class="q${e.q}">${this.itemName({ t: "eq", e })}</span><span class="tag">${DATA.rjName(e)}</span>
           <small>${top ? "已精炼满" : `${this.matsText(mats)}${sm.length ? "、" + this.smText(sm) : ""} · ${U.dur(this.forgePer("rf", e.g) / 1000)} · 成功率 ${this.ratePct(this.forgeRate("eq", e.g))}`}</small></div>
           <button class="sm" onclick="G.refineEq(${i})" ${top || full || !has ? "disabled" : ""}>精炼</button></div>`;
       }).join("");
@@ -841,7 +844,7 @@ Object.assign(G, {
           if (!this.ringKnown(r, g) || (g < 1 && !DATA.ringSp(r))) return;
           const mats = DATA.ringMatsFor(r, g);
           const prevOK = g < 1 || this.prevEquipIndex("ring", g, r) >= 0, rsm = this.jobSm({ kind: "ring", g, r }), bn = DATA.ringBonus(r);
-          add(`ring:${r}:${g}`, `<div>${DATA.li(DATA.iconImg("eq_ring"))}${DATA.ringName(r, g)}<span class="tag">戒指</span>${bn ? `<span class="tag">主属性 +${bn}%</span>` : ""}
+          add(`ring:${r}:${g}`, `<div>${DATA.eqTierIco(DATA.eqIcon({ slot: "ring", r, g }), g, true)}${DATA.ringName(r, g)}<span class="tag">戒指</span>${bn ? `<span class="tag">主属性 +${bn}%</span>` : ""}
             <small>${g > 0 ? `<span class="${prevOK ? "" : "q5"}">${DATA.ringName(r, g - 1)}·${DATA.JIE[9]} ×1</span>、` : ""}${this.matsText(mats)}${rsm.length ? "、" + this.smText(rsm) : ""} · ${U.dur(this.forgePer("ring", g) / 1000)} · 成功率 ${rate}</small></div>`,
             prevOK && this.hasMats(mats) && this.smHave(rsm), `G.openForgeN('ring',${g},${r})`);
         });
