@@ -32,11 +32,14 @@ DATA.MOB_NONE = [0, 1, [1, 0, 0, 1, 0, 0], 1];   // 没写时：练气一层、�
 DATA.mobRange = v => Array.isArray(v) ? [v[0], v[v.length - 1]] : [v || 0, v || 0];
 DATA.mobRow = t => {
   t = t || DATA.MOB_NONE;
+  // 末尾可写额外倍率 { 生命, 攻击, 防御, jin, mu, shui, huo, tu, lei }（不写 = 1）；去掉后按原格式解析
+  const X = t.length && t[t.length - 1] && typeof t[t.length - 1] === "object" && !Array.isArray(t[t.length - 1]) ? t[t.length - 1] : null;
+  if (X) t = t.slice(0, -1);
   const realm = Math.max(0, Math.min(DATA.realms.length - 1, t[0] || 0)), old = !Array.isArray(t[2]);
   const gs = old ? [t[3], t[4], t[5]].map(x => [x[0], x[1], x[2], t[2], x[1], x[2]]) : t.slice(2, -1).filter(Array.isArray);
   const part = (p, g) => ({ pct: DATA.mobRange(p), gf: DATA.mobRange(g) });
   const cats = gs.filter(x => x && DATA.MOB_GF_CAT[x[0]]).map(x => ({ c: x[0], star: x[3] > 0 ? x[3] : DATA.refStar(realm), pre: part(x[1], x[2]), cur: part(x[4], x[5]) }));
-  return { realm, lay: DATA.mobRange(t[1]), cats, k: old ? t[6] : t[t.length - 1] };
+  return { realm, lay: DATA.mobRange(t[1]), cats, k: old ? t[6] : t[t.length - 1], x: X };
 };
 // 怪物六系抗性：o.res（修为 + 肉身 + 不分系的）+ 各系真经 → o.resEl { jin: …, mu: … }；o.res 改成六系平均（只给显示用）
 DATA.mobResEl0 = () => Object.fromEntries(DATA.elements.map(e => [e.id, 0]));
@@ -55,8 +58,19 @@ DATA.mobBooks = (cat, lo, hi) => {
 };
 // 一类来源拆成两段：[[最低星, 最高星, { pct, gf }], ...]（学 0% 或功法层 0 的段不算）
 DATA.mobParts = C => [[1, C.star - 1, C.pre], [C.star, C.star, C.cur]].filter(([lo, hi, P]) => lo <= hi && DATA.mobOn(P));
-DATA._mobGfv = {};
-DATA.mobGfVal = (id, lv) => { const k = id + ":" + lv; if (!(k in DATA._mobGfv)) { const g = lv > 0 ? DATA.gongfaInfo(id, lv) : null; DATA._mobGfv[k] = g ? [g.value || 0, g.value2 || 0] : [0, 0]; } return DATA._mobGfv[k]; };
+DATA._mobGfv = new Map();
+DATA.mobGfVal = (id, lv) => { const k = id + ":" + lv; let v = DATA._mobGfv.get(k); if (!v) { const g = lv > 0 ? DATA.gongfaInfo(id, lv) : null; v = g ? [g.value || 0, g.value2 || 0] : [0, 0]; DATA._mobGfv.set(k, v); } return v; };
+// 一类来源 lo~hi 星、功法层 g0/g1 时，每个种类全部功法的属性合计（未乘学%）：{ 种类: { add: {属性: 值}, rEl: {系: 值} } }（缓存）
+DATA._mobBookSum = new Map();
+DATA.mobBookSum = (cat, lo, hi, g0, g1) => {
+  const key = cat + ":" + lo + ":" + hi + ":" + g0 + ":" + g1; let S = DATA._mobBookSum.get(key); if (S) return S;
+  S = {}; const B = DATA.mobBooks(cat, lo, hi), rE = DATA.mobResEl0(), keys = new Set(DATA.MOB_KEYS);
+  for (const ty in B) { const T = S[ty] = { add: {}, rEl: {} };
+    for (const b of B[ty]) { const v0 = DATA.mobGfVal(b.id, g0), v1 = DATA.mobGfVal(b.id, g1);
+      if (b.stat === "res" && b.el && b.el in rE) T.rEl[b.el] = (T.rEl[b.el] || 0) + (v0[0] + v1[0]) / 2; else if (keys.has(b.stat)) T.add[b.stat] = (T.add[b.stat] || 0) + (v0[0] + v1[0]) / 2;
+      if (b.stat2 && keys.has(b.stat2)) T.add[b.stat2] = (T.add[b.stat2] || 0) + (v0[1] + v1[1]) / 2; } }
+  DATA._mobBookSum.set(key, S); return S;
+};
 const _mobRi = r => r[0] + Math.floor(Math.random() * (r[1] - r[0] + 1));
 // 算属性：rnd = true 每次遇到随机（层、学%、功法层）；false = 显示用的平均值
 DATA.mobCalc = (t, crit, rnd) => {
@@ -66,6 +80,11 @@ DATA.mobCalc = (t, crit, rnd) => {
   const rEl = DATA.mobResEl0();   // 真经抗性按系分开：每本只加它自己那一系
   for (const C of R.cats) for (const [lo, hi, P] of DATA.mobParts(C)) {   // 每类来源分前星、本星两段，各按自己的学% 和功法层
     const B = DATA.mobBooks(C.c, lo, hi);
+    if (!rnd) {   // 显示用：功法层固定，每个种类的合计只算一次（缓存），乘平均学% 即可（结果和逐本累加相同）
+      const f = (P.pct[0] + P.pct[1]) / 200, S = DATA.mobBookSum(C.c, lo, hi, P.gf[0], P.gf[1]);
+      for (const ty in S) { const T = S[ty]; for (const k in T.add) add[k] += T.add[k] * f; for (const e in T.rEl) rEl[e] += T.rEl[e] * f; }
+      continue;
+    }
     for (const ty in B) {
       // 每个种类 = 全部功法 × 学%（1% × 12 本 = 0.12 本的属性）
       //   遇到时（rnd）：学% 在范围内随机（每种一次），功法层每本单独随机取整；显示用：学% 取平均、功法层两头平均
@@ -78,6 +97,11 @@ DATA.mobCalc = (t, crit, rnd) => {
   const o = {};
   for (const x of DATA.MOB_KEYS) o[x] = (st[x] + add[x] + bd[x]) * R.k;
   DATA.mobResSplit(o, rEl, R.k);
+  if (R.x) {   // 额外倍率：生命、攻击、防御、六系抗性各自单独（显示用的平均抗性跟着重算）
+    const m = v => typeof v === "number" && v >= 0 ? v : 1, E = DATA.elements;
+    o.hp *= m(R.x.生命); o.atk *= m(R.x.攻击); o.def *= m(R.x.防御);
+    if (E.length) { let s = 0; for (const e of E) s += o.resEl[e.id] *= m(R.x[e.id]); o.res = s / E.length; }
+  }
   o.manaBr = st.manaBr;   // 修为突破的法力（法术 / 法宝耗法力用，不乘倍率）
   o.crit = crit || 0; o.layer = lay; o.L = R.realm * DATA.LAYERS + lay - 1;   // v171 总层序（保底伤害用）
   return o;

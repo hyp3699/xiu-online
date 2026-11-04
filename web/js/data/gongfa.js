@@ -412,7 +412,9 @@ DATA.mifaFullTxt = (kind, pct) => kind === "hpBattle" ? `每步再回生命上�
 DATA.isMifa = id => id.split(":")[1] === "mf";
 // 秘法灵石倍率（config/wudao.js STONE_KIND，没写 = 1）：首次学习、升层灵石都乘
 DATA.mifaStoneK = kind => { const k = ((CFG.wudao.STONE_KIND || {})[kind]); return k === undefined ? 1 : k; };
-DATA.mifaLearnCost = (star, kind) => { const W = CFG.wudao, m = (W.STAR_COST || [])[star - 1] || 1; return { stone: Math.round(((W.LEARN_STONES || [])[star - 1] || 0) * DATA.mifaStoneK(kind)), contrib: Math.floor(W.LEARN_CONTRIB * m) }; };
+// 秘法学习贡献倍率（config/wudao.js CONTRIB_KIND，没写 = 1）：只乘首次学习贡献
+DATA.mifaContribK = kind => { const k = ((CFG.wudao.CONTRIB_KIND || {})[kind]); return k === undefined ? 1 : k; };
+DATA.mifaLearnCost = (star, kind) => { const W = CFG.wudao, m = (W.STAR_COST || [])[star - 1] || 1; return { stone: Math.round(((W.LEARN_STONES || [])[star - 1] || 0) * DATA.mifaStoneK(kind)), contrib: Math.floor(W.LEARN_CONTRIB * m * DATA.mifaContribK(kind)) }; };
 DATA.mifaInfo = (id, lv = 1) => {
   const [w, , kind] = id.split(":"), star = +w.slice(1), K = DATA.mifaKindById[kind], W = CFG.wudao;
   if (!K || !(star >= 1 && star <= 10)) return null;

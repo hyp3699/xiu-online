@@ -62,11 +62,10 @@
       // 炼丹炼器
       if (s.danStudy) ev.push(s.danStudy.end);
       if (s.forgeStudy) ev.push(s.forgeStudy.end);
+      if (s.bmJob && s.bmJob.end) ev.push(s.bmJob.end);   // 本命法宝炼成：到时加成才生效，不能跨过它做纯数值结算
+      if (Array.isArray(s.mailbox)) for (const x of s.mailbox) if (x && x.at) ev.push(x.at + 10 * 86400000);   // 传音暂存到期：到时清掉过期项
       const j = s.forgeJob;
-      if (j) {
-        const waits = last >= j.end && j.ok !== undefined && this.bagFull() && ((!j.ok && j.prev) || j.kind === "rf" || (j.ok && (j.kind === "eq" || j.kind === "ring")));   // 背包满等待出炉：每次结算都不变
-        if (!waits) ev.push(j.end);
-      }
+      if (j) ev.push(j.end);   // 背包满不再暂停出炉（出炉物品进传音暂存），原来“背包满等待”分支已失效，留着会让加速跨过到期的炉子
       const al = s.alchJob;
       if (al) { if (al.done >= al.n) return -Infinity; ev.push(al.next); }
       // 灵药园（等灵气的在 fastTick 里按灵气判断）
@@ -157,7 +156,7 @@
           if (freeOn) { if (--fl <= 0) break; }   // 免费修炼室次数用完：事件（付费修炼室按分钟扣贡献，见 fastNextEvent）
           if (L < SP - RED && refill && sn >= 1) { const pay = Math.min(Math.ceil((SP - RED - L) / RATE), Math.floor(sn)); sn -= pay; L += pay * RATE; }
           const PER = Math.max(0, SP - RED) / Math.max(1e-9, SP), gain = PER > 0 ? Math.min(SP, Math.floor(L / PER)) : SP;
-          if (gain <= 0) { if (!lk) lk = true; }
+          if (gain <= 0) { if (!lk) lk = true; fl++; }   // 与 cultivate.tick 一致：灵气耗尽的 tick 不扣免费修炼室次数
           else {
             L = Math.max(0, L - gain * PER); ex += gain;
             if (gain < SP * 0.999) { if (!lk) lk = true; } else lk = false;
@@ -172,6 +171,7 @@
           if (L < BSP * BR - BRED && refill && sn >= 1) { const pay = Math.min(Math.ceil((BSP * BR - BRED - L) / RATE), Math.floor(sn)); sn -= pay; L += pay * RATE; }
           const BPER = Math.max(0, BSP * BR - BRED) / Math.max(1e-9, BSP), g = BPER > 0 ? Math.min(BSP, Math.floor(L / BPER)) : BSP;
           if (g > 0) { L = Math.max(0, L - g * BPER); be += g; }
+          else if (!cultOn && freeOn) fl++;   // 与 body.tick 一致：只开肉身且灵气耗尽的 tick 不扣免费修炼室次数
         }
         // 修炼设置：灵石掉到下限以下 → 事件（可能要自动去探索）
         if (sn < CSL) break;

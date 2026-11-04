@@ -95,7 +95,11 @@ const API = {
   patchState(target, patch) {
     if (!patch || patch.$p !== 1 || !target || typeof target !== "object" || Array.isArray(target)) return patch;
     for (const k of patch.d || []) delete target[k];
-    for (const [k, v] of Object.entries(patch.s || {})) target[k] = v && v.$p === 1 ? this.patchState(target[k], v) : v;
+    for (const [k, v] of Object.entries(patch.s || {})) {
+      // 客户端缺失该嵌套键时，原来会把补丁对象本身 {$p:1,...} 当成状态值；改成从空对象展开
+      const base = v && v.$p === 1 ? (target[k] && typeof target[k] === "object" && !Array.isArray(target[k]) ? target[k] : {}) : null;
+      target[k] = v && v.$p === 1 ? this.patchState(base, v) : v;
+    }
     return target;
   },
 
@@ -114,6 +118,9 @@ const API = {
     } else return;
     if (message.seq) this._seq = message.seq;
     this.syncClock(message.serverNow);
+    // 空闲心跳（补丁为空、无本地先显示改动）：状态什么都没变，不重绘、不重算属性；
+    // 进度条由每帧的 bars() 自己刷，日志由调用方 toastLogs 单独处理，不会漏
+    if (viaPatch && !message.patch && !this._localEdit && message.ok !== false && typeof G !== "undefined" && G.s) return;
     if (typeof G !== "undefined") {
       const tab = G.tab;
       // 界面用副本：本地先显示的改动不会污染服务器基准状态。
@@ -475,7 +482,10 @@ const API = {
         const pending = this._pending.get(id);
         this._pending.delete(id); this.finishButtonPending(pending);
         const error = new Error("服务器响应超时，请稍后查看状态");
-        this.showActionFeedback(error.message, "bad"); reject(error);
+        this.showActionFeedback(error.message, "bad");
+        // 超时后客户端状态可能已旧（服务端可能已执行）：先重同步再允许重试，否则重试会按旧格子序号操作
+        try { if (this._socket && this._socket.readyState === WebSocket.OPEN) this._socket.send(JSON.stringify({ type: "resync" })); } catch {}
+        reject(error);
       }, 15_000);
       const exStart = typeof G !== "undefined" && G.s && G.s.explore ? G.s.explore.start : undefined, cqStart = typeof G !== "undefined" && G.s && G.s.cq ? G.s.cq.start : undefined;
       this._pending.set(id, { resolve, reject, timer, name, args, refresh, exStart, cqStart, ...buttonPending });
@@ -497,7 +507,7 @@ const API = {
   async giftList() { return this.req("admin/gifts"); },
   async giftCreate(d) { return this.req("admin/gift", d); },
   async giftDelete(code) { return this.req("admin/gift/del", { code }); },
-  async giftRedeem(code) { const j = await this.req("gift", { code }); if (j.state) this.applyState(j); return j; },
+  async giftRedeem(code) { const j = await this.req("gift", { code }); if (j.state) this.applyState(j); return j; },   // 不再发 resync：HTTP 响应本身就是完整状态，服务器端兑换时在线客户端还会再推一次完整状态，再发一次等于同一份完整状态传三遍
   async changePassword(oldPw, newPw) { return this.req("password", { old: oldPw, new: newPw }); },
   async userList() { return this.req("admin/users"); },
   async setRegOpen(open) { return this.req("admin/reg", { open }); },

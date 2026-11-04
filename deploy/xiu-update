@@ -57,6 +57,7 @@ install -m 0644 "$DIR/deploy/xiu-web-update.service" /etc/systemd/system/xiu-onl
 install -m 0644 "$DIR/deploy/xiu-web-update.path" /etc/systemd/system/xiu-online-web-update.path
 systemctl daemon-reload
 systemctl enable --now xiu-online-web-update.path >/dev/null 2>&1 || true
+systemctl enable "$SERVICE" nginx >/dev/null 2>&1 || true   # 开机自动启动（游戏服务 + nginx）
 systemctl restart "$SERVICE"
 systemctl is-active --quiet "$SERVICE"
 for _ in $(seq 1 20); do curl -fsS http://127.0.0.1:18301/health >/dev/null && break || sleep 1; done

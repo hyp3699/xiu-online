@@ -45,9 +45,10 @@ G.module({
     // 2. 修炼室：免费修炼室（每天 N 次，每次若干次修炼）优先，用完再按付费修炼室扣
     // 免费最后一次不能先扣到 0 再算 speed()：freeCultOn() 要求 left > 0，
     // 那样最后一次 tick 吃不到加速。算速度时临时恢复 1 次，算完再真正关掉。
-    let freeExhausted = false;
+    let freeExhausted = false, freeSpent = false;
     if (this.freeCultOn()) {
       if (--s.freeCult.left <= 0) { s.freeCult.left = 0; freeExhausted = true; this.dirty(); this.log(`${CFG.sect.freeRoom.name}次数已用完。`, "sys"); }
+      freeSpent = true;
     }   // 付费修炼室按分钟扣贡献（modules/sect.js roomBill）
 
     // 3. 灵气不足且开了自动补充：用灵石补
@@ -63,7 +64,9 @@ G.module({
     // 4. 灵气转修为
     // 每点修为的灵气 = (速度 − 减少量) ÷ 速度；灵气不够时按比例只修一部分（没灵气就修不了）
     const per = Math.max(0, sp - red) / Math.max(1e-9, sp), gain = per > 0 ? Math.min(sp, Math.floor(s.ling / per)) : sp;
-    if (gain <= 0) {           // 没有灵气，本次修炼不生效
+    if (gain <= 0) {           // 没有灵气，本次修炼不生效：免费修炼室这次不算用过
+      if (freeSpent) s.freeCult.left++;
+      if (freeExhausted) { s.freeCult.left = 1; s.freeCult.on = true; this.log("本次未修炼，免费修炼室次数已返还。", "sys"); }
       if (!s.lackWarned) { this.log("灵气耗尽，无法修炼。请开启聚灵阵或用灵石补充灵气。", "bad"); s.lackWarned = true; }
       return;
     }
@@ -314,7 +317,7 @@ G.module({
         <h3 style="margin-top:10px">丹药</h3>
         ${Object.keys(DATA.pills).map(t => {
           const b = s.buffs[t], on = b && b.left > 0, i = this.bestPillIndex(t);
-          const cnt = s.bag.filter(x => x.t === "pill" && x.type === t && this.canUsePill(x.g)).reduce((a, x) => a + x.n, 0);
+          const cnt = s.bag.filter(x => x && x.t === "pill" && x.type === t && this.canUsePill(x.g)).reduce((a, x) => a + x.n, 0);
           if (!on && !cnt) return "";   // v42：没生效、也没有能吃的就不显示
           return `<div class="line"><div><img src="${DATA.pillIcon(t)}" alt="" style="width:30px;height:30px;float:left;margin-right:6px">${DATA.pills[t].name}<small>${on ? `+${Math.round(b.pct)}%，剩余 ${b.left} 次修炼` : "未生效"} · 可用 ${cnt} 枚</small></div>
           <div><button data-refresh="openBoost" class="sm" onclick="G.manualPill('${t}')" ${i < 0 ? "disabled" : ""}>服用</button>
@@ -356,7 +359,7 @@ G.module({
     bestPillIndex(type) {
       let best = -1;
       this.s.bag.forEach((it, i) => {
-        if (it.t === "pill" && it.type === type && this.canUsePill(it.g) && (best < 0 || it.g > this.s.bag[best].g)) best = i;
+        if (it && it.t === "pill" && it.type === type && this.canUsePill(it.g) && (best < 0 || it.g > this.s.bag[best].g)) best = i;
       });
       return best;
     },

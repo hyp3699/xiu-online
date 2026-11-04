@@ -18,9 +18,9 @@ G.module({
     const s = this.s, B = CFG.body;
     if (!s.bodyAuto || !this.hasTijue() || this.exBlocksCult() || this.bodyMax()) return;
     // 修为没在修炼时，修炼室的次数 / 贡献由肉身修炼来扣（免费最后一次也吃到加速）
-    let freeEnd = false;
+    let freeEnd = false, freeSpent = false;
     if (!this.cultRoomOn()) {
-      if (this.freeCultOn()) { if (--s.freeCult.left <= 0) { s.freeCult.left = 1; freeEnd = true; } }
+      if (this.freeCultOn()) { freeSpent = true; if (--s.freeCult.left <= 0) { s.freeCult.left = 1; freeEnd = true; } }
     }
     const sp = this.bodySpeed().total, rate = Math.max(0.0001, B.LING_RATE || 1), red = this.wdRed("body");   // red：神魂之道减掉的灵气消耗
     // 灵气不够且开了聚灵阵自动补充：用灵石补（和修为修炼一样）
@@ -30,7 +30,10 @@ G.module({
     }
     const per = Math.max(0, sp * rate - red) / Math.max(1e-9, sp), gain = per > 0 ? Math.min(sp, Math.floor(s.ling / per)) : sp;   // 每点肉身修为的灵气，按比例
     if (freeEnd) { s.freeCult.left = 0; s.freeCult.on = false; this.dirty(); this.log(`${CFG.sect.freeRoom.name}次数已用完。`, "sys"); }
-    if (gain <= 0) return;
+    if (gain <= 0) {   // 没有灵气，本次肉身修炼不生效：免费修炼室这次不算用过（与修为修炼一致）
+      if (freeSpent) { if (freeEnd) { s.freeCult.left = 1; s.freeCult.on = true; this.log("本次未修炼，免费修炼室次数已返还。", "sys"); } else s.freeCult.left++; }
+      return;
+    }
     s.ling = Math.max(0, s.ling - gain * per); s.bodyExp += gain;
   },
 
@@ -77,11 +80,11 @@ G.module({
         herbs: herbs.map(name => ({ name, n })) };
     },
     // 按名字数 / 扣药材（凡界药材或 content/items.js 的自定义物品）
-    herbCount(name) { const m = DATA.matByName[name]; if (m) return this.countMat(m.kind, m.g); return this.s.bag.reduce((a, it) => a + (it.t === "cu" && it.name === name ? it.n : 0), 0); },
+    herbCount(name) { const m = DATA.matByName[name]; if (m) return this.countMat(m.kind, m.g); return this.s.bag.reduce((a, it) => a + (it && it.t === "cu" && it.name === name ? it.n : 0), 0); },
     herbTake(name, n) {
       n = Math.floor(+n); if (!(n >= 1)) return;
       const m = DATA.matByName[name]; if (m) return this.takeMat(m.kind, m.g, n);
-      for (let i = this.s.bag.length - 1; i >= 0 && n > 0; i--) { const it = this.s.bag[i]; if (it.t !== "cu" || it.name !== name) continue; const k = Math.min(n, it.n); this.removeAt(i, k); n -= k; }
+      for (let i = this.s.bag.length - 1; i >= 0 && n > 0; i--) { const it = this.s.bag[i]; if (!it || it.t !== "cu" || it.name !== name) continue; const k = Math.min(n, it.n); this.removeAt(i, k); n -= k; }
     },
     bodyBlock() {
       const s = this.s; if (this.bodyMax()) return "已达肉身极境";

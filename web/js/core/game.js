@@ -117,7 +117,7 @@ const G = {
     {   // 炼器仙炉（xqi）删掉：清掉老存档里的图纸、炉子、背包图纸 / 炉子、学习和炼制队列
       const X = o => o && (o.kind === "xqi" || o.k === "xqi");
       for (const f of ["blueprints", "furnaces", "furnaceUse"]) if (s[f]) delete s[f].xqi;
-      if (Array.isArray(s.bag)) s.bag = s.bag.filter(it => !((it.t === "bp" || it.t === "fu") && it.kind === "xqi"));
+      if (Array.isArray(s.bag)) s.bag = s.bag.filter(it => !it || !((it.t === "bp" || it.t === "fu") && it.kind === "xqi"));
       if (s.lq && Array.isArray(s.lq.forge)) s.lq.forge = s.lq.forge.filter(x => !X(x));
       if (X(s.forgeStudy)) s.forgeStudy = null;
       if (Array.isArray(s.forgeQueue)) s.forgeQueue = s.forgeQueue.filter(x => !X(x));
@@ -149,7 +149,7 @@ const G = {
   // 离线补算：离开多久就补多久，不封顶
   offline() { /* 离线结算由服务器根据其时钟完成。 */ },
   // 背包里每种物品的数量（按名字），用来算离线新增
-  bagCount() { const m = {}; for (const it of this.s.bag) { const k = this.itemName(it); m[k] = (m[k] || 0) + (it.n || 1); } return m; },
+  bagCount() { const m = {}; for (const it of this.s.bag) { if (!it) continue; const k = this.itemName(it); m[k] = (m[k] || 0) + (it.n || 1); } return m; },
   // 离线收益明细：写进信息栏 + 弹窗
   offlineReport(sec, b, o) {
     const s = this.s, f = U.fmt, sign = v => (v >= 0 ? "+" : "-") + f(Math.abs(v)), rows = [];
@@ -277,6 +277,7 @@ const G = {
     $("#p-stone").textContent = U.fmt(s.stone);
     $("#p-contrib").textContent = U.fmt(s.contrib || 0);   // v27：贡献、功德
     $("#p-merit").textContent = U.fmt(s.merit || 0);
+    { const mb = $("#p-mailbox"); if (mb) { let n = 0; try { n = this.mailboxCount ? this.mailboxCount() : 0; } catch {} mb.textContent = n ? `(${n})` : ""; } }
     document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === this.tab));
     // 顶部（道号、灵石、贡献、功德）和信息栏只在修炼页显示
     const main = this.tab === "cultivate";

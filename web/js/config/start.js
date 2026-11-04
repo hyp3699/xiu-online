@@ -54,7 +54,7 @@ CFG.origin = {
     { id: "dongfu",   name: "古修洞府", desc: "误入残破洞府。灵气 +5000000，送 1 星真经 1 本。", ling: 5000000, gf: ["zhenjue"] },
     { id: "liehu",    name: "猎户之后", desc: "山中长大，筋骨强健。肉身修炼气血 +10%，开局肉身多 5 层。", bodyPct: 10, bodyL: 5 },
     { id: "dantong",  name: "丹童出身", desc: "自幼在丹房烧火。炼丹成功率 永久 +8%，送 1 星丹炉 1 座。", danRate: 8, furnace: [["dan", 0]] },
-    { id: "qifang",   name: "器坊学徒", desc: "自幼在器坊拉风箱。炼器成功率 永久 +9%，送 1 星炼器炉 1 座。", qiRate: 8, furnace: [["qi", 0]] },
+    { id: "qifang",   name: "器坊学徒", desc: "自幼在器坊拉风箱。炼器成功率 永久 +8%，送 1 星炼器炉 1 座。", qiRate: 8, furnace: [["qi", 0]] },
     { id: "youfang",  name: "游方散修", desc: "随师父走遍凡界。探索每步时间 永久 -0.5 秒。", explore: 0.5 },
     { id: "mijing",   name: "秘境遗民", desc: "生于秘境边缘。秘境掉落 永久 +30%。", mjDrop: 30 },
     { id: "simiao",   name: "寺庙寄养", desc: "在古寺长大，心性平和。渡劫失败不掉修为。", noTribLoss: 1 },

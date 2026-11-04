@@ -447,6 +447,7 @@ G.module({
         const i = s[k], R = (k === "room" ? DATA.rooms : DATA.gfRooms)[i];
         if (!(i >= 0) || !R || !s.sect) { s[k + "At"] = 0; continue; }
         if (k === "room" && this.freeCultOn()) { s.roomAt = now + T; continue; }   // 免费修炼室使用中：付费修炼室不扣
+        if (k === "gfRoom" && this.freeGfOn()) { s.gfRoomAt = now + T; continue; }   // 免费练功房使用中：付费练功房不扣（与修炼室对称）
         if (!s[k + "At"]) { s[k + "At"] = now + T; continue; }   // 旧存档：从现在起算
         if (now < s[k + "At"]) continue;
         const c = k === "room" ? this.roomCost(i) : this.gfRoomCost(i), n = Math.floor((now - s[k + "At"]) / T) + 1, can = c > 0 ? Math.min(n, Math.floor(s.contrib / c)) : n;
@@ -467,6 +468,7 @@ G.module({
     },
     enterGfRoom(i) {
       const s = this.s;
+      if (this.freeGfOn()) return this.log(`正在使用${CFG.sect.freeGfRoom.name}，免费期结束后再进付费练功房，以免重叠扣费。`, "sys");
       if (s.gfRoom !== i && this.gfRoomLocked(i)) return this.log(`需要职务【${DATA.ranks[DATA.gfRooms[i].rank].name}】。`, "sys");
       if (s.gfRoom === i) { s.gfRoom = -1; s.gfRoomAt = 0; return this.after(); }
       if (!s.sect) return;
@@ -502,6 +504,7 @@ G.module({
     },
     exchange(i) {
       const it = this.treasuryList()[i], c = this.treasuryCost(it);
+      if (it && it.kind === "lu") return this.openLuSwap(i);   // 养神露走 luSwap
       if (!it || !this.sectInfo() || this.s.contrib < c || (it.star || 1) > this.sectInfo().star) return;
       if (it.kind === "chuqiao") {
         const C = CFG.chuqiao;
@@ -524,6 +527,36 @@ G.module({
       else this.s.stone += Math.floor(it.n * this.starMul());
       this.s.contrib -= c;
       this.log("兑换成功。", "good"); this.after();
+    },
+    // 养神露兑换（ITEMS.treasury 的 kind "lu"）：n 个同一种药材或矿石换 get 个，每天一次（北京时间换日）
+    luDone() { return this.s.luDay === this.bjDay(); },
+    luFroms(it) { const r = [];   // 背包里有的药材、矿石 [{ kind, g, c }]
+      for (const kind of ["herb", "ore"]) (kind === "herb" ? DATA.herbs : DATA.ores).forEach((n, g) => { const c = this.countMat(kind, g); if (c > 0) r.push({ kind, g, c }); });
+      return r; },
+    luSwap(i, kind, g) {
+      const it = this.treasuryList()[i], x = this.sectInfo(); g = +g;
+      if (!it || it.kind !== "lu" || !x || (it.star || 1) > x.star || !["herb", "ore"].includes(kind) || !DATA.matName(kind, g)) return;
+      if (this.luDone()) return this.log("今天已经换过养神露了。", "sys");
+      if (this.countMat(kind, g) < it.n) return this.log(`${DATA.matName(kind, g)}不足，需要 ${U.fmt(it.n)} 个。`, "sys");
+      this.takeMat(kind, g, it.n);
+      if (!this.addSm("lu", it.get)) { this.addMat(kind, DATA.matName(kind, g), g, it.n); return; }
+      this.s.luDay = this.bjDay();
+      this.log(`${DATA.matName(kind, g)} ×${U.fmt(it.n)} 换得${DATA.smName("lu")} ×${it.get}。`, "good"); this.after();
+    },
+    // 选材料窗口：选择存在 G.lsw，不走服务器
+    openLuSwap(i) {
+      const it = this.treasuryList()[i]; if (!it || it.kind !== "lu") return;
+      const L = this.luFroms(it), w = this.lsw = this.lsw || { kind: "", g: -1 };
+      if (!L.some(m => m.kind === w.kind && m.g === w.g && m.c >= it.n)) { const f = L.find(m => m.c >= it.n); w.kind = f ? f.kind : ""; w.g = f ? f.g : -1; }
+      const cells = kind => L.filter(m => m.kind === kind).map(({ g, c }) => { const ok = c >= it.n, sel = w.kind === kind && w.g === g;
+        return `<div class="cell q${Math.min(5, Math.floor(g / 2))}${sel ? " sel" : ""}${ok ? "" : " off"}" ${ok ? `onclick="G.lsw={kind:'${kind}',g:${g}};G.openLuSwap(${i})"` : ""}><img class="mi" src="${DATA.matImg(kind, g)}" alt="">${DATA.matName(kind, g)}<small>${U.fmt(c)}</small></div>`; }).join("");
+      const done = this.luDone(), hc = cells("herb"), oc = cells("ore");
+      this.modal(`<h2>兑换${DATA.smName("lu")}</h2>
+        <p class="desc">${U.fmt(it.n)} 个同一种${DATA.matKinds.herb}或${DATA.matKinds.ore}换 ${it.get} 个${DATA.smName("lu")}，每天一次。点选要拿出的材料</p>
+        ${hc ? `<h3>${DATA.matKinds.herb}</h3><div class="grid">${hc}</div>` : ""}${oc ? `<h3>${DATA.matKinds.ore}</h3><div class="grid">${oc}</div>` : ""}
+        ${hc || oc ? "" : `<p class="desc">背包里没有${DATA.matKinds.herb}或${DATA.matKinds.ore}。</p>`}
+        <div class="line"><div>${w.g >= 0 ? `消耗 ${DATA.matName(w.kind, w.g)} ×${U.fmt(it.n)}` : `没有足够 ${U.fmt(it.n)} 个的材料`}<small>已有${DATA.smName("lu")} ${U.fmt(this.smCount("lu"))}</small></div></div>
+        <div class="btns"><button class="primary" onclick="G.luSwap(${i},G.lsw.kind,G.lsw.g)" ${done || w.g < 0 ? "disabled" : ""}>${done ? "今日已换" : "兑换"}</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
     setTreasuryTab(t) { this.treasuryTab = t; this.render(); },
     treasuryMaxG() { return this.sectInfo().star - 1; }, // 可兑换的最高 品/阶 序号
@@ -602,7 +635,7 @@ G.module({
     exchangeBlueprint(kind, g) {
       const c = DATA.blueprintCost(kind, g), bp = this.s.blueprints[kind];
       if (DATA.blueprintStar(kind, g) > this.sectInfo().star || bp.includes(g) || this.s.contrib < c) return;
-      if (this.s.bag.some(it => it.t === "bp" && it.kind === kind && it.g === g)) return this.log("背包里已有这张图纸。", "sys");
+      if (this.s.bag.some(it => it && it.t === "bp" && it.kind === kind && it.g === g)) return this.log("背包里已有这张图纸。", "sys");
       if (!this.addBlueprintItem(kind, g)) return;
       this.s.contrib -= c;
       this.log(`获得${DATA.furnaceName(kind, g)}图纸，已放进背包（点击「学习」）。`, "gold"); this.after();
@@ -639,13 +672,13 @@ G.module({
       out.push(`其余每 ${T.EVERY || 10} 层奖励${DATA.HX} / 耀石 / 功德随机一种`);
       return "本塔" + out.join("，") + "。";
     },
-    towerHasBook(id) { return !!(this.s.gongfa[id] || this.lqHas("gf", id) || this.s.bag.some(x => x.t === "gfb" && x.id === id)); },
+    towerHasBook(id) { return !!(this.s.gongfa[id] || this.lqHas("gf", id) || this.s.bag.some(x => x && x.t === "gfb" && x.id === id)); },
     towerBonusText(b) { return !b ? "" : b.kind === "ring" ? DATA.ringName(b.r, 0) : b.kind === "rbp" ? DATA.ringBpName(b.g, b.r)
       : b.kind === "mijue" ? `《${DATA.gongfaInfo(b.id, 1).name}》` : `${DATA.HX} / 耀石 / 功德 随机一种`; },
     // 试炼塔秘诀：每次给下一本，放进背包（在背包里学习，占用神识；之后在「功法」页修炼升层）；给完后 火髓 / 耀石 / 功德 随机一种（config/sect.js 的 trial.EXTRA）
     giveTowerMijue(star, id) {   // v223 id = 这一层的秘诀（已有或没写 = 改给 火髓 / 耀石 / 功德）
       const s = this.s; if (id && this.towerHasBook(id)) id = null;
-      if (id) { const nm = `《${DATA.gongfaInfo(id, 1).name}》`; if (this.bagFull()) return `${nm}（背包已满，未能放入）`; s.bag.push({ t: "gfb", id, n: 1 }); this.dirty(); return `${nm}（已放入背包）`; }
+      if (id) { const nm = `《${DATA.gongfaInfo(id, 1).name}》`; const where = this.bagPutOrMail({ t: "gfb", id, n: 1 }); this.dirty(); return `${nm}（已放入${where === "mail" ? "传音暂存" : "背包"}）`; }
       const X = CFG.sect.trial.EXTRA || {}, kinds = ["fire", "ys", "merit"].filter(k => X[k]), k = kinds[U.rand(0, kinds.length - 1)];
       if (!k) return "";
       const r = X[k][star - 1] || X[k][X[k].length - 1], n = U.rand(r[0], r[1]);
@@ -683,9 +716,8 @@ G.module({
       const b = this.towerBonus(star, f);
       if (b && b.kind === "ring") { const e = DATA.rollForged("ring", 0, b.r); if (this.addEquip(e)) out.push(`<span class="q${e.q}">${DATA.ringName(b.r, 0)}</span>`); }
       else if (b && b.kind === "rbp") {
-        if (this.ringKnown(b.r, b.g) || s.bag.some(x => x.t === "rbp" && x.g === b.g && x.r === b.r)) out.push(this.giveTowerMijue(star));   // 已有这张图纸 → 改给秘诀
-        else if (this.bagFull()) out.push(this.giveTowerMijue(star));
-        else { s.bag.push({ t: "rbp", r: b.r, g: b.g }); out.push(DATA.ringBpName(b.g, b.r)); }
+        if (this.ringKnown(b.r, b.g) || s.bag.some(x => x && x.t === "rbp" && x.g === b.g && x.r === b.r)) out.push(this.giveTowerMijue(star));   // 已有这张图纸 → 改给秘诀
+        else { const where = this.bagPutOrMail({ t: "rbp", r: b.r, g: b.g }); out.push(DATA.ringBpName(b.g, b.r) + (where === "mail" ? "（传音暂存）" : "")); }
       }
       else if (b) out.push(this.giveTowerMijue(star, b.kind === "mijue" ? b.id : null));
       return out.join("，");
@@ -938,6 +970,11 @@ G.module({
               ${has ? `<button class="sm" disabled>已学会</button>` : me ? `<button class="sm pg" disabled>${this.pgFill(left, ms)}<span>学习中 ${U.cd(left / 1000)}</span></button>`
                 : `<button class="sm" onclick="G.exchange(${i})" ${L || s.contrib < c ? "disabled" : ""}>${L ? "学习中" : "学习"}</button>`}</div>`];
           }
+          if (it.kind === "lu") {
+            const lock = (it.star || 1) > x.star, done = this.luDone();
+            return [0, `<div class="line"><div>${DATA.li(DATA.smIcon("lu"))}${DATA.smName("lu")} ×${it.get}<small>${U.fmt(it.n)} 个同一种${DATA.matKinds.herb}或${DATA.matKinds.ore} · 每天一次</small></div>
+              <button class="sm" onclick="G.openLuSwap(${i})" ${lock || done ? "disabled" : ""}>${lock ? `${it.star}星宗门可兑换` : done ? "今日已换" : "兑换"}</button></div>`];
+          }
           const c = this.treasuryCost(it), lock = (it.star || 1) > x.star;
           const desc = it.kind === "furnace" ? `${it.fk === "dan" ? "炼丹" : "炼器"}速度 +${DATA.furnaceBonus(it.fk, it.g)}% · `
             : "";
@@ -952,7 +989,7 @@ G.module({
       } else if (tt === "bp") {
         h += this.ringShopHtml();   // 灵犀戒图纸、灵犀晶（6 星以上宗门）
         h += U.doneCards(DATA.FURNACE_KINDS.map(k => ({ head: `<h3>${DATA.furnaces[k].name}图纸<small>放进背包后点「学习」</small></h3>`, rows: DATA.JIE.slice(0, DATA.DAN_JIE_N).map((jn, g) => g).filter(g => DATA.blueprintStar(k, g) <= x.star).map(g => {   // 只显示本宗门星级能兑换的
-          const c = DATA.blueprintCost(k, g), has = s.blueprints[k].includes(g) || s.bag.some(it => it.t === "bp" && it.kind === k && it.g === g), need = DATA.blueprintStar(k, g), lock = need > x.star;
+          const c = DATA.blueprintCost(k, g), has = s.blueprints[k].includes(g) || s.bag.some(it => it && it.t === "bp" && it.kind === k && it.g === g), need = DATA.blueprintStar(k, g), lock = need > x.star;
           return [s.blueprints[k].includes(g), `<div class="line"><div>${DATA.li(DATA.iconImg("bp"))}${DATA.furnaceName(k, g)}图纸<small>${U.fmt(c)} 贡献</small></div>
             <button class="sm" onclick="G.exchangeBlueprint('${k}',${g})" ${has || lock || s.contrib < c ? "disabled" : ""}>${has ? (s.blueprints[k].includes(g) ? "已学会" : "在背包") : lock ? `${need}星宗门可兑换` : "兑换"}</button></div>`]; }) })));
       } else {

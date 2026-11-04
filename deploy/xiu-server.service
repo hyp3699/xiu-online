@@ -2,6 +2,8 @@
 Description=Xiu Online authoritative game server (test instance)
 After=network.target
 Wants=network.target
+# 不管崩溃几次都一直重启（默认 10 秒内 5 次失败就放弃）
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -14,7 +16,8 @@ Environment=XIU_PORT=18301
 Environment=XIU_DATA_DIR=/var/lib/xiu-online
 Environment=MALLOC_ARENA_MAX=2
 ExecStart=/usr/bin/node /opt/xiu-online/server/server.mjs
-Restart=on-failure
+# 意外退出（崩溃、被杀、内存不足）都自动重启；systemctl stop 不会重启
+Restart=always
 RestartSec=3
 TimeoutStopSec=15
 NoNewPrivileges=true

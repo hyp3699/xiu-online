@@ -32,6 +32,7 @@ G.module({
     const R = this.regen(false);   // 平时恢复：每 10 秒 % 上限
     if (s.hp < st.hp) s.hp = Math.min(st.hp, s.hp + st.hp * R.hp / 100);
     if (s.mana < st.mana) s.mana = Math.min(st.mana, s.mana + st.mana * R.mana / 100);
+    if (Array.isArray(s.mailbox) && s.mailbox.length && this.mailboxPrune) this.mailboxPrune();   // 传音暂存 10 天到期清理
   },
 
   api: {

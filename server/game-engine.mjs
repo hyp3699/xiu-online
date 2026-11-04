@@ -170,7 +170,31 @@ export class GameEngine {
     this.G.closeModal = function () {};
     this.G.setSync = function () {};
     this.G.offlineReport = function () {};
+    // 多名玩家共用一个引擎（server.mjs 引擎池）：记下刚建好时 G 上的全部字段，
+    // 换人时把上一位玩家留在 G 上的界面 / 临时字段（bagFilter、forgeMode……）收起来，恢复成初始，再放回下一位自己的
+    this._base = new Map(Object.keys(this.G).map(k => [k, this.G[k]]));
+    this._owner = null;
+    this._sides = new Map();
   }
+
+  // 切换到某位玩家（key 一般是用户 id）；同一位玩家连续调用不做任何事
+  use(key) {
+    if (key === this._owner) return this;
+    const G = this.G, base = this._base;
+    if (this._owner !== null) {
+      const side = {};
+      for (const k of Object.keys(G)) if (k !== "s" && (!base.has(k) || G[k] !== base.get(k))) side[k] = G[k];
+      this._sides.set(this._owner, side);
+    }
+    for (const k of Object.keys(G)) if (!base.has(k)) delete G[k];
+    for (const [k, v] of base) if (G[k] !== v) G[k] = v;
+    const mine = this._sides.get(key);
+    if (mine) Object.assign(G, mine);
+    this._owner = key;
+    return this;
+  }
+  // 玩家下线久了：丢掉他留在引擎里的界面字段
+  drop(key) { this._sides.delete(key); if (key === this._owner) { this.use(Symbol("none")); } }
 
   seedRandom() {
     let state = crypto.randomBytes(4).readUInt32LE(0) || 0x9e3779b9;
@@ -293,8 +317,8 @@ export class GameEngine {
     if (action.startsWith("_") || ["init", "start", "loop", "runTicks", "offline", "tickAll", "migrate", "newSave"].includes(action)) throw new Error("不允许调用该操作");
     this.seedRandom();
     this.G._simNow = this.clock.now;
-    // 客户端显示储物格前会排序，按格子序号点的操作要用同样顺序（否则点「使用」会对到别的物品，没反应）
-    if (typeof this.G.sortBag === "function" && Array.isArray(this.G.s.bag)) this.G.sortBag();
+    // 背包是固定格子，客户端不再自动排序：服务端这里也不能在操作前排序，
+    // 否则客户端按格子序号点的操作会对到排序后的另一件物品；只有点「整理」时才排序。
     this.battles = [];
     const result = method.apply(this.G, args);
     if (result && typeof result.then === "function") throw new Error("异步 UI 方法不能作为游戏操作调用");

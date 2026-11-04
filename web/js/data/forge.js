@@ -133,7 +133,7 @@ DATA.eqPct = a => { const R = _FG.attr.PCT, r = R[a.c] || R[R.length - 1]; retur
 DATA.attrBase = (a, g, e) => {
   const A = _FG.attr, fb = e && e.slot === "fabao" && e.attrs;
   const rm = e && e.slot === "ring" ? (_FG.ring.MULT || 1) * (a.m ? 1 + DATA.ringBonus(e.r) / 100 : 1) : 1;   // 戒指倍率；灵犀 / 烈阳 / 玄武主属性另加 %
-  if (!fb && DATA.eqPctOK(a)) return (DATA.eqRef(g)[a.k] || 0) * (DATA.eqPct(a) + (a.m && e ? 0.5 * DATA.rjCount(e) : 0)) / 100 * rm;   // 精炼只加主属性（暴击走下面，不吃精炼）
+  if (!fb && DATA.eqPctOK(a)) return (DATA.eqRef(g)[a.k] || 0) * (DATA.eqPct(a) + (a.m === 1 && e ? 0.5 * DATA.rjCount(e) : 0)) / 100 * rm;   // 精炼只加主属性（暴击走下面，不吃精炼）
   // 附加暴击单独设置了「每阶金色最高值」（AFFIX_TOP，装备 / 戒指）
   const TOP = !a.m && !fb && A.AFFIX_TOP;
   if (TOP && TOP[a.k] && TOP[a.k][g] !== undefined) {
@@ -142,13 +142,13 @@ DATA.attrBase = (a, g, e) => {
   }
   if (fb) {   // v108 法宝：比例 %（按颜色随机）；FB_REF_OF 里的 = 参考属性 × %，盾 = 参考生命 / 防御 × SHIELD_MULT × %；鼎 = 回合数
     if (a.k === "sDing") return (_FG.fabao.DING_ROUNDS || [])[a.c] || 1;
-    const v = DATA.fbPct(a) + (a.m && a.k !== "crit" ? DATA.fbRj(a.k, e) : 0), ref = DATA.fbRef(g);   // 精炼只加主属性，附加属性和暴击不加
+    const v = DATA.fbPct(a) + (a.m === 1 && a.k !== "crit" ? DATA.fbRj(a.k, e) : 0), ref = DATA.fbRef(g);   // 精炼只加主属性（m=1），专属属性（m=2，含锤的暴击/暴击伤害）和附加属性不加；原来用 a.m 真值，专属属性也吃到了精炼
     // v165 盾（方案 A，同攻击法宝）：基数 = 自己修为 + 肉身（不超过参考值）+ 功法
     // v167 盾主属性：法宝对应境界（参考）生命 / 防御 × SHIELD_MULT（3.8）× %
     const SM = _FG.fabao.SHIELD_MULT || 1;
     if (a.k === "shHpMain") return ref.hp * SM * v / 100;
     if (a.k === "shDef") return ref.def * SM * v / 100;
-    if (a.k === "shHp") { let m = 0; for (const b of e.attrs) if (b.k === "shHpMain") m += ref.hp * SM * (DATA.fbPct(b) + (b.m && b.k !== "crit" ? DATA.fbRj(b.k, e) : 0)) / 100; return m * v / 100; }   // v170 附加护盾值 = 盾主属性护盾值 × %（不算强化）
+    if (a.k === "shHp") { let m = 0; for (const b of e.attrs) if (b.k === "shHpMain") m += ref.hp * SM * (DATA.fbPct(b) + (b.m === 1 && b.k !== "crit" ? DATA.fbRj(b.k, e) : 0)) / 100; return m * v / 100; }   // v170 附加护盾值 = 盾主属性护盾值 × %（不算强化）
     return DATA.FB_REF_OF[a.k] ? ref[DATA.FB_REF_OF[a.k]] * v / 100 : v;
   }
   // 主属性暴击%：base.crit × 阶数 × 颜色范围倍率（附加暴击都在上面 AFFIX_TOP）
@@ -266,7 +266,9 @@ DATA.fbRef = g => DATA._fbRef[g] || (DATA._fbRef[g] = (() => { const r = (_FG.fa
 // 法宝战斗数值（atk 已含剑 / 刀的专属攻击；hit、critAdd = 刀 / 锤攻击时额外命中、暴击%）：{ el, atk, pct, mana, ign, cutPct, extra: [{ el, pct }], crit（锤暴击伤害%）, shield, ding, yin }
 DATA.fabaoInfo = (e, own) => {
   const F = _FG.fabao, T = DATA.fabaoTypes[e.ft] || {}, ref = DATA.fbRef(e.g);
-  const o = { name: DATA.fabaoName(e.ft, e.g, e.name), el: e.el, ft: e.ft, atk: DATA.capAtk(ref.atk, own), pct: 0, ign: 0, cutPct: 0, extra: [] };
+  const ownO = own || DATA.ownAtk();
+  // 本命：伤害%已固定为 bmPct，攻击也不吃原法宝星级的参考上限（否则 5 星材料做的本命比 10 星的弱）；攻击 = 人物修为+肉身+其余攻击（不封顶）
+  const o = { name: DATA.fabaoName(e.ft, e.g, e.name), el: e.el, ft: e.ft, atk: e.bm ? ownO.br + ownO.gf : DATA.capAtk(ref.atk, ownO), pct: 0, ign: 0, cutPct: 0, extra: [] };
   let shHp = 0, shDef = 0, red = 0, ding = 0, yin = 0, yinC = 0;
   o.uses = F.USES === undefined ? 1 : F.USES;   // 每场战斗最多祭出几次
   if (T.shield) shHp += DATA.fbEnh(e); else o.addDmg = DATA.fbEnh(e);   // 强化：护盾值 / 附加伤害
@@ -287,7 +289,7 @@ DATA.fabaoInfo = (e, own) => {
   const CAP = F.CAP || {}, at = (arr, d) => { const x = (arr || [])[e.g]; return x === undefined ? d : x; };
   o.pct *= (e.bm || T.mul === undefined ? 1 : T.mul) * (F.DMG_MUL === undefined ? 1 : F.DMG_MUL);   // 形状倍率、DMG_MUL（不显示）
   if (T.shield) o.shield = { def: shDef, hp: shHp, red: Math.min(CAP.dmgRed === undefined ? 100 : CAP.dmgRed, red) };   // 盾
-  if (T.ding) { const D = F.DING || {}; o.ding = { speed: at(D.SPEED, 0), hit: at(D.HIT, 0), dodge: at(D.DODGE, 0), rounds: ding || 1 }; }   // 鼎
+  if (T.ding && !e.bm) { const D = F.DING || {}; o.ding = { speed: at(D.SPEED, 0), hit: at(D.HIT, 0), dodge: at(D.DODGE, 0), rounds: ding || 1 }; }   // 鼎（本命没有专属属性，不带鼎减益；印形本就因专属被清掉而不触发，鼎不能例外）
   if (T.yin) o.yin = { chance: yin, rounds: (F.YIN_ROUNDS || [])[yinC] || 1 };   // 印
   o.cutPct = Math.min(CAP.manaCut === undefined ? 80 : CAP.manaCut, o.cutPct);
   o.ign = ref.res * Math.min(CAP.ignRes === undefined ? 100 : CAP.ignRes, o.ign) / 100;   // 无视抗性 = 参考抗性 × %
@@ -296,8 +298,13 @@ DATA.fabaoInfo = (e, own) => {
   const rv = a => { if (!a) return 1; const x = Array.isArray(a) ? a[R] : a[DATA.realms[R]]; return x === undefined ? 1 : x; };   // 按境界名取倍率
   o.pct *= rv(F.DMG_REALM);
   // 法力 = 该阶对应境界的修为突破法力 × MANA_PCT[主属性颜色]%；颜色只看第一条主属性
+  // 本命例外：耗法力不吃原法宝星级（参考法力）和颜色，改用人物当前境界的修为突破法力 × 本命固定 MANA_PCT%
   const main = e.attrs.find(a => a.m === 1) || {};
-  o.mana = Math.max(0, ref.manaBr * (((F.MANA_PCT || [])[main.c || 0] || 0) + DATA.fbRj("mana", e)) / 100 * (1 - o.cutPct / 100) * DATA.manaRealmK(R * DATA.LAYERS));   // × 法力境界倍率（config/mobs.js magic.MANA_REALM，按人物当前大境界，与怪物共用；灵根不再影响法力）
+  const bmManaBr = (typeof G !== "undefined" && G.s) ? DATA.realmStat(G.s.mortal ? -1 : G.s.L, "mana") : ref.manaBr;
+  const bmManaPct = (CFG.forge.benming || {}).MANA_PCT;
+  o.mana = e.bm
+    ? Math.max(0, bmManaBr * (bmManaPct === undefined ? 20 : bmManaPct) / 100 * (1 - o.cutPct / 100) * DATA.manaRealmK(R * DATA.LAYERS))
+    : Math.max(0, ref.manaBr * (((F.MANA_PCT || [])[main.c || 0] || 0) + DATA.fbRj("mana", e)) / 100 * (1 - o.cutPct / 100) * DATA.manaRealmK(R * DATA.LAYERS));   // × 法力境界倍率（config/mobs.js magic.MANA_REALM，按人物当前大境界，与怪物共用；灵根不再影响法力）
   return o;
 };
 

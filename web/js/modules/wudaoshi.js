@@ -91,7 +91,7 @@ G.module({
     wdCheck(dao) {
       const s = this.s, D0 = _WR.daos.find(d => d.id === dao); if (!D0) return null;
       if (!D0.open) return this.log(`${D0.name}暂未开放。`, "sys"), null;
-      if (this.wdLeft(dao) <= 0) return this.log(`${D0.name}今天已经悟过了，明天再来。`, "sys"), null;
+      if (this.wdLeft(dao) <= 0) return this.log(`${D0.name}今天已经悟过了。`, "sys"), null;
       const need = DATA.wdStageFruit(DATA.wdStage(((s.wd || {}).n || {})[dao] || 0, dao).k, dao);
       if (this.smCount("wdg") < need) return this.log(`${DATA.smName("wdg")}不足，需要 ${need} 个。`, "sys"), null;
       return { D0, need };
@@ -116,8 +116,7 @@ G.module({
       const j = t / interval - 1;
       if (t % interval === 0 && j < DATA.wdBooksCount(st.k)) {
         const id = DATA.wdBookId(st.k, j), nm = `《${DATA.gongfaInfo(id, 1).name}》`;
-        if (this.bagFull()) book = `悟得${nm}（背包已满，未能放入）`;
-        else { s.bag.push({ t: "gfb", id, n: 1 }); book = `悟得${nm}（已放入背包）`; }
+        { const where = this.bagPutOrMail({ t: "gfb", id, n: 1 }); book = `悟得${nm}（已放入${where === "mail" ? "传音暂存" : "背包"}）`; }
         msg += "，" + book;
       }
       this._wdFx = Date.now();
@@ -160,8 +159,7 @@ G.module({
       if (t % interval === 0) {
         const j = t / interval - 1;
         const id = `wz${k}_${j}:${DATA.wzSrc(`wz${k}_${j}`).type}`, nm = `《${DATA.gongfaInfo(id, 1).name}》`;
-        if (this.bagFull()) book = `悟得${nm}（背包已满，未能放入）`;
-        else { s.bag.push({ t: "gfb", id, n: 1 }); book = `悟得${nm}（已放入背包）`; }
+        { const where = this.bagPutOrMail({ t: "gfb", id, n: 1 }); book = `悟得${nm}（已放入${where === "mail" ? "传音暂存" : "背包"}）`; }
         msg.push(book);
       }
       this._wdFx = Date.now();

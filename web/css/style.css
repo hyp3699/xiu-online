@@ -884,6 +884,9 @@ button.sm.pill{padding:4px 12px}
 .top-btns{gap:10px;align-items:center}
 .top-ic{font-size:11px;line-height:1.15;margin:-5px 0}
 .top-ic i{width:30px;height:30px;font-size:15px}
+/* 传音不用 ✉ 字符了：字符字形的基线会让信封沉到圆圈下半部分。改用 SVG 信封，flex 居中后正好在圆圈正中，大小和右边两个图标一样满 */
+.top-ic.mail i{font-size:0;line-height:1}
+.top-ic.mail i svg{width:20px;height:20px;display:block}
 /* 经脉（modules/jingmai.js） */
 #view:has(.jm-card){display:flex;flex-direction:column;overflow:hidden;padding:0}
 .jm-card{flex:1 1 0;min-height:0;display:flex;flex-direction:column;box-sizing:border-box;padding:0;margin:0;background:none;border:0;box-shadow:none}

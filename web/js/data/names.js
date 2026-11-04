@@ -102,6 +102,8 @@ CFG.names = CFG.names || {};
   DATA.nmMigrate = s => {
     if (!s) return s;
     const cur = DATA.nmSnap(), old = Object.assign({}, D, s._nm || {});
+    // 名字没变（绝大多数读档）：不遍历整个存档（服务器每次结算都会读档，遍历很耗 CPU）
+    if (s._nm && ["herb", "ore", "forge", "ring", "fabao"].every(k => JSON.stringify(old[k]) === JSON.stringify(cur[k]))) { s._nm = cur; return s; }
     const diff = (o, c) => { const m = {}; (o || []).forEach((x, i) => { if (ok(x) && ok(c[i]) && x !== c[i]) m[x] = c[i]; }); return m; };
     const mat = { herb: diff(old.herb, cur.herb), ore: diff(old.ore, cur.ore) };
     const anyMat = Object.keys(mat.herb).length || Object.keys(mat.ore).length;

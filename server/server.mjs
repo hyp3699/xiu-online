@@ -69,17 +69,43 @@ function readUpdateLog() {
   try { return fs.readFileSync(UPDATE_LOG, "utf8").slice(-4000); } catch { return ""; }
 }
 
+// 引擎池：所有玩家共用引擎，按「管理员 / 调试人物」分最多 4 个，建好后一直保留（不管离线多久都不用重建）。
+//   每位玩家拿到的是绑定了自己 id 的句柄，调用前先 use(id) 把引擎切到自己（服务器单线程，同一时刻只算一个人）。
+const enginePool = new Map();
+function poolEngine(admin, debug) {
+  const key = (admin ? "a" : "") + (debug ? "d" : "");
+  let e = enginePool.get(key);
+  if (!e) { e = new GameEngine(); e.setAdmin(admin); e.setDebug(debug); enginePool.set(key, e); }   // 测试模式：管理员 + rates.TEST，或调试人物
+  return e;
+}
+function engineHandle(userId, E) {
+  return {
+    pool: E,
+    get G() { E.use(userId); return E.G; },
+    get DATA() { E.use(userId); return E.DATA; },
+    get CFG() { return E.CFG; },
+    get logs() { return E.logs; },
+    advance: (s, now) => E.use(userId).advance(s, now),
+    act: (s, action, args, now) => E.use(userId).act(s, action, args, now),
+    createState: (...a) => E.use(userId).createState(...a),
+    bindState: (s, now) => E.use(userId).bindState(s, now),
+    drop: () => E.drop(userId),
+  };
+}
 function getEngine(userId) {
   let entry = engines.get(userId);
-  if (!entry) { entry = { engine: new GameEngine(), lastUsed: Date.now() }; engines.set(userId, entry);
-    try { const u = q.byId.get(userId) || {}; entry.engine.setAdmin(!!u.is_admin); entry.engine.setDebug(!!u.debug); } catch (err) { console.error("setAdmin failed", err); } }   // 测试模式：管理员 + rates.TEST，或调试人物
+  if (!entry) {
+    let u = {}; try { u = q.byId.get(userId) || {}; } catch (err) { console.error("load user flags failed", err); }
+    entry = { engine: engineHandle(userId, poolEngine(!!u.is_admin, !!u.debug)), lastUsed: Date.now() }; engines.set(userId, entry);
+  }
   entry.lastUsed = Date.now();
   return entry.engine;
 }
+function dropEngine(userId) { const e = engines.get(userId); if (e) { try { e.engine.drop(); } catch {} engines.delete(userId); } }
 
 // 参数改动后：在线玩家立即换成用新参数加载的游戏引擎，并通知网页重新加载参数
 function applyNewConfig() {
-  engines.clear();
+  engines.clear(); enginePool.clear();
   for (const [userId, client] of clients) {
     try { client.engine = getEngine(userId); } catch (err) { console.error("reload engine failed", err); }
     send(client.socket, { type: "config" });
@@ -130,10 +156,12 @@ const histSave = db.transaction((userId, list) => {
 function drainHist(userId, state) {
   if (!state || typeof state !== "object") return;
   const list = [];
-  if (Array.isArray(state.exHist)) { list.push(...state.exHist.slice().reverse()); delete state.exHist; }   // 旧存档里的最近 10 次探索
-  if (Array.isArray(state.histQ)) { list.push(...state.histQ); delete state.histQ; }
+  if (Array.isArray(state.exHist)) list.push(...state.exHist.slice().reverse());   // 旧存档里的最近 10 次探索
+  if (Array.isArray(state.histQ)) list.push(...state.histQ);
   if (!list.length || !userId) return;
-  try { histSave(userId, list.filter(r => r && typeof r === "object")); } catch (err) { console.error("hist save failed:", err?.message || err); }
+  try { histSave(userId, list.filter(r => r && typeof r === "object")); } catch (err) { console.error("hist save failed:", err?.message || err); return; }
+  // 只有落盘成功才删：原来先删后存，写失败时这批历史既不在状态里也不在 hist 表里
+  delete state.exHist; delete state.histQ;
 }
 function persist(userId, state) {
   drainHist(userId, state);
@@ -299,7 +327,7 @@ const server = http.createServer(async (req, res) => {
       db.prepare("DELETE FROM hist WHERE user_id=?").run(user.id);
       const online = clients.get(user.id);
       if (online) { clients.delete(user.id); online.socket.close(4004, "角色已重置"); }
-      engines.delete(user.id);
+      dropEngine(user.id);
       return sendJson(res, 200, { ok: true });
     }
     if (req.method === "POST" && route === "/api/ws-ticket") {
@@ -312,6 +340,7 @@ const server = http.createServer(async (req, res) => {
       if (!equalHex(passwordHash(oldPw, user.salt), user.password_hash)) return error(res, 403, "旧密码不正确");
       const salt = crypto.randomBytes(16).toString("hex");
       db.prepare("UPDATE users SET salt=?,password_hash=? WHERE id=?").run(salt, passwordHash(newPw, salt), user.id);
+      db.prepare("DELETE FROM tokens WHERE user_id=?").run(user.id);   // 改密码即吊销全部登录令牌（含当前设备，需重新登录），与界面文案一致
       return sendJson(res, 200, { ok: true });
     }
     if (req.method === "POST" && route === "/api/save") return error(res, 410, "客户端存档上传已停用；状态由服务器结算和保存");
@@ -389,7 +418,7 @@ const server = http.createServer(async (req, res) => {
       if (!t || (t.id !== root && t.owner_id !== root)) return error(res, 400, "没有这个人物");
       if (route.endsWith("/switch")) return sendJson(res, 200, { token: issueToken(t.id), username: t.username, admin: !!t.is_admin });
       if (!t.owner_id || t.id === user.id) return error(res, 400, "不能删除主账号或当前人物");
-      db.prepare("DELETE FROM users WHERE id=?").run(t.id); engines.delete(t.id);
+      db.prepare("DELETE FROM users WHERE id=?").run(t.id); dropEngine(t.id);
       const online = clients.get(t.id); if (online) { clients.delete(t.id); online.socket.close(4003, "人物已删除"); }
       return sendJson(res, 200, { ok: true });
     }
@@ -401,7 +430,7 @@ const server = http.createServer(async (req, res) => {
     if (user.is_admin && req.method === "POST" && route === "/api/admin/user/del") {
       const body = await readBody(req), id = Number(body.id);
       if (!Number.isSafeInteger(id) || id === user.id) return error(res, 400, "不能删除该账号");
-      db.prepare("DELETE FROM users WHERE id=?").run(id); engines.delete(id);
+      db.prepare("DELETE FROM users WHERE id=?").run(id); dropEngine(id);
       const online = clients.get(id); if (online) { clients.delete(id); online.socket.close(4003, "账号已删除"); }
       return sendJson(res, 200, { ok: true });
     }
@@ -546,7 +575,9 @@ wss.on("connection", (socket, session) => {
   const state = getState(user.id);
   if (!state) { socket.close(4004, "角色尚未创建"); return; }
   const playerEngine = getEngine(user.id);
-  const advanced = playerEngine.advance(state, Date.now()); persist(user.id, advanced.state);
+  let advanced;
+  try { advanced = playerEngine.advance(state, Date.now()); persist(user.id, advanced.state); }
+  catch (err) { console.error("login settle/save failed:", err?.message || err); socket.close(4005, "角色数据异常，无法登录"); return; }
   const saved = q.save.get(user.id);
   const client = { socket, userId: user.id, engine: playerEngine, state: advanced.state, revision: saved?.revision || 1, lastPersist: Date.now(), rateWindow: Date.now(), rateCount: 0, nextCheck: Math.min(Date.now() + CHECK_MS, (advanced.nextDue || 0) + DUE_MARGIN_MS), lastPush: 0, lastSent: null, seq: 0 };
   clients.set(user.id, client); receipts.set(socket, new Map());
@@ -582,19 +613,22 @@ wss.on("connection", (socket, session) => {
       const t1 = performance.now();
       const outcome = client.engine.act(working, action, args, Date.now());   // 引擎直接改 working，另返回一份副本
       const t2 = performance.now();
+      // 先落盘再回复：原来先回 ok 再异步存档，存档失败时客户端已以为成功、继续在未落盘的状态上玩，重启就回档
+      try { persist(user.id, outcome.state); } catch (err) {
+        console.error("save failed", err?.message || err);
+        send(socket, { type: "result", id, ok: false, error: "存档失败，操作未生效，请重试", serverNow: Date.now(), revision: client.revision });
+        return;
+      }
       client.state = outcome.state;
-      client.revision += 1;
+      client.revision += 1; client.lastPersist = Date.now();
       const reply = { type: "result", id, ok: true, serverNow: outcome.serverNow, revision: client.revision, logs: outcome.logs, result: outcome.result, battles: outcome.battles || [], ...statePayload(client, false, working) };
       client.lastPush = Date.now(); client.nextCheck = Date.now();
       seen.set(id, reply); if (seen.size > 256) seen.delete(seen.keys().next().value); send(socket, reply);
       const t3 = performance.now();
-      // 先回复玩家，再存档（存档在同一轮事件里马上做，服务器重启不会丢进度）
-      setImmediate(() => {
-        const t4 = performance.now();
-        try { persist(user.id, client.state); client.lastPersist = Date.now(); } catch (err) { console.error("save failed", err?.message || err); }
-        const t5 = performance.now(), total = t3 - t0 + t5 - t4;
-        if (total >= SLOW_MS) console.warn(`[慢操作] ${action} 共${total.toFixed(0)}ms：复制${(t1 - t0).toFixed(0)} 执行${(t2 - t1).toFixed(0)} 补丁+发送${(t3 - t2).toFixed(0)} 存档${(t5 - t4).toFixed(0)}`);
-      });
+      {
+        const total = t3 - t0;
+        if (total >= SLOW_MS) console.warn(`[慢操作] ${action} 共${total.toFixed(0)}ms：复制${(t1 - t0).toFixed(0)} 执行${(t2 - t1).toFixed(0)} 补丁+发送${(t3 - t2).toFixed(0)}`);
+      }
     } catch (err) {
       const reply = { type: "result", id, ok: false, error: err.message || "操作失败", serverNow: Date.now(), revision: client.revision, ...statePayload(client) };   // 出错：client.state 没变，补丁为空
       seen.set(id, reply); if (seen.size > 256) seen.delete(seen.keys().next().value); send(socket, reply);
@@ -604,7 +638,7 @@ wss.on("connection", (socket, session) => {
     if (clients.get(user.id)?.socket === socket) {
       try { persist(user.id, client.state); } catch (err) { console.error("final save failed", err); }
       clients.delete(user.id);
-      engines.delete(user.id);
+      dropEngine(user.id);
     }
   });
   socket.on("error", err => console.warn("WebSocket error:", err.message));
@@ -613,8 +647,18 @@ wss.on("connection", (socket, session) => {
 // 服务器推送：只在状态变化时推，最多 10 秒一次心跳。
 // 每 100ms 检查一次是否到了下一个结算点（修炼周期 / 探索步 / 劫雷），到点立刻结算推送，
 // 进度条走满就能马上看到结算；其它计时系统每秒检查一次。
-const PUSH_IDLE_MS = 10_000, CHECK_MS = 1_000, DUE_MARGIN_MS = 15, SLOW_MS = Number(process.env.XIU_SLOW_MS) || 80;   // 操作超过 SLOW_MS 毫秒在日志里打印各步耗时
+const PUSH_IDLE_MS = 10_000, CHECK_MS = 10_000, DUE_MARGIN_MS = 15, SLOW_MS = Number(process.env.XIU_SLOW_MS) || 80;   // 操作超过 SLOW_MS 毫秒在日志里打印各步耗时
+// CHECK_MS：兜底复查间隔。下一次会变的时间（nextDue）已包含每 10 秒结算、探索/出窍下一步、渡劫、修炼室扣费、功法修炼结束，到点就算；不用每秒空算一遍（每次都要整份复制存档）
 function pushState(client, now, logs = [], force = false, full = false, snap = null) {
+  // 空闲心跳（定时器 10 秒一次、force 但不是完整状态）：走到这里时还没到下一个结算点，状态自上次推送后没变，
+  // 不用全量比对状态、也不用整份克隆 lastSent，直接发一个空补丁当心跳；客户端收到空补丁也不重绘
+  if (force && !full && !logs.length && client.lastSent) {
+    drainHist(client.userId, client.state);
+    const base = client.seq || 0;
+    client.seq = base + 1; client.lastPush = now;
+    send(client.socket, { type: "snapshot", serverNow: now, revision: client.revision, logs: [], patch: null, base, seq: client.seq });
+    return;
+  }
   let pre;
   if (!full && client.lastSent) {
     drainHist(client.userId, client.state);
@@ -806,7 +850,8 @@ const timer = setInterval(() => {
         client.nextCheck = Math.min(now + CHECK_MS, Math.max(now + 50, (outcome.nextDue || 0) + DUE_MARGIN_MS));
         pushState(client, now, outcome.logs, false, false, old);
         if (now - client.lastPersist >= 30_000) {
-          persist(userId, client.state); client.lastPersist = now;
+          try { persist(userId, client.state); } catch (err) { console.error("timed save failed:", err?.message || err); }   // 定时落盘失败不踢人：下一次动作落盘（先落盘再回复）会把完整状态补上
+          client.lastPersist = now;
           client.revision += 1;
         }
       } else if (now - client.lastPush >= PUSH_IDLE_MS) pushState(client, now, [], true);
@@ -815,7 +860,7 @@ const timer = setInterval(() => {
   if (now - lastHousekeeping >= 1000) {
     lastHousekeeping = now;
     for (const [ticket, item] of tickets) if (item.expiresAt < now) tickets.delete(ticket);
-    for (const [userId, entry] of engines) if (!clients.has(userId) && now - entry.lastUsed > 120_000) engines.delete(userId);
+    for (const [userId, entry] of engines) if (!clients.has(userId) && now - entry.lastUsed > 120_000) dropEngine(userId);
     db.prepare("DELETE FROM tokens WHERE expires_at<?").run(now);
   }
 }, 100);

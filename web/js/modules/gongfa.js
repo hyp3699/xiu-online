@@ -124,7 +124,7 @@ G.module({
       }
     },
     // 背包里正在学 / 排队的那本（学完才从背包消失）
-    lqBagIdx(c) { return this.s.bag.findIndex(it => it.lq && it.t === c.k && (c.k === "gfb" ? it.id === c.id : c.k === "bmbp" ? true : c.k === "dfb" ? it.type === c.type && it.g === c.g : it.kind === c.kind && it.g === c.g && it.r === c.r)); },
+    lqBagIdx(c) { return this.s.bag.findIndex(it => it && it.lq && it.t === c.k && (c.k === "gfb" ? it.id === c.id : c.k === "bmbp" ? true : c.k === "dfb" ? it.type === c.type && it.g === c.g : it.kind === c.kind && it.g === c.g && it.r === c.r)); },
     lqDone(ch, c) {
       const s = this.s, name = this.lqName(c);
       if (c.k === "gfb" || c.k === "bp" || c.k === "rbp" || c.k === "dfb" || c.k === "bmbp") { const i = this.lqBagIdx(c); if (i >= 0) { const it = s.bag[i]; this.removeAt(i, 1); if (s.bag[i] === it) delete it.lq; } }   // 叠在一起的只用掉一个
@@ -293,9 +293,9 @@ G.module({
           : `<p class="desc">队列为空。</p>`) + `</div>`;
       return html;
     },
-    // 法术伤害文字：法术攻击 × 伤害%（有灵根加成时注明）
-    spellDmgTxt(g) {
-      return `伤害 = 攻击×<b class="gf-base">${U.dec(g.pct + (g.fuPct || 0))}%</b>${g.jyDmg ? ` + 属性伤害 ${U.fmt(g.jyDmg)}` : ""}`;
+    // 法术伤害文字：先显示法术攻击（同法宝，已按星级封顶），再写 伤害 = 攻击 × 伤害%
+    spellDmgTxt(g, noAtk) {   // noAtk：攻击另外显示（法术详情窗口放在层数后面）
+      return `${noAtk ? "" : `攻击 ${U.fmt(g.atk)} · `}伤害 = 攻击×<b class="gf-base">${U.dec(g.pct + (g.fuPct || 0))}%</b>${g.jyDmg ? ` + 属性伤害 ${U.fmt(g.jyDmg)}` : ""}`;
     },
     // 一行：功法或法术，带修炼按钮
     skillLine(g) {

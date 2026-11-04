@@ -110,7 +110,7 @@ G.module({
     },
     // 发放一件，返回是否放进去了
     giftGive(it) {
-      const s = this.s, n = Math.max(1, Math.floor(+it.n || 1)), rep = f => { let ok = 0; for (let i = 0; i < n; i++) if (f()) ok++; return ok > 0; };
+      const s = this.s, n = Math.max(1, Math.floor(+it.n || 1)), rep = f => { let ok = 0; for (let i = 0; i < n; i++) if (f()) ok++; return ok === n; };
       switch (it.c) {
         case "stone": s.stone += n; return true;
         case "contrib": s.contrib = (s.contrib || 0) + n; return true;
@@ -127,7 +127,7 @@ G.module({
           return this.addMat(it.c, DATA.matName(it.c, it.g), it.g, n);
         case "lj": case "lz": return this.addSm(it.c, n, it.ft);
         case "hx": return this.addFire(n);
-        case "bm": if (this.bmBpHave()) return true; if (this.bagFull()) return false; this.s.bag.push({ t: "bmbp" }); return true;   // 本命法宝炼制图纸：已有就不再给
+        case "bm": if (this.bmBpHave()) return true; this.bagPutOrMail({ t: "bmbp" }); return true;   // 本命法宝炼制图纸：已有就不再给，背包满时进传音暂存
         case "st": {   // 神通：直接修满（领悟），出战位有空就自动出战
           if (!this.stDef(it.id)) return false;
           const S = this.ysStFix(), had = this.ysStLv(it.id) >= this.ysStMax(); S[it.id] = this.ysStMax();
@@ -137,7 +137,7 @@ G.module({
         case "tc": { if (it.name === DATA.smName("wdg")) return this.addSm("wdg", n); const m = DATA.matByName[it.name]; return !!m && this.addMat(m.kind, it.name, m.g, n); }
         case "dan": { const [k, t] = it.item.split(":"); return k === "p" ? this.addPill(t, it.g, n) : this.addDan(t, it.g, n); }
         case "bp": { const [k, t] = it.item.split(":");
-          return k === "f" ? rep(() => this.addBlueprintItem(t, it.g)) : rep(() => { if (this.bagFull()) return false; s.bag.push({ t: "rbp", r: +t, g: it.g }); return true; }); }
+          return k === "f" ? rep(() => this.addBlueprintItem(t, it.g)) : rep(() => { this.bagPutOrMail({ t: "rbp", r: +t, g: it.g }); return true; }); }
       }
       return false;
     },

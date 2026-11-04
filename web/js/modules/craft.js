@@ -124,9 +124,9 @@ G.module({
     /* ---------- 材料 ---------- */
     countMat(kind, g) {
       if (kind === "sm") return this.smCount(g);   // 秘境专用材料（养神露）
-      if (kind === "cu") return this.s.bag.reduce((a, it) => a + (it.t === "cu" && it.name === g ? it.n : 0), 0);   // 自定义物品，g = 物品名
+      if (kind === "cu") return this.s.bag.reduce((a, it) => a + (it && it.t === "cu" && it.name === g ? it.n : 0), 0);   // 自定义物品，g = 物品名
       const name = DATA.matName(kind, g);
-      return this.s.bag.reduce((a, it) => a + (it.t === "mat" && it.kind === kind && it.name === name ? it.n : 0), 0);
+      return this.s.bag.reduce((a, it) => a + (it && it.t === "mat" && it.kind === kind && it.name === name ? it.n : 0), 0);
     },
     takeMat(kind, g, n) {
       n = Math.floor(+n); if (!(n >= 1)) return;
@@ -134,7 +134,7 @@ G.module({
       if (kind === "cu") {   // 自定义物品按名字扣
         for (let i = this.s.bag.length - 1; i >= 0 && n > 0; i--) {
           const it = this.s.bag[i];
-          if (it.t !== "cu" || it.name !== g) continue;
+          if (!it || it.t !== "cu" || it.name !== g) continue;
           const k = Math.min(n, it.n); this.removeAt(i, k); n -= k;
         }
         return;
@@ -142,7 +142,7 @@ G.module({
       const name = DATA.matName(kind, g);
       for (let i = this.s.bag.length - 1; i >= 0 && n > 0; i--) {
         const it = this.s.bag[i];
-        if (it.t !== "mat" || it.kind !== kind || it.name !== name) continue;
+        if (!it || it.t !== "mat" || it.kind !== kind || it.name !== name) continue;
         const k = Math.min(n, it.n); this.removeAt(i, k); n -= k;
       }
     },
@@ -179,7 +179,7 @@ G.module({
           // 每枚单独判定成功率；成功时再按秘法「丹灵」几率多出一颗
           const ok = Math.random() < this.danRate(a.type, a.g);
           if (ok) {
-            if (!this.addDan(a.type, a.g, 1)) break;   // 背包满：等有空位
+            this.addDan(a.type, a.g, 1);   // 背包满时进传音暂存，不再暂停出炉
             a.ok = (a.ok || 0) + 1;
             if (Math.random() * 100 < (this.mifaBonus().danExtra || 0) && this.addDan(a.type, a.g, 1)) a.extra = (a.extra || 0) + 1;
           } else a.fail = (a.fail || 0) + 1;
@@ -190,7 +190,7 @@ G.module({
         s.alchJob = null; this.craftRec("alchLog", { at: a.next - a.per, name: DATA.danName(a.type, a.g), n: a.n, ok: a.ok || 0, extra: a.extra || 0, fail: a.fail || 0 });
         this.log(`${DATA.danName(a.type, a.g)} ×${a.n} 炼制完毕：成丹 ${a.ok || 0} 枚${a.extra ? `（额外多出 ${a.extra} 枚）` : ""}${a.fail ? `，失败 ${a.fail} 枚` : ""}。`, "gold");
         const nx = s.alchQueue.shift();
-        if (nx) { const per = this.danPer(nx.type, nx.g); s.alchJob = { type: nx.type, g: nx.g, n: nx.n, done: 0, per, next: a.next - a.per + per }; }
+        if (nx) { const per = this.danPer(nx.type, nx.g); s.alchJob = { type: nx.type, g: nx.g, n: nx.n, done: 0, per, next: a.next - a.per + per, mats: nx.mats }; }
       }
     },
     // 改了配置（炉子种类、阶数、丹方）后清掉存档里无效的数据
@@ -204,10 +204,15 @@ G.module({
         s.furnaces[k] = s.furnaces[k].filter(g => g >= 0 && g < DATA.DAN_JIE_N);
         if (!s.furnaces[k].includes(s.furnaceUse[k])) s.furnaceUse[k] = s.furnaces[k].length ? Math.max(...s.furnaces[k]) : -1;   // v250 洞府有炉子却没在用 → 自动用最高阶
       }
-      if (s.alchJob && !DATA.recipes[s.alchJob.type]) s.alchJob = null;
+      if (s.alchJob && !DATA.recipes[s.alchJob.type]) {
+        const a = s.alchJob, left = a.n - (a.done || 0);
+        if (a.mats && !this.craftFree()) a.mats.forEach(m => this.addMat(m.kind, DATA.matName(m.kind, m.g), m.g, m.n * left));
+        else if (!this.silent) this.log(`丹方已删除，${DATA.danName(a.type, a.g)} 未炼的 ${left} 枚药材无法按原配方退回。`, "bad");
+        s.alchJob = null;
+      }
       if (!Array.isArray(s.alchLog)) s.alchLog = []; if (!Array.isArray(s.forgeLog)) s.forgeLog = [];
-      s.alchQueue = s.alchQueue.filter(q => DATA.recipes[q.type]);
-      if (s.bag.some(it => it.t === "dan" && !DATA.dans[it.type])) s.bag = s.bag.filter(it => it.t !== "dan" || DATA.dans[it.type]);
+      s.alchQueue = s.alchQueue.filter(q => { if (DATA.recipes[q.type]) return true; if (q.mats && !this.craftFree()) q.mats.forEach(m => this.addMat(m.kind, DATA.matName(m.kind, m.g), m.g, m.n * q.n)); else if (!this.silent) this.log(`丹方已删除，${DATA.danName(q.type, q.g)} ×${q.n} 的药材无法按原配方退回。`, "bad"); return false; });
+      if (s.bag.some(it => it && it.t === "dan" && !DATA.dans[it.type])) s.bag = s.bag.filter(it => !it || it.t !== "dan" || DATA.dans[it.type]);
       if (!s.eqMax10) this.fixEq10();
     },
     // 装备、法宝、戒指去掉十一、十二阶（只剩一星 ~ 十星）：旧存档里的降为十星，名字跟着换；学会的十一、十二阶图谱删掉
@@ -217,7 +222,7 @@ G.module({
         if (e.slot === "fabao") e.name = DATA.fabaoName(e.ft, M); else if (e.slot !== "ring" && DATA.forgeNames[e.slot]) e.name = DATA.forgeNames[e.slot][M]; };
       for (const k in s.equip || {}) fix(s.equip[k]);
       (s.fabao || []).forEach(fix);
-      for (const it of s.bag || []) { if (it.t === "eq") fix(it.e); else if (it.t === "rbp" && it.g > M) it.g = M; }
+      for (const it of s.bag || []) { if (!it) continue; if (it.t === "eq") fix(it.e); else if (it.t === "rbp" && it.g > M) it.g = M; }
       const bad = key => { const p = String(key).split(":"); return (p[0] === "eq" || p[0] === "ring") && +p[p.length - 1] > M; };
       if (Array.isArray(s.forgeKnown)) s.forgeKnown = s.forgeKnown.filter(k => !bad(k));
       for (const q of [s.forgeJob, ...(s.forgeQueue || [])]) if (q && (q.kind === "eq" || q.kind === "ring") && q.g > M) { q.g = M; if (q.prev) fix(q.prev); }
@@ -241,8 +246,8 @@ G.module({
 
     /* ---------- 图纸、炉子（背包物品） ---------- */
     addBlueprintItem(kind, g) {
-      if (this.bagFull()) { this.log("背包已满。", "bad"); return false; }
-      this.s.bag.push({ t: "bp", kind, g }); return true;
+      this.bagPutOrMail({ t: "bp", kind, g });
+      return true;
     },
     addFurnaceItem(kind, g) {
       return this.bagAdd(x => x.t === "fu" && x.kind === kind && x.g === g, k => ({ t: "fu", kind, g, n: k }), 1, "背包已满，炉子无处存放，暂停出炉。");
@@ -309,26 +314,33 @@ G.module({
         this.addCraftExp("qi", this.itemExp("qi", this.forgeTotal(j.kind, j.g), j.ok));
       }
       if (j.kind === "rf") {   // 精炼：成功 +1 次；失败只扣材料，被精炼的那件原样退回
-        if (this.bagFull()) { if (!this.silent) this.log("背包已满，暂停出炉。", "bad"); return false; }
-        const e = j.item; if (j.ok) e.rj = DATA.rjCount(e) + 1;
+        const e = j.item;
+        // 去重兜底：原物若已在背包里（旧存档、入炉未删干净等），只就地改精炼次数，不再新塞一件；
+        // 同一引用或同一 uid 都算同一件，避免出炉时复制。
+        const dup = this.s.bag.find(x => x && x.t === "eq" && x.e && (x.e === e || (e.uid && x.e.uid === e.uid)));
+        if (dup) {
+          if (j.ok) dup.e.rj = DATA.rjCount(dup.e) + 1;
+          this.dirty();
+          this.log(j.ok ? `精炼成功：<span class="q${dup.e.q}">${this.itemName({ t: "eq", e: dup.e })}</span> ${DATA.rjName(dup.e)}。` : `精炼${this.itemName({ t: "eq", e: dup.e })}失败，材料已耗尽，仍是${DATA.rjName(dup.e)}。`, j.ok ? "gold" : "bad");
+          return true;
+        }
+        if (j.ok) e.rj = DATA.rjCount(e) + 1;
         this.addEquip(e); this.dirty();
         this.log(j.ok ? `精炼成功：<span class="q${e.q}">${this.itemName({ t: "eq", e })}</span> ${DATA.rjName(e)}。` : `精炼${this.itemName({ t: "eq", e })}失败，材料已耗尽，仍是${DATA.rjName(e)}。`, j.ok ? "gold" : "bad");
         return true;
       }
       if (!j.ok && j.kind === "eq" && j.slot === "fabao") {   // 法宝炼制失败没有损失：矿石、耀石、上一星法宝全部退回
-        if (this.bagFull()) { if (!this.silent) this.log("背包已满，暂停出炉。", "bad"); return false; }
-        this.refundJob(j); this.log(`${this.jobName(j)}炼制失败，材料已全部退回${j.prev ? "（上一星法宝已退回背包）" : ""}。`, "bad"); return true;
+        this.refundJob(j); this.log(`${this.jobName(j)}炼制失败，材料已全部退回${j.prev ? "（上一星法宝已退回）" : ""}。`, "bad"); return true;
       }
       if (!j.ok) {
-        if (j.prev) { if (this.bagFull()) { if (!this.silent) this.log("背包已满，暂停出炉。", "bad"); return false; } this.addEquip(j.prev); }
-        this.log(`${this.jobName(j)}炼制失败，材料已耗尽${j.prev ? "（上一星装备已退回背包）" : ""}。`, "bad"); return true;
+        if (j.prev) this.addEquip(j.prev);
+        this.log(`${this.jobName(j)}炼制失败，材料已耗尽${j.prev ? "（上一星装备已退回）" : ""}。`, "bad"); return true;
       }
       if (j.kind === "eq" || j.kind === "ring") {
-        if (this.bagFull()) { if (!this.silent) this.log("背包已满，装备暂停出炉。", "bad"); return false; }
         // v25：升阶（有上一阶装备）→ 属性颜色不变，只是数值按新阶变大；一阶 → 随机生成
         const e = j.prev && j.prev.attrs ? DATA.upgradeForged(j.prev, j.g) : DATA.rollForged(j.kind === "ring" ? "ring" : j.slot, j.g, j.kind === "ring" ? j.r : j.ft, j.el);
         this.addEquip(e);
-        this.log(`炼成 <span class="q${e.q}">${this.itemName({ t: "eq", e })}</span>，已放进背包。`, "gold"); return true;
+        this.log(`炼成 <span class="q${e.q}">${this.itemName({ t: "eq", e })}</span>。`, "gold"); return true;
       }
       if (j.kind === "ss") { if (!this.addStone(j.g)) return false; this.log(`${DATA.stoneName(j.g)}炼制成功，已放进背包。`, "gold"); return true; }
       if (!this.addFurnaceItem(j.kind, j.g)) return false;
@@ -341,7 +353,7 @@ G.module({
       let best = -1;
       const same = e => r === undefined || (slot === "fabao" ? e.ft === r && (!el || e.el === el) : e.r === r);
       const score = e => (e.enh || 0) * 10 + e.q;
-      this.s.bag.forEach((it, i) => { if (it.t === "eq" && it.e.attrs && it.e.slot === slot && it.e.g === g - 1 && same(it.e) && (best < 0 || score(it.e) > score(this.s.bag[best].e))) best = i; });   // 升星不看精炼次数
+      this.s.bag.forEach((it, i) => { if (it && it.t === "eq" && it.e.attrs && it.e.slot === slot && it.e.g === g - 1 && same(it.e) && (best < 0 || score(it.e) > score(this.s.bag[best].e))) best = i; });   // 升星不看精炼次数
       return best;
     },
     // 炼制：空闲就开始，否则加入队列（都会先扣材料）。kind = dan/qi 炉子、eq 装备/法宝（slot）、ss 空间石、ring 戒指（slot 传戒指种类序号）
@@ -364,7 +376,7 @@ G.module({
       if (kind === "ring" && g < 1 && !DATA.ringSp(job.r)) return;   // 一星戒指不能炼（灵犀 / 烈阳 / 玄武戒除外）
       if (kind === "eq" && g > 0) { pi = this.prevEquipIndex(slot, g, job.ft, job.el); if (pi < 0) return this.log(`需要一件${slot === "fabao" ? DATA.XING[g - 1] + "·" + DATA.elById[job.el].name + "·" + DATA.fabaoName(job.ft, g - 1) : DATA.forgeEqName(slot, g - 1)}。`, "sys"); }
       if (kind === "ring" && g > 0) { pi = this.prevEquipIndex("ring", g, job.r); if (pi < 0) return this.log(`需要一枚${DATA.ringName(job.r, g - 1)}。`, "sys"); }
-      if (pi >= 0) { job.prev = s.bag[pi].e; s.bag.splice(pi, 1); }
+      if (pi >= 0) { job.prev = s.bag[pi].e; s.bag[pi] = null; }   // 固定格子：上一阶装备拿走后该格留空，不往前挪
       job.sm = []; if (this.craftFree()) job.free = 1; else { mats.forEach(m => this.takeMat(m.kind, m.g, m.n));
         sm.forEach(x => { const got = this.takeSm(x.k, x.n, x.ft); if (got) job.sm.push(...got); }); }   // 记下实际扣的（取消时按这个退）
       if (s.forgeJob) { q.push(job); this.log(`${this.jobName(job)}加入队列。`, "sys"); }
@@ -406,7 +418,7 @@ G.module({
       if ((kind === "eq" || kind === "ring") && g > 0) {
         const ps = kind === "ring" ? "ring" : slot, r = kind === "ring" ? job.r : job.ft;
         const same = e => r === undefined || (ps === "fabao" ? e.ft === r && (!el || e.el === el) : e.r === r);
-        max = Math.min(max, s.bag.filter(it => it.t === "eq" && it.e.attrs && it.e.slot === ps && it.e.g === g - 1 && same(it.e)).length);
+        max = Math.min(max, s.bag.filter(it => it && it.t === "eq" && it.e.attrs && it.e.slot === ps && it.e.g === g - 1 && same(it.e)).length);
       }
       return Math.max(0, max);
     },
@@ -447,7 +459,7 @@ G.module({
     fabaoAnyBase(g) { return g === 0 || this.prevEquipIndex("fabao", g) >= 0; },
     // 退回：按开始时实际扣的专用材料 q.sm
     // free = 测试模式免材料，不退材料（法宝、装备照退）
-    refundJob(q) { if (!q.free) { this.giveBack(this.jobMats(q)); (q.sm || []).forEach(x => this.addSm(x.k, x.n, x.ft)); } if (q.prev) this.addEquip(q.prev); if (q.item) this.addEquip(q.item); if (q.mat) this.addEquip(q.mat); },
+    refundJob(q) { if (!q.free) { this.giveBack(this.jobMats(q)); (q.sm || []).forEach(x => this.addSm(x.k, x.n, x.ft)); } if (q.prev) this.addEquipOnce(q.prev); if (q.item) this.addEquipOnce(q.item); if (q.mat) this.addEquipOnce(q.mat); },
     // 取消队列中的一项，退回材料
     cancelForgeQ(i) {
       const q = this.s.forgeQueue[i]; if (!q) return;
@@ -469,7 +481,7 @@ G.module({
     refineSame(a, b) { return a !== b && b && b.attrs && b.slot === a.slot && b.g === a.g && (a.slot === "ring" ? b.r === a.r : a.slot === "fabao" ? b.ft === a.ft && b.el === a.el : true); },
     refineMatIndex(e) {
       let best = -1; const score = x => DATA.rjCount(x) * 1e4 + (x.enh || 0) * 10 + (x.q || 0);
-      this.s.bag.forEach((it, i) => { if (it.t === "eq" && this.refineSame(e, it.e) && (best < 0 || score(it.e) < score(this.s.bag[best].e))) best = i; });
+      this.s.bag.forEach((it, i) => { if (it && it.t === "eq" && this.refineSame(e, it.e) && (best < 0 || score(it.e) < score(this.s.bag[best].e))) best = i; });
       return best;
     },
     refineEq(i) {
@@ -484,7 +496,15 @@ G.module({
       if (!this.smHave(sm)) return this.log(`缺少${sm.filter(x => this.smCount(x.k, x.ft) < x.n).map(x => DATA.smName(x.k, x.ft)).join("、")}（秘境、灵地掉落）。`, "sys");
       const free = this.craftFree(), gotSm = [];
       if (!free) { mats.forEach(m => this.takeMat(m.kind, m.g, m.n)); sm.forEach(x => { const got = this.takeSm(x.k, x.n, x.ft); if (got) gotSm.push(...got); }); }
-      s.bag.splice(+i, 1);
+      // 扣材料会删掉耗尽的材料堆，背包下标随之左移：不能再用入炉前的旧下标删法宝，
+      // 否则会删错后一件、原法宝留在背包，炉子完成时再返还一件就复制了。
+      // 扣完后按对象引用重新定位再删，找不到原物就不建炉、退回已扣材料。
+      const idx = s.bag.findIndex(x => x && x.e === e);
+      if (idx < 0) {
+        if (!free) { this.giveBack(mats); gotSm.forEach(x => this.addSm(x.k, x.n, x.ft)); }
+        return this.log("精炼失败：背包里的那件已不在，材料已退回。", "sys");
+      }
+      s.bag[idx] = null;   // 固定格子：精炼拿走后该格留空，不往前挪
       const job = { kind: "rf", g: e.g, item: e, sm: gotSm }; if (free) job.free = 1;
       if (s.forgeJob) { s.forgeQueue.push(job); this.log(`${this.jobName(job)}加入队列。`, "sys"); }
       else { s.forgeJob = Object.assign(job, { end: this.now() + this.forgePer("rf", e.g) }); this.log(`开始${this.jobName(job)}。`, "good"); }
@@ -493,7 +513,7 @@ G.module({
     // 精炼页：背包里所有装备 / 法宝 / 戒指
     refineRows() {
       const s = this.s, list = [];
-      s.bag.forEach((it, i) => { if (it.t === "eq" && it.e.attrs) list.push([i, it.e]); });
+      s.bag.forEach((it, i) => { if (it && it.t === "eq" && it.e.attrs) list.push([i, it.e]); });
       if (!list.length) return `<p class="desc">背包里没有装备、法宝、戒指。</p>`;
       const full = s.forgeJob && s.forgeQueue.length >= CFG.furnace.QUEUE, has = s.furnaceUse.qi >= 0;
       return list.map(([i, e]) => {
@@ -522,14 +542,13 @@ G.module({
     // 这张图纸的状态：0 可兑换 / 1 已学会 / 2 背包里有或在学
     ringBpState(r, g) { const key = this.forgeKey("ring", g, r);
       if (this.ringKnown(r, g)) return 1;
-      return this.s.bag.some(it => it.t === "rbp" && it.r === r && it.g === g) || (this.lqHas && this.lqHas("forge", key)) ? 2 : 0; },
+      return this.s.bag.some(it => it && it.t === "rbp" && it.r === r && it.g === g) || (this.lqHas && this.lqHas("forge", key)) ? 2 : 0; },
     buyRingBp(r, g, ysId) {
       r = +r; g = +g; if (!(g >= 0 && g < 10) || !this.ringShopOK(r, ysId || undefined)) return;
       const st = this.ringBpState(r, g); if (st) return this.log(st === 1 ? "已学会这张图纸。" : "背包里已有这张图纸。", "sys");
       const c = DATA.ringBpCost(r, g); if (this.ringPayHave(r) < c) return this.log(`${this.ringPayName(r)}不足，需要 ${U.fmt(c)}。`, "sys");
-      if (this.bagFull()) return this.log("背包已满。", "sys");
-      this.ringPay(r, c); this.s.bag.push({ t: "rbp", r, g });
-      this.log(`${this.ringPayName(r)} −${U.fmt(c)}，获得${DATA.ringBpName(g, r)}，已放进背包（点「学习」）。`, "gold"); this.after();
+      this.ringPay(r, c); const where = this.bagPutOrMail({ t: "rbp", r, g });
+      this.log(`${this.ringPayName(r)} −${U.fmt(c)}，获得${DATA.ringBpName(g, r)}，已放进${where === "mail" ? "传音暂存" : "背包"}（点「学习」）。`, "gold"); this.after();
     },
     buyRingSm(r, n, ysId) {
       r = +r; n = Math.floor(+n || 0); if (n <= 0 || n > 100000 || !this.ringShopOK(r, ysId || undefined)) return;
@@ -628,26 +647,26 @@ G.module({
       n = n ? Math.min(n, max) : max;
       if (n <= 0) return this.log("药材不足。", "sys");
       if (!this.craftFree()) rec.forEach(m => this.takeMat(m.kind, m.g, m.n * n));
-      if (s.alchJob) { s.alchQueue.push({ type, g, n }); this.log(`${DATA.danName(type, g)} ×${n} 加入炼丹队列。`, "sys"); return this.after(); }
+      if (s.alchJob) { s.alchQueue.push({ type, g, n, mats: rec }); this.log(`${DATA.danName(type, g)} ×${n} 加入炼丹队列。`, "sys"); return this.after(); }
       const per = this.danPer(type, g);
-      s.alchJob = { type, g, n, done: 0, per, next: this.now() + per };
+      s.alchJob = { type, g, n, done: 0, per, next: this.now() + per, mats: rec };
       this.log(`开炉炼制${DATA.danName(type, g)} ×${n}。`, "good"); this.after();
     },
     // 停炉：退还没炼的药材，队列里的下一炉马上开始
     stopAlch() {
       const s = this.s, a = s.alchJob; if (!a) return;
       const left = a.n - a.done;
-      if (!this.craftFree()) DATA.danRecipe(a.type, a.g).forEach(m => this.addMat(m.kind, DATA.matName(m.kind, m.g), m.g, m.n * left));
+      if (!this.craftFree()) (a.mats || DATA.danRecipe(a.type, a.g)).forEach(m => this.addMat(m.kind, DATA.matName(m.kind, m.g), m.g, m.n * left));
       s.alchJob = null; this.craftRec("alchLog", { at: this.now(), name: DATA.danName(a.type, a.g), n: a.done, ok: a.ok || 0, extra: a.extra || 0, fail: a.fail || 0, stop: 1 });
       const nx = s.alchQueue.shift();
-      if (nx) { const per = this.danPer(nx.type, nx.g); s.alchJob = { type: nx.type, g: nx.g, n: nx.n, done: 0, per, next: this.now() + per }; }
+      if (nx) { const per = this.danPer(nx.type, nx.g); s.alchJob = { type: nx.type, g: nx.g, n: nx.n, done: 0, per, next: this.now() + per, mats: nx.mats }; }
       this.log(`停炉，退回 ${left} 枚的药材。`, "sys"); this.after();
     },
     // 取消队列中的一项，退回药材
     cancelAlchQ(i) {
       const q = this.s.alchQueue[i]; if (!q) return;
       this.s.alchQueue.splice(i, 1);
-      if (!this.craftFree()) DATA.danRecipe(q.type, q.g).forEach(m => this.addMat(m.kind, DATA.matName(m.kind, m.g), m.g, m.n * q.n));
+      if (!this.craftFree()) (q.mats || DATA.danRecipe(q.type, q.g)).forEach(m => this.addMat(m.kind, DATA.matName(m.kind, m.g), m.g, m.n * q.n));
       this.log(`取消${DATA.danName(q.type, q.g)} ×${q.n}，药材已退回。`, "sys"); this.after();
     },
 
@@ -898,7 +917,9 @@ G.caveViews.forge = function () {
     return h + (rr ? `<div class="card"><h3>精炼进度<small>排队 ${s.forgeQueue.length} / ${CFG.furnace.QUEUE}</small></h3>${rr}</div>` : "") + `<div class="card"><h3>精炼</h3>${this.refineRows()}</div>`; }
   const items = this.forgeItems();
   if (mode === "hide") {
-    return h + `<div class="card"><h3>已学配方<small>${items.length} 个 · 隐藏后「开始炼器」里不显示</small></h3>` + (items.length ? items.map(x => { const hid = this.isHidden("qi", x.key);
+    // 隐藏的配方自动排到最后（同组内保持原顺序），和炼丹房一样
+    const L = items.slice().sort((a, b) => (this.isHidden("qi", a.key) ? 1 : 0) - (this.isHidden("qi", b.key) ? 1 : 0));
+    return h + `<div class="card"><h3>已学配方<small>${items.length} 个 · 隐藏后「开始炼器」里不显示</small></h3>` + (L.length ? L.map(x => { const hid = this.isHidden("qi", x.key);
       return `<div class="line">${x.info}<button class="sm ${hid ? "on" : ""}" onclick="G.toggleHide('qi','${x.key}')">${hid ? "已隐藏" : "隐藏"}</button></div>`; }).join("") : `<p class="desc">还没有学会配方。</p>`) + `</div>`;
   }
   // 炼器信息（正在炼 + 排队）都在「开始炼器」这个框里，按钮在信息下面；没有信息时按钮在页面中部

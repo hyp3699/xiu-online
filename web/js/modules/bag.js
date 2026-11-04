@@ -28,6 +28,7 @@ G.module({
     bm: null,                                                 // 本命法宝 { e: 法宝, t: 炼成时间 }（config/benming.js）
     bmJob: null,                                              // 正在炼成本命的法宝 { e, end }
     bmLearn: false,                                           // 是否学会本命法宝炼制图纸（仙界第 1 图功德司买图纸，背包里学习）
+    mailbox: [],                                              // 传音暂存：背包放不下的物品 [{ id, it: 背包物品, at: 暂存时间 }]，10 天未领自动清除
   }),
 
   api: {
@@ -36,16 +37,27 @@ G.module({
     // 下一次存档后渡劫格子才能按 uid 找到它，而不是只在客户端弹窗里临时生成。
     fabaoNames() {
       const s = this.s, f = e => { if (e && e.slot === "fabao" && e.attrs) { e.name = DATA.fabaoName(e.ft, e.g); if (!e.uid) e.uid = DATA.newUid(); } };
-      s.bag.forEach(it => it.t === "eq" && f(it.e)); (s.fabao || []).forEach(f); [s.bm && s.bm.e, s.bmJob && s.bmJob.e].forEach(e => { if (e) { const nm = e.name; f(e); e.name = nm; } });
+      s.bag.forEach(it => it && it.t === "eq" && f(it.e)); (s.fabao || []).forEach(f); [s.bm && s.bm.e, s.bmJob && s.bmJob.e].forEach(e => { if (e) { const nm = e.name; f(e); e.name = nm; } });
     },
     // 法宝栏、法术栏当前开启格数：每个大境界 1 格
+    // 背包是固定格子：用掉一件后该格留空（null），后面的物品不往前挪；
+    // 只有手动整理时才把非空物品按原规则排序并紧缩到前面，空位留在最后。
     // 背包排序：先按类型（修炼丹 → 属性丹 → 药材 → 矿石 → 装备），同类型再按品阶从低到高
+    // 秘境材料（t = "sm"，灵元 / 灵晶 / 耀石等）以前排序键全是 0 / ""，分不出种类和属性，只能保持获得顺序，
+    // 所以点整理后还是三种混在一起；现在先按种类（灵元 → 灵晶 → 耀石 → 其他秘境材料），同种再按属性（金木水火土雷）排
     sortBag() {
       const order = it => it.t === "pill" ? 0 : it.t === "dan" || it.t === "ql" || it.t === "ysd" ? 1 : it.t === "mat" ? (it.kind === "herb" ? 2 : 3) : it.t === "fu" ? 4 : it.t === "bp" || it.t === "ss" || it.t === "rbp" || it.t === "bmbp" || it.t === "dfb" || it.t === "hx" || it.t === "sm" ? 5 : it.t === "eq" ? (it.e.slot === "fabao" ? 7 : 6) : it.t === "cu" ? 8 : 9;
+      const smKind = it => { if (it.t !== "sm") return -1; const main = ["ly", "lj", "ys"]; const i = main.indexOf(it.k); if (i >= 0) return i; const keys = Object.keys(CFG.mijing.items || {}); const j = keys.indexOf(it.k); return 3 + (j >= 0 ? j : 99); };   // 非秘境材料先排（-1），秘境材料整块在后，不被图纸/空间石等隔开
       const grade = it => it.t === "eq" ? it.e.g * 10 + it.e.q : it.g || 0;
       const sub = it => it.t === "pill" || it.t === "dan" ? it.type : it.t === "eq" ? it.e.slot : it.kind || "";
-      this.s.bag.sort((a, b) => order(a) - order(b) || grade(a) - grade(b) || (sub(a) < sub(b) ? -1 : sub(a) > sub(b) ? 1 : 0));
+      const smFt = it => it.t === "sm" ? (it.ft === undefined ? 99 : it.ft) : 0;   // 属性序号：-1（任意）排最前，0~5 按金木水火土雷
+      const items = this.s.bag.filter(Boolean);
+      items.sort((a, b) => order(a) - order(b) || smKind(a) - smKind(b) || grade(a) - grade(b) || (sub(a) < sub(b) ? -1 : sub(a) > sub(b) ? 1 : 0) || smFt(a) - smFt(b));
+      this.s.bag.splice(0, this.s.bag.length, ...items);
     },
+    // 手动整理：只有点背包里的「整理」按钮才排序并紧缩；打开背包不再自动整理，
+    // 物品保持获得 / 上次整理后的顺序，不会每次进背包都换位置。
+    sortBagNow() { this.sortBag(); this.after(); },
     slotCount() { return Math.min(DATA.SLOT_MAX, Math.floor(this.r() / DATA.SLOT_EVERY) + DATA.SLOT_START); },
 
     /* ---------- 装备属性 ---------- */
@@ -76,26 +88,68 @@ G.module({
     },
 
     /* ---------- 存取物品 ---------- */
-    bagFull() { return this.s.bag.length >= this.s.bagCap; },
+    // 固定格子：已用格数按非空物品算，不是数组长度（用掉后留空，长度不变但格子是空的）。
+    bagUsed() { return this.s.bag.reduce((n, it) => n + (it ? 1 : 0), 0); },
+    bagFull() { return this.bagUsed() >= this.s.bagCap; },
+    // 新物品先填第一个空格，空格不够且数组还没到上限才往后追加；满了返回 false。
+    bagPut(it) {
+      if (this.bagFull()) return false;
+      const hole = this.s.bag.findIndex(x => !x);
+      if (hole >= 0) { this.s.bag[hole] = it; return true; }
+      if (this.s.bag.length < this.s.bagCap) { this.s.bag.push(it); return true; }
+      return false;
+    },
     // 一格最多叠几个（config/bag.js）
     stackMax(it) { const S = CFG.stack; return S.ONE.includes(it.t) || (it.t === "sm" && S.ONE_SM.includes(it.k)) ? 1 : S.MAX; },
-    // 放进背包：先补满同种的格子，剩下的每 stackMax 个开一格；make(k) 造一格 k 个。没空格时丢弃剩下的，返回 false
-    bagAdd(match, make, n, lost) {
+    // ---------- 传音暂存：背包放不下的物品先放这里，10 天未领自动清除 ----------
+    MAILBOX_DAYS: 10,
+    mailboxDue(it) { return (it && it.at || 0) + this.MAILBOX_DAYS * 86400000; },
+    mailboxList() { return Array.isArray(this.s.mailbox) ? this.s.mailbox : (this.s.mailbox = []); },
+    // 清掉已过期（暂存满 10 天）的条目，返回清掉数；只在确实有过期项时才遍历
+    mailboxPrune(now) {
+      const list = this.mailboxList(); if (!list.length) return 0;
+      now = now || this.now(); let n = 0;
+      for (let i = list.length - 1; i >= 0; i--) if (now >= this.mailboxDue(list[i])) { list.splice(i, 1); n++; }
+      if (n && !this.silent) this.log(`传音暂存里 ${n} 件物品超过 10 天未领，已自动清除。`, "sys");
+      return n;
+    },
+    mailboxAdd(it, quiet) {
+      const list = this.mailboxList(); this.mailboxPrune();
+      list.push({ id: DATA.newUid(), it, at: this.now() });
+      if (!quiet && !this.silent) this.log("背包已满，已暂存到传音，10 天内领取。", "bad");
+      return true;
+    },
+    // 单件物品：能进背包就进背包，否则进传音；返回 "bag" / "mail"
+    bagPutOrMail(it) { return this.bagPut(it) ? "bag" : (this.mailboxAdd(it), "mail"); },
+    // 放进背包：先补满同种的格子，剩下的每 stackMax 个开一格；make(k) 造一格 k 个。背包放不下的剩余部分进传音暂存，不再静默丢失、也不再部分成功却按失败算账（原来先补堆叠、装不下返回 false，调用方按失败处理就白嫖了已补的部分）。
+    // 新开的格子先填第一个空格，不往后追加（固定格子）。
+    bagAdd(match, make, n, lost, noMail) {
       n = Math.floor(+n); if (!(n >= 1)) return true;   // 小数向下取整，负数/0 不加（防控制台直接调 add 系函数刷物品）
       const S = this.s.bag, max = this.stackMax(make(1));
-      if (max > 1) for (const it of S) { if (n <= 0) break; if (match(it) && (it.n || 1) < max) { const k = Math.min(n, max - (it.n || 1)); it.n = (it.n || 1) + k; n -= k; } }
+      if (noMail) {   // 领取时必须原子：装不下就一分不动，否则已补的部分 + 传音里原条目 = 复制
+        let free = (this.s.bagCap - this.bagUsed()) * max;
+        if (max > 1) for (const it of S) if (it && match(it)) free += Math.max(0, max - (it.n || 1));
+        if (free < n) return false;
+      }
+      if (max > 1) for (const it of S) { if (n <= 0) break; if (it && match(it) && (it.n || 1) < max) { const k = Math.min(n, max - (it.n || 1)); it.n = (it.n || 1) + k; n -= k; } }
       while (n > 0) {
-        if (this.bagFull()) { if (lost && !this.silent) this.log(lost, "bad"); return false; }
-        const k = Math.min(n, max); S.push(make(k)); n -= k;
+        if (this.bagFull()) break;
+        const k = Math.min(n, max); if (!this.bagPut(make(k))) break; n -= k;
+      }
+      if (n > 0) {
+        if (noMail) {   // 领取时专用：前面已做原子预检，理论上走不到这里；走到这里也一分不动，不算成功
+          return false;
+        }
+        while (n > 0) { const k = Math.min(n, max); this.mailboxAdd(make(k), true); n -= k; } if (!this.silent) this.log("背包已满，剩余物品已暂存到传音，10 天内领取。", "bad");
       }
       return true;
     },
-    bagNum(match) { return this.s.bag.reduce((t, it) => t + (match(it) ? it.n || 1 : 0), 0); },
+    bagNum(match) { return this.s.bag.reduce((t, it) => t + (it && match(it) ? it.n || 1 : 0), 0); },
     // 从背包扣 n 个（可跨多格，从后往前扣）；不够返回 false 且不扣
     bagTake(match, n) {
       n = Math.floor(+n); if (!(n >= 1)) return false;   // 小数/负数直接失败，不进 removeAt
       if (this.bagNum(match) < n) return false;
-      for (let i = this.s.bag.length - 1; i >= 0 && n > 0; i--) { const it = this.s.bag[i]; if (!match(it)) continue; const k = Math.min(n, it.n || 1); this.removeAt(i, k); n -= k; }
+      for (let i = this.s.bag.length - 1; i >= 0 && n > 0; i--) { const it = this.s.bag[i]; if (!it || !match(it)) continue; const k = Math.min(n, it.n || 1); this.removeAt(i, k); n -= k; }
       return true;
     },
     addPill(type, g, n = 1) {
@@ -106,17 +160,80 @@ G.module({
       if (kind === "cu") return this.addCustom(name, n);   // 自定义物品（瑶池玉蕊、蟠桃灵果，退回炼丹材料用）
       return this.bagAdd(x => x.t === "mat" && x.name === name && x.g === g, k => ({ t: "mat", kind, name, g, n: k }), n, "背包已满，材料遗失了。");
     },
-    addEquip(e) {
-      if (this.bagFull()) { this.log("背包已满，装备遗失了。", "bad"); return false; }
+    addEquipToBag(e) {
       if (e && e.attrs && !e.uid) e.uid = DATA.newUid();
-      this.s.bag.push({ t: "eq", e }); return true;
+      return this.bagPut({ t: "eq", e });
+    },
+    addEquip(e) {
+      if (!this.addEquipToBag(e)) return this.mailboxAdd({ t: "eq", e });
+      return true;
+    },
+    // 返还 / 出炉用：同一件（同一引用或同一 uid）已在背包里时不再新塞一件，
+    // 防止精炼、炼制取消等返还路径把同一件装备复制成两件。
+    addEquipOnce(e) {
+      if (!e || !e.attrs) return this.addEquip(e);
+      const dup = this.s.bag.find(x => x && x.t === "eq" && x.e && (x.e === e || (e.uid && x.e.uid === e.uid)));
+      if (dup) return true;
+      return this.addEquip(e);
+    },
+    // ---------- 传音领取 ----------
+    mailboxCount() { const now = this.now(); return this.mailboxList().filter(x => x && now < this.mailboxDue(x)).length; },
+    mailboxClaimItem(it) {
+      if (!it) return false;
+      if (it.t === "eq") return this.addEquipToBag(it.e);
+      const n = it.n || 1;
+      if (it.t === "pill") return this.bagAdd(x => x.t === "pill" && x.type === it.type && x.g === it.g, k => ({ t: "pill", type: it.type, g: it.g, n: k }), n, null, true);
+      if (it.t === "dan") return this.bagAdd(x => x.t === "dan" && x.type === it.type && x.g === it.g && !x.sg === !it.sg, k => it.sg ? { t: "dan", type: it.type, g: it.g, n: k, sg: 1 } : { t: "dan", type: it.type, g: it.g, n: k }, n, null, true);
+      if (it.t === "mat") return this.bagAdd(x => x.t === "mat" && x.name === it.name && x.g === it.g, k => ({ t: "mat", kind: it.kind, name: it.name, g: it.g, n: k }), n, null, true);
+      if (it.t === "cu") return this.bagAdd(x => x.t === "cu" && x.name === it.name, k => ({ t: "cu", name: it.name, n: k }), n, null, true);
+      if (it.t === "sm") return this.bagAdd(this.smIs(it.k, it.ft), k => { const o = { t: "sm", k: it.k, n: k }; if (DATA.SM_GRADED.includes(it.k)) o.ft = it.ft || 0; return o; }, n, null, true);
+      if (it.t === "hx") return this.bagAdd(x => x.t === "hx", k => ({ t: "hx", n: k }), n, null, true);
+      if (it.t === "fu") return this.bagAdd(x => x.t === "fu" && x.kind === it.kind && x.g === it.g, k => ({ t: "fu", kind: it.kind, g: it.g, n: k }), n, null, true);
+      if (it.t === "ss") return this.bagAdd(x => x.t === "ss" && x.g === it.g, k => ({ t: "ss", g: it.g, n: k }), n, null, true);
+      if (it.t === "ql") return this.bagAdd(x => x.t === "ql" && x.sect === it.sect, k => ({ t: "ql", sect: it.sect, n: k }), n, null, true);
+      if (it.t === "ysd") return this.bagAdd(x => x.t === "ysd" && x.ys === it.ys && x.k === it.k, k => ({ t: "ysd", ys: it.ys, k: it.k, n: k }), n, null, true);
+      if (it.t === "stp") return this.bagAdd(x => x.t === "stp" && x.id === it.id, k => ({ t: "stp", id: it.id, n: k }), n, null, true);
+      if (it.t === "cxp") return this.bagAdd(x => x.t === "cxp" && x.k === it.k, k => ({ t: "cxp", k: it.k, n: k }), n, null, true);
+      if (it.t === "ylb") return this.bagAdd(x => x.t === "ylb" && x.k === it.k && x.g === it.g, k => ({ t: "ylb", k: it.k, g: it.g, n: k }), n, null, true);
+      return this.bagPut(JSON.parse(JSON.stringify(it)));
+    },
+    mailboxClaim(id) {
+      this.mailboxPrune();
+      const list = this.mailboxList(), i = list.findIndex(x => x && x.id === id);
+      if (i < 0) return this.log("这件物品已过期或已被领取。", "sys");
+      const entry = list[i];
+      if (!this.mailboxClaimItem(entry.it)) return this.log("背包空间不足，先整理或腾出格子再领取。", "sys");
+      list.splice(i, 1);
+      this.log(`已从传音领取${this.itemName(entry.it)}${entry.it.n > 1 ? ` ×${entry.it.n}` : ""}。`, "good");
+      this.after(); this.openMailbox();
+    },
+    mailboxClaimAll() {
+      this.mailboxPrune();
+      const list = this.mailboxList(); let got = 0;
+      for (let i = list.length - 1; i >= 0; i--) if (this.mailboxClaimItem(list[i].it)) { list.splice(i, 1); got++; }
+      this.log(got ? `已从传音领取 ${got} 件物品。` : "背包空间不足，先整理或腾出格子再领取。", got ? "good" : "sys");
+      this.after(); this.openMailbox();
+    },
+    openMailbox() {
+      // 在线时服务端是权威：本地只过滤显示已过期项，不直接改本地存档（服务端在领取和每 10 秒结算时清掉）；单机时直接清掉
+      const online = typeof API !== "undefined" && API._socket;
+      if (!online) this.mailboxPrune();
+      const list = this.mailboxList().filter(x => x && this.now() < this.mailboxDue(x)), now = this.now();
+      const rows = list.map(x => {
+        const left = Math.max(0, this.mailboxDue(x) - now), days = Math.floor(left / 86400000), hours = Math.floor(left % 86400000 / 3600000);
+        return `<div class="line"><div>${this.itemName(x.it)}${x.it.n > 1 ? ` ×${x.it.n}` : ""}<small>　剩余 ${days} 天 ${hours} 小时</small></div><button class="sm primary" onclick="G.mailboxClaim('${x.id}')">领取</button></div>`;
+      }).join("");
+      this.modal(`<h2>传音暂存<small>背包放不下的物品暂存在这里，10 天未领自动清除</small></h2>
+        ${list.length ? rows : `<p class="desc">暂存里没有物品。背包满时，新得的物品会自动暂存到这里。</p>`}
+        <div class="btns">${list.length ? `<button class="primary" onclick="G.mailboxClaimAll()">全部领取</button>` : ""}<button onclick="G.closeModal()">关闭</button></div>`);
     },
     removeAt(i, n = 1) {
       const it = this.s.bag[i]; if (!it) return;
       // 中央关口：小数向下取整，负数/0 直接不扣（原来负数会让 it.n -= 负数 = 反向加物品），
       // 超过格子数量时只扣整格，不按请求数算账（算账在调用方先 clamp，见 sellItem）。
+      // 固定格子：整格扣完后该格留空（null），不 splice，后面的物品不往前挪。
       n = Math.floor(+n); if (!(n >= 1)) return;
-      if (it.n !== undefined && it.n > n) it.n -= n; else this.s.bag.splice(i, 1);
+      if (it.n !== undefined && it.n > n) it.n -= n; else this.s.bag[i] = null;
     },
     itemName(it) {
       if (it.t === "pill") return `${DATA.realms[it.g]}·${DATA.pills[it.type].name}`;
@@ -226,16 +343,15 @@ G.module({
     },
     bmMapOK(a) { const B = this.bmCfg(); return (DATA.worldMapIdx[B.WORLD] || [])[B.MAP] === +a; },
     // 已有图纸：学会了 / 背包里有（含学习中）
-    bmBpHave() { return this.s.bmLearn ? 1 : this.s.bag.some(it => it.t === "bmbp") ? 2 : 0; },
+    bmBpHave() { return this.s.bmLearn ? 1 : this.s.bag.some(it => it && it.t === "bmbp") ? 2 : 0; },
     // 功德司买图纸，进背包；在背包里学习 LEARN_MIN 分钟（炼器学习队列）后才能打开本命法宝页面
     buyBmBp(a) {
       const s = this.s, B = this.bmCfg();
       if (!this.bmMapOK(a)) return;
       const h = this.bmBpHave(); if (h) return this.log(h === 1 ? "已经学会了。" : `背包里已有${B.MIFA}。`, "sys");
       if ((s.merit || 0) < B.MERIT) return this.log("功德不足。", "sys");
-      if (this.bagFull()) return this.log("背包已满。", "sys");
-      s.merit -= B.MERIT; s.bag.push({ t: "bmbp" });
-      this.log(`购买了${B.MIFA}，已放入背包，学习后可打开${B.NAME}页面。`, "gold"); this.after();
+      s.merit -= B.MERIT; const where = this.bagPutOrMail({ t: "bmbp" });
+      this.log(`购买了${B.MIFA}，已放入${where === "mail" ? "传音暂存" : "背包"}，学习后可打开${B.NAME}页面。`, "gold"); this.after();
     },
     learnBmBp(i) {
       const s = this.s, B = this.bmCfg(), it = s.bag[i]; if (!it || it.t !== "bmbp" || it.lq) return;
@@ -264,7 +380,7 @@ G.module({
       if (this.bmEq() || s.bmJob) return this.log(`已经有${B.NAME}了。`, "sys");
       const e = this.bmPick(src, i); if (!e) return this.log(`法宝需要${this.bmReqTxt()}。`, "sys");
       const mats = this.bmMats(); if (!this.hasMats(mats)) return this.log("矿石不足。", "sys");
-      if (src === "bag") s.bag.splice(Math.floor(+i), 1); else s.fabao[Math.floor(+i)] = null;
+      if (src === "bag") s.bag[Math.floor(+i)] = null; else s.fabao[Math.floor(+i)] = null;
       const paid = this.craftFree() ? [] : mats; paid.forEach(m => this.takeMat(m.kind, m.g, m.n));   // 测试模式不扣矿石
       s.bmJob = { e, mats: paid, end: this.now() + B.MIN * 60000 };   // mats：取消时按实际扣的退
       this.log(`开始把${this.itemName({ t: "eq", e })}炼成${B.NAME}，${B.MIN} 分钟后炼成。`, "good"); this.dirty(); this.after();
@@ -272,9 +388,9 @@ G.module({
     // 取消炼制：法宝和矿石原样退回
     bmCancel() {
       const s = this.s, j = s.bmJob; if (!j) return;
-      if (this.bagFull()) return this.log("背包已满。", "sys");
+      // 背包满时法宝和矿石进传音暂存，不再以“至少 1 格”校验后丢掉后面的矿石；日志说退回即包含传音
       this.addEquip(j.e); this.giveBack(j.mats || this.bmMats()); s.bmJob = null;
-      this.log(`取消炼制${this.bmCfg().NAME}，法宝和矿石已退回。`, "sys"); this.dirty(); this.after();
+      this.log(`取消炼制${this.bmCfg().NAME}，法宝和矿石已退回${this.bagFull() ? "（背包满的部分在传音暂存）" : ""}。`, "sys"); this.dirty(); this.after();
     },
     // 本命法宝没有附加属性和专属属性（config/benming.js）
     //   只留一条主属性「伤害」（数值固定 PCT%，见 data/forge.js 的 DATA.attrVal），去掉附加和专属属性；c 保留只用来算法力消耗
@@ -385,7 +501,7 @@ G.module({
     bmPageView(ttl = "") {   // 有法宝时标题放在框框左上角（不占一行，下面的返回按钮就不挡属性）
       const s = this.s, B = this.bmCfg(), e = this.bmEq();
       const art = x => { const src = DATA.eqIcon(x), abs = typeof location !== "undefined" ? new URL(src, location.href).href : src; return `<div class="bm-art" style="--m:url('${abs}')"><img src="${src}" alt=""></div>`; };
-      const hero = (x, t, d) => `<div class="card bp-hero bm-hero">${ttl ? `<span class="bm-ttl">${ttl}</span>` : ""}${art(x)}<b class="q${x.q}${DATA.fbElCls(x)}">${t}</b>${d}</div>`;
+      const hero = (x, t, d) => `<div class="card bp-hero bm-hero">${ttl ? `<span class="bm-ttl">${ttl}</span>` : ""}${art(x)}<b class="${x.bm ? "" : "q" + x.q}${DATA.fbElCls(x)}">${t}</b>${d}</div>`;   // 已炼成的本命不带原法宝颜色（在炼的 j.e 还没变本命，照旧显示原颜色）
       if (e) { const b = this.bmBonus(), L = [["hp", "生命"], ["atk", "攻击"], ["def", "防御"], ["hit", "命中"], ["speed", "速度"], ["dodge", "闪避"]].filter(([k]) => b[k]);
         return hero(e, this.itemName({ t: "eq", e }), `<p>${this.equipDesc(e)}</p>
           <div class="bm-btns"><button class="bm-btn" onclick="G.openBmFuse()"><i>熔</i>熔炼</button><button class="bm-btn" onclick="G.openBmRefine()"><i>精</i>精炼</button><button class="bm-btn" onclick="G.openEnhance('bm')"><i>强</i>强化</button></div>`) +
@@ -399,7 +515,7 @@ G.module({
       const s = this.s, B = this.bmCfg();
       const list = [];
       (s.fabao || []).forEach((x, i) => { if (x && x.slot === "fabao" && !this.bmShield(x)) list.push(["fb", i, x, "法宝栏"]); });
-      s.bag.forEach((it, i) => { if (it.t === "eq" && it.e && it.e.slot === "fabao" && !it.lq && !this.bmShield(it.e)) list.push(["bag", i, it.e, "背包"]); });
+      s.bag.forEach((it, i) => { if (it && it.t === "eq" && it.e && it.e.slot === "fabao" && !it.lq && !this.bmShield(it.e)) list.push(["bag", i, it.e, "背包"]); });
       const ok = this.hasMats(this.bmMats());
       const rows = list.map(([src, i, x, w]) => { const rq = this.bmReqOK(x);
         return `<div class="line"><div>${DATA.eqTierIco(DATA.eqIcon(x), x.g)}<span class="q${x.q}">${this.itemName({ t: "eq", e: x })}</span><span class="tag">${w}</span><small>${DATA.rjName(x)}</small></div>
@@ -447,7 +563,7 @@ G.module({
     // v26：出售页（按上面的分类筛选），只有这里能卖东西
     sellPageView(match) {
       const s = this.s, flt = this.bagFilter || "all";
-      const rows = s.bag.map((it, i) => [it, i]).filter(([it]) => match(it) && !it.lq).map(([it, i]) => {
+      const rows = s.bag.map((it, i) => [it, i]).filter(([it]) => it && match(it) && !it.lq).map(([it, i]) => {
         const p = this.sellPrice(it), n = it.n || 1, q = it.t === "eq" ? it.e.q : it.t === "cu" ? ((this.cuDef(it.name) || {}).q || 0) : 0;
         const src = this.itemIcon(it), img = src ? `<img src="${src}" alt="" style="width:28px;height:28px;vertical-align:middle;margin-right:4px">` : "";
         return `<div class="line"><div>${img}<span class="q${q}">${this.itemName(it)}</span>${n > 1 ? ` ×${U.fmt(n)}` : ""}<small>单价 ${U.fmt(p)} 灵石</small></div>
@@ -640,7 +756,7 @@ G.module({
     takeFire(n) { return this.bagTake(x => x.t === "hx", n); },
     /* ---------- 秘境专用材料：空间晶核 kj、养神露 lu、耀石 ys（ft = 属性序号 0~5；-1 = 任意一种） ---------- */
     ysFor(e) { return e && e.slot === "fabao" ? DATA.elIdx(e.el) : -1; },   // 强化 / 炼制用哪种耀石
-    smIs(k, ft) { return x => x.t === "sm" && x.k === k && (!DATA.SM_GRADED.includes(k) || (x.ft || 0) === (ft || 0)); },
+    smIs(k, ft) { return x => x && x.t === "sm" && x.k === k && (!DATA.SM_GRADED.includes(k) || (x.ft || 0) === (ft || 0)); },
     smFind(k, ft) { return this.s.bag.findIndex(this.smIs(k, ft)); },
     smCount(k, ft) {
       if (k === "ys" && ft < 0) return this.bagNum(x => x.t === "sm" && x.k === "ys");
@@ -656,7 +772,7 @@ G.module({
         if (this.smCount(k, ft) < n) return false;
         const out = [];
         while (n > 0) {   // 先扣总数最多的那种
-          const fts = [...new Set(this.s.bag.filter(x => x.t === "sm" && x.k === "ys").map(x => x.ft || 0))].sort((a, b) => this.smCount("ys", b) - this.smCount("ys", a));
+          const fts = [...new Set(this.s.bag.filter(x => x && x.t === "sm" && x.k === "ys").map(x => x.ft || 0))].sort((a, b) => this.smCount("ys", b) - this.smCount("ys", a));
           const f = fts[0], m = Math.min(n, this.smCount("ys", f));
           this.bagTake(this.smIs("ys", f), m); n -= m; out.push({ k, ft: f, n: m });
         }
@@ -674,6 +790,7 @@ G.module({
     // 洗练弹窗：点属性切换锁定（记住装备对象本身，背包重新排序也不会找错）
     openReset(src) {
       const e = this.resetTarget(src); if (!e || !e.attrs) return;
+      if (e.bm) return this.log("本命法宝不能洗练。", "sys");   // 本命没有附加属性，洗练会刷出临时附加属性和新颜色，必须禁掉（强化走 openEnhance，不受影响）
       if (this._resetSource !== src) this._locks = [];
       this._resetSource = src;
       this._resetObj = e; this.drawReset();
@@ -695,6 +812,7 @@ G.module({
     toggleLock(i) { const L = this._locks || (this._locks = []), j = L.indexOf(i); j >= 0 ? L.splice(j, 1) : L.push(i); this.drawReset(); },
     doReset(src, locks = []) {
       const e = this.resetTarget(src); if (!e || !e.attrs) return;
+      if (e.bm) return this.log("本命法宝不能洗练。", "sys");
       const L = Array.isArray(locks) ? [...new Set(locks.map(Number).filter(i => Number.isInteger(i) && i >= 0 && i < e.attrs.length))] : [];
       const cost = DATA.resetCost(e, L.length);
       if (!this.canWash(e, L)) return;
@@ -707,25 +825,25 @@ G.module({
       return { locks: this._locks };
     },
     equipItem(i) {
-      const s = this.s, it = s.bag[i], e = it.e;
+      const s = this.s, it = s.bag[i]; if (!it || !it.e) return;
+      const e = it.e;
       if (e.slot === "fabao") {
         const hole = s.fabao.findIndex(x => !x);
-        if (hole >= 0 && hole < this.slotCount()) { s.bag.splice(i, 1); s.fabao[hole] = e; }   // 卸下留下的空格先填上
-        else if (s.fabao.length < this.slotCount()) { s.bag.splice(i, 1); s.fabao.push(e); }
+        if (hole >= 0 && hole < this.slotCount()) { s.bag[i] = null; s.fabao[hole] = e; }   // 卸下留下的空格先填上
+        else if (s.fabao.length < this.slotCount()) { s.bag[i] = null; s.fabao.push(e); }
         else return this.log("法宝栏已满。", "sys");
       } else {
         // 戒指放第一个空戒指位，都满了替换第一个
         const key = e.slot === "ring" ? (DATA.equipSlots.find(k => k.startsWith("ring") && !s.equip[k]) || "ring0") : e.slot;
         const old = s.equip[key];
-        s.bag.splice(i, 1); s.equip[key] = e;
-        if (old) s.bag.push({ t: "eq", e: old });
+        s.bag[i] = null; s.equip[key] = e;
+        if (old) this.addEquip(old);   // 换下的旧装备先填第一个空格（固定格子）
       }
       this.log(`装备了${e.name}。`, "good"); this.closeModal(); this.after();
     },
     unequip(key) {
-      if (this.bagFull()) return this.log("背包已满。", "sys");
-      if (key.startsWith("fb")) { const k = +key.slice(2); if (!this.s.fabao[k]) return; this.s.bag.push({ t: "eq", e: this.s.fabao[k] }); this.s.fabao[k] = null; }   // 法宝卸下不补位：该格留空，后面的法宝不往前挪
-      else { this.s.bag.push({ t: "eq", e: this.s.equip[key] }); this.s.equip[key] = null; }   // 装备（含戒指）本来就是按格位存，卸下只清该格，不补位
+      if (key.startsWith("fb")) { const k = +key.slice(2); if (!this.s.fabao[k]) return; this.addEquip(this.s.fabao[k]); this.s.fabao[k] = null; }   // 法宝卸下不补位：该格留空，后面的法宝不往前挪
+      else { if (!this.s.equip[key]) return; this.addEquip(this.s.equip[key]); this.s.equip[key] = null; }   // 装备（含戒指）本来就是按格位存，卸下只清该格，不补位；背包满时卸下的装备进传音，不再塞入 e:null 的幻影物品
       this.closeModal(); this.after();
     },
     // 宗门秘境掉的炼丹 / 炼器经验：每个 +MJ.CXP_VAL 点
@@ -786,7 +904,7 @@ G.module({
     },
     // 更换法宝：k 法宝栏第几格；从背包里选一件法宝换上，原来的放回背包
     openFabaoSwap(k) {
-      const s = this.s, list = s.bag.map((it, i) => i).filter(i => s.bag[i].t === "eq" && s.bag[i].e.slot === "fabao");
+      const s = this.s, list = s.bag.map((it, i) => i).filter(i => s.bag[i] && s.bag[i].t === "eq" && s.bag[i].e && s.bag[i].e.slot === "fabao");
       if (!list.length) return this.log("背包里没有可更换的法宝。", "sys");
       this.modal(`<h2>更换法宝</h2>` + list.map(i => { const e = s.bag[i].e;
         return `<div class="line"><div><span class="q${e.q}">${this.itemName(s.bag[i])}</span><small>${this.equipDesc(e)}</small></div>
@@ -819,7 +937,7 @@ G.module({
     // 点法术栏：显示详细，可卸下
     openSpellSlot(i) {
       const id = this.s.spellSlots[i], g = id && DATA.spellInfo(id, this.s.gongfa[id]); if (!g) return;
-      this.modal(`<h2 class="q1">《${g.name}》</h2><p><span class="c-red">${g.star}星</span> · ${g.el.name}系 · <span class="c-green">${g.lv} 层</span><br>${this.spellDmgTxt(g)}<br>耗法力 ${U.fmt(g.mana)} · 每场战斗最多 ${g.uses} 次<br>${g.fuPct ? `<span class="c-green">融合 +${U.dec(g.fuPct)}%（${DATA.fuseTxt(g.fu)}）</span>` : "未融合"} · ${g.jy ? `<span class="c-green">已精研 ${U.fmt(g.jy)} 次</span>` : "未精研"}</p>
+      this.modal(`<h2 class="q1">《${g.name}》</h2><p><span class="c-red">${g.star}星</span> · ${g.el.name}系 · <span class="c-green">${g.lv} 层</span> · 攻击 ${U.fmt(g.atk)}<br>${this.spellDmgTxt(g, 1)}<br>耗法力 ${U.fmt(g.mana)} · 每场战斗最多 ${g.uses} 次<br>${g.fuPct ? `<span class="c-green">融合 +${U.dec(g.fuPct)}%（${DATA.fuseTxt(g.fu)}）</span>` : "未融合"} · ${g.jy ? `<span class="c-green">已精研 ${U.fmt(g.jy)} 次</span>` : "未精研"}</p>
         <div class="btns g3"><button onclick="G.openSpellJy('${id}')">精研</button><button onclick="G.openSpellFuse('${id}')">融合</button><button onclick="G.openSpellAdv('${id}')">进阶</button>
         <button onclick="G.unslotSpell(${i})">卸下</button><button onclick="G.openSpellPick(${i})">更换</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
@@ -831,7 +949,8 @@ G.module({
     spDrop(id, to) {
       const s = this.s;
       delete s.gongfa[id]; if (s.spJy) delete s.spJy[id]; if (s.spFuse) delete s.spFuse[id];
-      s.spellSlots = s.spellSlots.map(x => x === id ? to || null : x).filter((x, i, a) => x && a.indexOf(x) === i);
+      // 法术栏也是固定格子：卸下 / 换成新法术只改该格，留空不补位；原来 filter 会把全部空位闭合，后面的法术整体前移
+      s.spellSlots = s.spellSlots.map(x => x === id ? to || null : x);
       // 战斗设置里也引用了法术键名（sp:id），不更新会一直指向已删除的法术。
       const b = s.bset;
       if (b) {
@@ -928,13 +1047,14 @@ G.module({
     }
     const top = `<div class="card bagstage"><div class="bs-hero" style="grid-column:2/5;grid-row:1/5"><img src="${this.heroImg("ys")}?v=${DATA.IMG_V}" alt=""></div>
       <div class="bs-top" style="grid-column:3;grid-row:1">${tabs}</div><div class="bs-bot" style="grid-column:3;grid-row:4">${spBtn}</div>${orb("shentong", "神通秘术", 2)}${orb("benming", "本命法宝", 4)}${sCells.join("")}</div>`;
-    this.sortBag();
+    // 背包不再自动整理：打开背包不重排、不补位，只有手动点「整理」才按原规则排序。
     // v26：储物格分类（全部 丹药 药材 矿石）+ 出售页
     const flt = this.bagFilter || "all", match = it => flt === "all" || (flt === "dan" ? it.t === "pill" || it.t === "dan" || it.t === "ql" || it.t === "ylb" || it.t === "ysd" : flt === "herb" ? (it.t === "mat" && it.kind === "herb") || (it.t === "cu" && !!((this.cuDef(it.name) || {}).herb)) : (it.t === "mat" && it.kind === flt) || (flt === "ore" && it.t === "cu" && !!((this.cuDef(it.name) || {}).ore)));
     const ftabs = `<div class="bag-tabs">${[["all", "全部"], ["dan", "丹药"], ["herb", DATA.matKinds.herb], ["ore", DATA.matKinds.ore]].map(([k, t]) =>
       `<button class="${flt === k && !this.bagSell ? "active" : ""}" onclick="G.setBagFilter('${k}')">${t}</button>`).join("")}
-      <button class="sell ${this.bagSell ? "active" : ""}" onclick="G.openSellPage()">出售</button></div>`;
-    if (this.bagSell) return top + `<div class="card"><h3>储物格<small>${s.bag.length} / ${s.bagCap}</small></h3>${ftabs}</div>` + this.sellPageView(match);
+      <button class="sell ${this.bagSell ? "active" : ""}" onclick="G.openSellPage()">出售</button>
+      <button onclick="G.sortBagNow()">整理</button></div>`;
+    if (this.bagSell) return top + `<div class="card"><h3>储物格<small>${this.bagUsed()} / ${s.bagCap}</small></h3>${ftabs}</div>` + this.sellPageView(match);
     let cells = "", shown = 0;
     for (let i = 0; i < s.bagCap; i++) {
       const it = s.bag[i];
@@ -964,6 +1084,6 @@ G.module({
       else if (it.t === "cu") { const d = this.cuDef(it.name); cells += `<div class="cell q${d ? d.q || 0 : 0}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.cuIcon(d)}" alt="">${it.name}<span class="n">${U.fmt(it.n)}</span></div>`; }
       else { const src = DATA.eqIcon(it.e); cells += `<div class="cell q${it.e.q}${DATA.eqCls(it.e)}" onclick="G.openItem(${i})">${src ? DATA.fbArt(it.e, src, "mi") : ""}${it.e.name}${it.e.enh ? `<span class="n">+${it.e.enh}</span>` : ""}${src ? "" : `<span class="g">${DATA.slots[it.e.slot]}</span>`}</div>`; }
     }
-    return top + `<div class="card"><h3>储物格<small>${s.bag.length} / ${s.bagCap}</small></h3>${ftabs}<div class="grid">${cells || `<p class="desc">没有这类物品。</p>`}</div></div>`;
+    return top + `<div class="card"><h3>储物格<small>${this.bagUsed()} / ${s.bagCap}</small></h3>${ftabs}<div class="grid">${cells || `<p class="desc">没有这类物品。</p>`}</div></div>`;
   },
 });
