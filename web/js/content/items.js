@@ -33,19 +33,19 @@ ITEMS.list = {
 /* ---------------- 2. 坊市 ----------------
  * 每一行一种货品，从上到下显示，删掉一行就不卖了：
  *   { kind: "pill", type: "juqi" }        修炼丹（juqi 聚气丹 / juling 聚灵丹 / peiyuan 培元丹），品质 = 当前境界，价格自动
- *   { kind: "eq", slot: "weapon", price: 2000 }  一阶炼器装备（随机属性），slot 只能是 helmet armor weapon legs boots pendant（坊市不卖戒指），必须写 price
+ *   { kind: "eq", slot: "weapon", price: 5000 }  一阶炼器装备（随机属性），slot 只能是 helmet armor weapon legs boots pendant（坊市不卖戒指），必须写 price
  *   任意一行都可以加：price 固定价格（丹药不写 = 自动价格）  realm 需要的境界序号（0 练气 1 筑基 …，不够就不显示）
  */
 ITEMS.shop = [
   { kind: "pill", type: "juqi" , price: 100 },
   { kind: "pill", type: "juling", price: 400 },
   { kind: "pill", type: "peiyuan", price: 900 },
-  { kind: "eq", slot: "helmet", price: 2000 },
-  { kind: "eq", slot: "armor", price: 2000 },
-  { kind: "eq", slot: "weapon", price: 2000 },
-  { kind: "eq", slot: "legs", price: 2000 },
-  { kind: "eq", slot: "boots", price: 2000 },
-  { kind: "eq", slot: "pendant", price: 2000 },
+  { kind: "eq", slot: "helmet", price: 5000 },
+  { kind: "eq", slot: "armor", price: 5000 },
+  { kind: "eq", slot: "weapon", price: 5000 },
+  { kind: "eq", slot: "legs", price: 5000 },
+  { kind: "eq", slot: "boots", price: 5000 },
+  { kind: "eq", slot: "pendant", price: 5000 },
 ];
 
 /* ---------------- 3. 宗门宝库 · 杂物 ----------------

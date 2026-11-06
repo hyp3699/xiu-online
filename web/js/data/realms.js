@@ -33,11 +33,19 @@ const _R = CFG.realm, _P = CFG.player;
 // 境界突破表（config/realm.js）：一行一个境界，没写的境界沿用上面最近一行；T = 要突破到的总层序（0 = 第一境界一层）
 DATA.brRow = (rows, r) => { let o = null; for (const x of rows || []) if (x[0] <= r && (!o || x[0] >= o[0])) o = x; return o; };
 // 突破到第 T 层需要的修为 / 气血：行 = [境界, 一层需要, 十层需要]，中间每层平均加，最后 × 总倍率 rate
-DATA.brNeed = (rows, T, rate) => { T = Math.max(0, T); const x = DATA.brRow(rows, Math.floor(T / DATA.LAYERS)); return x ? Math.round((x[1] + ((x[2] || x[1]) - x[1]) / (DATA.LAYERS - 1) * (T % DATA.LAYERS)) * (rate || 1)) : 0; };
+// 没写的境界自动算（grow 设了时）：一层 = 上一境界十层 × first，十层 = 上一境界十层 × grow，中间各层按相同倍率逐层递增
+//   写了的行：[境界, 一层, 十层] 中间平均递增
+DATA.brNeed = (rows, T, rate, grow, first) => {
+  T = Math.max(0, T); const r = Math.floor(T / DATA.LAYERS), k = T % DATA.LAYERS, n = DATA.LAYERS - 1, x = DATA.brRow(rows, r); if (!x) return 0;
+  const a = x[1], b = x[2] || x[1];
+  if (!(+grow > 0) || r <= x[0]) return Math.round((a + (b - a) / n * k) * (rate || 1));
+  const g = +grow, f = +first || g, prev = b * Math.pow(g, r - x[0] - 1);   // 上一境界十层
+  return Math.round(prev * f * Math.pow(g / f, k / n) * (rate || 1));
+};
 DATA.isTest = () => !!DATA._debug || (+((CFG.rates || {}).TEST) === 1 && !!DATA._admin);   // 测试模式：调试人物始终开（DATA._debug），或 config/rates.js TEST=1 时对管理员账号生效（服务器 setAdmin/setDebug，网页 API 设）
 DATA.brRate = () => DATA.isTest() ? 0 : +((CFG.rates || {}).BREAK ?? 1) || 0;   // config/rates.js 突破需要总倍率（测试模式 = 0，突破不需要修为 / 气血）
-DATA.needExp = L => Math.round(DATA.brNeed(_R.EXP, L + 1, _R.EXP_RATE) * DATA.brRate());   // 第 L 层 → 第 L+1 层
-DATA.MORTAL_EXP = Math.round(DATA.brNeed(_R.EXP, 0, _R.EXP_RATE) * DATA.brRate());          // 凡人 → 练气一层
+DATA.needExp = L => Math.round(DATA.brNeed(_R.EXP, L + 1, 1, _R.EXP_GROW, _R.EXP_FIRST) * DATA.brRate());   // 第 L 层 → 第 L+1 层
+DATA.MORTAL_EXP = Math.round(DATA.brNeed(_R.EXP, 0, 1, _R.EXP_GROW, _R.EXP_FIRST) * DATA.brRate());          // 凡人 → 练气一层
 // 突破 n 层（第 0 ~ n-1 层）增加的属性合计（缓存）
 DATA._brSum = {};
 DATA.brSum = (rows, n, tag) => {

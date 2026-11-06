@@ -46,7 +46,7 @@ G.module({
     // 肉身境界名：凡体 / 淬皮一层
     bodyName(L) { if (L === undefined) L = this.s.bodyL; return L < 0 ? "凡体" : CFG.body.names[Math.floor(L / DATA.LAYERS)] + DATA.layerNames[L % DATA.LAYERS]; },
     // 升到第 T 层（= bodyL + 1）需要的肉身修为
-    bodyNeed(T) { if (T === undefined) T = this.s.bodyL + 1; return Math.round(DATA.brNeed(CFG.realm.BODY_EXP, T, CFG.realm.BODY_EXP_RATE) * DATA.brRate()); },   // config/realm.js 的 BODY_EXP
+    bodyNeed(T) { if (T === undefined) T = this.s.bodyL + 1; return Math.round(DATA.brNeed(CFG.realm.BODY_EXP, T, 1, CFG.realm.BODY_EXP_GROW, CFG.realm.BODY_EXP_FIRST) * DATA.brRate()); },   // config/realm.js 的 BODY_EXP
     // 肉身修炼速度（每 10 秒）
     // 修为修炼正在跑（由它扣修炼室）
     cultRoomOn() { return !!(this.isCultivating && this.isCultivating() && this.hasMijue() && !this.exBlocksCult()); },

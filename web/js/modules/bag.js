@@ -277,7 +277,49 @@ G.module({
       if (it.e.attrs) return `${DATA.XING[it.e.g]}·${it.e.name}${it.e.enh ? ` +${it.e.enh}` : ""}`;
       return `${DATA.realms[it.e.g]}·${it.e.name}`;
     },
+    // 炼制物品出售价：洞府炼丹房、炼器室炼出的物品 = 所耗全部材料的出售价合计 × CRAFT_SELL（1.1），向下取整
+    //   按物品现在的星级、精炼次数推算（掉落、礼包、旧存档同样算）；失败损耗、图谱 / 图纸、强化、洗练不算
+    matUnit(m) {
+      if (m.kind === "herb" || m.kind === "ore") return DATA.matPrice(m.kind, m.g) || 0;
+      if (m.kind === "sm") { const v = (CFG.mijing.items[m.g] || {}).sell || 0; return Array.isArray(v) ? v[Math.max(0, m.ft || 0)] || 0 : v; }
+      if (m.kind === "cu") { const d = this.cuDef(m.g); return d ? d.sell || 0 : 0; }
+      return 0;
+    },
+    matsValue(list) { return (list || []).reduce((a, m) => a + this.matUnit(m) * (m.n || 0), 0); },
+    smVal(k, n, ft) { return n > 0 ? this.matUnit({ kind: "sm", g: k, ft, n }) * n : 0; },
+    craftValue(it) {
+      const F = CFG.forge, Y = F.YAOSHI || {};
+      if (it.t === "eq" && it.e.bm) return -1;   // 本命法宝不按这个算
+      if (it.t === "eq") {
+        const e = it.e, g = Math.max(0, e.g || 0), fb = e.slot === "fabao", ring = e.slot === "ring";
+        let v = 0;
+        for (let k = 0; k <= g; k++) {
+          if (ring) {
+            const sp = DATA.ringSp(e.r);
+            if (k === 0 && !sp) continue;   // 破军 / 磐石 / 长生 一星不能炼制
+            v += this.matsValue(DATA.ringMatsFor(e.r, k)) + this.smVal("ys", (Y.ring || [])[k] || 0);
+            if (sp) v += this.smVal(sp.sm, DATA.ringSmNeed(k));
+          } else v += this.matsValue(DATA.forgeEqMats(k)) + this.smVal("ys", (Y[fb ? "fabao" : "equip"] || [])[k] || 0, fb ? DATA.elIdx(e.el) : 0);
+        }
+        const rj = DATA.rjCount(e);
+        for (let i = 0; i < rj; i++) {   // 第 1~10 次按 1 星材料，第 11~20 次按 2 星……
+          const t = Math.min(g, Math.floor(i / 10));
+          v += this.matsValue(ring ? DATA.ringMats(t) : DATA.forgeEqMats(t));
+          if (fb) v += this.smVal("ys", (Y.fabao || [])[t] || 0, DATA.elIdx(e.el));
+        }
+        return v;
+      }
+      if (it.t === "ss") return this.matsValue(DATA.stoneMats(it.g)) + this.smVal("kj", (F.stone.special || [])[it.g] || 0);
+      if (it.t === "fu") return this.matsValue(DATA.furnaceMats(it.kind, it.g));
+      if (it.t === "dan") return DATA.recipes[it.type] ? this.matsValue(DATA.danRecipe(it.type, it.g)) : -1;
+      if (it.t === "pill") { const g = it.g - DATA.pillGrade(it.type, 0); return DATA.isSpeedRecipe(it.type) && g >= 0 && (DATA.recipes[it.type].herbs || [])[g] ? this.matsValue(DATA.danRecipe(it.type, g)) : -1; }
+      if (it.t === "sm") { for (const t in DATA.recipes) if (DATA.recipeItem(t) === it.k) return this.matsValue(DATA.danRecipe(t, 0)); }
+      return -1;   // 不是炼制物品
+    },
     sellPrice(it) {
+      if (it.t === "eq" && !it.e.attrs) return 0;
+      const cv = this.craftValue(it);
+      if (cv >= 0) return Math.floor(cv * (CFG.price.CRAFT_SELL || 1.1));
       if (it.t === "pill") return Math.floor(DATA.pillPrice(it.type, it.g) * CFG.price.PILL_SELL);
       if (it.t === "dan") return DATA.danPrice(it.type, it.g);
       if (it.t === "mat") return DATA.matPrice(it.kind, it.g);

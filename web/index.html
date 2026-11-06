@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#14110f">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>问道长生 · 文字修仙</title>
-<link rel="stylesheet" href="css/style.css?v=321">
+<link rel="stylesheet" href="css/style.css?v=322">
 </head>
 <body class="nologin">
 <div id="boot">问道长生<small>加载中…</small></div>
@@ -73,9 +73,9 @@
   }
 </script>
 <!-- 自定义物品、坊市、宗门宝库（不是数值文件） -->
-<script src="js/content/items.js?v=214"></script>
+<script src="js/content/items.js?v=215"></script>
 <script src="js/data/names.js?v=212"></script>
-<script src="js/data/realms.js?v=225"></script>
+<script src="js/data/realms.js?v=226"></script>
 <script src="js/data/pills.js?v=208"></script>
 <script src="js/data/cave.js?v=211"></script>
 <script src="js/data/sects.js?v=209"></script>
@@ -96,13 +96,13 @@
 
 <script src="js/modules/player.js?v=219"></script>
 <script src="js/modules/cave.js?v=212"></script>
-<script src="js/modules/bag.js?v=276"></script>
+<script src="js/modules/bag.js?v=277"></script>
 <script src="js/modules/custom.js?v=210"></script>
 <script src="js/modules/gongfa.js?v=244"></script>
 <script src="js/modules/sect.js?v=276"></script>
 <script src="js/modules/cultivate.js?v=255"></script>
 <script src="js/modules/trib.js?v=225"></script>
-<script src="js/modules/body.js?v=224"></script>
+<script src="js/modules/body.js?v=225"></script>
 <script src="js/modules/world.js?v=380"></script>
 <script src="js/modules/xingjun.js?v=216"></script>
 <script src="js/modules/lingen.js?v=212"></script>
@@ -122,6 +122,35 @@
 <script src="js/modules/account.js?v=211"></script>
 <script src="js/core/fastsim.js?v=229"></script>
 
+<script>
+  // 图片常驻：界面刷新会重建 <img>，安卓包里的图没有缓存标记，重建时要重新读、重新解码，会闪一下。
+  // 这里把显示过的图片（<img> 和 style 里的 background url）各留一个 Image 对象在内存里，同一张图再出现时直接显示。
+  // 只在浏览器里运行（服务器不执行内联脚本）；最多留 KEEP_MAX 张，超出先丢最早的。
+  (function () {
+    if (typeof document === "undefined" || !window.MutationObserver) return;
+    var KEEP_MAX = 800, keep = new Map(), RE = /url\(["']?([^"')]+)["']?\)/g;
+    function hold(src) {
+      if (!src || src.slice(0, 5) === "data:" || src.slice(0, 5) === "blob:") return;
+      if (keep.has(src)) { var o = keep.get(src); keep.delete(src); keep.set(src, o); return; }
+      var im = new Image(); im.src = src; keep.set(src, im);
+      if (im.decode) im.decode().catch(function () {});
+      if (keep.size > KEEP_MAX) keep.delete(keep.keys().next().value);
+    }
+    function bg(el) { var st = el.getAttribute && el.getAttribute("style"); if (!st || st.indexOf("url(") < 0) return; var m; RE.lastIndex = 0; while ((m = RE.exec(st))) hold(new URL(m[1], location.href).href); }
+    function scan(n) {
+      if (n.nodeType !== 1) return;
+      if (n.tagName === "IMG") hold(n.src); else bg(n);
+      var a = n.getElementsByTagName("img"); for (var i = 0; i < a.length; i++) hold(a[i].src);
+      if (n.querySelectorAll) { var b = n.querySelectorAll("[style*='url(']"); for (var j = 0; j < b.length; j++) bg(b[j]); }
+    }
+    new MutationObserver(function (ms) {
+      for (var i = 0; i < ms.length; i++) { var m = ms[i];
+        if (m.type === "childList") for (var k = 0; k < m.addedNodes.length; k++) scan(m.addedNodes[k]);
+        else if (m.attributeName === "src") hold(m.target.src); else bg(m.target); }
+    }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["src", "style"] });
+    scan(document.body);
+  })();
+</script>
 <script>G.init();</script>
 </body>
 </html>

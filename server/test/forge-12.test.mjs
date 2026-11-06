@@ -63,9 +63,11 @@ test("buyYsBp 在服务器白名单里（联机才能兑换）", () => {
 });
 
 test("肉身 24 阶、灵地境界跟地图、炼器师最后一阶", () => {
-  const { C } = setup();
-  assert.equal(C.realm.BODY_EXP.length, 24); assert.equal(C.realm.BODY_GAIN.length, 24);
-  for (let i = 1; i < 24; i++) { const a = C.realm.BODY_EXP[i - 1][2], b = C.realm.BODY_EXP[i][1]; assert.ok(b >= a * 0.99 && b <= a * 1.2, `肉身 ${i}`); }
+  const { C, D } = setup(); const R = C.realm;
+  assert.equal(R.BODY_GAIN.length, 24);
+  // 气血需要：只写淬皮，后面每阶 一层 = 上阶十层 × BODY_EXP_FIRST，十层 = 上阶十层 × BODY_EXP_GROW
+  const need = T => D.brNeed(R.BODY_EXP, T, 1, R.BODY_EXP_GROW, R.BODY_EXP_FIRST);
+  for (let i = 1; i < 24; i++) { const a = need(i * 10 - 1); assert.ok(Math.abs(need(i * 10) / a - R.BODY_EXP_FIRST) < 1e-4, `肉身 ${i}`); assert.ok(Math.abs(need(i * 10 + 9) / a - R.BODY_EXP_GROW) < 1e-4, `肉身 ${i}`); }
   assert.equal(JSON.stringify(C.lingdi.list.map(d => C.mobs.lingdi[d.name]["普通"][0])), "[10,10,11,11,12,12,13,14,15,16,17,18]");
   const E = C.craftsman.qi.EXP; assert.equal(E.length, 11); assert.equal(E[10], 87516237);
   assert.equal(C.forge.YS_BP[10].COST, 500);

@@ -1130,6 +1130,6 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 
 /* 物品加锁：详情弹窗右上角 */
 .modal-box{position:relative}
-.ilk{position:absolute;right:8px;top:8px;z-index:4;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--t-sub);opacity:.75;line-height:0;border:1px solid var(--c-edge);border-radius:50%;background:var(--c-deep)}
+.ilk{position:absolute;right:8px;top:8px;z-index:4;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#1b7a2e;line-height:0;border:2px solid #1b7a2e;border-radius:50%;background:var(--c-deep)}
 .ilk svg{width:18px;height:18px}
-.ilk.on{opacity:1;color:#f0c75e;border-color:#f0c75e}
+.ilk.on{color:#a11616;border-color:#a11616}
