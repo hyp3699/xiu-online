@@ -36,9 +36,12 @@
       // 只在这些模块有 tick 时加速
       const ids = this.modules.filter(m => m.tick).map(m => m.id);
       if (ids.length !== FAST_MODULES.length || ids.some((id, k) => id !== FAST_MODULES[k])) return -Infinity;
-      if (s.explore || s.cq || s.trib) return -Infinity;               // 探索 / 渡劫：逐个结算
+      if (s.explore || s.cq || (s.trib && !s.trib.result)) return -Infinity;   // 探索 / 渡劫中：逐个结算；渡劫已出结果（只剩领奖）可以加速
       const cs = s.cultSet;                                       // 修炼设置：快要自动去探索时逐个结算
       if (cs && cs.on && cs.tgt && s.stone < cs.low) return -Infinity;
+      // 灵气不足时修炼设置挡住不修炼：原来只看灵石，灵气不足也加速会把“不修炼”加速成“修炼”
+      // （条件与 cultivate.js 的 cultSetCheck 同口径）
+      if (cs && cs.on) { const R = this.csRate(); if (R.act ? s.ling < Math.max(1, R.need) : this.cultLack()) return -Infinity; }
       if (!s.gfStudy && s.gfQueue && s.gfQueue.length) return -Infinity;
       // 北京时间下一个 0 点（免费修炼室 / 练功房重置、道童俸禄）
       const last = tk - DATA.TICK * 1000;
@@ -46,6 +49,7 @@
       // v230 自动执行任务：北京时间 0:05（今天还没执行就是今天的，执行过就是明天的）
       if (this.autoTaskAny()) { const m5 = Math.floor((last + B) / D) * D - B + 5 * 60000; ev.push(s.autoTask.day === this.bjDay() || last >= m5 ? m5 + D : m5); }
       if (s.gfLearn) ev.push(s.gfLearn.end);
+      if (s.studyBuff && s.studyBuff.end && this.studyPillFix) this.studyPillFix(s.studyBuff);
       if (s.studyBuff && s.studyBuff.end) ev.push(s.studyBuff.end);   // 悟真丹到期：重新算练功房倍率
       if (s.cqzjL) ev.push(s.cqzjL.end);   // 出窍真诀学完
       // 门派：炼体池、事务堂、免费练功房到时

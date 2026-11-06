@@ -80,9 +80,9 @@ DATA.herbs = [...Object.keys(CFG.mats.herb), ...Object.keys((CFG.matsOther || {}
 DATA.ores  = [...Object.keys(CFG.mats.ore), ...Object.keys((CFG.matsOther || {}).ore || {})];
 DATA.matCfg = (kind, name) => (CFG.mats[kind] || {})[name] || ((CFG.matsOther || {})[kind] || {})[name] || [0, 0];
 // 丹药、炉子、丹方分十阶（一星门派对应一阶 …… 十星对应十阶）
-DATA.JIE = DATA.nmArr(CFG.names.jie, ["一阶", "二阶", "三阶", "四阶", "五阶", "六阶", "七阶", "八阶", "九阶", "十阶"]);
-DATA.XING = DATA.nmArr(CFG.names.xing, ["一星", "二星", "三星", "四星", "五星", "六星", "七星", "八星", "九星", "十星"]);   // 装备、法宝、戒指、炼器炉、炼器师
-DATA.DAN_JIE_N = 10;   // 丹药、炉子、丹方只有一阶 ~ 十阶（装备、戒指、法宝到十二阶）
+DATA.JIE = DATA.nmArr(CFG.names.jie, ["一阶", "二阶", "三阶", "四阶", "五阶", "六阶", "七阶", "八阶", "九阶", "十阶", "十一阶", "十二阶"]);   // 十一、十二阶只有空间石用
+DATA.XING = DATA.nmArr(CFG.names.xing, ["一星", "二星", "三星", "四星", "五星", "六星", "七星", "八星", "九星", "十星", "十一星", "十二星"]);   // 装备、法宝、戒指、炼器炉、炼器师
+DATA.DAN_JIE_N = 10;   // 丹药、炼丹炉、丹方只有一阶 ~ 十阶（装备、戒指、法宝、空间石、炼器炉到十二）
 DATA.matKinds = { herb: DATA.nmPick(CFG.names.matKind, "herb", "药材"), ore: DATA.nmPick(CFG.names.matKind, "ore", "矿石") };
 
 /* ---------- 东西南北四域 ---------- */

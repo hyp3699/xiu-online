@@ -2,7 +2,7 @@
  * 模块：修炼肉身（数值在 config/body.js）
  * ---------------------------------------------------------------------
  * 需要学会炼体秘诀（宗门功法殿，gongfa 类型 tijue）。每 10 秒消耗灵气转化肉身修为，可开关自动修炼。
- * 肉身境界 bodyL：-1 = 凡体，0 = 第一境界一层 …… 29 境界 × 10 层。每层手动突破，不需要雷劫。
+ * 肉身境界 bodyL：-1 = 凡体，0 = 第一境界一层 …… 24 境界 × 10 层。每层手动突破，不需要雷劫。
  * 突破扣除攒够的气血（肉身修为），另消耗灵石、药材；每突破一层增加属性（bodyBonus，加进 player.js computeStats）。
  * ===================================================================== */
 G.module({
@@ -73,7 +73,7 @@ G.module({
       if (seg) {   // 分段规则：(base + step × 段内层数) × 凡界 / 仙界倍率
         const k = T - seg.from * DATA.LAYERS, mult = seg.mult === "xian" ? B.HERB_MULT_XIAN : B.HERB_MULT_FAN;
         n = Math.max(1, Math.round((seg.base + seg.step * k) * (mult === undefined ? 1 : mult))); herbs = seg.herbs;
-      } else {     // 不在分段里的境界（神体及以上）：HERB_XIAN_BASE × HERB_RATE^(T − HERB_FROM × 10)
+      } else {     // 不在分段里的境界（星辰体及以上）：HERB_XIAN_BASE × HERB_RATE^(T − HERB_FROM × 10)
         n = Math.max(1, Math.round(B.HERB_XIAN_BASE * Math.pow(B.HERB_RATE, T - B.HERB_FROM * DATA.LAYERS))); herbs = B.HERBS_XIAN;
       }
       return { stone: Math.floor(B.STONE_BASE * Math.pow(B.STONE_RATE, T)),

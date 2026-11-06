@@ -35,6 +35,15 @@ test("共用引擎与每人一个引擎结果一致，界面字段不串号", ()
   shared.drop("A"); shared.use("A"); assert.equal(shared.G.bagFilter, undefined);
 });
 
+test("S-5 删当前所有者后切到别人，Symbol 占位不留侧栏", () => {
+  const e = new GameEngine();
+  e.use("A"); e.G.bagFilter = "dan";
+  e.drop("A");   // _owner 置空后 use(Symbol("none")) 占位
+  e.use("B");    // 旧实现会在这里把 Symbol 当 owner 存一份 side，永不清理
+  for (const k of e._sides.keys()) assert.equal(typeof k, "string", "Symbol 侧栏泄漏");
+  assert.equal(e._sides.has("A"), false);
+});
+
 test("删当前所有者后重进，界面字段为空且不复活", () => {
   const e = new GameEngine();
   e.use("A"); e.G.bagFilter = "dan";

@@ -195,7 +195,7 @@ test("HTTP auth and WebSocket actions use authoritative server state", { timeout
   const bad = await fetch(`${base}/api/admin/config/save`, { method: "POST", headers: { "Content-Type": "application/json", "X-Token": token }, body: JSON.stringify({ name: "start.js", content: "CFG.start = {" }) });
   assert.equal(bad.status, 400);
   const edited = original + "\n// edited-by-admin-test\n";
-  const configNotice = waitFor(m => m.type === "config");
+  const configNotice = waitFor(m => m.type === "config", 30_000);   // 参数保存后才广播：保存要同步校验（现建引擎），满载时 8 秒默认等待不够
   await post(base, "/api/admin/config/save", token, { name: "start.js", content: edited });
   await configNotice;
   assert.equal(await fetch(`${base}/api/config/start.js`).then(r => r.text()), edited);
@@ -223,4 +223,114 @@ test("HTTP auth and WebSocket actions use authoritative server state", { timeout
   // 测试模式（config/rates.js TEST: 1）对管理员生效：重新载入时灵石被填成测试值，礼包加的不保留
   const testOn = /\bTEST:\s*1\b/.test((await fs.readFile(new URL("../../web/js/config/rates.js", import.meta.url), "utf8")));
   if (!testOn) assert.equal(firstAgain.data.stone, persisted.data.stone + 25);
+});
+
+test("审计修复：服务端容灾、校验、级联与限流", { timeout: 120_000 }, async t => {
+  const port = await freePort();
+  const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "xiu-online-test-"));
+  const base = `http://127.0.0.1:${port}`;
+  const child = spawn(process.execPath, [path.join(HERE, "../server.mjs")], {
+    cwd: path.join(HERE, ".."),
+    env: { ...process.env, XIU_HOST: "127.0.0.1", XIU_PORT: String(port), XIU_DATA_DIR: dataDir },
+    stdio: "ignore",
+  });
+  let socket;
+  t.after(async () => {
+    socket?.close();
+    if (child.exitCode === null) { child.kill("SIGTERM"); await new Promise(resolve => child.once("exit", resolve)); }
+    await fs.rm(dataDir, { recursive: true, force: true });
+  });
+  const rawPost = (route, token, payload) => fetch(`${base}${route}`, { method: "POST", headers: { "Content-Type": "application/json", ...(token ? { "X-Token": token } : {}) }, body: JSON.stringify(payload) });
+  const waitClose = sock => new Promise(resolve => sock.once("close", (code, reason) => resolve({ code, reason: reason.toString() })));
+  const waitWsError = sock => new Promise(resolve => sock.once("error", err => resolve(err)));
+
+  await waitHealth(base, child);
+  const admin = await post(base, "/api/register", null, { username: `adm_${Date.now()}`, password: "admin-password-123" });
+  assert.equal(admin.admin, true);
+  const adminToken = admin.token;
+  const adminId = (await fetch(`${base}/api/admin/users`, { headers: { "X-Token": adminToken } }).then(r => r.json())).list[0].id;
+  await post(base, "/api/character", adminToken, { name: "审计主档" });
+
+  // #1 损坏存档：连 WS 应收 4005，服务器不崩、/health 仍活
+  const { default: Database } = await import("better-sqlite3");
+  const db = new Database(path.join(dataDir, "xiu-online.sqlite3"));
+  db.prepare("UPDATE saves SET data=? WHERE user_id=?").run("corrupt{", adminId);
+  const ticket1 = (await post(base, "/api/ws-ticket", adminToken)).ticket;
+  const badSocket = new WebSocket(`${base.replace("http:", "ws:")}/api/ws?ticket=${encodeURIComponent(ticket1)}`);
+  const closed = await waitClose(badSocket);
+  assert.equal(closed.code, 4005);
+  assert.equal((await fetch(`${base}/health`)).status, 200);
+  db.prepare("DELETE FROM saves WHERE user_id=?").run(adminId);
+  await post(base, "/api/character", adminToken, { name: "审计主档" });
+
+  // #2 参数语义校验：空文件、数字变字符串都 400；合法改动 200；S-35 写盘权限 0o640
+  const craftsman = await fetch(`${base}/api/config/craftsman.js`).then(r => r.text());
+  assert.ok(craftsman.includes("RATE_BASE: 86"), "基线 craftsman.js 应含 RATE_BASE: 86");
+  assert.equal((await rawPost("/api/admin/config/save", adminToken, { name: "craftsman.js", content: "" })).status, 400);
+  assert.equal((await rawPost("/api/admin/config/save", adminToken, { name: "craftsman.js", content: craftsman.replace("RATE_BASE: 86", "RATE_BASE: \"86\"") })).status, 400);
+  const editedCraftsman = craftsman + "\n// edited-by-audit-test\n";
+  assert.equal((await rawPost("/api/admin/config/save", adminToken, { name: "craftsman.js", content: editedCraftsman })).status, 200);
+  assert.equal(await fetch(`${base}/api/config/craftsman.js`).then(r => r.text()), editedCraftsman);
+  assert.equal((await fs.stat(path.join(dataDir, "config", "craftsman.js"))).mode & 0o777, 0o640);
+  await post(base, "/api/admin/config/reset", adminToken, { name: "craftsman.js" });
+  assert.equal(await fetch(`${base}/api/config/craftsman.js`).then(r => r.text()), craftsman);
+
+  // #11 多文件原子保存：一份坏了两份都不生效；两份都好了一次生效
+  const rates = await fetch(`${base}/api/config/rates.js`).then(r => r.text());
+  const realm = await fetch(`${base}/api/config/realm.js`).then(r => r.text());
+  assert.equal((await rawPost("/api/admin/config/save-multi", adminToken, { files: [{ name: "rates.js", content: "CFG.rates = {" }, { name: "realm.js", content: realm + "\n// audit-multi\n" }] })).status, 400);
+  assert.equal(await fetch(`${base}/api/config/realm.js`).then(r => r.text()), realm);
+  const multi = await post(base, "/api/admin/config/save-multi", adminToken, { files: [{ name: "rates.js", content: rates + "\n// audit-multi\n" }, { name: "realm.js", content: realm + "\n// audit-multi\n" }] });
+  assert.deepEqual(multi.names, ["rates.js", "realm.js"]);
+  assert.match(await fetch(`${base}/api/config/rates.js`).then(r => r.text()), /audit-multi/);
+  assert.match(await fetch(`${base}/api/config/realm.js`).then(r => r.text()), /audit-multi/);
+  await post(base, "/api/admin/config/reset", adminToken, { name: "rates.js" });
+  await post(base, "/api/admin/config/reset", adminToken, { name: "realm.js" });
+
+  // S-34 礼包创建校验：重名码、非法类别都 400
+  await post(base, "/api/admin/gift", adminToken, { code: "AUDITGIFT", items: [{ c: "stone", n: 5 }], uses: 1 });
+  await assert.rejects(post(base, "/api/admin/gift", adminToken, { code: "AUDITGIFT", items: [{ c: "stone", n: 5 }], uses: 1 }), /礼包码已存在/);
+  await assert.rejects(post(base, "/api/admin/gift", adminToken, { code: "AUDITGIFT2", items: [{ c: "nope", n: 5 }], uses: 1 }), /类别无效/);
+  await assert.rejects(post(base, "/api/admin/gift", adminToken, { code: "AUDITGIFT3", items: [{ c: "dan" }], uses: 1 }), /缺少 item/);
+
+  // #3 删主号连同小号一起删（第二个管理员由 SQL 直插，绕开“只能首个注册是管理员”）
+  const salt = "0".repeat(32), hash = "0".repeat(64);
+  const main2 = db.prepare("INSERT INTO users(username,salt,password_hash,is_admin,created_at) VALUES(?,?,?,?,?)").run("audit_main2", salt, hash, 1, Date.now()).lastInsertRowid;
+  const sub2 = db.prepare("INSERT INTO users(username,salt,password_hash,is_admin,created_at,owner_id) VALUES(?,?,?,?,?,?)").run("audit_main2#2", salt, hash, 1, Date.now(), main2).lastInsertRowid;
+  await post(base, "/api/admin/user/del", adminToken, { id: Number(main2) });
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM users WHERE id IN (?,?)").get(main2, sub2).n, 0);
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM users WHERE id=?").get(adminId).n, 1);
+
+  // #13 小号不能直接改名
+  const sub1 = (await post(base, "/api/admin/char/new", adminToken, {})).id;
+  await assert.rejects(post(base, "/api/admin/user/rename", adminToken, { id: sub1, username: "newname1" }), /小号不能直接改名/);
+
+  // #6 改密后已连 WS 被关（4003），旧令牌失效
+  const user6 = await post(base, "/api/register", null, { username: `pw_${Date.now()}`, password: "old-password-123" });
+  await post(base, "/api/character", user6.token, { name: "改密档" });
+  const ticket6 = (await post(base, "/api/ws-ticket", user6.token)).ticket;
+  socket = new WebSocket(`${base.replace("http:", "ws:")}/api/ws?ticket=${encodeURIComponent(ticket6)}`);
+  const waitFor6 = messageQueue(socket);
+  await new Promise((resolve, reject) => { socket.once("open", resolve); socket.once("error", reject); });
+  await waitFor6(m => m.type === "snapshot");
+  const close6 = waitClose(socket);
+  await post(base, "/api/password", user6.token, { old: "old-password-123", new: "new-password-456" });
+  assert.equal((await close6).code, 4003);
+  assert.equal(await fetch(`${base}/api/session`, { headers: { "X-Token": user6.token } }).then(r => r.status), 401);
+  socket = null;
+
+  // S-4 登录限流：10 次错密码后 429，正确密码也被挡
+  const brute = `brute_${Date.now()}`;
+  await post(base, "/api/register", null, { username: brute, password: "right-password-123" });
+  for (let i = 0; i < 10; i++) assert.equal((await rawPost("/api/login", null, { username: brute, password: "wrong" })).status, 401);
+  assert.equal((await rawPost("/api/login", null, { username: brute, password: "wrong" })).status, 429);
+  assert.equal((await rawPost("/api/login", null, { username: brute, password: "right-password-123" })).status, 429);
+
+  // S-6 错误 Origin 的票作废：403 后同票从合法来源再连变 401（票已被删）
+  const ticket6b = (await post(base, "/api/ws-ticket", adminToken)).ticket;
+  const evil = new WebSocket(`${base.replace("http:", "ws:")}/api/ws?ticket=${encodeURIComponent(ticket6b)}`, { origin: "http://evil.example" });
+  assert.match((await waitWsError(evil)).message, /403/);
+  const evil2 = new WebSocket(`${base.replace("http:", "ws:")}/api/ws?ticket=${encodeURIComponent(ticket6b)}`);
+  assert.match((await waitWsError(evil2)).message, /401/);
+  db.close();
 });

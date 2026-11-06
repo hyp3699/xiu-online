@@ -84,13 +84,15 @@ G.module({
     gfRoomSec() { return this.gfRoomUnits() * DATA.STUDY_STEP; },
     gfRoomLocked(i) { return (DATA.gfRooms[i].rank || 0) > this.s.rank; },
     // 功法减少%（不含练功房）：同 gongfa.js studySec 的 red 口径
-    //   功法：悟道 + 经脉；法术：悟法（经脉不减）；秘法 / 开局功法书：0
+    //   功法 / 秘法：悟道 + 经脉 + 聚灵阵；法术：悟法（经脉不减）；开局功法书：0
     // 悟真丹：功法/法术修炼时间 -120%，持续 360 分钟；效果不叠加（pct 固定），时间可叠加（再服 end += 360 分钟）
-    //   存档字段 s.studyBuff = { pct, end }（毫秒时间戳）；秘法（mf）不吃此效果，功法/法术（含开局功法书 noEl）吃
-    studyPillPct() { const b = this.s && this.s.studyBuff; if (!b || !b.end) return 0; return this.now() < b.end ? (b.pct || 0) : 0; },
-    studyPillLeft() { const b = this.s && this.s.studyBuff; if (!b || !b.end) return 0; return Math.max(0, b.end - this.now()); },
+    //   存档字段 s.studyBuff = { pct, end }（毫秒时间戳）；功法/法术/秘法（含开局功法书 noEl）都吃
+    //   b.min：服用时的单颗持续分钟；配置改了（如测试改成 3 分钟），旧存档剩余时间压到 现在 + 新的单颗时长
+    studyPillFix(b) { const m = (CFG.alchemy.recipes.wuzhen || {}).studyMin || 360; if (b.min !== m) { b.end = Math.min(b.end, this.now() + m * 60000); b.min = m; } },
+    studyPillPct() { const b = this.s && this.s.studyBuff; if (!b || !b.end) return 0; this.studyPillFix(b); return this.now() < b.end ? (b.pct || 0) : 0; },
+    studyPillLeft() { const b = this.s && this.s.studyBuff; if (!b || !b.end) return 0; this.studyPillFix(b); return Math.max(0, b.end - this.now()); },
     gfRedFor(g) {
-      if (!g || g.noEl || g.kind === "mf") return 0;
+      if (!g || g.noEl) return 0;   // 秘法和功法一样（悟道 + 经脉 + 聚灵阵）
       const m = this.mifaBonus ? this.mifaBonus() : {};
       return g.kind === "sp" ? (m.spStudy || 0) : (m.gfStudy || 0) + (this.jmGfCut ? this.jmGfCut() : 0) + (this.arrayGfCut ? this.arrayGfCut() : 0);
     },
@@ -104,7 +106,7 @@ G.module({
     gfRoomNow(g) {
       const s = this.s;
       if (!g && s.gfStudy && DATA.skillInfo) g = DATA.skillInfo(s.gfStudy.id, s.gongfa[s.gfStudy.id] || 1);
-      const red = this.gfRedFor(g), pill = g && g.kind !== "mf" ? this.studyPillPct() : 0, M = p => this.gfRoomMul(red, p + pill);
+      const red = this.gfRedFor(g), pill = g ? this.studyPillPct() : 0, M = p => this.gfRoomMul(red, p + pill);
       if (this.freeGfOn()) { const p = this.freeGfPct(); return { name: CFG.sect.freeGfRoom.name, pct: p, pill, mul: M(p), cost: 0, cur: "contrib", free: true }; }
       if (s.gfRoom >= 0 && s.sect && DATA.gfRooms[s.gfRoom]) { const p = this.gfRoomPct(s.gfRoom); return { name: DATA.gfRooms[s.gfRoom].name, pct: p, pill, mul: M(p), cost: this.gfRoomCost(s.gfRoom), cur: "contrib" }; }
       if (pill > 0) return { name: "悟真丹", pct: pill, pill, mul: M(0), cost: 0, cur: null, pillOnly: true };   // 不在练功房时，悟真丹仍生效
@@ -131,10 +133,15 @@ G.module({
     leaveSect() {
       const c = this.leaveCost();
       if (this.s.contrib < c) return this.log(`贡献不足，叛出门派需要 ${U.fmt(c)}。`, "sys");
-      if (!confirm(`叛出门派将扣除贡献 ${U.fmt(c)}、清空职务（已学功法保留），确定？`)) return;
+      if (!confirm(`叛出门派将扣除贡献 ${U.fmt(c)}、清空职务（已学功法保留），免费修炼室/练功房会话作废，确定？`)) return;
       this.log(`你离开了${this.sectInfo().name}，扣除贡献 ${U.fmt(c)}。`, "bad");
       this.s.contrib -= c;
-      this.s.sect = null; this.s.room = -1; this.s.roomAt = 0; this.s.gfRoom = -1; this.s.gfRoomAt = 0; this.s.affair = { task: -1, start: 0, count: 0 }; this.s.rank = 0; this.s.rankPass = -1; this.after();
+      this.s.sect = null; this.s.room = -1; this.s.roomAt = 0; this.s.gfRoom = -1; this.s.gfRoomAt = 0; this.s.affair = { task: -1, start: 0, count: 0 }; this.s.rank = 0; this.s.rankPass = -1;
+      // 免费房会话跟门派绑定：原来只清付费房，叛出后 freeCultOn/freeGfOn 的“有门派”条件
+      // 只是暂时失效，重新拜入又能接着用旧会话；清掉 left/end 后跨天刷新也不会复活它
+      if (this.s.freeCult) { this.s.freeCult.on = false; this.s.freeCult.left = 0; }
+      if (this.s.freeGf) this.s.freeGf.end = 0;
+      this.after();
     },
 
     /* ---------- 宗门大殿 ---------- */
@@ -145,7 +152,7 @@ G.module({
       if (o !== undefined) return o;
       const t = DATA.mobExam(I.star, i); return t ? t[0] : I.reqRealm;
     },
-    rankCost(i) { const P = CFG.sect.RANK_COST_STAR_PCT; const m = P == null ? this.starMul() : 1 + (this.sectInfo().star - 1) * P / 100; return Math.floor(DATA.ranks[i].cost * m + 1e-9); },   // 晋升贡献：1 星起每星 +RANK_COST_STAR_PCT%
+    rankCost(i) { return DATA.ranks[i].cost; },   // 晋升贡献：就是 ranks 表的 cost，不乘宗门星级
     promote() {
       const i = this.s.rank + 1; if (i >= DATA.ranks.length) return;
       if (!this.realmOK(this.rankReqRealm(i)) || this.s.contrib < this.rankCost(i)) return;
@@ -154,7 +161,7 @@ G.module({
       this.log(`晋升为【${DATA.ranks[i].name}】！`, "gold"); this.after();
     },
     /* ---------- 晋升考验（config/sect.js 的 sect.rankTrial） ---------- */
-    rankTrialCost(i) { return Math.floor(((CFG.sect.rankTrial.cost || [])[i] || 0) * this.starMul()); },
+    rankTrialCost(i) { return (CFG.sect.rankTrial.cost || [])[i] || 0; },   // 考验贡献：就是 rankTrial.cost，不乘宗门星级
     makeRankGuard(i) {
       const b = DATA.mobStats(DATA.mobExam(this.sectInfo().star, i), DATA.mobCrit("考官")), v = (x, k) => x * DATA.mobRnd(k);   // config/mobs.js 的 sect
       return this.addMagic({ name: `${DATA.ranks[i].name}考官`, img: this.npcImg(`考官${this.sectInfo().star}_${i}`, "rn"), boss: false, hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.resEl || b.res, manaBr: b.manaBr, L: b.L, crit: b.crit }, "考核");
@@ -206,7 +213,7 @@ G.module({
       for (const sid in E) { const v = DATA.qlVals(sid); for (const k in v) b[k] = (b[k] || 0) + v[k] * E[sid]; }
       return b;
     },
-    ccGotOf(sid = this.s.sect) { return (this.s.ccGot || {})[sid] || []; },
+    ccGotOf(sid = this.s.sect) { const all = DATA.ccIds(sid); return ((this.s.ccGot || {})[sid] || []).filter(id => all.includes(id)); },   // 只算现在还有的（去掉的传承法术不算）
     ccLeft() { const got = this.ccGotOf(); return DATA.ccIds(this.s.sect).filter(id => !got.includes(id)); },
     ccWudao() {   // 领悟：每天 1 次，随机一本没领悟过的
       const s = this.s; if (!this.isMaster() || s.ccDay === this.today()) return;
@@ -531,15 +538,18 @@ G.module({
     // 养神露兑换（ITEMS.treasury 的 kind "lu"）：n 个同一种药材或矿石换 get 个，每天一次（北京时间换日）
     luDone() { return this.s.luDay === this.bjDay(); },
     luFroms(it) { const r = [];   // 背包里有的药材、矿石 [{ kind, g, c }]
-      for (const kind of ["herb", "ore"]) (kind === "herb" ? DATA.herbs : DATA.ores).forEach((n, g) => { const c = this.countMat(kind, g); if (c > 0) r.push({ kind, g, c }); });
+      for (const kind of ["herb", "ore"]) (kind === "herb" ? DATA.herbs : DATA.ores).forEach((n, g) => { const c = this.countMat(kind, g, true); if (c > 0) r.push({ kind, g, c }); });
       return r; },
     luSwap(i, kind, g) {
       const it = this.treasuryList()[i], x = this.sectInfo(); g = +g;
       if (!it || it.kind !== "lu" || !x || (it.star || 1) > x.star || !["herb", "ore"].includes(kind) || !DATA.matName(kind, g)) return;
       if (this.luDone()) return this.log("今天已经换过养神露了。", "sys");
-      if (this.countMat(kind, g) < it.n) return this.log(`${DATA.matName(kind, g)}不足，需要 ${U.fmt(it.n)} 个。`, "sys");
-      this.takeMat(kind, g, it.n);
+      const cost = it.cost || 0;
+      if ((this.s.contrib || 0) < cost) return this.log(`贡献不足，需要 ${U.fmt(cost)}。`, "sys");
+      if (this.countMat(kind, g, true) < it.n) return this.log(`${DATA.matName(kind, g)}不足，需要 ${U.fmt(it.n)} 个（加锁的不算）。`, "sys");
+      this.takeMat(kind, g, it.n, true);
       if (!this.addSm("lu", it.get)) { this.addMat(kind, DATA.matName(kind, g), g, it.n); return; }
+      this.s.contrib -= cost;
       this.s.luDay = this.bjDay();
       this.log(`${DATA.matName(kind, g)} ×${U.fmt(it.n)} 换得${DATA.smName("lu")} ×${it.get}。`, "good"); this.after();
     },
@@ -552,10 +562,10 @@ G.module({
         return `<div class="cell q${Math.min(5, Math.floor(g / 2))}${sel ? " sel" : ""}${ok ? "" : " off"}" ${ok ? `onclick="G.lsw={kind:'${kind}',g:${g}};G.openLuSwap(${i})"` : ""}><img class="mi" src="${DATA.matImg(kind, g)}" alt="">${DATA.matName(kind, g)}<small>${U.fmt(c)}</small></div>`; }).join("");
       const done = this.luDone(), hc = cells("herb"), oc = cells("ore");
       this.modal(`<h2>兑换${DATA.smName("lu")}</h2>
-        <p class="desc">${U.fmt(it.n)} 个同一种${DATA.matKinds.herb}或${DATA.matKinds.ore}换 ${it.get} 个${DATA.smName("lu")}，每天一次。点选要拿出的材料</p>
+        <p class="desc">${U.fmt(it.n)} 个同一种${DATA.matKinds.herb}或${DATA.matKinds.ore}${it.cost ? `加 ${U.fmt(it.cost)} 贡献` : ""}换 ${it.get} 个${DATA.smName("lu")}，每天一次。点选要拿出的材料（加锁的不算）</p>
         ${hc ? `<h3>${DATA.matKinds.herb}</h3><div class="grid">${hc}</div>` : ""}${oc ? `<h3>${DATA.matKinds.ore}</h3><div class="grid">${oc}</div>` : ""}
         ${hc || oc ? "" : `<p class="desc">背包里没有${DATA.matKinds.herb}或${DATA.matKinds.ore}。</p>`}
-        <div class="line"><div>${w.g >= 0 ? `消耗 ${DATA.matName(w.kind, w.g)} ×${U.fmt(it.n)}` : `没有足够 ${U.fmt(it.n)} 个的材料`}<small>已有${DATA.smName("lu")} ${U.fmt(this.smCount("lu"))}</small></div></div>
+        <div class="line"><div>${w.g >= 0 ? `消耗 ${DATA.matName(w.kind, w.g)} ×${U.fmt(it.n)}${it.cost ? `、贡献 ${U.fmt(it.cost)}` : ""}` : `没有足够 ${U.fmt(it.n)} 个的材料`}<small>已有${DATA.smName("lu")} ${U.fmt(this.smCount("lu"))}　贡献 ${U.fmt(this.s.contrib || 0)}</small></div></div>
         <div class="btns"><button class="primary" onclick="G.luSwap(${i},G.lsw.kind,G.lsw.g)" ${done || w.g < 0 ? "disabled" : ""}>${done ? "今日已换" : "兑换"}</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
     setTreasuryTab(t) { this.treasuryTab = t; this.render(); },
@@ -567,6 +577,13 @@ G.module({
       return names.map((n, g) => g < fanN ? { g, lock: 0 } : (O.SPECIAL || []).includes(n) ? null : { g, lock: star >= (O.STAR || 6) ? 0 : (O.STAR || 6) }).filter(x => x && !x.lock);   // 本宗门星级兑换不了的不显示
     },
     treasuryMatOK(kind, g) { const x = this.treasuryMatList(kind).find(m => m.g === g); return !!x && !x.lock; },
+    // 种子列表：宝库能换的药材 + config/garden.js 里写了 star 的（神界药材，门派星级够才显示；药材本身不能换）
+    seedList() {
+      const L = this.treasuryMatList("herb"), H = (CFG.garden || {}).herbs || {}, star = this.sectInfo().star;
+      DATA.herbs.forEach((n, g) => { const h = H[n]; if (h && h.star && star >= h.star && !L.some(x => x.g === g)) L.push({ g, lock: 0 }); });
+      return L;
+    },
+    seedOK(g) { return DATA.herbGrow(g) && this.seedList().some(x => x.g === g && !x.lock); },
     // 兑换材料（药材、矿石，凡界全部可换）；n 不填就用输入框里的数量
     exchangeMat(kind, g, n) {
       n = Math.floor(n || +($("#tr-n") && $("#tr-n").value) || 1);
@@ -626,7 +643,7 @@ G.module({
     },
     // 兑换种子（每种一次，永久可种）
     exchangeSeed(g) {
-      if (!this.treasuryMatOK("herb", g) || this.s.seeds.includes(g)) return;
+      if (!this.seedOK(g) || this.s.seeds.includes(g)) return;
       const c = DATA.seedCost(g); if (this.s.contrib < c) return;
       this.s.contrib -= c; this.s.seeds.push(g);
       this.log(`获得${DATA.herbs[g]}种子，可在洞府灵药园种植。`, "gold"); this.after();
@@ -783,10 +800,11 @@ G.module({
     jdCost() { return this.jdCfg().COST || 0; },
     jdStatOf(k) { if (k.startsWith("res_")) return k; const t = DATA.gongfaTypes.find(x => x.id === k); return t ? t.stat : ""; },
     jdLabel(st) { return st.startsWith("res_") ? ((DATA.elById[st.slice(4)] || {}).name || "") + "抗" : DATA.QL_LABEL[st] || st; },
-    jdInterp(a, b) { const n = this.sectInfo().star, t = Math.min(9, Math.max(0, n - 1)) / 9; return [Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t)]; },   // 1 星 a 到 10 星 b 按星级线性插值
-    jdVal(k) { return this.jdInterp(this.jdCfg().STAT1 || [15, 35], this.jdCfg().STAT10 || [70, 110]); },   // 功法属性：1 星 STAT1 到 10 星 STAT10 按星级线性插值
+    // star 不传时用当前门派星级；听讲结算传听讲时的星级（旧存档 cur 没 star 时回退当前星级）
+    jdInterp(a, b, star) { const n = star ?? this.sectInfo().star, t = Math.min(9, Math.max(0, n - 1)) / 9; return [Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t)]; },   // 1 星 a 到 10 星 b 按星级线性插值
+    jdVal(k, star) { return this.jdInterp(this.jdCfg().STAT1 || [15, 35], this.jdCfg().STAT10 || [70, 110], star); },   // 功法属性：1 星 STAT1 到 10 星 STAT10 按星级线性插值
     jdNeed(k) { const c = this.craftInfo(k); return c.lv >= this.craftMax(k) ? 0 : this.craftNeed(k, c.lv); },
-    jdExp(k) { if (!this.jdNeed(k)) return [0, 0]; return this.jdInterp(this.jdCfg().EXP1 || [20, 40], this.jdCfg().EXP10 || [180, 260]); },   // 炼丹/炼器经验：1 星 EXP1 到 10 星 EXP10 按星级线性插值（满阶不加）
+    jdExp(k, star) { if (!this.jdNeed(k)) return [0, 0]; return this.jdInterp(this.jdCfg().EXP1 || [20, 40], this.jdCfg().EXP10 || [180, 260], star); },   // 炼丹/炼器经验：1 星 EXP1 到 10 星 EXP10 按星级线性插值（满阶不加）
     jdRoll(r) { return Math.floor(r[0] + Math.random() * (r[1] - r[0] + 1)); },
     jdRange(r) { return r[0] === r[1] ? U.fmt(r[0]) : `${U.fmt(r[0])}~${U.fmt(r[1])}`; },
     // 当天的长老按「日期 + 角色名 + 门派」固定随机：客户端、服务器算出来一样，刷新页面也不变
@@ -826,7 +844,8 @@ G.module({
       const free = d.free !== day, c = free ? 0 : this.jdCost();
       if (s.contrib < c) return this.log("贡献不足。", "sys");
       s.contrib -= c; if (free) d.free = day;
-      L.done = 1; d.cur = { i, end: this.now() + (this.jdCfg().MIN || 10) * 60000, k: L.k, nm: L.nm, book: L.book };
+      // 奖励按听讲时的门派星级算：把星级写进 cur，结算时用它，不用结算时的现星级
+      L.done = 1; d.cur = { i, end: this.now() + (this.jdCfg().MIN || 10) * 60000, k: L.k, nm: L.nm, book: L.book, star: this.sectInfo().star };
       this.log(`前往讲道室听取${L.nm}讲道${free ? "（今日免费）" : `，消耗贡献 ${U.fmt(c)}`}。`, "sys"); this.after();
     },
     jdSettle() {
@@ -834,10 +853,10 @@ G.module({
       const c = d.cur; d.cur = null;
       let gain;
       if (c.k === "dan" || c.k === "qi") {
-        const n = this.jdRoll(this.jdExp(c.k)); this.addCraftExp(c.k, n);
+        const n = this.jdRoll(this.jdExp(c.k, c.star)); this.addCraftExp(c.k, n);
         gain = `${c.k === "dan" ? "炼丹" : "炼器"}经验提高了：${U.fmt(n)}点`;
       } else {
-        const st = this.jdStatOf(c.k), v = this.jdRoll(this.jdVal(c.k));
+        const st = this.jdStatOf(c.k), v = this.jdRoll(this.jdVal(c.k, c.star));
         d.got = d.got || {}; d.got[st] = (d.got[st] || 0) + v;
         gain = `自身${this.jdLabel(st)}提高了：${U.fmt(v)}点`;
       }
@@ -972,7 +991,7 @@ G.module({
           }
           if (it.kind === "lu") {
             const lock = (it.star || 1) > x.star, done = this.luDone();
-            return [0, `<div class="line"><div>${DATA.li(DATA.smIcon("lu"))}${DATA.smName("lu")} ×${it.get}<small>${U.fmt(it.n)} 个同一种${DATA.matKinds.herb}或${DATA.matKinds.ore} · 每天一次</small></div>
+            return [0, `<div class="line"><div>${DATA.li(DATA.smIcon("lu"))}${DATA.smName("lu")} ×${it.get}<small>${U.fmt(it.n)} 个同一种${DATA.matKinds.herb}或${DATA.matKinds.ore}${it.cost ? ` + ${U.fmt(it.cost)} 贡献` : ""} · 每天一次</small></div>
               <button class="sm" onclick="G.openLuSwap(${i})" ${lock || done ? "disabled" : ""}>${lock ? `${it.star}星宗门可兑换` : done ? "今日已换" : "兑换"}</button></div>`];
           }
           const c = this.treasuryCost(it), lock = (it.star || 1) > x.star;
@@ -983,7 +1002,7 @@ G.module({
             <button class="sm" onclick="G.exchange(${i})" ${lock || s.contrib < c ? "disabled" : ""}>${lock ? `${it.star}星宗门可兑换` : "兑换"}</button></div>`];
         })) + `</div>`;
       } else if (tt === "seed") {
-        h += `<div class="card"><h3>灵药种子<small>每种兑换一次</small></h3>` + this.treasuryMatList("herb").map(({ g, lock }) => { const n = DATA.herbs[g], c = DATA.seedCost(g), has = s.seeds.includes(g);
+        h += `<div class="card"><h3>灵药种子<small>每种兑换一次</small></h3>` + this.seedList().map(({ g, lock }) => { const n = DATA.herbs[g], c = DATA.seedCost(g), has = s.seeds.includes(g);
           return `<div class="line"><div>${DATA.li(DATA.matImg("herb", g))}${n}种子<small>${U.fmt(c)} 贡献 · ${U.dur(DATA.growTime(g) / 1000)}成熟</small></div>
             <button class="sm" onclick="G.exchangeSeed(${g})" ${has || lock || s.contrib < c ? "disabled" : ""}>${has ? "已拥有" : lock ? `${lock}星宗门可兑换` : "兑换"}</button></div>`; }).join("") + `</div>`;
       } else if (tt === "bp") {

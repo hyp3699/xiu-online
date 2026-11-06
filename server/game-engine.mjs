@@ -118,7 +118,9 @@ export class GameEngine {
       const cfg = source.match(/^(?:api|js)\/config\/([^/]+\.js)$/);
       const cfgOf = name => Object.prototype.hasOwnProperty.call(overrides, name) ? overrides[name] : readConfig(name);
       if (source === "api/config-loader.js") {
-        for (const name of configNames()) vm.runInContext(cfgOf(name), sandbox, { filename: `js/config/${name}`, timeout: 30_000 });
+        // 参数文件是管理员可写的任意 JS：超时从 30 秒收紧到 5 秒，恶意/死循环参数
+        // 只能阻塞单台引擎 5 秒；游戏脚本本身的 30 秒不动
+        for (const name of configNames()) vm.runInContext(cfgOf(name), sandbox, { filename: `js/config/${name}`, timeout: 5_000 });
         continue;
       }
       if (cfg) code = cfgOf(cfg[1]);
@@ -181,7 +183,9 @@ export class GameEngine {
   use(key) {
     if (key === this._owner) return this;
     const G = this.G, base = this._base;
-    if (this._owner !== null) {
+    // drop() 把当前 owner 置空后会 use(Symbol("none")) 占位：Symbol 不是真玩家，下次真实
+    // use() 时不能把它当 owner 存一份 side，否则每台引擎上 Symbol 侧栏永不清理、缓慢增长
+    if (this._owner !== null && typeof this._owner !== "symbol") {
       const side = {};
       for (const k of Object.keys(G)) if (k !== "s" && (!base.has(k) || G[k] !== base.get(k))) side[k] = G[k];
       this._sides.set(this._owner, side);
@@ -195,8 +199,8 @@ export class GameEngine {
   }
   // 玩家下线久了：丢掉他留在引擎里的界面字段
   // 注意：若 key 恰是当前 owner，不能先删 side 再 use()，因为 use() 切换前会把当前
-  // owner 的界面字段重新存回 _sides[key]，等于把刚删的复活。先把 _owner 置空，
-  // use() 就不会保存上一任 owner，也就不会留下一个 Symbol 的 side 条目。
+  // owner 的界面字段重新存回 _sides[key]，等于把刚删的复活。先把 _owner 置空再
+  // use(Symbol("none")) 占位；占位 Symbol 本身不存 side（use 里的 symbol 守卫）。
   drop(key) {
     this._sides.delete(key);
     if (key === this._owner) { this._owner = null; this.use(Symbol("none")); }

@@ -102,6 +102,7 @@ DATA.mobCalc = (t, crit, rnd) => {
     o.hp *= m(R.x.生命); o.atk *= m(R.x.攻击); o.def *= m(R.x.防御);
     if (E.length) { let s = 0; for (const e of E) s += o.resEl[e.id] *= m(R.x[e.id]); o.res = s / E.length; }
   }
+  if (R.x && Array.isArray(R.x.神通)) o.stl = R.x.神通.filter(v => Array.isArray(v) && v[0]).map(v => [String(v[0]), Math.max(0, Math.round(+v[1] || 0))]);   // 怪物神通 [[id, 等级]]（config/mobs.js 额外倍率里的 神通，固定不随机）
   o.manaBr = st.manaBr;   // 修为突破的法力（法术 / 法宝耗法力用，不乘倍率）
   o.crit = crit || 0; o.layer = lay; o.L = R.realm * DATA.LAYERS + lay - 1;   // v171 总层序（保底伤害用）
   return o;
@@ -134,8 +135,8 @@ DATA.mobMeet = (grp, kind) => { const t = grp && grp._t && grp._t[kind]; return 
   }
   // v258 地图等级（法术 / 法宝伤害加成用）：凡界 1~9，仙魔冥第 N 张 9+N，神界第 N 张 19+N
   DATA.mapLv = a => { const m = DATA.maps[a]; if (!m) return 0; if (!m.w || m.w === "fan") return a + 1; return (m.wi || 0) + (m.w === "shen" ? 20 : 10); };
-  // 不在地图上的怪：按怪物境界折算，练气 = 1 级，每个大境界 +1（和凡界 / 仙界地图的区域境界一一对应），最多 29
-  DATA.mapLvByL = L => Math.min(29, Math.max(1, Math.floor((L || 0) / DATA.LAYERS) + 1));
+  // 不在地图上的怪：按怪物境界折算，练气 = 1 级，每个大境界 +1，最多 24（圣人）
+  DATA.mapLvByL = L => Math.min(24, Math.max(1, Math.floor((L || 0) / DATA.LAYERS) + 1));
 })();
 DATA.mobTj = a => (DATA.maps[a].mob || {})["天将"] || DATA.MOB_NONE;
 DATA.mobXj = (a, i) => { const l = (DATA.maps[a].mob || {})["星君"] || []; return l[i] || l[l.length - 1] || DATA.MOB_NONE; };

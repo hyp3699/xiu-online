@@ -64,11 +64,11 @@ test("烈阳戒（观星阁）/ 玄武戒（万化神宫）图纸好感度 100/1
 test("炼制：专用戒指一星直接炼（30 个专用材料），二星要一星戒指 + 40 个；普通戒指一星不能炼", () => {
   const { G, s, D } = setup(6);
   s.furnaceUse.qi = 9; s.forgeKnown.push("ring:3:0", "ring:3:1", "ring:0:0");
-  const give = (g, r = 3) => { for (const m of D.ringMatsFor(r, g)) G.addMat(m.kind, D.matName(m.kind, m.g), m.g, m.n); G.addSm("ys", [10, 30][g], 0); };
+  const give = (g, r = 3) => { for (const m of D.ringMatsFor(r, g)) G.addMat(m.kind, D.matName(m.kind, m.g), m.g, m.n); G.addSm("ys", [10, 20][g], 0); };
   assert.equal(D.ringMatsFor(3, 0).length, 1); assert.equal(D.ringMatsFor(0, 3).length, 3);
   assert.equal(G.jobSm({ kind: "ring", g: 0, r: 3 }).find(x => x.k === "ys").n, 10);
-  assert.equal(G.jobSm({ kind: "ring", g: 9, r: 5 }).find(x => x.k === "ys").n, 7680);
-  assert.equal(G.jobSm({ kind: "ring", g: 9, r: 0 }).find(x => x.k === "ys").n, 7680);
+  assert.equal(G.jobSm({ kind: "ring", g: 9, r: 5 }).find(x => x.k === "ys").n, 460);
+  assert.equal(G.jobSm({ kind: "ring", g: 9, r: 0 }).find(x => x.k === "ys").n, 460);
   give(0); G.addSm("rlx", 29);
   G.craftFurnace("ring", 0, 3); assert.equal(s.forgeJob, null);                       // 专用材料差 1 个
   G.addSm("rlx", 1);
@@ -86,9 +86,9 @@ test("炼制：专用戒指一星直接炼（30 个专用材料），二星要�
 });
 
 
-test("戒指耀石同法宝翻倍；强化三类共用灵石 5000 起每 500 级 +5000、火髓 +6、耀石 +3；精研灵石 8000 起每 500 次 +8000", () => {
+test("戒指耀石同法宝（10、20、40、70……）；强化三类共用灵石 5000 起每 500 级 +5000、火髓 +6、耀石 +3；精研灵石 8000 起每 500 次 +8000", () => {
   const { G, D, s } = setup(6);
-  for (const r of [0, 3]) assert.deepEqual([...Array(10).keys()].map(g => G.jobSm({ kind: "ring", g, r }).find(x => x.k === "ys").n), [10, 30, 60, 120, 240, 480, 960, 1920, 3840, 7680]);
+  for (const r of [0, 3]) assert.deepEqual([...Array(10).keys()].map(g => G.jobSm({ kind: "ring", g, r }).find(x => x.k === "ys").n), [10, 20, 40, 70, 110, 160, 220, 290, 370, 460]);
   for (const slot of ["weapon", "ring", "fabao"]) {
     const e = { slot, g: 2, el: "huo", attrs: [], enh: 0 };
     let c = G.enhCost(e); assert.deepEqual([c.stone, c.fire, c.jj], [5000, 10, 5]);
@@ -118,11 +118,11 @@ test("强化加成不分星级：装备按部位、戒指按种类（+1 命中�
   // 法宝融合已取消：不再有 fbFuse / fbFusable，护盾法宝每级 +30 护盾的断言在上面
 });
 
-test("心得灵石价格翻倍；炼丹师 / 炼器师 / 灵植夫升阶经验 × 总倍率 1.15", () => {
+test("心得灵石价格翻倍；炼丹师 / 炼器师 / 灵植夫升阶经验 = EXP × 1.18（共享总倍率已删）", () => {
   const { e, G } = setup(6), C = e.CFG;
-  assert.equal(C.craftsman.EXP_MULT, 1.15);
-  assert.equal(G.craftNeed("dan", 1), Math.round(832 * 1.15)); assert.equal(G.craftNeed("dan", 29), Math.round(87516237 * 1.15));
-  assert.equal(G.craftNeed("qi", 9), Math.round(87516237 * 1.15)); assert.equal(G.craftNeed("ling", 2), Math.round(1260 * 1.15));
+  assert.equal(C.craftsman.EXP_MULT, undefined);
+  assert.equal(G.craftNeed("dan", 1), 982); assert.equal(G.craftNeed("dan", 29), 103269160);
+  assert.equal(G.craftNeed("qi", 11), 103269160); assert.equal(G.craftNeed("ling", 2), 1487);
   assert.deepEqual([...C.xinde.PRICE], [100000, 3000000]);
-  const c = G.craftInfo("dan"); c.lv = 1; c.exp = 0; G.addCraftExp("dan", 900); assert.equal(c.lv, 1); G.addCraftExp("dan", 57); assert.equal(c.lv, 2); assert.equal(c.exp, 0);
+  const c = G.craftInfo("dan"); c.lv = 1; c.exp = 0; G.addCraftExp("dan", 800); assert.equal(c.lv, 1); G.addCraftExp("dan", 182); assert.equal(c.lv, 2); assert.equal(c.exp, 0);
 });

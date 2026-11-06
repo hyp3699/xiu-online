@@ -9,14 +9,14 @@
  * ===================================================================== */
 const _FG = CFG.forge;
 
-// 每星每部位一种装备（一星 ~ 十星）
+// 每星每部位一种装备（一星 ~ 十二星）
 DATA.forgeNames = {
-  helmet:  ["青铜盔", "玄铁盔", "赤炎冠", "寒玉冠", "紫金冠", "星辰冠", "太虚冠", "混元冠", "鸿蒙冠", "道源冠"],
-  armor:   ["青铜甲", "玄铁甲", "赤炎袍", "寒玉衣", "紫金甲", "星辰战衣", "太虚道袍", "混元宝甲", "鸿蒙仙衣", "道源圣衣"],
-  weapon:  ["青铜剑", "玄铁剑", "赤炎刀", "寒玉剑", "紫金锏", "星辰剑", "太虚剑", "混元戟", "鸿蒙剑", "道源剑"],
-  legs:    ["青铜护腿", "玄铁护腿", "赤炎护膝", "寒玉腿甲", "紫金腿甲", "星辰护腿", "太虚护腿", "混元腿甲", "鸿蒙护腿", "道源护腿"],
-  boots:   ["青铜靴", "玄铁靴", "赤炎靴", "寒玉靴", "紫金靴", "星辰靴", "太虚靴", "混元靴", "鸿蒙靴", "道源靴"],
-  pendant: ["青铜坠", "玄铁坠", "赤炎佩", "寒玉佩", "紫金坠", "星辰佩", "太虚佩", "混元坠", "鸿蒙佩", "道源佩"],
+  helmet:  ["青铜盔", "玄铁盔", "赤炎冠", "寒玉冠", "紫金冠", "星辰冠", "太虚冠", "混元冠", "鸿蒙冠", "道源冠", "造化神冠", "永恒圣冠"],
+  armor:   ["青铜甲", "玄铁甲", "赤炎袍", "寒玉衣", "紫金甲", "星辰战衣", "太虚道袍", "混元宝甲", "鸿蒙仙衣", "道源圣衣", "造化神衣", "永恒圣衣"],
+  weapon:  ["青铜剑", "玄铁剑", "赤炎刀", "寒玉剑", "紫金锏", "星辰剑", "太虚剑", "混元戟", "鸿蒙剑", "道源剑", "造化神剑", "永恒圣剑"],
+  legs:    ["青铜护腿", "玄铁护腿", "赤炎护膝", "寒玉腿甲", "紫金腿甲", "星辰护腿", "太虚护腿", "混元腿甲", "鸿蒙护腿", "道源护腿", "造化护腿", "永恒护腿"],
+  boots:   ["青铜靴", "玄铁靴", "赤炎靴", "寒玉靴", "紫金靴", "星辰靴", "太虚靴", "混元靴", "鸿蒙靴", "道源靴", "造化神靴", "永恒圣靴"],
+  pendant: ["青铜坠", "玄铁坠", "赤炎佩", "寒玉佩", "紫金坠", "星辰佩", "太虚佩", "混元坠", "鸿蒙佩", "道源佩", "造化神佩", "永恒圣佩"],
 };
 // 名字在 config/names.js 的 forge（上面是原名，读档对照用）
 DATA.NM_DEF.forge = JSON.parse(JSON.stringify(DATA.forgeNames));
@@ -294,7 +294,8 @@ DATA.fabaoInfo = (e, own) => {
   o.cutPct = Math.min(CAP.manaCut === undefined ? 80 : CAP.manaCut, o.cutPct);
   o.ign = ref.res * Math.min(CAP.ignRes === undefined ? 100 : CAP.ignRes, o.ign) / 100;   // 无视抗性 = 参考抗性 × %
   // 人物大境界倍率（同法术）
-  const R = typeof G !== "undefined" && G.s && !G.s.mortal ? Math.min(Math.floor(G.s.L / DATA.LAYERS), 23) : 0;
+  const R = typeof G !== "undefined" && G.s && !G.s.mortal ? Math.floor(G.s.L / DATA.LAYERS) : 0;
+  const RL = typeof G !== "undefined" && G.s && !G.s.mortal ? G.s.L : 0;   // 法力境界倍率按人物总层序取
   const rv = a => { if (!a) return 1; const x = Array.isArray(a) ? a[R] : a[DATA.realms[R]]; return x === undefined ? 1 : x; };   // 按境界名取倍率
   o.pct *= rv(F.DMG_REALM);
   // 法力 = 该阶对应境界的修为突破法力 × MANA_PCT[主属性颜色]%；颜色只看第一条主属性
@@ -303,8 +304,8 @@ DATA.fabaoInfo = (e, own) => {
   const bmManaBr = (typeof G !== "undefined" && G.s) ? DATA.realmStat(G.s.mortal ? -1 : G.s.L, "mana") : ref.manaBr;
   const bmManaPct = (CFG.forge.benming || {}).MANA_PCT;
   o.mana = e.bm
-    ? Math.max(0, bmManaBr * (bmManaPct === undefined ? 20 : bmManaPct) / 100 * (1 - o.cutPct / 100) * DATA.manaRealmK(R * DATA.LAYERS))
-    : Math.max(0, ref.manaBr * (((F.MANA_PCT || [])[main.c || 0] || 0) + DATA.fbRj("mana", e)) / 100 * (1 - o.cutPct / 100) * DATA.manaRealmK(R * DATA.LAYERS));   // × 法力境界倍率（config/mobs.js magic.MANA_REALM，按人物当前大境界，与怪物共用；灵根不再影响法力）
+    ? Math.max(0, bmManaBr * (bmManaPct === undefined ? 20 : bmManaPct) / 100 * (1 - o.cutPct / 100) * DATA.manaRealmK(RL))
+    : Math.max(0, ref.manaBr * (((F.MANA_PCT || [])[main.c || 0] || 0) + DATA.fbRj("mana", e)) / 100 * (1 - o.cutPct / 100) * DATA.manaRealmK(RL));   // × 法力境界倍率（config/mobs.js magic.MANA_REALM，按人物当前大境界，与怪物共用；灵根不再影响法力）
   return o;
 };
 
@@ -315,7 +316,7 @@ DATA.fabaoInfo = (e, own) => {
  *   img/icons/pill_丹药id.png 修炼丹、dan_类型.png 属性丹、fu_dan / fu_qi.png 炉子、ss.png 空间石
  *   fbs形状_属性.png 法宝（7 种形状 × 6 种属性）、sm_ys属性.png 耀石、mifa.png 秘法、seed.png 种子、stone.png 灵石、cu_misc.png 自定义物品
  *   hx.png 火髓、bp.png 图纸 */
-DATA.IMG_V = 64;
+DATA.IMG_V = 81;
 DATA.matImg = (kind, g) => `img/mats/${kind}${g}.png?v=${DATA.IMG_V}`;
 DATA.iconImg = n => `img/icons/${n}.png?v=${DATA.IMG_V}`;
 DATA.ICON_EQ = ["helmet", "armor", "weapon", "legs", "boots", "pendant", "ring"];
@@ -345,8 +346,8 @@ DATA.li = (src, cls) => src ? `<img class="li${cls ? " " + cls : ""}" src="${src
 DATA.skillIcon = g => g.kind === "mf" || g.noEl ? DATA.iconImg("mifa") : DATA.iconImg((g.kind === "sp" ? "sp_" : "gf_") + g.el.id);
 DATA.skillIco = g => `<span class="ico ${g.kind === "mf" ? "t-mifa" : "t-gf"}"><img src="${DATA.skillIcon(g)}" alt="" loading="lazy">${g.kind === "mf" ? `<b>秘</b>` : ""}</span>`;
 // 炼制物品（装备 / 戒指 / 法宝）的小图标：按阶换边框
-// 炼制装备 / 法宝按阶（一阶~十阶）加外观：越高阶越亮、光晕越强，高阶有流光（css/style.css 的 .eqt0 ~ .eqt9）
-DATA.eqCls = e => e && e.attrs ? ` eqt eqt${Math.max(0, Math.min(11, e.g || 0))}${e.slot === "fabao" && e.el ? ` fbel fb-${e.el}${e.bm ? "" : ` fbt fbt${Math.max(1, Math.min(10, (e.g || 0) + 1))}`}` : ""}${e.slot === "ring" ? ` ring rgt${Math.max(1, Math.min(10, (e.g || 0) + 1))}` : ""}` : "";   // 法宝按金木水火土雷显示颜色；fbt1~10 按星级显示外观（style.css「法宝按星级」）；戒指 rgt1~10 按星级显示流光（style.css「戒指按星级流光」）
+// 炼制装备 / 法宝按阶（一星~十二星）加外观：越高阶越亮、光晕越强，高阶有流光（css/style.css 的 .eqt0 ~ .eqt11）
+DATA.eqCls = e => e && e.attrs ? ` eqt eqt${Math.max(0, Math.min(11, e.g || 0))}${e.slot === "fabao" && e.el ? ` fbel fb-${e.el}${e.bm ? "" : ` fbt fbt${Math.max(1, Math.min(12, (e.g || 0) + 1))}`}` : ""}${e.slot === "ring" ? ` ring rgt${Math.max(1, Math.min(12, (e.g || 0) + 1))}` : ""}` : "";   // 法宝按金木水火土雷显示颜色；fbt1~12 按星级显示外观（style.css「法宝按星级」）；戒指 rgt1~10 按星级显示流光（style.css「戒指按星级流光」）
 // 法宝图 / 戒指图：普通法宝和戒指都套一层 .fbw（流光遮罩 = 图本身，见 style.css「法宝按星级」「戒指按星级流光」）；其他物品原样 <img>
 DATA.fbArt = (e, src, cls = "") => {
   if (!(e && src)) return `<img class="${cls}" src="${src}" alt="">`;
@@ -363,7 +364,8 @@ DATA.eqTierIco = (src, g, ring = false) => {
   const tier = Math.max(0, Math.min(11, g));
   if (ring && src) {
     const abs = typeof location !== "undefined" ? new URL(src, location.href).href : src;
-    return `<span class="ico j${g} eqt eqt${tier} ring rgt${Math.max(1, Math.min(10, g + 1))}"><span class="fbw ringw" style="--m:url('${abs}')"><img src="${src}" alt="" loading="lazy"></span><b>${g + 1}</b></span>`;
+    return `<span class="ico j${g} eqt eqt${tier} ring rgt${Math.max(1, Math.min(12, g + 1))}"><span class="fbw ringw" style="--m:url('${abs}')"><img src="${src}" alt="" loading="lazy"></span><b>${g + 1}</b></span>`;
   }
-  return `<span class="ico j${g} eqt eqt${tier}"><img src="${src}" alt="" loading="lazy"><b>${g + 1}</b></span>`;
+  const fb = /\/(fb|bm)[^/]*\.png/.test(src || "") ? " fbel" : "";   // 法宝图：九、十星有自己的手绘图，不吃 eqt9 的赤红换色
+  return `<span class="ico j${g} eqt eqt${tier}${fb}"><img src="${src}" alt="" loading="lazy"><b>${g + 1}</b></span>`;
 };

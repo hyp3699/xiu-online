@@ -187,15 +187,15 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 .eqt6 img,img.eqt6{filter:saturate(1.5) brightness(1.1) drop-shadow(0 0 4px #b07cf0) drop-shadow(0 0 1px #fff)}
 .eqt7 img,img.eqt7{filter:saturate(1.6) brightness(1.12) drop-shadow(0 0 5px #c08cff) drop-shadow(0 0 1px #fff);animation:eqPulseP 2.4s ease-in-out infinite}
 .eqt8 img,img.eqt8{filter:saturate(1.7) brightness(1.15) drop-shadow(0 0 6px #ffd36a) drop-shadow(0 0 1px #fff);animation:eqPulseG 2s ease-in-out infinite}
-.eqt9 img,img.eqt9{filter:saturate(1.8) brightness(1.2) drop-shadow(0 0 7px #ff8a4a) drop-shadow(0 0 2px #ffe9a0);animation:eqPulseR 1.6s ease-in-out infinite}
+.eqt9 img,img.eqt9{filter:var(--tint,) saturate(1.8) brightness(1.2) drop-shadow(0 0 7px #ff8a4a) drop-shadow(0 0 2px #ffe9a0);animation:eqPulseR 1.6s ease-in-out infinite}
 @keyframes eqPulseP{50%{filter:saturate(1.6) brightness(1.25) drop-shadow(0 0 8px #d8a8ff) drop-shadow(0 0 1px #fff)}}
 @keyframes eqPulseG{50%{filter:saturate(1.7) brightness(1.3) drop-shadow(0 0 10px #ffe08a) drop-shadow(0 0 2px #fff)}}
-@keyframes eqPulseR{50%{filter:saturate(1.9) brightness(1.35) drop-shadow(0 0 12px #ffb36a) drop-shadow(0 0 3px #fff6c0) hue-rotate(-12deg)}}
-/* 格子边框和底色：四阶起有内光，六阶起有流光扫过 */
+@keyframes eqPulseR{50%{filter:var(--tint,) saturate(1.9) brightness(1.35) drop-shadow(0 0 12px #ffb36a) drop-shadow(0 0 3px #fff6c0)}}
+/* 格子边框：四阶起有内光，六阶起有流光扫过；底色不改（保持格子原底色），只按星级变边框、光晕、流光 */
 .cell.eqt4,.slot-eq.eqt4,.cell.eqt5,.slot-eq.eqt5{border-color:#5b7ed0;box-shadow:inset 0 0 6px #4b659680}
-.cell.eqt6,.slot-eq.eqt6,.cell.eqt7,.slot-eq.eqt7{border-color:#9a6ad0;box-shadow:inset 0 0 8px #7a5596a0,0 0 4px #7a559680;background:radial-gradient(circle at 50% 40%,#2a2036,var(--c-cell) 70%)}
-.cell.eqt8,.slot-eq.eqt8{border-color:var(--t-gold);box-shadow:inset 0 0 10px #e9c46a80,0 0 6px #e9c46a99;background:radial-gradient(circle at 50% 40%,#3a3018,var(--c-cell) 70%)}
-.cell.eqt9,.slot-eq.eqt9{border:1px solid #ff9a5a;box-shadow:inset 0 0 12px #ff7a3a90,0 0 8px #ffb36acc;background:radial-gradient(circle at 50% 40%,#45251a,var(--c-cell) 70%)}
+.cell.eqt6,.slot-eq.eqt6,.cell.eqt7,.slot-eq.eqt7{border-color:#9a6ad0;box-shadow:inset 0 0 8px #7a5596a0,0 0 4px #7a559680}
+.cell.eqt8,.slot-eq.eqt8{border-color:var(--t-gold);box-shadow:inset 0 0 10px #e9c46a80,0 0 6px #e9c46a99}
+.cell.eqt9,.slot-eq.eqt9{border:1px solid #ff9a5a;box-shadow:inset 0 0 6px #ff7a3a70,0 0 8px #ffb36acc}
 .ico.eqt6,.ico.eqt7{box-shadow:0 0 6px #9a6ad0}.ico.eqt8{box-shadow:0 0 8px var(--t-gold)}.ico.eqt9{border-color:#ff9a5a;color:#ffb36a;box-shadow:0 0 10px #ff8a4a}
 .cell.eqt6::after,.cell.eqt7::after,.cell.eqt8::after,.cell.eqt9::after,.slot-eq.eqt6::after,.slot-eq.eqt7::after,.slot-eq.eqt8::after,.slot-eq.eqt9::after,
 .ico.eqt8::after,.ico.eqt9::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
@@ -203,13 +203,17 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 .cell.eqt8::after,.slot-eq.eqt8::after,.ico.eqt8::after{animation-duration:2.6s}
 .cell.eqt9::after,.slot-eq.eqt9::after,.ico.eqt9::after{background-image:linear-gradient(115deg,transparent 28%,rgba(255,230,160,.4) 46%,rgba(255,140,90,.25) 54%,transparent 64%);animation-duration:2s}
 @keyframes eqShine{from{background-position:150% 0}to{background-position:-100% 0}}
-/* v106 十一阶：七彩流光（青紫粉），十二阶：金白神光 + 七彩旋转光环 */
-.eqt10 img,img.eqt10{filter:saturate(1.9) brightness(1.22) drop-shadow(0 0 7px #7fe8ff) drop-shadow(0 0 3px #e0a8ff);animation:eqPulseX 2.2s ease-in-out infinite}
-.eqt11 img,img.eqt11{filter:saturate(2) brightness(1.28) drop-shadow(0 0 8px #fff2b0) drop-shadow(0 0 4px #ffd36a) drop-shadow(0 0 2px #fff);animation:eqPulseS 1.8s ease-in-out infinite}
-@keyframes eqPulseX{0%,100%{filter:saturate(1.9) brightness(1.22) drop-shadow(0 0 7px #7fe8ff) drop-shadow(0 0 3px #e0a8ff)}33%{filter:saturate(2) brightness(1.32) drop-shadow(0 0 11px #c08cff) drop-shadow(0 0 3px #ff9ad8)}66%{filter:saturate(2) brightness(1.3) drop-shadow(0 0 11px #ff9ad8) drop-shadow(0 0 3px #7fe8ff)}}
-@keyframes eqPulseS{50%{filter:saturate(2.1) brightness(1.45) drop-shadow(0 0 14px #fff6c8) drop-shadow(0 0 6px #ffcf5a) drop-shadow(0 0 3px #fff)}}
-.cell.eqt10,.slot-eq.eqt10{border:1px solid #9ad8ff;box-shadow:inset 0 0 14px #8a6cff90,0 0 9px #7fe8ffcc,0 0 3px #ff9ad8;background:radial-gradient(circle at 50% 40%,#2a2448,#1a1630 55%,var(--c-cell) 80%)}
-.cell.eqt11,.slot-eq.eqt11{border:1px solid #fff0b0;box-shadow:inset 0 0 16px #ffd36ab0,0 0 12px #ffe9a0ee,0 0 4px #fff;background:radial-gradient(circle at 50% 40%,#5a4a20,#2e2412 55%,var(--c-cell) 82%)}
+/* 十一星（eqt10）：七彩流光（青紫粉），十二星（eqt11）：金白神光 + 七彩旋转光环；装备、法宝、戒指共用（法宝、戒指另有 fbt11/12、rgt11/12 沿图形流光） */
+.eqt10 img,img.eqt10{filter:var(--tint,) saturate(1.9) brightness(1.22) drop-shadow(0 0 7px #7fe8ff) drop-shadow(0 0 3px #e0a8ff);animation:eqPulseX 2.2s ease-in-out infinite}
+.eqt11 img,img.eqt11{filter:var(--tint,) saturate(2) brightness(1.28) drop-shadow(0 0 8px #fff2b0) drop-shadow(0 0 4px #ffd36a) drop-shadow(0 0 2px #fff);animation:eqPulseS 1.8s ease-in-out infinite}
+@keyframes eqPulseX{0%,100%{filter:var(--tint,) saturate(1.9) brightness(1.22) drop-shadow(0 0 7px #7fe8ff) drop-shadow(0 0 3px #e0a8ff)}33%{filter:var(--tint,) saturate(2) brightness(1.32) drop-shadow(0 0 11px #c08cff) drop-shadow(0 0 3px #ff9ad8)}66%{filter:var(--tint,) saturate(2) brightness(1.3) drop-shadow(0 0 11px #ff9ad8) drop-shadow(0 0 3px #7fe8ff)}}
+@keyframes eqPulseS{50%{filter:var(--tint,) saturate(2.1) brightness(1.45) drop-shadow(0 0 14px #fff6c8) drop-shadow(0 0 6px #ffcf5a) drop-shadow(0 0 3px #fff)}}
+/* 按星级给物品本身换色（--tint 放在滤镜最前面）：装备只有一张图，九星原色、十星赤红、十一星青紫、十二星金色；戒指、法宝九、十星有自己的图不换色，十一、十二星沿用十星图再换色 */
+.eqt9:not(.ring):not(.fbel),img.eqt9:not(.ring):not(.fbel){--tint:sepia(.5) hue-rotate(-35deg) saturate(1.35)}
+.eqt10,img.eqt10{--tint:hue-rotate(150deg)}
+.eqt11,img.eqt11{--tint:grayscale(1) sepia(1) saturate(1.4)}
+.cell.eqt10,.slot-eq.eqt10{border:1px solid #9ad8ff;box-shadow:inset 0 0 6px #8a6cff70,0 0 9px #7fe8ffcc,0 0 3px #ff9ad8}
+.cell.eqt11,.slot-eq.eqt11{border:1px solid #fff0b0;box-shadow:inset 0 0 6px #ffd36a90,0 0 12px #ffe9a0ee,0 0 4px #fff}
 .ico.eqt10{border-color:#9ad8ff;color:#c8f0ff;box-shadow:0 0 10px #7fe8ff,0 0 4px #c08cff}
 .ico.eqt11{border-color:#fff0b0;color:#fff6d0;box-shadow:0 0 12px #ffe9a0,0 0 5px #fff}
 .cell.eqt10::after,.slot-eq.eqt10::after,.ico.eqt10::after,.cell.eqt11::after,.slot-eq.eqt11::after,.ico.eqt11::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background-size:250% 100%;animation:eqShine 1.8s linear infinite;
@@ -353,6 +357,8 @@ button.sm{white-space:nowrap;flex-shrink:0}
 .fb-lei,.fb-lei .nm{color:#b98aff}.cell.fb-lei,.slot-eq.fb-lei,.ico.fb-lei{border-color:#6e4fa8}
 /* ---------- 法宝按星级（DATA.eqCls 的 fbt1~10）：每星一张手绘图（img/icons/fb形状s星.png），图本身不加滤镜；六星起流光（光色按属性） ---------- */
 .fbel.fbt img,img.fbel.fbt{filter:none;animation:none}
+/* 十一、十二星沿用十星图，图本身按星换色（--tint 见 eqt9~11 处：十一星青紫、十二星金色） */
+.fbel.fbt.eqt10 img,img.fbel.fbt.eqt10,.fbel.fbt.eqt11 img,img.fbel.fbt.eqt11{filter:var(--tint) saturate(1.5) brightness(1.12)}
 /* 格子不加底色 / 边框光，只改法宝本身（盖掉 eqt 的格子外观） */
 .cell.fbel.fbt,.slot-eq.fbel.fbt{background:var(--c-cell);box-shadow:none;animation:none}
 .cell.fbel.fbt::after,.slot-eq.fbel.fbt::after,.cell.fbel.fbt::before,.slot-eq.fbel.fbt::before{content:none}
@@ -378,9 +384,11 @@ button.sm{white-space:nowrap;flex-shrink:0}
 .fbt8 .fbw::after,.fbt8.fbw::after{opacity:.9;animation:fbShine 3.6s ease-in-out infinite}
 .fbt9 .fbw::after,.fbt9.fbw::after{opacity:1;animation:fbShine 3.1s ease-in-out infinite}
 .fbt10 .fbw::after,.fbt10.fbw::after{opacity:1;animation:fbShine 2.6s ease-in-out infinite}
+.fbt11 .fbw::after,.fbt11.fbw::after{opacity:1;animation:fbShine 2.2s ease-in-out infinite;background-image:linear-gradient(115deg,transparent 36%,rgba(127,232,255,.55) 44%,rgba(var(--fl,255,240,190),.95) 50%,rgba(255,154,216,.5) 56%,transparent 64%)}
+.fbt12 .fbw::after,.fbt12.fbw::after{opacity:1;animation:fbShine 1.8s ease-in-out infinite;background-image:linear-gradient(115deg,transparent 34%,rgba(255,255,255,.6) 44%,rgba(255,215,110,.95) 50%,rgba(255,255,255,.6) 56%,transparent 66%)}
 @keyframes fbShine{0%{background-position:100% 0}65%,100%{background-position:0 0}}
 /* 戒指按星级流光：六星起，一道光沿戒指形状（遮罩 = 戒指图本身，法宝 .fbw 同理）慢慢划过，星级越高越亮越快；格子本身的 eqShine 对戒指停用，避免双重扫光 */
-.cell.ring.eqt6::after,.cell.ring.eqt7::after,.cell.ring.eqt8::after,.cell.ring.eqt9::after,.slot-eq.ring.eqt6::after,.slot-eq.ring.eqt7::after,.slot-eq.ring.eqt8::after,.slot-eq.ring.eqt9::after,.ico.ring.eqt8::after,.ico.ring.eqt9::after,.ico.ring.eqt10::after{content:none}
+.cell.ring.eqt6::after,.cell.ring.eqt7::after,.cell.ring.eqt8::after,.cell.ring.eqt9::after,.slot-eq.ring.eqt6::after,.slot-eq.ring.eqt7::after,.slot-eq.ring.eqt8::after,.slot-eq.ring.eqt9::after,.ico.ring.eqt8::after,.ico.ring.eqt9::after,.ico.ring.eqt10::after,.ico.ring.eqt11::after,.cell.ring.eqt10::after,.cell.ring.eqt11::after,.slot-eq.ring.eqt10::after,.slot-eq.ring.eqt11::after{content:none}
 /* 炼制/精炼列表的戒指小图标：内层 ringw 铺满 38×38 图标框，流光只落在戒指上 */
 .ico .fbw.ringw{width:100%;height:100%}
 .ringw::after{content:"";position:absolute;inset:0;pointer-events:none;-webkit-mask:var(--m) center/contain no-repeat;mask:var(--m) center/contain no-repeat;
@@ -390,6 +398,8 @@ button.sm{white-space:nowrap;flex-shrink:0}
 .rgt8 .ringw::after,.rgt8.ringw::after{opacity:.9;animation:ringShine 3.6s ease-in-out infinite}
 .rgt9 .ringw::after,.rgt9.ringw::after{opacity:1;animation:ringShine 3.1s ease-in-out infinite}
 .rgt10 .ringw::after,.rgt10.ringw::after{opacity:1;animation:ringShine 2.6s ease-in-out infinite;background-image:linear-gradient(115deg,transparent 36%,rgba(255,255,255,.5) 44%,rgba(255,215,110,.45) 50%,rgba(160,230,255,.35) 56%,transparent 64%)}
+.rgt11 .ringw::after,.rgt11.ringw::after{opacity:1;animation:ringShine 2.2s ease-in-out infinite;background-image:linear-gradient(115deg,transparent 36%,rgba(127,232,255,.55) 44%,rgba(192,140,255,.6) 50%,rgba(255,154,216,.5) 56%,transparent 64%)}
+.rgt12 .ringw::after,.rgt12.ringw::after{opacity:1;animation:ringShine 1.8s ease-in-out infinite;background-image:linear-gradient(115deg,transparent 34%,rgba(255,255,255,.6) 44%,rgba(255,215,110,.95) 50%,rgba(255,255,255,.6) 56%,transparent 66%)}
 @keyframes ringShine{0%{background-position:100% 0}65%,100%{background-position:0 0}}
 @media (prefers-reduced-motion:reduce){.fbw::after{animation:none!important}}
 
@@ -1117,3 +1127,9 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .stcard{margin-top:8px;padding:8px 12px}
 .stcard h3{margin:0 0 4px}
 .stcard .ststat{gap:2px 10px;font-size:12.5px}
+
+/* 物品加锁：详情弹窗右上角 */
+.modal-box{position:relative}
+.ilk{position:absolute;right:8px;top:8px;z-index:4;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--t-sub);opacity:.75;line-height:0;border:1px solid var(--c-edge);border-radius:50%;background:var(--c-deep)}
+.ilk svg{width:18px;height:18px}
+.ilk.on{opacity:1;color:#f0c75e;border-color:#f0c75e}

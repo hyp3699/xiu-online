@@ -58,6 +58,21 @@ G.module({
     // 手动整理：只有点背包里的「整理」按钮才排序并紧缩；打开背包不再自动整理，
     // 物品保持获得 / 上次整理后的顺序，不会每次进背包都换位置。
     sortBagNow() { this.sortBag(); this.after(); },
+    // 物品加锁：点物品打开详情，弹窗右上角的锁点一下锁上 / 解开（格子上不显示）；锁上的不出现在出售页、也不能出售。
+    //   装备、法宝、戒指锁在物品本身（e.lk），穿上、卸下都跟着走；其他物品锁在这一格（it.lk）。
+    //   k：背包 "b序号"、法宝栏 "fb序号"、装备栏格子名（helmet、ring0……）
+    isLocked(it) { return !!it && !!(it.t === "eq" ? it.e && it.e.lk : it.lk); },
+    lockObj(k) {
+      const s = this.s; k = String(k);
+      if (/^b\d+$/.test(k)) { const it = s.bag[+k.slice(1)]; return it ? (it.t === "eq" ? it.e : it) : null; }
+      if (/^fb\d+$/.test(k)) return (s.fabao || [])[+k.slice(2)] || null;
+      return DATA.equipSlots.includes(k) ? s.equip[k] || null : null;
+    },
+    itemLock(k) { const o = this.lockObj(k); if (!o) return; if (o.lk) delete o.lk; else o.lk = 1; this.after(); },
+    lockIco(k, on) {
+      const path = on ? "M7 10V7a5 5 0 0 1 10 0v3" : "M7 10V7a5 5 0 0 1 9.6-2";
+      return `<span class="ilk${on ? " on" : ""}" title="${on ? "已锁定，点击解锁" : "点击锁定"}" onclick="event.stopPropagation();G.itemLock('${k}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="${path}"/><rect x="4.5" y="10" width="15" height="11" rx="2.5" fill="currentColor"/></svg></span>`;
+    },
     slotCount() { return Math.min(DATA.SLOT_MAX, Math.floor(this.r() / DATA.SLOT_EVERY) + DATA.SLOT_START); },
 
     /* ---------- 装备属性 ---------- */
@@ -174,6 +189,7 @@ G.module({
       if (!e || !e.attrs) return this.addEquip(e);
       const dup = this.s.bag.find(x => x && x.t === "eq" && x.e && (x.e === e || (e.uid && x.e.uid === e.uid)));
       if (dup) return true;
+      if (e.uid && this.rfLive && this.rfLive(e.uid)) return true;   // 身上、法宝栏已有同一件也不再放
       return this.addEquip(e);
     },
     // ---------- 传音领取 ----------
@@ -223,8 +239,8 @@ G.module({
         const left = Math.max(0, this.mailboxDue(x) - now), days = Math.floor(left / 86400000), hours = Math.floor(left % 86400000 / 3600000);
         return `<div class="line"><div>${this.itemName(x.it)}${x.it.n > 1 ? ` ×${x.it.n}` : ""}<small>　剩余 ${days} 天 ${hours} 小时</small></div><button class="sm primary" onclick="G.mailboxClaim('${x.id}')">领取</button></div>`;
       }).join("");
-      this.modal(`<h2>传音暂存<small>背包放不下的物品暂存在这里，10 天未领自动清除</small></h2>
-        ${list.length ? rows : `<p class="desc">暂存里没有物品。背包满时，新得的物品会自动暂存到这里。</p>`}
+      this.modal(`<h2>传音暂存</h2>
+        ${rows}
         <div class="btns">${list.length ? `<button class="primary" onclick="G.mailboxClaimAll()">全部领取</button>` : ""}<button onclick="G.closeModal()">关闭</button></div>`);
     },
     removeAt(i, n = 1) {
@@ -551,7 +567,7 @@ G.module({
     setBagFilter(k) { this.bagFilter = k; this.bagSell = false; this.render(); },
     // 出售页点「出售」：弹窗选数量（1 / 100 / 1000 / 全部）
     openSellPick(i) {
-      const it = this.s.bag[i]; if (!it || it.lq) return;
+      const it = this.s.bag[i]; if (!it || it.lq || this.isLocked(it)) return;
       const p = this.sellPrice(it), n = it.n || 1;
       const b = (k, t) => `<button onclick="G.sellItem(${i},${k})" ${n >= k ? "" : "disabled"}>${t}<br><small>${U.fmt(p * k)} 灵石</small></button>`;
       this.modal(`<h2>出售 ${this.itemName(it)}</h2><p>持有 ${U.fmt(n)} 个，单价 ${U.fmt(p)} 灵石。</p>
@@ -563,7 +579,7 @@ G.module({
     // v26：出售页（按上面的分类筛选），只有这里能卖东西
     sellPageView(match) {
       const s = this.s, flt = this.bagFilter || "all";
-      const rows = s.bag.map((it, i) => [it, i]).filter(([it]) => it && match(it) && !it.lq).map(([it, i]) => {
+      const rows = s.bag.map((it, i) => [it, i]).filter(([it]) => it && match(it) && !it.lq && !this.isLocked(it)).map(([it, i]) => {
         const p = this.sellPrice(it), n = it.n || 1, q = it.t === "eq" ? it.e.q : it.t === "cu" ? ((this.cuDef(it.name) || {}).q || 0) : 0;
         const src = this.itemIcon(it), img = src ? `<img src="${src}" alt="" style="width:28px;height:28px;vertical-align:middle;margin-right:4px">` : "";
         return `<div class="line"><div>${img}<span class="q${q}">${this.itemName(it)}</span>${n > 1 ? ` ×${U.fmt(n)}` : ""}<small>单价 ${U.fmt(p)} 灵石</small></div>
@@ -614,7 +630,7 @@ G.module({
         : `<button onclick="G.sellItem(${i},1)">出售（${U.fmt(this.sellPrice(it))}）</button>`;
       const cq = it.t === "cu" ? ((this.cuDef(it.name) || {}).q || 0) : it.t === "ysd" ? 5 : it.t === "xd" ? (x => this.xdQ(x.src, x.id, x.v))(this.xdItem(it)) : it.t === "ylb" ? DATA.ybQ(it.g) : 0;
       const big = it.t === "mat" ? "" : this.itemIcon(it);
-      let h = (big ? (it.t === "dan" || it.t === "ql" ? DATA.danImg(big, it.t === "dan" ? DATA.danCls(it.type, it.g) : DATA.qlCls(it.sect), "big") : (it.t === "eq" ? DATA.fbArt(it.e, big, "item-img" + DATA.eqCls(it.e)) : `<img class="item-img" src="${big}" alt="">`)) : "") + `<h2 class="q${it.t === "eq" ? it.e.q : cq}${it.t === "eq" ? DATA.fbElCls(it.e) : ""}">${this.itemName(it)}${it.n ? " ×" + it.n : ""}${it.t === "eq" && it.e.attrs ? `<br><small>${DATA.rjName(it.e)}</small>` : ""}</h2>`;
+      let h = this.lockIco("b" + i, this.isLocked(it)) + (big ? (it.t === "dan" || it.t === "ql" ? DATA.danImg(big, it.t === "dan" ? DATA.danCls(it.type, it.g) : DATA.qlCls(it.sect), "big") : (it.t === "eq" ? DATA.fbArt(it.e, big, "item-img" + DATA.eqCls(it.e)) : `<img class="item-img" src="${big}" alt="">`)) : "") + `<h2 class="q${it.t === "eq" ? it.e.q : cq}${it.t === "eq" ? DATA.fbElCls(it.e) : ""}">${this.itemName(it)}${it.n ? " ×" + it.n : ""}${it.t === "eq" && it.e.attrs ? `<br><small>${DATA.rjName(it.e)}</small>` : ""}</h2>`;
       if (it.t === "pill") {
         const ok = this.canUsePill(it.g);
         h += `<p>修炼速度 +${Math.round(DATA.pillPct(it.type, it.g))}%，持续 ${DATA.pills[it.type].dur} 次修炼。<br>只有${DATA.realmLabel(it.g)}可服用。
@@ -623,7 +639,7 @@ G.module({
       } else if (it.t === "dan") {
         if (it.type === "wuzhen") {
           const left = this.studyPillLeft(), on = left > 0;
-          h += `<p>功法/法术修炼时间 -120%，持续 360 分钟。${on ? `<br><span class='q5'>已生效，剩余 ${U.dur(left / 1000)}，再次服用效果增加360分钟。</span>` : ""}</p>
+          h += `<p>功法/法术/秘法修炼时间 -${(CFG.alchemy.recipes.wuzhen || {}).studyPct || 120}%，持续 ${(CFG.alchemy.recipes.wuzhen || {}).studyMin || 360} 分钟。${on ? `<br><span class='q5'>已生效，剩余 ${U.dur(left / 1000)}，再次服用效果增加${(CFG.alchemy.recipes.wuzhen || {}).studyMin || 360}分钟。</span>` : ""}</p>
           <div class="btns"><button class="primary" onclick="G.eatWuzhen(${i})">服用</button>${sell}</div>`;
         } else {
         const left = this.danLeft(it.type, it.g), d = DATA.dans[it.type];
@@ -710,7 +726,7 @@ G.module({
     openEquip(key) {
       const e = key.startsWith("fb") ? this.s.fabao[+key.slice(2)] : this.s.equip[key]; if (!e) return;
       const src = DATA.eqIcon(e);
-      this.modal(`${src ? DATA.fbArt(e, src, "item-img" + DATA.eqCls(e)) : ""}<h2 class="q${e.q}${DATA.fbElCls(e)}">${this.itemName({ t: "eq", e })}${e.attrs ? `<br><small>${DATA.rjName(e)}</small>` : ""}</h2><p>${DATA.slots[e.slot]} · ${this.equipDesc(e)}</p>
+      this.modal(`${this.lockIco(key, !!e.lk)}${src ? DATA.fbArt(e, src, "item-img" + DATA.eqCls(e)) : ""}<h2 class="q${e.q}${DATA.fbElCls(e)}">${this.itemName({ t: "eq", e })}${e.attrs ? `<br><small>${DATA.rjName(e)}</small>` : ""}</h2><p>${DATA.slots[e.slot]} · ${this.equipDesc(e)}</p>
         <div class="btns"><button onclick="G.unequip('${key}')">卸下</button>${key.startsWith("fb") ? `<button onclick="G.openFabaoSwap(${+key.slice(2)})">更换</button>` : ""}${e.attrs ? `<button onclick="G.openReset('${key}')">洗练</button>` : ""}${this.canEnhance(e) ? `<button onclick="G.openEnhance('${key}')">强化</button>` : ""}<button onclick="G.closeModal()">关闭</button></div>`);
     },
 
@@ -856,7 +872,7 @@ G.module({
       this.log(`使用${DATA.cxpName(ck)} ×${n}，${CFG.craftsman[ck].name}经验 +${U.fmt(v * n)}。`, "good"); this.closeModal(); this.after();
     },
     sellItem(i, n) {
-      const it = this.s.bag[i]; if (!it || it.lq || it.t === "bmbp") return;   // v173 学习中 / 排队中的不能卖；本命图纸不能卖
+      const it = this.s.bag[i]; if (!it || it.lq || it.t === "bmbp" || this.isLocked(it)) return;   // 加锁的不能卖；v173 学习中 / 排队中的不能卖；本命图纸不能卖
       // 先 clamp 再算钱：原来直接用请求数算钱，n=1e12 时只删 1 个却按 1e12 个结算；
       // n 为负数时算出负价、再经 removeAt 反向加物品。装备没有 n，按 1 个算。
       n = Math.floor(+n); if (!(n >= 1)) return;

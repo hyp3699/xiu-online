@@ -30,10 +30,10 @@ CFG.yinshi = {
     { id: "wangui",   w: "ming", m: 7, name: "万鬼宗", star: 9, st: ["wangui"] },
     { id: "qingdeng", w: "ming", m: 9, name: "青灯古寺", star: 10, st: ["qingdeng"] },
     { id: "taichu",   w: "shen", m: 1, name: "太初神宗", star: 11, st: ["taichu"] },
-    { id: "wanhua",   w: "shen", m: 3, name: "万化神宫", star: 12, st: ["wanhua"] },
-    { id: "xuanming", w: "shen", m: 5, name: "玄冥神教", star: 13, st: ["xuanming"] },
-    { id: "zhuque",   w: "shen", m: 7, name: "朱雀神庭", star: 14, st: ["zhuque", "zhenyue"] },
-    { id: "dari",     w: "shen", m: 9, name: "大日神宗", star: 15, st: ["dari", "leiji"] },
+    { id: "wanhua",   w: "shen", m: 3, name: "万化神宫", star: 11, st: ["wanhua"] },
+    { id: "xuanming", w: "shen", m: 5, name: "玄冥神教", star: 12, st: ["xuanming"] },
+    { id: "zhuque",   w: "shen", m: 7, name: "朱雀神庭", star: 12, st: ["zhuque", "zhenyue"] },
+    { id: "dari",     w: "shen", m: 9, name: "大日神宗", star: 12, st: ["dari", "leiji"] },
   ],
   FIXED: {   // 测试用：把某宗门固定放到 { a: 地图, r: 区域, i: 格子 } 并直接已发现；正式全部留空（首次游历随机定位）
   },
@@ -42,7 +42,7 @@ CFG.yinshi = {
   // 功法阁：每个宗门 12 本（攻击 防御 生命 命中 法力 闪避 + 六种抗性真经）各一本，兑换一次后不能再换；效果 = 同星级宗门功法 × GF_PCT%，不占灵识点
   GF_PCT: 195,
   GF_COST: 500,   // 5 星每本需要好感度（兑换扣除）
-  GF_COST_STEP: 100,   // 每高 1 星多要好感度（6 星 600 …… 15 星 1500）
+  GF_COST_STEP: 100,   // 每高 1 星多要好感度（6 星 600 …… 12 星 1200）
   GF_KEYS: ["gongjue", "xinfa", "zhenjing", "shenfa", "fajue", "dunshu", "jin", "mu", "shui", "huo", "tu", "lei", "mijue", "mijue2", "tijue", "tijue2"],   // 后 4 本：修为速度秘诀 2 本、炼体秘诀 2 本
   GF_SUFFIX: { gongjue: "镇岳诀", xinfa: "不动心经", zhenjing: "万寿宝典", shenfa: "踏虚步", fajue: "归元法典", dunshu: "化虹遁法",
     jin: "太白金经", mu: "青帝木经", shui: "玄冥水经", huo: "南明火经", tu: "厚土宝经", lei: "九霄雷经",

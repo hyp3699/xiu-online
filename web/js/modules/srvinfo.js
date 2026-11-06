@@ -112,7 +112,7 @@ G.module({
       const ivBtns = g.intervals.map(v => `<button class="sm ${F.interval === v ? "primary" : ""}" onclick="G.srvSetIv(${v})">${v ? v + " 小时" : "关闭"}</button>`).join(" ");
       const status = last ? (last.ok ? `<span class="c-green">成功</span> ${this.srvTime(last.time)} · ${esc(last.file)} · ${S(last.size)}` : `<span class="c-red">失败</span> ${this.srvTime(last.time)}：${esc(last.error)}`) : "还没上传过";
       const next = g.interval && g.repo && g.tokenSet ? (last && last.ok ? this.srvTime(last.time + g.interval * 3600000) : "1 分钟内") : "—";
-      const ghCard = `<div class="card"><h3>上传到 GitHub<small>只保留最新一份</small></h3>
+      const ghCard = `<div class="card"><h3>上传到 GitHub<small>只保留最新一份存档，其他文件不动</small></h3>
         <p class="desc">必须是【私有】仓库（备份里有所有账号和存档）。令牌：GitHub → Settings → Developer settings → Fine-grained tokens，只选这个仓库，Contents 选 Read and write。</p>
         <div class="row small"><span>仓库</span><input type="text" placeholder="用户名/仓库名" value="${esc(F.repo)}" oninput="G.srvF.repo=this.value" autocomplete="off" style="width:13em"></div>
         <div class="row small"><span>令牌${g.tokenSet ? `<small>（已保存 …${esc(g.tokenTail)}）</small>` : ""}</span><input type="password" placeholder="${g.tokenSet ? "不改就留空" : "粘贴令牌"}" value="${esc(F.token)}" oninput="G.srvF.token=this.value" autocomplete="new-password" style="width:13em"></div>

@@ -8,7 +8,7 @@
  *   gf {src, type}                      功法（来源 = 门派 / 坊市 / 试炼塔）
  *   sp {src}                            法术（门派本属性）
  *   mf {star, kind}                     秘法
- *   fabao {ft, el, g, n}                法宝（形状、属性、阶）
+ *   fabao {ft, el, g, n}                法宝（形状、属性、星：g 0~11 = 一~十二星）
  *   eq {slot, g, n}                     装备（slot = 部位，戒指写 "ring:种类序号"）
  *   herb / ore {g, n}                   药材 / 矿石（不含特产）；ore 的 g ≥ 1000 = 耀石（g − 1000 = 属性序号）
  *   tc {name, n}                        四界特产
@@ -32,7 +32,7 @@ G.module({
     giftJie() { return DATA.JIE.map((n, i) => [i, n]); },
     // 每个类别要选的项：{ k, label, opts:[[值, 显示]] } 或 { k, label, num:true }
     giftFields(c, a) {
-      const N = { k: "n", label: "数量", num: true }, jie = this.giftJie();
+      const N = { k: "n", label: "数量", num: true }, jie = this.giftJie(), xing = DATA.XING.map((n, i) => [i, n]);   // 装备、法宝、戒指、炼器炉按星（一星 ~ 十二星）
       const srcName = o => `${o.star}星·${o.name}${o.book ? `·第${o.book}卷` : ""}`;
       if (c === "stone" || c === "contrib" || c === "merit" || c === "hx") return [N];
       if (c === "lj" || c === "lz") return [{ k: "ft", label: "名称", opts: CFG.mijing.items[c].names.map((n, i) => [i, n]) }, N];
@@ -47,8 +47,8 @@ G.module({
       if (c === "mf") return [{ k: "star", label: "星级", opts: Array.from({ length: DATA.SECT_STARS }, (_, i) => [i + 1, `${i + 1}星`]) },
         { k: "kind", label: "种类", opts: DATA.mifaKinds.map(k => [k.id, k.name]) }];
       if (c === "fabao") return [{ k: "ft", label: "形状", opts: DATA.fabaoTypes.map((t, i) => [i, t.name]) }, { k: "el", label: "属性", opts: DATA.elements.map(e => [e.id, e.name]) },
-        { k: "g", label: "阶", opts: jie }, N];
-      if (c === "eq") return [{ k: "slot", label: "部位", opts: [...DATA.eqSlots6.map(x => [x, DATA.slots[x]]), ...DATA.ringList().map(r => ["ring:" + r, DATA.ringNames[r]])] }, { k: "g", label: "阶", opts: jie }, N];
+        { k: "g", label: "星", opts: xing }, N];
+      if (c === "eq") return [{ k: "slot", label: "部位", opts: [...DATA.eqSlots6.map(x => [x, DATA.slots[x]]), ...DATA.ringList().map(r => ["ring:" + r, DATA.ringNames[r]])] }, { k: "g", label: "星", opts: xing }, N];
       if (c === "herb" || c === "ore") {
         const sp = this.giftSpecial(), list = (c === "herb" ? DATA.herbs : DATA.ores).map((n, g) => [g, n]).filter(([, n]) => !sp.includes(n));
         if (c === "ore") list.push(...CFG.mijing.items.ys.names.map((n, i) => [1000 + i, n]));   // v152 耀石放在矿石里：g = 1000 + 属性序号
@@ -66,8 +66,8 @@ G.module({
       }
       if (c === "bp") {
         const items = [...DATA.FURNACE_KINDS.map(k => ["f:" + k, DATA.furnaceKinds[k] + "图纸"]), ...DATA.ringList().map(r => ["r:" + r, DATA.ringNames[r] + "图纸"])];
-        const it = a.item || items[0][0], gs = it[0] === "f" ? ((DATA.furnaces[it.slice(2)] || {}).blueprint || DATA.JIE).map((_, i) => [i, DATA.JIE[i]]) : jie;
-        return [{ k: "item", label: "图纸", opts: items }, { k: "g", label: "阶", opts: gs }, N];
+        const it = a.item || items[0][0], fk = it.slice(2), gs = it[0] === "f" ? Array.from({ length: DATA.furnaceN(fk) }, (_, i) => [i, (fk === "qi" ? DATA.XING : DATA.JIE)[i]]) : xing;
+        return [{ k: "item", label: "图纸", opts: items }, { k: "g", label: it[0] === "f" && fk !== "qi" ? "阶" : "星", opts: gs }, N];
       }
       return [];
     },
@@ -111,6 +111,7 @@ G.module({
     // 发放一件，返回是否放进去了
     giftGive(it) {
       const s = this.s, n = Math.max(1, Math.floor(+it.n || 1)), rep = f => { let ok = 0; for (let i = 0; i < n; i++) if (f()) ok++; return ok === n; };
+      if ((it.c === "eq" || it.c === "fabao") && !(Number.isInteger(+it.g) && +it.g >= 0 && +it.g < DATA.XING.length)) return false;   // 旧礼包码的星级超出现在的最高星（一~十二星），不发
       switch (it.c) {
         case "stone": s.stone += n; return true;
         case "contrib": s.contrib = (s.contrib || 0) + n; return true;
@@ -179,6 +180,26 @@ G.module({
         this.loadGifts();
       } catch (e) { this.log("生成失败：" + e.message, "bad"); }
     },
+    // 传音发送：把礼包物品直接发到全部玩家的传音暂存（服务器 /api/admin/gift/mail）
+    async gdMail() {
+      const d = this.gd;
+      if (!d.list.length) return this.log("礼包里还没有物品。", "sys");
+      if (!(await this.ask(`把礼包里的 ${d.list.length} 件物品发送到全部玩家的传音？`))) return;
+      try {
+        const j = await API.giftMail({ items: d.list });
+        this.log(`已传音发送给 ${j.n} 名玩家。`, "gold");
+        d.list = []; this.render();
+      } catch (e) { this.log("传音发送失败：" + e.message, "bad"); }
+    },
+    // 服务器调用：发放一件物品到传音暂存。灵石、功法等不占格的直接到账；占格的物品先放进临时空背包再全部转进传音
+    giftMailGive(it) {
+      const s = this.s, bag = s.bag, cap = s.bagCap;
+      s.bag = []; s.bagCap = 100000;
+      let ok = false;
+      try { ok = this.giftGive(it); for (const x of s.bag) if (x) this.mailboxAdd(x, true); }
+      finally { s.bag = bag; s.bagCap = cap; }
+      return ok;
+    },
     async delGift(code) {
       if (!(await this.ask(`删除礼包码 ${code}？`))) return;
       try { await API.giftDelete(code); this.log(`已删除礼包码 ${code}。`, "sys"); this.loadGifts(); } catch (e) { this.log("删除失败：" + e.message, "bad"); }
@@ -199,7 +220,7 @@ G.module({
         <div class="card"><h3>礼包物品<small>${d.list.length} 件</small></h3>${items || ""}
           <div class="row small"><span>兑换次数</span><input type="number" min="1" value="${d.uses}" oninput="G.gdUses(this.value)" style="width:8em"></div>
           <div class="row small"><span>礼包码</span><input id="gift-new-code" placeholder="不填自动生成 16 位" maxlength="32" value="${esc(d.code || "")}" oninput="G.gd.code=this.value" style="width:12em"></div>
-          <div class="btns"><button class="primary" onclick="G.gdCreate()" ${d.list.length ? "" : "disabled"}>生成礼包码</button></div></div>
+          <div class="btns"><button onclick="G.gdMail()" ${d.list.length ? "" : "disabled"}>传音发送</button><button class="primary" onclick="G.gdCreate()" ${d.list.length ? "" : "disabled"}>生成礼包码</button></div></div>
         <div class="card"><h3>已有礼包码</h3>${list}</div>`;
     },
     giftRedeemCard() {

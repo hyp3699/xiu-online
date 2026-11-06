@@ -16,6 +16,7 @@ const API = {
   _wrapped: new Set(),
   _originalActions: new Map(),
   _pending: new Map(),
+  _retryBlock: new Map(),   // 超时动作的重试拦截：键 = 动作名 + 参数，值 = 超时时间；完整状态到了就清掉
   _clickedButton: null,
   _clickTracking: false,
   _actionToastTimer: 0,
@@ -39,7 +40,11 @@ const API = {
     let r;
     try { r = await fetch(this.BASE + path, opt); }
     catch (e) { clearTimeout(tmo); if (e && e.name === "AbortError") throw new Error("连接服务器超时"); console.warn("fetch failed:", e); throw new Error("网络连接失败（可能是网络不稳或服务器正在重启），请稍后再试"); }   // 浏览器原文是英文 Failed to fetch / Load failed
-    const j = await r.json().catch(() => ({ error: "服务器无响应" })); clearTimeout(tmo);
+    // body 不是 JSON 时按失败处理：原来 200 配非法 body 会把 { error } 当成功数据返回，
+    // 调用方（如 loadSave）会拿到没有 data 的“成功”结果。
+    let j;
+    try { j = await r.json(); } catch { clearTimeout(tmo); throw new Error("服务器无响应"); }
+    clearTimeout(tmo);
     if (!r.ok) { const e = new Error(j.error || "请求失败 " + r.status); e.status = r.status; throw e; }
     return j;
   },
@@ -54,6 +59,7 @@ const API = {
     this.cancelReconnect();
     if (this._socket) this._socket.close(1000, "logout");
     this._socket = null;
+    this._retryBlock.clear();
     this.token = ""; this.serverState = null;
     localStorage.removeItem("xiu_token");
   },
@@ -106,7 +112,7 @@ const API = {
   applyState(message) {
     if (!message) return;
     let viaPatch = false;
-    if (message.state) this.serverState = message.state;
+    if (message.state) { this.serverState = message.state; this._retryBlock.clear(); }   // 完整状态到了：超时动作的结果已见分晓，放行重试
     else if ("patch" in message) {
       // 序号对不上（漏了消息）就请服务器重发完整状态
       if (!this.serverState || message.base !== this._seq) {
@@ -286,7 +292,13 @@ const API = {
 
   // 断线后循环重连（带退避），而不是只试一次：服务器重启/更新的空档
   // 往往超过 1.5 秒，一次失败就停会导致客户端卡在断线状态，只能重启 App。
-  // 被踢（4001）和正常登出（1000）不走这里，由 onclose 直接排除。
+  // 会话已死：令牌吊销 / 过期后 ws-ticket 一律 401，再试也连不上，停掉循环并让玩家重新登录。
+  sessionExpired() {
+    this.cancelReconnect();
+    if (typeof G !== "undefined" && G.relogin) G.relogin();
+    else { this.token = ""; this.serverState = null; try { localStorage.removeItem("xiu_token"); } catch {} this.setSync("登录已过期，请重新登录"); }
+  },
+  // 被踢（4001）、终结性关闭（4003/4004/4005）和正常登出（1000）不走这里，由 onclose 直接排除。
   scheduleReconnect() {
     if (!this.token || !this.serverState) return;
     clearTimeout(this._reconnectTimer);
@@ -295,7 +307,7 @@ const API = {
     this._reconnectTimer = setTimeout(async () => {
       if (!this.token || !this.serverState) return;
       try { await this.connectSocket(); this._reconnectAttempts = 0; }
-      catch { this.scheduleReconnect(); }
+      catch (e) { if (e && e.status === 401) this.sessionExpired(); else this.scheduleReconnect(); }
     }, delay);
   },
   cancelReconnect() {
@@ -332,6 +344,9 @@ const API = {
       u.searchParams.set("ticket", ticket);
       const socket = new WebSocket(u.toString());
       this._socket = socket;
+      // 消息处理先挂上：握手成功后服务器立刻推完整状态，虽说按微任务顺序本就不会丢，
+      // 但先挂上就彻底没有“open 已回、onmessage 还没赋值”的空档
+      socket.onmessage = event => { this._lastMessageAt = Date.now(); this.onSocketMessage(event.data); };
       await new Promise((resolve, reject) => {
         let opened = false;
         // 握手失败：把 _socket 清掉，否则切回来的 3 秒重试看到 _socket 还在就不会再试
@@ -340,7 +355,6 @@ const API = {
         socket.onopen = () => { opened = true; clearTimeout(timeout); this._reconnectAttempts = 0; clearTimeout(this._reconnectTimer); this.startWatchdog(); resolve(); this.setSync("已连接服务器"); };
         socket.onerror = () => { if (!opened) fail("无法连接游戏服务器"); };
       });
-      socket.onmessage = event => { this._lastMessageAt = Date.now(); this.onSocketMessage(event.data); };
       socket.onclose = event => {
         const cur = this._socket === socket || !this._socket;   // 旧连接晚到的 close 不要把新连接的看门狗关掉
         if (cur) { clearInterval(this._watchdogTimer); this._watchdogTimer = null; }
@@ -350,6 +364,11 @@ const API = {
           pending.reject(new Error("与服务器断开连接，请重试")); this._pending.delete(id);
         }
         if (event.code === 4001 && typeof G !== "undefined" && G.kicked) G.kicked();
+        else if ([4003, 4004, 4005].includes(event.code)) {
+          // 终结性关闭：密码已改 / 账号或人物已删 / 存档异常——令牌已吊销或存档不存在，
+          // 重连永远连不上，必须停掉循环并让玩家重新登录（原来会静默循环请求 ws-ticket）
+          this.sessionExpired();
+        }
         else if (this.token && this.serverState && event.code !== 1000) {
           // 后台静默重连，不在前台弹提示；循环重连直到成功或登出
           this.scheduleReconnect();
@@ -433,6 +452,9 @@ const API = {
     if (["bmFuse", "bmFuseAll"].includes(name) && result && G.bmFuseDone) G.bmFuseDone(result);   // 熔炼后弹出增加的属性
   },
 
+  // 超时动作的重试键：同名同参数才算同一次操作
+  _blockKey(name, args) { try { return name + "\n" + JSON.stringify(args); } catch { return name; } },
+
   async sendAction(name, args) {
     const button = this._clickedButton;
     this._clickedButton = null;
@@ -460,13 +482,22 @@ const API = {
         if (text && !(await G.ask(text))) return false;
       }
     }
+    // 上次同名同参数的操作超时后结果还没同步回来：先拦住重试，等完整状态到了再放行
+    // （超时注释里本来就写着“先重同步再允许重试”，这里把它落到实处；否则慢服务器 + 手快重试会重复执行）
+    const blockKey = this._blockKey(name, args);
+    const blockedAt = this._retryBlock.get(blockKey);
+    if (blockedAt) {
+      if (Date.now() - blockedAt < 60_000) { this.showActionFeedback("上次操作结果还没同步回来，请稍后再试", "bad"); return false; }
+      this._retryBlock.delete(blockKey);
+    }
     const buttonPending = this.markButtonPending(button);
     const refresh = button && button.dataset ? button.dataset.refresh || "" : "";
     try {
       if (!this._socket || this._socket.readyState !== WebSocket.OPEN) await this.connectSocket();
     } catch (error) {
       this.finishButtonPending(buttonPending);
-      this.showActionFeedback(error.message || "无法连接游戏服务器", "bad");
+      if (error && error.status === 401) this.sessionExpired();
+      else this.showActionFeedback(error.message || "无法连接游戏服务器", "bad");
       throw error;
     }
     const socket = this._socket;
@@ -488,6 +519,7 @@ const API = {
         this.showActionFeedback(error.message, "bad");
         // 超时后客户端状态可能已旧（服务端可能已执行）：先重同步再允许重试，否则重试会按旧格子序号操作
         try { if (this._socket && this._socket.readyState === WebSocket.OPEN) this._socket.send(JSON.stringify({ type: "resync" })); } catch {}
+        this._retryBlock.set(blockKey, Date.now());
         reject(error);
       }, 15_000);
       const exStart = typeof G !== "undefined" && G.s && G.s.explore ? G.s.explore.start : undefined, cqStart = typeof G !== "undefined" && G.s && G.s.cq ? G.s.cq.start : undefined;
@@ -509,6 +541,7 @@ const API = {
   async adminUpdate() { return this.req("admin/update", {}); },
   async giftList() { return this.req("admin/gifts"); },
   async giftCreate(d) { return this.req("admin/gift", d); },
+  async giftMail(d) { return this.req("admin/gift/mail", d); },
   async giftDelete(code) { return this.req("admin/gift/del", { code }); },
   async giftRedeem(code) { const j = await this.req("gift", { code }); if (j.state) this.applyState(j); return j; },   // 不再发 resync：HTTP 响应本身就是完整状态，服务器端兑换时在线客户端还会再推一次完整状态，再发一次等于同一份完整状态传三遍
   async changePassword(oldPw, newPw) { return this.req("password", { old: oldPw, new: newPw }); },

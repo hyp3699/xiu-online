@@ -181,11 +181,11 @@ G.module({
       return b;
     },
     hasGongfa(id) { return !!this.s.gongfa[id]; },
-    // 这一层的修炼时间（秒）= STUDY_MIN ÷ (1 + 减少%)，最少 STUDY_MIN_SEC（修炼秘法本身不减少）
+    // 这一层的修炼时间（秒）= STUDY_MIN ÷ (1 + 减少%)，最少 STUDY_MIN_SEC（秘法和功法一样：悟道 + 经脉 + 聚灵阵）
     //   功法：悟道秘法 + 经脉光点冲满（jingmai.js jmGfCut）；法术：悟法秘法（经脉不减法术）；减少% 可以超过 100%
     studySec(g) {
       if (g.noEl) return Math.max(1, ((g.studyMin || [])[g.lv - 1] || 1) * 60);   // 开局功法书：config/start.js 的 STUDY_MIN
-      const m = this.mifaBonus(), red = g.kind === "mf" ? 0 : g.kind === "sp" ? m.spStudy : m.gfStudy + (this.jmGfCut ? this.jmGfCut() : 0) + (this.arrayGfCut ? this.arrayGfCut() : 0);
+      const m = this.mifaBonus(), red = g.kind === "sp" ? m.spStudy : m.gfStudy + (this.jmGfCut ? this.jmGfCut() : 0) + (this.arrayGfCut ? this.arrayGfCut() : 0);
       const base = DATA.studyMin[g.lv - 1] * 60;
       return Math.max(Math.min(CFG.wudao.STUDY_MIN_SEC || 10, base), base / (1 + Math.max(0, red) / 100));
     },
@@ -231,8 +231,8 @@ G.module({
       const shared = [room, pill > 0 ? [`悟真丹（剩 ${U.dur(this.studyPillLeft() / 1000)}）`, pill] : null].filter(Boolean);
       const sec = (t, a) => { const r = a.filter(x => x && x[1] > 0), tot = r.reduce((s, x) => s + x[1], 0);
         return `<h3>${t}<small>合计 -${U.num(tot)}%</small></h3>${r.length ? r.map(x => `<div class="line"><div>${x[0]}</div><b>-${U.num(x[1])}%</b></div>`).join("") : `<p class="desc">暂无</p>`}`; };
-      this.modal(`<h2>功法加成</h2><p class="desc">修炼时间 = 基础时间 ÷ (1 + 减少% 合计)，秘法不吃这些加成。</p>
-        ${sec("功法", gf.concat(shared))}${sec("法术", sp.concat(shared))}
+      this.modal(`<h2>功法加成</h2><p class="desc">修炼时间 = 基础时间 ÷ (1 + 减少% 合计)，秘法和功法相同。</p>
+        ${sec("功法", gf.concat(shared))}${sec("法术", sp.concat(shared))}${sec("秘法", gf.concat(shared))}
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
     setGfFilter(t) { this.gfFilter = t; this.render(); },

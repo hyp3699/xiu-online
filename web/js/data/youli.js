@@ -42,7 +42,7 @@
   };
   for (let i = 0; i < 9; i++) add("yl" + i, "fan", i, Math.min(5, 1 + Math.floor(i / 2)));
   for (let i = 0; i < 10; i++) add("ylx" + i, "xmm", i, 6 + Math.floor(i / 2));
-  for (let i = 0; i < 10; i++) add("yls" + i, "shen", i, 11 + Math.floor(i / 2));
+  for (let i = 0; i < 10; i++) add("yls" + i, "shen", i, i < 5 ? 11 : 12);   // 神界第 1~5 张图 11 星，6~10 张 12 星
   DATA.ylGfName = (o, type) => {
     const S = C.GF_SUFFIX || {}, key = type.fam === "zhenjue" ? (o.els || {})[type.id] : type.id;
     return o.prefix + (S[key] || type.suffix);

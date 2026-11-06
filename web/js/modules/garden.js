@@ -39,7 +39,7 @@ G.module({
   },
 
   api: {
-    // 生长时间缩短 %（灵植夫 + 秘法，有上限）、收获增加 %
+    // 生长时间缩短 %（灵植夫 + 秘法，没上限）、收获增加 %
     //   g = 药材序号：凡界药材按灵植夫，仙界药材（序号 ≥ 凡界种数）按仙植师（v42）
     plantCraft() { return "ling"; },   // 灵植夫统一 1~30 阶（11~20 阶显示为仙植师，21~30 阶神植师）
     plantCut(g = 0) { const k = this.plantCraft(g), L = CFG.craftsman[k]; return (L.GROW_CUT[this.craftLv(k) - 1] || 0) + (this.mifaBonus().plantTime || 0) + this.servantPct("ling"); },   // 种植速度 %（没上限）
@@ -78,6 +78,11 @@ G.module({
     },
     plantField(i, g) {
       const f = this.s.fields[i];
+      // 种子是“每种兑换一次”的永久解锁：没种子、种不了的药材直接拒绝，不能先写进
+      // 田里再在 payField 里对 undefined 取 .ling 抛错、把灵田卡死
+      if (!f) return;
+      if (!this.s.seeds.includes(g)) return this.log("没有这种药材的种子。", "sys");
+      if (!DATA.herbGrow(g)) return this.log("这种药材无法种植。", "sys");
       if (f.g < 0) {
         f.g = g; f.next = null;
         this.payField(f, this.now());

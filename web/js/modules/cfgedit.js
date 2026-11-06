@@ -91,16 +91,19 @@ G.module({
       if (bad) { this.cfgMsg = bad; this._cfgMsgOk = false; return this.cfgListView(); }
       const btn = document.getElementById("cfg-qsave"); if (btn) btn.disabled = true;
       // 只改数字，文件里其它内容（注释、管理员改过的地方）保持不变
-      const setNum = (text, re, v) => { if (!re.test(text) && /MOB_IMG_NAME/.test(re.source)) return text.replace(/(\n\s*BREAK\s*:\s*[-\d.eE]+,?[^\n]*)/, `$1\n  MOB_IMG_NAME: ${v},`); if (!re.test(text)) throw new Error("文件里找不到要改的项：" + re); return text.replace(re, (m0, a) => a + v); };
+      // MOB_IMG_NAME 回退：BREAK 行也不存在时 replace 是静默无操作，原来照样报成功；
+      // 现在没插进去就抛错，和其它“找不到项”分支一致
+      const setNum = (text, re, v) => { if (!re.test(text) && /MOB_IMG_NAME/.test(re.source)) { const nt = text.replace(/(\n\s*BREAK\s*:\s*[-\d.eE]+,?[^\n]*)/, `$1\n  MOB_IMG_NAME: ${v},`); if (nt === text) throw new Error("文件里找不到要改的项：" + re); return nt; } if (!re.test(text)) throw new Error("文件里找不到要改的项：" + re); return text.replace(re, (m0, a) => a + v); };
       try {
         const changed = k => Number(this.cfgQuickGet(k)) !== vals[k];
+        const files = [];
         if (Object.keys(vals).some(k => !k.startsWith("realm:") && changed(k))) {
           let t = (await API.req("admin/config/file?name=rates.js")).content;
           for (const k in vals) { if (k.startsWith("realm:")) continue;
             const p = k.split("."), name = p[p.length - 1];
             const re = p.length > 1 ? new RegExp(`(${p[0]}\\s*:\\s*\\{[\\s\\S]*?\\b${name}\\s*:\\s*)[-\\d.eE]+`) : new RegExp(`(\\n\\s*${name}\\s*:\\s*)[-\\d.eE]+`);
             t = setNum(t, re, vals[k]); }
-          await API.req("admin/config/save", { name: "rates.js", content: t });
+          files.push({ name: "rates.js", content: t });
         }
         if (["realm:GAIN_RATE", "realm:BODY_GAIN_RATE"].some(changed)) {
           let t = (await API.req("admin/config/file?name=realm.js")).content;
@@ -109,8 +112,12 @@ G.module({
             if (re.test(t)) t = setNum(t, re, vals["realm:" + k]);
             else t = t.replace(k === "GAIN_RATE" ? /(\n\s*GAIN\s*:\s*\[)/ : /(\n\s*BODY_GAIN\s*:\s*\[)/, `\n  ${k}: ${vals["realm:" + k]},$1`);
           }
-          await API.req("admin/config/save", { name: "realm.js", content: t });
+          files.push({ name: "realm.js", content: t });
         }
+        // 两份都改了一次保存：原来先存 rates.js（立即广播全服重载）再存 realm.js，
+        // 第二步失败时第一步已生效，成了“地图收益已改、突破属性未改”的半生效状态
+        if (files.length === 1) await API.req("admin/config/save", files[0]);
+        else if (files.length > 1) await API.req("admin/config/save-multi", { files });
         this._cfgReload = true; this.cfgMsg = "快捷修改已保存，服务器已使用新倍率。关闭窗口后页面会重新加载。"; this._cfgMsgOk = true;
         for (const k in vals) { if (k.startsWith("realm:")) CFG.realm[k.slice(6)] = vals[k]; else { const p = k.split("."); let o = CFG.rates = CFG.rates || {}; for (let i = 0; i < p.length - 1; i++) o = o[p[i]] = o[p[i]] || {}; o[p[p.length - 1]] = vals[k]; } }
         API.showActionFeedback("倍率已保存");

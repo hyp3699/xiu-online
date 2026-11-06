@@ -405,7 +405,7 @@ G.module({
             : `<span class="q5">已满</span>`}</div>`; }).join("");
         return this.modal(`${head}${rows}${this.ysXdRows(id, "dan")}${close}`);
       }
-      if (pid === "qi") return this.modal(`${head}${this.ringShopHtml(id)}${this.ysXdRows(id, "qi")}${close}`);   // 烈阳戒（观星阁）/ 玄武戒（万化神宫）图纸、专用材料
+      if (pid === "qi") return this.modal(`${head}${this.ysBpHtml(id)}${this.ringShopHtml(id)}${this.ysXdRows(id, "qi")}${close}`);   // 神界：十一、十二星图谱图纸（YS_BP）；烈阳戒（观星阁）/ 玄武戒（万化神宫）图纸、专用材料
       if (pid === "hall") {
         const need = this.ysCfg().HALL_FAV || 1000;
         if (this.ysFav(id) < need && !this.ysHallFree(id)) return this.modal(`${head}<p>好感度达到 ${U.fmt(need)} 才能进入宗门大殿。</p>${close}`);
@@ -686,7 +686,7 @@ G.module({
       const v = (x, k) => x * DATA.mobRnd(k);   // × 随机浮动
       const name = kind === "boss" ? DATA.regionBoss(a, r) : (kind === "elite" ? "精英·" : "") + U.pick(map.monsters);
       return this.addMagic({ name, mapA: a, Lm: R.L, kind, boss: kind === "boss", elite: kind === "elite", elKey: kind === "boss" ? `b:${a}:${r}` : "",
-        hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.resEl || b.res, manaBr: b.manaBr, L: b.L, crit: b.crit }, kind);
+        hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.resEl || b.res, manaBr: b.manaBr, L: b.L, crit: b.crit, stl: b.stl }, kind);
     },
 
     // 给怪物加 属性 / 六系抗性 / 法术 / 法宝（config/mobs.js 的 mobs.magic）
@@ -801,19 +801,24 @@ G.module({
       // v57：鼎 → 对方速度 / 命中 / 闪避降低（m.deb，剩 left 回合）；印 → 对方眩晕（m.stun 回合）；盾 → 护盾（shield，打光为止）
       // 神通：对手减益 mD / 自身增益 meB，各 { 键: { p 百分比, left 剩余回合 } }，键 = atk / def / speed / hit / dodge / res_X
       const mD = {}, meB = {}, B0 = { atk: st.atk, def: st.def, hit: st.hit, dodge: st.dodge, speed: st.speed, res: Object.assign({}, st.res) };
+      // 怪物神通（config/mobs.js 的 神通: [[id, 等级]]，data/mobs.js → m.stl）：主动每场各 USES 次，伤害 = 怪物攻击 × (PCT + 等级 × LV_PCT)%，固定 99% 命中；被动每回合开始生效
+      const SC = this.ysStCfg ? this.ysStCfg() : {}, mStl = (m.stl || []).map(([id, lv]) => { const d = this.stDef && this.stDef(id); return d && DATA.elById[d.el] ? { d, lv } : null; }).filter(Boolean);
+      const mStA = mStl.filter(x => x.d.type !== "pas"), mStN = {}, mPas = mStl.filter(x => x.d.type === "pas").map(x => { const f = x.d.fx || {}, n = x.lv, p = (f.p || 0) + n * (f.lvP || 0), e = (f.eld || 0) + n * (f.lvE || 0), r = f.n || 30; return { fx: f, v: { p, e, n: r, max: p * r, maxE: e * r }, name: x.d.name }; });
+      const mB = {}, pD = {}, mG = {}; let meStun = 0;   // mB 怪物神通自身增益 / pD 怪物神通对你的减益（同 meB / mD 的格式）/ mG 怪物被动每回合累加 / meStun 你被眩晕剩几次出手
       const PAS = this.stBattlePas ? this.stBattlePas() : [], psG = {};   // 被动神通；psG = 每回合累加的数值 { atk, def, hit, dodge, speed, eld 属性伤害 }
       const atkK = () => B0.atk > 0 ? st.atk / B0.atk : 1;   // 神通加的攻击（主动增益 / 被动累加）对法术、法宝也生效：按攻击变化比例放大
       const mE = () => {
-        if (!m.deb && !Object.keys(mD).length) return m;
-        const o = Object.assign({}, m), k = x => mD[x] ? 1 - mD[x].p / 100 : 1;
+        if (!m.deb && !Object.keys(mD).length && !Object.keys(mB).length && !Object.keys(mG).length) return m;
+        const o = Object.assign({}, m), k = x => (mD[x] ? 1 - mD[x].p / 100 : 1) * (mB[x] ? 1 + mB[x].p / 100 : 1);   // 你给的减益 × 怪物神通增益
+        for (const x of ["atk", "def", "hit", "dodge", "speed"]) if (mG[x]) o[x] += mG[x];   // 怪物被动神通累加
         if (m.deb) { o.speed *= 1 - m.deb.speed / 100; o.hit *= 1 - m.deb.hit / 100; o.dodge *= 1 - m.deb.dodge / 100; }
         o.speed *= k("speed"); o.hit *= k("hit"); o.dodge *= k("dodge"); o.atk *= k("atk"); o.def *= k("def");
-        const rk = Object.keys(mD).filter(x => x.startsWith("res_")); if (rk.length) { o.res = Object.assign({}, m.res || {}); rk.forEach(x => { const e = x.slice(4); o.res[e] = (o.res[e] || 0) * k(x); }); }
+        const rk = [...new Set([...Object.keys(mD), ...Object.keys(mB)])].filter(x => x.startsWith("res_")); if (rk.length) { o.res = Object.assign({}, m.res || {}); rk.forEach(x => { const e = x.slice(4); o.res[e] = (o.res[e] || 0) * k(x); }); }
         return o;
       };
-      const applyMe = () => { const g = k => (B0[k] + (psG[k] || 0)) * (1 + (meB[k] ? meB[k].p : 0) / 100);
+      const applyMe = () => { const g = k => (B0[k] + (psG[k] || 0)) * (1 + (meB[k] ? meB[k].p : 0) / 100) * (1 - (pD[k] ? pD[k].p : 0) / 100);   // 怪物神通减益也在这里乘
         st.atk = g("atk"); st.def = g("def"); st.hit = g("hit"); st.dodge = g("dodge"); st.speed = g("speed");
-        for (const e in B0.res) st.res[e] = B0.res[e] * (1 + (meB["res_" + e] ? meB["res_" + e].p : 0) / 100); };
+        for (const e in B0.res) st.res[e] = B0.res[e] * (1 + (meB["res_" + e] ? meB["res_" + e].p : 0) / 100) * (1 - (pD["res_" + e] ? pD["res_" + e].p : 0) / 100); };
       let shield = null;
       // v25：炼制法宝也能祭出（金木水火土雷属性伤害，消耗法力）
       const bmFb = this.bmInfo ? this.bmInfo() : null;   // 本命法宝（bag.js）：单独一格，排在法宝栏后面
@@ -900,14 +905,15 @@ G.module({
       const myHit = () => {
         let d;
         if (meSeal || onlyAtk) return hit(st, mE());   // 被镇魂 / v241 战斗设置该类对手只普通攻击：只能普通攻击
-        // 生命低于设定：先用设定的防御法宝 / 法术（可动用保留法力）
-        if (BS.lowPct > 0 && BS.lowKey && php < st.hp * BS.lowPct / 100 && (d = cast(jOf(BS.lowKey), true)) !== null) return d;
-        // 第一 ~ 三回合：每回合第一次出手按设置
+        // 生命低于设定：先用设定的防御法宝 / 法术（可动用保留法力）；已在战斗设置里
+        // 勾“不使用”的招式不能经这条捷径打出（原来没查 off，禁用了照样放）
+        if (BS.lowPct > 0 && BS.lowKey && !off.includes(BS.lowKey) && php < st.hp * BS.lowPct / 100 && (d = cast(jOf(BS.lowKey), true)) !== null) return d;
+        // 第一 ~ 三回合：每回合第一次出手按设置（同样先查 off）
         if (rDone !== rounds) {
           rDone = rounds;
           const rk = rKeys[rounds - 1];
           if (rk === "atk") return hit(st, mE());
-          if (rk && rk !== "auto" && (d = cast(jOf(rk), true)) !== null) return d;
+          if (rk && rk !== "auto" && !off.includes(rk) && (d = cast(jOf(rk), true)) !== null) return d;
         }
         const md = BS.mode || "rot";
         if (md === "sp") d = rot(spJ, "s"), d = d !== null ? d : rot(fbJ, "f");
@@ -944,7 +950,7 @@ G.module({
       };
       // v174 本场人物速度随机 95%~105%（怪物属性本身已随机，不再随机），谁快谁先出手
       const SR = BT.SPEED_RAND || [100, 100], spMe = (SR[0] + Math.random() * (SR[1] - SR[0])) / 100, spMob = 1;
-      const hp0 = s.hp, mana0 = s.mana, meFirst = st.speed * spMe >= m.speed * spMob;
+      const hp0 = s.hp, mana0 = s.mana; let meFirst = st.speed * spMe >= m.speed * spMob;
       // 怪物出手：先判法术，再判法宝（都按 防御×RES_RATE + 该系抗性 减免），都没有就普通攻击
       let mSp = 0, mFb = 0;
       const mCast = (k, el) => {
@@ -954,6 +960,28 @@ G.module({
         const d = roll(mE(), st, X => Math.max(MIN(m), el ? EL(mA * c.pct / 100, X, el, mL) : ATK(mA * c.pct / 100, X, mL)), k === "spell" ? 1 : 2);
         return el && d > 0 ? d * (tf("lingxing") ? 1 + (TL.LINGXING || 0) / 100 : 1) * jmDn(el) : d;   // 天赋灵性：金木水火土雷属性伤害都增加；经脉腿部：受到该系伤害 −%
       };
+      // 怪物主动神通：还有没用完的就先放（按配置顺序，每种每场 USES 次），sp = 第几种（战斗过程里怪物法术 sp 是 -1，靠这个区分）
+      const mStCast = () => {
+        const j = mStA.findIndex((x, i) => (mStN[i] || 0) < (SC.USES || 1)); if (j < 0) return -1;
+        mStN[j] = (mStN[j] || 0) + 1;
+        const D = mStA[j].d, F = D.fx || {}, el = D.el, A = mE(), pct = (SC.PCT || 100) + mStA[j].lv * (SC.LV_PCT || 0);
+        const up = F.t === "pshield" && shield ? 1 + F.p / 100 : F.t === "hp50" && php > st.hp * 0.5 ? 1 + F.p / 100 : 1;
+        let d = roll(A, st, X => Math.max(MIN(m), EL(A.atk * pct / 100, X, el, mL)) * up, 1, j, true);
+        if (d > 0) d *= (tf("lingxing") ? 1 + (TL.LINGXING || 0) / 100 : 1) * jmDn(el);   // 同怪物法术：天赋灵性、经脉腿部
+        if (act.f !== 1) mStFx(D, d, up > 1);
+        return d;
+      };
+      // 怪物神通附加效果（和 stFx 对称：增益加在怪物身上，减益 / 眩晕加在你身上）
+      const mStFx = (D, d, boosted) => {
+        const F = D.fx || {}, el = D.el, KS = [].concat(F.k || []), KN = KS.map(x => ({ atk: "攻击", def: "防御", speed: "速度", hit: "命中", dodge: "闪避" })[x] || DATA.elById[el].name + "系抗性").join("、"), kk = x => x === "res" ? "res_" + el : x;
+        if (F.t === "buff") { KS.forEach(x => { mB[kk(x)] = { p: F.p, left: F.r || 3 }; }); act.st = `自身${KN}提升 ${F.p}%`; }
+        else if (F.t === "deb") { KS.forEach(x => { pD[kk(x)] = { p: F.p, left: F.r || 3 }; }); applyMe(); act.st = `{T}${KN}降低 ${F.p}%`; }
+        else if (F.t === "heal") act.healP = F.p;   // 回血按护盾 / 金蝉之后的最终伤害算（him 里）
+        else if (F.t === "stun") { if (Math.random() * 100 < (F.chance || 0)) { meStun = Math.max(meStun, F.r || 1); act.x = (act.x || 0) | 1; } }
+        else if (F.t === "drain") { const v = (s.mana || 0) * F.p / 100; if (v > 0) { s.mana -= v; act.st = `{T}法力减少 ${U.fmt(v)}`; } }
+        else if (boosted) act.st = F.t === "pshield" ? `对护盾额外造成 ${F.p}% 伤害` : `对手生命高于一半，伤害提升 ${F.p}%`;
+      };
+      const mobSt = () => { const d = mStA.length ? mStCast() : -1; return d < 0 ? mobHit() : d; };
       const mobHit = () => { let d = mCast("spell", m.el); if (d < 0) d = mCast("fabao", m.el); return d < 0 ? hit(mE(), st) : d; };   // v25：怪物法宝也是属性伤害
       // 每一下记一条：[回合, 谁(0 你 / 1 对方), 方式, 法术名序号, 结果, 伤害, 你的生命, 你的法力, 对方生命, 对方法力]
       const log = [], R = Math.round;
@@ -1007,7 +1035,8 @@ G.module({
         if (mhp <= 0 && php > 0 && cnt.mob.yt < pMob.ytT && ch(pMob.yt)) { dealt -= 1 - mhp; mhp = 1; cnt.mob.yt++; act.x = (act.x || 0) | 16; }   // 对方御天保命
         const SY = TL.SHENYOU || {};
         if (mhp <= 0 && php > 0 && !syUsed && tf("shenyou") && ch(SY.CHANCE || 0)) {   // 天赋神佑：复活，恢复生命、法力（每场 1 次）
-          syUsed = 1; mhp = m.hp * (SY.PCT || 0) / 100; m.mana = Math.min(m.maxMana || 0, (m.mana || 0) + (m.maxMana || 0) * (SY.PCT || 0) / 100); act.x = (act.x || 0) | 2048;
+          // “共造成伤害”要扣掉复活回来的血：原来 dealt 含了整击伤害，复活后仍按全额显示
+          syUsed = 1; const rev = m.hp * (SY.PCT || 0) / 100; dealt -= rev - mhp; mhp = rev; m.mana = Math.min(m.maxMana || 0, (m.mana || 0) + (m.maxMana || 0) * (SY.PCT || 0) / 100); act.x = (act.x || 0) | 2048;
         }
         if (act.k === 2 && bmV.yxHeal > 0 && acts[act.sp] && acts[act.sp].key === "fb:bm") { const eff = Math.max(0, mhpBefore - mhp); if (eff > 0) { const v = Math.max(0, Math.min(st.hp - php, eff * bmV.yxHeal / 100)); if (v >= 1) { php += v; act.st = (act.st ? act.st + "，" : "") + `饮血恢复生命 ${U.fmt(v)}`; } } }   // 饮血：按御天/神佑后的实际掉血算，不是出招伤害（原 10 血怪被打 100 点触发御天时只掉 9 血）
         rec(0, d);
@@ -1019,7 +1048,8 @@ G.module({
         const pj = ch(pMob.pj), def0 = st.def; if (shield) st.def = shield.def;   // 有护盾：按盾防御算（代替人物本身防御）
         if (pj) st.def = st.def * (1 - pMob.pjI / 100);
         altD = shield ? Object.assign({}, st, { def: def0 * (pj ? 1 - pMob.pjI / 100 : 1) }) : null;
-        let d = mobSeal || lj ? hit(mE(), st) : mobHit(); st.def = def0; altD = null;   // 被镇魂 / 连击：只能普通攻击
+        let d = mobSeal || lj ? hit(mE(), st) : mobSt(); st.def = def0; altD = null;   // 被镇魂 / 连击：只能普通攻击
+        if (mG.eld && (act.k === 1 || act.k === 2) && d > 0) d += mG.eld;   // 怪物被动神通：属性伤害 +点
         if (lx) act.x = (act.x || 0) | 8;
         if (lj) act.x = (act.x || 0) | 1024;
         d = after(d, pMob, mhp, m.hp, mobJc, meJc);
@@ -1033,6 +1063,7 @@ G.module({
           const ab = Math.min(shield.hp, d), dS = d; shield.hp -= ab; d -= ab; act.ab = ab;
           if (shield.hp <= 0) { shield = null; act.x = (act.x || 0) | 4; if (d > 0 && act.altR) d = d / dS * dSo * act.altR; }   // 盾碎：溢出部分按人物本身防御算
         }
+        if (act.healP && d > 0) { const v = Math.max(0, Math.min(m.hp - mhp, d * act.healP / 100)); if (v >= 1) { mhp += v; act.st = (act.st ? act.st + "，" : "") + `恢复生命 ${U.fmt(v)}`; } }   // 怪物神通回血
         php -= d; taken += d;
         if (php <= 0 && mhp > 0 && cnt.me.yt < pMe.ytT && ch(pMe.yt)) { taken -= 1 - php; php = 1; cnt.me.yt++; act.x = (act.x || 0) | 16; }   // 御天保命
         rec(1, d);
@@ -1057,11 +1088,22 @@ G.module({
           });
           applyMe();
         }
+        if (mPas.length) {   // 怪物被动神通：每回合开始（k = 6，w = 1）
+          mPas.forEach(({ fx: F, v: V }, pi) => {
+            if (F.t === "regen") { const v = Math.max(0, Math.min(m.hp - mhp, V.p)); mhp += v; if (v >= 1) { act = { k: 6, sp: pi, f: 0, st: `恢复生命 ${U.fmt(Math.round(v))}` }; rec(1, v); } }
+            else if (F.t === "mana") { const mx = m.maxMana || mMana0, v = Math.max(0, Math.min(mx - (m.mana || 0), V.p)), e0 = mG.eld || 0; m.mana = (m.mana || 0) + v; mG.eld = Math.min(V.maxE, e0 + V.e);
+              if (v >= 1) { act = { k: 6, sp: pi, f: 0, st: `恢复法力 ${U.fmt(Math.round(v))}，属性伤害累计 +${U.fmt(Math.round(mG.eld))}` }; rec(1, v); }
+              else if (mG.eld > e0) { act = { k: 6, sp: pi, f: 0, st: `属性伤害累计 +${U.fmt(Math.round(mG.eld))}` }; rec(1, 0); } }
+            else if (F.t === "grow") { const KN = { atk: "攻击", def: "防御", hit: "命中", dodge: "闪避", speed: "速度" }, added = []; [].concat(F.k).forEach(x => { const b = mG[x] || 0; mG[x] = Math.min(V.max, b + V.p); if (mG[x] > b) added.push(`${KN[x] || x} +${U.fmt(mG[x] - b)}`); }); if (added.length) { act = { k: 6, sp: pi, f: 0, st: added.join("，") }; rec(1, 0); } }
+          });
+        }
+        if (rounds === 1) meFirst = st.speed * spMe >= mE().speed * spMob;   // 总览先手与第 1 回合实际先手一致：被动在回合开始加速度，结算后按实际判定式重算一次（无被动时数值不变）
         if (opt.onRound) opt.onRound(rounds, { atk: st.atk, def: st.def, hit: st.hit, dodge: st.dodge, speed: st.speed });   // 测试用：每回合开始后的实际属性
         jcTry(0); jcTry(1);
         // 连星秘法：这回合有几率再出手一次（[10] 标记 8）
         const meX = lx => { txGo = false; me(lx); for (let n = 0; txGo && mhp > 0 && php > 0 && n < 20; n++) { txGo = false; me(lx, true); } };   // 通玄：本命法宝不占回合就再出手
-        const meT = () => { meX(); if (mhp > 0 && php > 0 && Math.random() * 100 < lxMe) meX(true); };
+        const meT = () => { if (meStun > 0) { meStun--; act = { k: 4, f: 0 }; rec(0, 0); return; }   // 被怪物神通眩晕：这次不能出手
+          meX(); if (mhp > 0 && php > 0 && Math.random() * 100 < lxMe) meX(true); };
         const himT = () => {
           him(); if (act.k === 0 && mhp > 0 && php > 0 && tf("lianji") && ch(TL.LIANJI || 0)) him(false, true);   // 天赋连击：普通攻击后再普通攻击一次
           if (act.k !== 4 && mhp > 0 && php > 0 && Math.random() * 100 < lxMob) him(true);
@@ -1070,7 +1112,8 @@ G.module({
         else { himT(); if (php > 0) meT(); }
         if (m.deb && --m.deb.left <= 0) m.deb = null;
         for (const k in mD) if (--mD[k].left <= 0) delete mD[k];   // 神通减益 / 增益到期
-        let chg = 0; for (const k in meB) if (--meB[k].left <= 0) { delete meB[k]; chg = 1; } if (chg) applyMe();
+        let chg = 0; for (const k in meB) if (--meB[k].left <= 0) { delete meB[k]; chg = 1; } for (const k in pD) if (--pD[k].left <= 0) { delete pD[k]; chg = 1; } if (chg) applyMe();
+        for (const k in mB) if (--mB[k].left <= 0) delete mB[k];
         if (meJc) meJc--; if (mobJc) mobJc--;
         if (meSeal && sealR.me !== rounds) meSeal--; else if (meSeal) sealR.me = -1;
         if (mobSeal && sealR.mob !== rounds) mobSeal--; else if (mobSeal) sealR.mob = -1;
@@ -1079,7 +1122,7 @@ G.module({
       if (TEST) s.mana = tMp;
       // 战斗说明（显示在探索信息里）
       const why = `你出战时生命 ${U.fmt(hp0)}，共造成 ${U.fmt(dealt)} 伤害（对方剩余生命 ${U.fmt(Math.max(0, mhp))}/${U.fmt(m.hp)}），承受 ${U.fmt(taken)} 伤害；对方攻击 ${U.fmt(m.atk)} 防御 ${U.fmt(m.def)}${m.el ? `，${DATA.elById[m.el].name}属性，施法术 ${mSp} 次、法宝 ${mFb} 次` : ""}`;
-      const detail = { pasN: PAS.map(x => x.name), name: m.name, el: m.el || "", a: m.a, img: m.img, glow: m.glow ? 1 : 0, sp: spNames, spEl: spells.map(sp => sp.el.name), vfx: [...spells.map(sp => sp.el.id), ...fabaos.map(fb => [fb.el, fb.ft]), ...stns.map(sp => ["st", sp.stn.id, sp.el.id])], stI: spells.length + fabaos.length, first: meFirst ? 0 : 1, log, ps: Object.fromEntries(Object.entries(psG).map(([k, v]) => [k, R(v)])), mf: m.mf.slice(), tf: m.tf.slice(),
+      const detail = { pasN: PAS.map(x => x.name), mPasN: mPas.map(x => x.name), mSt: mStA.map(x => ({ id: x.d.id, el: x.d.el, name: x.d.name })), mStl: mStl.map(x => [x.d.name, x.lv, x.d.type === "pas" ? 1 : 0]), name: m.name, el: m.el || "", a: m.a, img: m.img, glow: m.glow ? 1 : 0, sp: spNames, spEl: spells.map(sp => sp.el.name), vfx: [...spells.map(sp => sp.el.id), ...fabaos.map(fb => [fb.el, fb.ft]), ...stns.map(sp => ["st", sp.stn.id, sp.el.id])], stI: spells.length + fabaos.length, first: meFirst ? 0 : 1, log, ps: Object.fromEntries(Object.entries(psG).map(([k, v]) => [k, R(v)])), mf: m.mf.slice(), tf: m.tf.slice(),
         me: [R(hp0), R(st.hp), R(mana0), R(st.mana)], mob: [R(m.hp), R(m.hp), R(m.maxMana || 0), R(m.maxMana || 0)],
         // v181 这场战斗怪物的准确属性（战斗画面点怪物查看）
         ms: { hp: m.hp, atk: m.atk, def: m.def, speed: m.speed, hit: m.hit, dodge: m.dodge, mana: m.maxMana || 0, crit: m.crit || 0, res: Object.assign({}, m.res || {}),
@@ -1094,9 +1137,9 @@ G.module({
       const P = `<span class="bt-p">你</span>`, M = `<span class="bt-m">${b.name}</span>`, who = w ? M : P, tgt = w ? P : M;
       const S = t => `<span class="bt-s">${t}</span>`, D = n => `<span class="bt-d">${U.fmt(n)}</span>`;
       const pre = (fx & 4096 ? `${S("通玄")}发动，` : "") + (fx & 8 ? `发动${S("连星秘法")}，` : "") + (fx & 1024 ? `发动${S("连击")}，` : "") + (fx & 32 ? `发动${S("破军秘法")}，` : "");
-      if (k === 6) return `<p>${P}的被动神通${S(`「${(b.pasN || [])[sp] || "神通"}」`)}发动，${stx || ""}。</p>`;
-      const isSt = !w && k === 1 && b.stI !== undefined && sp >= b.stI;
-      const how = isSt ? `施展神通${S(`「${b.sp[sp] || "神通"}」`)}` : k === 1 ? `施放${S(w ? `${el}系法术` : `《${b.sp[sp] || "法术"}》`)}` : k === 2 ? `祭出${S(w || !b.sp[sp] ? "法宝" : `「${b.sp[sp]}」`)}`
+      if (k === 6) return `<p>${who}的被动神通${S(`「${((w ? b.mPasN : b.pasN) || [])[sp] || "神通"}」`)}发动，${stx || ""}。</p>`;
+      const isSt = !w && k === 1 && b.stI !== undefined && sp >= b.stI, isMSt = w && k === 1 && sp >= 0 && b.mSt && b.mSt[sp];   // 怪物神通：w = 1、sp ≥ 0（怪物法术 sp = -1）
+      const how = isSt ? `施展神通${S(`「${b.sp[sp] || "神通"}」`)}` : isMSt ? `施展神通${S(`「${b.mSt[sp].name}」`)}` : k === 1 ? `施放${S(w ? `${el}系法术` : `《${b.sp[sp] || "法术"}》`)}` : k === 2 ? `祭出${S(w || !b.sp[sp] ? "法宝" : `「${b.sp[sp]}」`)}`
         : k === 3 ? `祭起${S(`「${b.sp[sp] || "护盾"}」`)}` : k === 4 ? "被眩晕" : k === 5 ? `发动${S("金蝉秘法")}` : "发动普通攻击";
       let res = k === 3 ? `，护盾值 ${D(d)}` : k === 4 ? "，无法行动" : k === 5 ? `，${CFG.wudao.JINCHAN && CFG.wudao.JINCHAN.ROUNDS || 3} 回合内免疫攻击` : fx & 128 ? `，被${tgt}的金蝉秘法挡下` : f === 1 ? `，被${tgt}闪避` : `，${f === 2 ? `<span class="bt-c">暴击</span>` : ""}对${tgt}造成 ${D(d)} 点伤害`;
       if (ab) res += `（护盾抵挡 ${U.fmt(ab)}）`;
@@ -1163,7 +1206,7 @@ G.module({
         <p>生命 ${f(m.hp)}　攻击 ${f(m.atk)}　防御 ${f(m.def)}</p><p>速度 ${f(m.speed)}　命中 ${f(m.hit)}　闪避 ${f(m.dodge)}</p>
         <p>法力 ${f(m.mana)}　暴击 ${U.num(m.crit)}%</p><p>抗性：${rs}</p>
         ${m.sp ? `<p>法术：每回合 ${m.sp[0]}% 几率，攻击×${m.sp[1]}%</p>` : ""}${m.fb ? `<p>法宝：每回合 ${m.fb[0]}% 几率，攻击×${m.fb[1]}%</p>` : ""}
-        ${b.mf && b.mf.length ? `<p>秘法：${b.mf.map(k => (DATA.mifaKindById[k] || {}).name || k).join("、")}</p>` : ""}
+        ${b.mStl && b.mStl.length ? `<p>神通：${b.mStl.map(([n, lv, ps]) => `${n}（${ps ? "被动" : "主动"} ${lv} 级）`).join("、")}</p>` : ""}${b.mf && b.mf.length ? `<p>秘法：${b.mf.map(k => (DATA.mifaKindById[k] || {}).name || k).join("、")}</p>` : ""}
         <p>天赋：${b.tf && b.tf.length ? b.tf.map(k => this.tfName(k)).join("、") : "无"}</p><small>点击关闭</small>`;
       el.style.display = "";
     },
@@ -1237,8 +1280,9 @@ G.module({
       const SL = CFG.battle.ANIM_SLOW || 1;   // v161 动画放慢倍数
       const add = (cls, txt, side, ms) => { ms = (ms || 1200) * SL; const n = document.createElement("div"); n.className = cls + " " + (side ? "r" : "l"); if (txt) n.textContent = txt; fxEl.appendChild(n); setTimeout(() => n.remove(), ms || 1200); return n; };
       const el = b.el && !w ? "" : b.el;   // 怪物法术 / 法宝带属性色
-      const name = k === 1 ? (w ? (b.el ? DATA.elById[b.el].name + "系法术" : "法术") : (b.sp[sp] || "法术")) : k === 2 ? (w || !b.sp[sp] ? "法宝" : b.sp[sp]) : k === 3 ? (b.sp[sp] || "护盾") : k === 5 ? "金蝉秘法" : "";
-      if (k === 6) { add("btv-skill", (b.pasN || [])[sp] || "神通", w); if (d >= 1) add("btv-pop heal", "+" + U.fmt(d), w); H(); return; }   // 被动神通回血 / 回蓝
+      const mSt = w && k === 1 && sp >= 0 && b.mSt ? b.mSt[sp] : null;   // 怪物神通
+      const name = mSt ? mSt.name : k === 1 ? (w ? (b.el ? DATA.elById[b.el].name + "系法术" : "法术") : (b.sp[sp] || "法术")) : k === 2 ? (w || !b.sp[sp] ? "法宝" : b.sp[sp]) : k === 3 ? (b.sp[sp] || "护盾") : k === 5 ? "金蝉秘法" : "";
+      if (k === 6) { add("btv-skill", ((w ? b.mPasN : b.pasN) || [])[sp] || "神通", w); if (d >= 1) add("btv-pop heal", "+" + U.fmt(d), w); H(); return; }   // 被动神通回血 / 回蓝
       if (name) add("btv-skill", name, w);
       const hit = () => {
         H();
@@ -1262,6 +1306,7 @@ G.module({
         // v246 法术按属性、法宝按形状各有特效（见 btVfx）；怪物法宝随机一种形状
         const v = !w && b.vfx ? b.vfx[sp] : null, sEl = (k === 1 ? (w ? b.el : v) : (w ? b.el : v && v[0])) || "huo";
         const ft = k === 2 ? (w ? Math.floor(Math.random() * 7) : v ? v[1] : 0) : -1;
+        if (mSt) { later(this.btStVfx(fxEl, w, mSt.id, mSt.el, SL, mSt.name) * SL); return; }   // 怪物神通：同样的专属释放动画
         if (k === 1 && Array.isArray(v) && v[0] === "st") { later(this.btStVfx(fxEl, w, v[1], v[2], SL, b.sp[sp]) * SL); return; }   // 神通：专属释放动画
         later(this.btVfx(fxEl, w, k, sEl, ft, SL, tg) * SL); }
       else if (k === 3) { this.btRing(w, true); H(); }

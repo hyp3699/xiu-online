@@ -101,11 +101,23 @@ function getEngine(userId) {
   entry.lastUsed = Date.now();
   return entry.engine;
 }
+// 预热：引擎第一次建要 1~2 秒，启动后 / 参数改动后先在后台把普通玩家和管理员两台建好，
+// 免得第一个进游戏的人等它（调试人物的两台按需再建）
+function warmEngines() {
+  setTimeout(() => { for (const [a, d] of [[false, false], [true, false]]) { try { const t = Date.now(); poolEngine(a, d); console.log(`engine warm ${a ? "admin" : "player"} ${Date.now() - t}ms`); } catch (err) { console.error("engine warm failed", err?.message || err); } } }, 0);
+}
+// 结算慢时记一行日志（离线太久、探索 / 出窍中逐个结算等），方便查进游戏慢的原因
+function timedAdvance(engine, state, now, tag) {
+  const t = Date.now(), o = engine.advance(state, now), ms = Date.now() - t;
+  if (ms >= 300) { const s = o.state || {}; console.log(`slow advance ${tag} ${ms}ms ticks=${o.processedTicks} explore=${!!s.explore} cq=${!!s.cq} trib=${!!s.trib}`); }
+  return o;
+}
 function dropEngine(userId) { const e = engines.get(userId); if (e) { try { e.engine.drop(); } catch {} engines.delete(userId); } }
 
 // 参数改动后：在线玩家立即换成用新参数加载的游戏引擎，并通知网页重新加载参数
 function applyNewConfig() {
   engines.clear(); enginePool.clear();
+  if (!clients.size) warmEngines();
   for (const [userId, client] of clients) {
     try { client.engine = getEngine(userId); } catch (err) { console.error("reload engine failed", err); }
     send(client.socket, { type: "config" });
@@ -164,10 +176,85 @@ function drainHist(userId, state) {
   delete state.exHist; delete state.histQ;
 }
 function persist(userId, state) {
+  // 先落存档、再记历史：原来先 drainHist（历史立即入库）再 saveUpsert，存档恰好在
+  // 这一步失败时，历史表里会多一条实际未生效动作的记录。历史字段不进存档，落盘前
+  // 先从状态上摘下来、失败时原样装回去，成功后再 drainHist（它只在 histSave 成功后删）。
+  const histQ = state.histQ, exHist = state.exHist;
+  if (histQ !== undefined) delete state.histQ;
+  if (exHist !== undefined) delete state.exHist;
+  try {
+    const data = JSON.stringify(state);
+    if (Buffer.byteLength(data) > 4 * 1024 * 1024) throw new Error("角色数据超出安全大小限制");
+    q.saveUpsert.run(userId, data, Date.now());
+  } finally {
+    if (histQ !== undefined) state.histQ = histQ;
+    if (exHist !== undefined) state.exHist = exHist;
+  }
   drainHist(userId, state);
-  const data = JSON.stringify(state);
-  if (Buffer.byteLength(data) > 4 * 1024 * 1024) throw new Error("角色数据超出安全大小限制");
-  q.saveUpsert.run(userId, data, Date.now());
+}
+// 参数保存前的语义校验：只看“能加载”不够（空文件、NaN、类型写错都能加载成功，
+// 进游戏才炸）。拿改动前后的两份 CFG 做对比：
+//   1. 改动前已有的每个字段，改动后必须还在（空文件、删键、数组缩短都会被拦）；
+//   2. 改动前是数字的字段，改动后必须是有限数字（字符串 "86"、NaN、Infinity 都会被拦）；
+//   3. 六个经验倍率必须 ≥ 0（负数会让经验静默归零）。
+// 基线不用现建：池里的引擎就是按当前磁盘参数建的（改参数后 applyNewConfig 会清池重建），
+// 构造后玩法代码不改 CFG（写 CFG 的只有浏览器端快捷保存，服务器引擎里不跑），所以现成
+// 引擎的 CFG 就是干净基线；池里没引擎（没人在线）时才现建一份。校验只现建改动后的一份，
+// 约 1 秒，和原来“先加载一遍”的成本一样，不会把事件循环堵上几秒。
+function validateConfigChange(overrides) {
+  let before = null;
+  for (const e of enginePool.values()) { before = e.CFG; break; }
+  if (!before) for (const c of clients.values()) { before = c.engine.CFG; break; }
+  if (!before) before = new GameEngine().CFG;
+  const after = new GameEngine(overrides).CFG;
+  const problems = [];
+  const seen = new Set();
+  const walk = (b, a, p) => {
+    if (b === null || b === undefined) return;
+    if (typeof b === "number") {
+      if (typeof a !== "number" || !Number.isFinite(a)) problems.push(`${p} 应为数字`);
+      return;
+    }
+    if (typeof b !== "object") {
+      if (typeof a !== typeof b) problems.push(`${p} 类型不对`);
+      return;
+    }
+    if (a === null || typeof a !== "object") { problems.push(`${p} 缺失`); return; }
+    if (seen.has(b)) return;   // 配置里若有共享引用，只查第一处；也防循环引用栈溢出
+    seen.add(b);
+    for (const k of Object.keys(b)) walk(b[k], a[k], p ? `${p}.${k}` : k);
+  };
+  walk(before, after, "");
+  const C = after.craftsman || {};
+  for (const k of ["DAN_EXP_MULT", "QI_EXP_MULT", "LING_EXP_MULT", "DAN_NEED_MULT", "QI_NEED_MULT", "LING_NEED_MULT"]) {
+    const v = C[k];
+    if (v !== undefined && (typeof v !== "number" || !Number.isFinite(v) || v < 0)) problems.push(`craftsman.${k} 应为 0 或以上的数字`);
+  }
+  if (problems.length) throw new Error("参数语义校验失败：" + problems.slice(0, 5).join("；"));
+}
+// 参数覆盖文件写盘：临时文件 + 改名（单文件原子），并显式设权限（目录已是 0o750，
+// 原来文件权限依赖 umask）；chmod 失败只记日志，不让“已保存”变“保存失败”。
+function writeConfigFile(name, content) {
+  fs.mkdirSync(CONFIG_OVERRIDE_DIR, { recursive: true, mode: 0o750 });
+  const tmp = path.join(CONFIG_OVERRIDE_DIR, `.${name}.${process.pid}.tmp`), dest = path.join(CONFIG_OVERRIDE_DIR, name);
+  fs.writeFileSync(tmp, content); fs.renameSync(tmp, dest);
+  try { fs.chmodSync(dest, 0o640); } catch (err) { console.error("config chmod failed:", err?.message || err); }
+}
+// 登录失败限流：同步 PBKDF2（24 万轮）每次都阻塞事件循环，HTTP 层无限流时可被用来拖垮
+// 单线程。按 IP 和按账号分别计：10 分钟内失败 10 次，封 15 分钟；成功登录清掉账号计数。
+const loginFails = new Map();
+function loginBlocked(key) {
+  const r = loginFails.get(key);
+  if (!r) return false;
+  if (r.until && Date.now() < r.until) return true;
+  if (Date.now() - r.first > 10 * 60_000) { loginFails.delete(key); return false; }
+  return false;
+}
+function loginFail(key) {
+  const now = Date.now(), r = loginFails.get(key);
+  if (!r || now - r.first > 10 * 60_000) { loginFails.set(key, { n: 1, first: now, until: 0 }); return; }
+  r.n++;
+  if (r.n >= 10) r.until = now + 15 * 60_000;
 }
 function registrationOpen() {
   const value = db.prepare("SELECT value FROM settings WHERE key='registration_open'").get()?.value;
@@ -216,6 +303,8 @@ function validateValue(value, depth = 0, action = "") {
   }
   throw new Error("操作参数类型无效");
 }
+// 注意：无显式白名单时信任 X-Forwarded-Host，前提是反代会剥离客户端自带的该头；
+// 即使绕过 Origin 检查也建不了连接——WS 仍需已认证才发的 ticket，这里只是多一层门。
 function allowedOrigin(req) {
   const origin = req.headers.origin;
   if (!origin) return true;
@@ -253,11 +342,14 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 201, { token: issueToken(Number(result.lastInsertRowid)), admin: !!isAdmin });
     }
     if (req.method === "POST" && route === "/api/login") {
-      const body = await readBody(req); let username;
-      try { username = validUsername(body.username); } catch { return error(res, 401, "账号或密码错误"); }
+      const body = await readBody(req), ip = req.socket.remoteAddress || "";
+      let username;
+      try { username = validUsername(body.username); } catch { loginFail("ip:" + ip); return error(res, 401, "账号或密码错误"); }
+      if (loginBlocked("ip:" + ip) || loginBlocked("user:" + username)) return error(res, 429, "登录失败次数过多，请 15 分钟后再试");
       const user = q.byName.get(username), password = String(body.password || "");
       const candidate = passwordHash(password, user?.salt || "00000000000000000000000000000000");
-      if (!user || !equalHex(candidate, user.password_hash)) return error(res, 401, "账号或密码错误");
+      if (!user || !equalHex(candidate, user.password_hash)) { loginFail("ip:" + ip); loginFail("user:" + username); return error(res, 401, "账号或密码错误"); }
+      loginFails.delete("user:" + username);
       return sendJson(res, 200, { token: issueToken(user.id), admin: !!user.is_admin });
     }
     if (req.method === "POST" && route === "/api/logout") {
@@ -314,7 +406,7 @@ const server = http.createServer(async (req, res) => {
         data = on.state; persist(user.id, data);
       } else {
         data = getState(user.id);
-        if (data) { data = getEngine(user.id).advance(data, Date.now()).state; persist(user.id, data); }
+        if (data) { data = timedAdvance(getEngine(user.id), data, Date.now(), `session u${user.id}`).state; persist(user.id, data); }
       }
       return sendJson(res, 200, { data, serverNow: Date.now(), actions: [...ACTIONS], admin: !!user.is_admin, debug: !!user.debug });
     }
@@ -355,6 +447,11 @@ const server = http.createServer(async (req, res) => {
       const salt = crypto.randomBytes(16).toString("hex");
       db.prepare("UPDATE users SET salt=?,password_hash=? WHERE id=?").run(salt, passwordHash(newPw, salt), user.id);
       db.prepare("DELETE FROM tokens WHERE user_id=?").run(user.id);   // 改密码即吊销全部登录令牌（含当前设备，需重新登录），与界面文案一致
+      for (const [t, s] of tickets) if (s.userId === user.id) tickets.delete(t);   // 未用的 ws-ticket 也作废：否则 30 秒内凭旧 ticket 仍能建连接，等于没踢掉
+      // 只删令牌不够：已建立的 WS 连接不再校验令牌，不关掉就还能继续游戏
+      const online = clients.get(user.id);
+      if (online) { try { persist(user.id, online.state); } catch {} clients.delete(user.id); online.socket.close(4003, "密码已修改，请重新登录"); }
+      dropEngine(user.id);
       return sendJson(res, 200, { ok: true });
     }
     if (req.method === "POST" && route === "/api/save") return error(res, 410, "客户端存档上传已停用；状态由服务器结算和保存");
@@ -444,17 +541,28 @@ const server = http.createServer(async (req, res) => {
     if (user.is_admin && req.method === "POST" && route === "/api/admin/user/del") {
       const body = await readBody(req), id = Number(body.id);
       if (!Number.isSafeInteger(id) || id === user.id) return error(res, 400, "不能删除该账号");
-      db.prepare("DELETE FROM users WHERE id=?").run(id); dropEngine(id);
+      // 主号连同小号一起删：原来只删一行，小号行本身留下成孤儿——仍是管理员、能继续
+      // 游戏，却永远无法新建人物，管理员界面也看不到（存档、令牌、历史靠外键级联清掉）
+      const subs = db.prepare("SELECT id FROM users WHERE owner_id=?").all(id);
+      db.transaction(() => {
+        for (const s of subs) db.prepare("DELETE FROM users WHERE id=?").run(s.id);
+        db.prepare("DELETE FROM users WHERE id=?").run(id);
+      })();
+      for (const s of subs) { dropEngine(s.id); const on = clients.get(s.id); if (on) { clients.delete(s.id); on.socket.close(4003, "账号已删除"); } }
+      dropEngine(id);
       const online = clients.get(id); if (online) { clients.delete(id); online.socket.close(4003, "账号已删除"); }
       return sendJson(res, 200, { ok: true });
     }
     if (user.is_admin && req.method === "POST" && route === "/api/admin/user/rename") {
-      // 管理员可改任何账号的账号名（包括其他管理员和自己）：只改 users.username，密码、存档、
+      // 管理员可改任何主账号的账号名（包括其他管理员和自己）：只改 users.username，密码、存档、
       // 令牌都按 user_id 挂着，所以改名不影响登录状态和存档，下次登录用新名。
+      // 小号不能直接改：小号名是「主号名#序号」，直接改掉会永久破坏主号改名时小号跟随
+      // 前缀的不变量（且 # 不在合法用户名字符里，改不回去），改主号名时会连同小号一起改。
       const body = await readBody(req), id = Number(body.id);
       let name; try { name = validUsername(body.username); } catch (e) { return error(res, 400, e.message); }
       if (!Number.isSafeInteger(id)) return error(res, 400, "没有这个账号");
       const t = q.byId.get(id); if (!t) return error(res, 400, "没有这个账号");
+      if (t.owner_id) return error(res, 400, "小号不能直接改名，改主号名时会连同小号一起改");
       if (name === t.username) return sendJson(res, 200, { ok: true, username: name, renamed: 0 });
       // 主号改名时，它的小号（名字是「主号名#序号」）跟着换前缀，保持命名一致；小号先改，
       // 主号后改，这样主号的新名即使撞上某个小号的旧名也不会触发唯一约束。
@@ -478,16 +586,51 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req), code = String(body.code || crypto.randomBytes(8).toString("hex").toUpperCase()).trim().slice(0, 64);
       const items = Array.isArray(body.items) ? body.items : (Array.isArray(body.payload?.items) ? body.payload.items : []);
       if (!items.length || items.length > 100) return error(res, 400, "礼包物品数量需为 1–100 件");
+      if (db.prepare("SELECT 1 FROM gifts WHERE code=?").get(code)) return error(res, 400, "礼包码已存在");
+      // 原来只校验数量：类别写错、必需字段缺失的礼包也能建，兑换时才进“遗失”分支
+      const GIFT_CATS = new Set(["stone", "contrib", "merit", "gf", "sp", "mf", "fabao", "eq", "herb", "ore", "lj", "lz", "hx", "bm", "st", "tc", "dan", "bp"]);
       for (const item of items) {
         if (!item || typeof item !== "object" || Array.isArray(item)) return error(res, 400, "礼包物品格式无效");
+        if (!GIFT_CATS.has(item.c)) return error(res, 400, `礼包物品类别无效：${String(item.c)}`);
         const count = Number(item.n || 1);
         if (!Number.isFinite(count) || count < 1 || count > 1_000_000 || (["eq", "fabao", "bp"].includes(item.c) && count > 100)) return error(res, 400, "礼包物品数量超过限制");
+        if ((item.c === "dan" || item.c === "bp") && !String(item.item || "").includes(":")) return error(res, 400, "礼包丹药/图纸缺少 item");
+        if (item.c === "eq" && typeof item.slot !== "string") return error(res, 400, "礼包装备缺少 slot");
+        if ((item.c === "eq" || item.c === "fabao") && !(Number.isInteger(item.g) && item.g >= 0 && item.g <= 11)) return error(res, 400, "礼包装备/法宝星级需为 0–11（一~十二星）");
+        if (item.c === "gf" && (typeof item.src !== "string" || typeof item.type !== "string")) return error(res, 400, "礼包功法缺少 src/type");
+        if (item.c === "sp" && typeof item.src !== "string") return error(res, 400, "礼包法术缺少 src");
+        if (item.c === "mf" && (typeof item.star !== "number" || typeof item.kind !== "string")) return error(res, 400, "礼包秘法缺少 star/kind");
+        if ((item.c === "herb" || item.c === "ore") && (!Number.isInteger(item.g) || item.g < 0)) return error(res, 400, "礼包材料缺少合法 g");
+        if ((item.c === "lj" || item.c === "lz") && !Number.isFinite(item.ft)) return error(res, 400, "礼包灵晶/灵珠缺少 ft");
+        if (item.c === "tc" && typeof item.name !== "string") return error(res, 400, "礼包特产缺少 name");
+        if (item.c === "st" && typeof item.id !== "string") return error(res, 400, "礼包神通缺少 id");
       }
       const payload = { items };
       const maxUses = Math.max(1, Math.min(100_000, Number(body.uses || body.max_uses || 1)));
       const expiresAt = body.expires_at ? Number(body.expires_at) : null;
       db.prepare("INSERT INTO gifts(code,payload,max_uses,expires_at,created_at) VALUES(?,?,?,?,?)").run(code, JSON.stringify(payload), maxUses, expiresAt, Date.now());
       return sendJson(res, 201, { ok: true, code });
+    }
+    // 管理员：礼包物品直接传音发送给全部玩家（进传音暂存，10 天未领清除）
+    if (user.is_admin && req.method === "POST" && route === "/api/admin/gift/mail") {
+      const body = await readBody(req), items = Array.isArray(body.items) ? body.items : [];
+      if (!items.length || items.length > 100) return error(res, 400, "礼包物品数量需为 1–100 件");
+      for (const item of items) if (!item || typeof item !== "object" || Array.isArray(item) || typeof item.c !== "string") return error(res, 400, "礼包物品格式无效");
+      let n = 0;
+      for (const { user_id: uid } of offlineIds.all()) {
+        try {
+          const on = clients.get(uid), state = on ? structuredClone(on.state) : getState(uid);
+          if (!state) continue;
+          const eng = getEngine(uid); eng.bindState(state, Date.now());
+          const got = [];
+          for (const item of items) if (eng.G.giftMailGive(item)) got.push(eng.G.giftLabel(item));
+          if (!got.length) continue;
+          eng.G.log(`收到传音：${got.join("、")}。`, "gold");
+          const st = eng.G.s; persist(uid, st); n++;
+          const online = clients.get(uid); if (online) { online.state = structuredClone(st); pushState(online, Date.now(), [], true, true); }
+        } catch (e) { console.error("gift mail", uid, e); }
+      }
+      return sendJson(res, 200, { ok: true, n });
     }
     if (user.is_admin && req.method === "POST" && route === "/api/admin/gift/del") {
       const body = await readBody(req); db.prepare("DELETE FROM gifts WHERE code=?").run(String(body.code || ""));
@@ -526,15 +669,31 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req, MAX_CONFIG_BODY), name = validConfigName(body.name), reset = route.endsWith("/reset");
       const content = reset ? null : String(body.content ?? "");
       if (!reset) {
-        // 先用新参数完整加载一遍游戏，出错就不保存
-        try { new GameEngine({ [name]: content }); }
+        // 先校验再保存：加载 + 语义对比，任何一项不过都不写盘、不广播
+        try { validateConfigChange({ [name]: content }); }
         catch (err) { return error(res, 400, `参数有错误，未保存：${String(err && err.message || err).slice(0, 300)}`); }
-        fs.mkdirSync(CONFIG_OVERRIDE_DIR, { recursive: true, mode: 0o750 });
-        const tmp = path.join(CONFIG_OVERRIDE_DIR, `.${name}.${process.pid}.tmp`);
-        fs.writeFileSync(tmp, content); fs.renameSync(tmp, path.join(CONFIG_OVERRIDE_DIR, name));
+        writeConfigFile(name, content);
       } else fs.rmSync(path.join(CONFIG_OVERRIDE_DIR, name), { force: true });
       applyNewConfig();
       return sendJson(res, 200, { ok: true, name, overridden: configOverridden(name), online: clients.size });
+    }
+    // 快捷修改一次保存多个文件：原来先存 rates.js 再存 realm.js，每步都立即广播全服重载，
+    // 第二步失败时第一步已生效，成了“地图收益已改、突破属性未改”的半生效状态
+    if (user.is_admin && req.method === "POST" && route === "/api/admin/config/save-multi") {
+      const body = await readBody(req, MAX_CONFIG_BODY), files = Array.isArray(body.files) ? body.files : [];
+      if (!files.length || files.length > 10) return error(res, 400, "一次最多保存 10 个参数文件");
+      const overrides = {}, names = [];
+      for (const f of files) {
+        const name = validConfigName(f && f.name);
+        if (names.includes(name)) return error(res, 400, "参数文件重复");
+        if (typeof f.content !== "string" || Buffer.byteLength(f.content) > MAX_CONFIG_BODY) return error(res, 400, "参数内容无效");
+        overrides[name] = f.content; names.push(name);
+      }
+      try { validateConfigChange(overrides); }
+      catch (err) { return error(res, 400, `参数有错误，未保存：${String(err && err.message || err).slice(0, 300)}`); }
+      for (const name of names) writeConfigFile(name, overrides[name]);
+      applyNewConfig();
+      return sendJson(res, 200, { ok: true, names, online: clients.size });
     }
     if (req.method === "POST" && route === "/api/admin/update") {
       await readBody(req);
@@ -593,7 +752,7 @@ server.on("upgrade", (req, socket, head) => {
   if (restoring) return socket.destroy();
   const url = new URL(req.url || "/", "http://localhost"), ticket = url.searchParams.get("ticket") || "";
   const session = tickets.get(ticket);
-  if (url.pathname !== WS_PATH || !allowedOrigin(req)) { socket.write("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n"); return socket.destroy(); }
+  if (url.pathname !== WS_PATH || !allowedOrigin(req)) { tickets.delete(ticket); socket.write("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n"); return socket.destroy(); }
   if (!session || session.expiresAt < Date.now()) { tickets.delete(ticket); socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n"); return socket.destroy(); }
   tickets.delete(ticket);
   wss.handleUpgrade(req, socket, head, ws => wss.emit("connection", ws, session));
@@ -607,30 +766,40 @@ wss.on("connection", (socket, session) => {
     try { persist(user.id, previous.state); } catch {}
     previous.socket.close(4001, "账号已在其他连接中进入");
   }
-  const state = getState(user.id);
-  if (!state) { socket.close(4004, "角色尚未创建"); return; }
-  const playerEngine = getEngine(user.id);
-  let advanced;
-  try { advanced = playerEngine.advance(state, Date.now()); persist(user.id, advanced.state); }
-  catch (err) { console.error("login settle/save failed:", err?.message || err); socket.close(4005, "角色数据异常，无法登录"); return; }
+  // 读档、建引擎、结算、落盘全包进 try：原来 getState 在 try 外，存档损坏（JSON.parse 抛错）
+  // 时整个服务器进程直接崩溃，所有在线玩家断线、重连再崩
+  let state, playerEngine, advanced;
+  try {
+    state = getState(user.id);
+    if (!state) { socket.close(4004, "角色尚未创建"); return; }
+    playerEngine = getEngine(user.id);
+    advanced = timedAdvance(playerEngine, state, Date.now(), `login u${user.id}`); persist(user.id, advanced.state);
+  } catch (err) { console.error("login settle/save failed:", err?.message || err); socket.close(4005, "角色数据异常，无法登录"); return; }
   const saved = q.save.get(user.id);
   const client = { socket, userId: user.id, engine: playerEngine, state: advanced.state, revision: saved?.revision || 1, lastPersist: Date.now(), rateWindow: Date.now(), rateCount: 0, nextCheck: Math.min(Date.now() + CHECK_MS, (advanced.nextDue || 0) + DUE_MARGIN_MS), lastPush: 0, lastSent: null, seq: 0 };
   clients.set(user.id, client); receipts.set(socket, new Map());
   pushState(client, Date.now(), advanced.logs, true, true);
 
   socket.on("message", raw => {
+    // 顶号、删号、删人物、重置角色后，旧连接上在途的消息仍可能到达：只认当前登记的连接，
+    // 否则重置后旧档可能被一条迟到动作重新落盘“复活”
+    if (clients.get(user.id)?.socket !== socket) return;
     const now = Date.now();
     if (now - client.rateWindow >= 1000) { client.rateWindow = now; client.rateCount = 0; }
     let msg; try { msg = JSON.parse(raw.toString("utf8")); } catch { send(socket, { type: "error", error: "消息格式错误" }); return; }
     if (msg && msg.type === "ping") { send(socket, { type: "pong", serverNow: now }); return; }   // 客户端心跳（不计入频率限制）
     if (++client.rateCount > 12) {   // 带上操作编号，客户端马上提示，不用等 15 秒超时
+      // resync 例外：限流时不重算（重算是费钱的活），但照推现有完整状态——不能让客户端
+      // 拿着旧状态干等下次推送；1 秒内只推一次，免得有人刷 resync 逼服务器狂发大状态。
+      if (msg && msg.type === "resync") { if (now - client.lastPush >= 1000) pushState(client, now, [], true, true); return; }
       const rid = msg && msg.type === "action" ? String(msg.id || "") : "";
       send(socket, rid ? { type: "result", id: rid, ok: false, error: "操作过于频繁，请稍后重试", serverNow: now, revision: client.revision } : { type: "error", error: "操作过于频繁，请稍后重试" }); return;
     }
     if (msg && msg.type === "resync") {
-      // 客户端从后台切回来会发 resync：先把到现在为止的进度结算完，再推完整状态
+      // 客户端从后台切回来会发 resync：先把到现在为止的进度结算完、落盘，再推完整状态
       let logs = [];
       try { const o = client.engine.advance(client.state, now); client.state = o.state; logs = o.logs || []; client.nextCheck = Math.min(now + CHECK_MS, Math.max(now + 50, (o.nextDue || 0) + DUE_MARGIN_MS)); } catch (err) { console.error("resync advance failed:", err?.stack || err); }
+      try { persist(user.id, client.state); } catch (err) { console.error("resync save failed:", err?.message || err); }
       pushState(client, now, logs, true, true); return;
     }
     if (!msg || msg.type !== "action") { send(socket, { type: "error", error: "未知消息类型" }); return; }
@@ -767,21 +936,22 @@ async function ghUpload(manual = false) {
     const repo = await ghApi(cfg.token, "GET", R);
     if (!repo.private) throw new Error("这个仓库是公开的！备份里有所有账号和存档，只能传到私有仓库");
     const gz = zlib.gzipSync(fs.readFileSync(path.join(BACKUP_DIR, latest.name)), { level: 9 });
-    const readme = `# 问道长生 存档备份\n\n- 备份：${latest.name}\n- 压缩后：${(gz.length / 1024).toFixed(0)} KB\n\n恢复：解压 xiu-online.sqlite3.gz，停服后替换 /var/lib/xiu-online/xiu-online.sqlite3（并删除同目录的 -wal、-shm 文件），再启动。\n`;
-    const blob = async (buf) => (await ghApi(cfg.token, "POST", `${R}/git/blobs`, { content: buf.toString("base64"), encoding: "base64" })).sha;
-    let fileSha;
-    try { fileSha = await blob(gz); }
-    catch (err) {
-      if (err.status !== 409) throw err;   // 空仓库（没有任何提交）不能直接建 blob：先放一个 README 初始化
-      await ghApi(cfg.token, "PUT", `${R}/contents/README.md`, { message: "初始化", content: Buffer.from(readme).toString("base64") });
-      fileSha = await blob(gz);
+    // 只改存档文件 xiu-online.sqlite3.gz，仓库里其他文件原样保留（base_tree 取当前提交的文件）；
+    //   新提交没有父提交、强推覆盖：仓库只保留最新一份存档，不留历史（其他文件的提交记录也一起清掉）
+    const branch = repo.default_branch || "main", FILE = "xiu-online.sqlite3.gz", msg = `备份 ${latest.name}`;
+    let head = null;
+    try { head = (await ghApi(cfg.token, "GET", `${R}/git/ref/heads/${branch}`)).object.sha; }
+    catch (err) { if (err.status !== 404 && err.status !== 409) throw err; }   // 404/409：空仓库或没有这个分支
+    if (!head) {
+      // 空仓库不能建 blob：用 contents 接口直接建存档文件（只建这一个文件）
+      await ghApi(cfg.token, "PUT", `${R}/contents/${FILE}`, { message: msg, content: gz.toString("base64"), branch });
+    } else {
+      const fileSha = (await ghApi(cfg.token, "POST", `${R}/git/blobs`, { content: gz.toString("base64"), encoding: "base64" })).sha;
+      const base = (await ghApi(cfg.token, "GET", `${R}/git/commits/${head}`)).tree.sha;
+      const tree = await ghApi(cfg.token, "POST", `${R}/git/trees`, { base_tree: base, tree: [{ path: FILE, mode: "100644", type: "blob", sha: fileSha }] });
+      const commit = await ghApi(cfg.token, "POST", `${R}/git/commits`, { message: msg, tree: tree.sha, parents: [] });
+      await ghApi(cfg.token, "PATCH", `${R}/git/refs/heads/${branch}`, { sha: commit.sha, force: true });
     }
-    const readmeSha = await blob(Buffer.from(readme));
-    const tree = await ghApi(cfg.token, "POST", `${R}/git/trees`, { tree: [{ path: "xiu-online.sqlite3.gz", mode: "100644", type: "blob", sha: fileSha }, { path: "README.md", mode: "100644", type: "blob", sha: readmeSha }] });
-    const commit = await ghApi(cfg.token, "POST", `${R}/git/commits`, { message: `备份 ${latest.name}`, tree: tree.sha, parents: [] });
-    const branch = repo.default_branch || "main";
-    try { await ghApi(cfg.token, "PATCH", `${R}/git/refs/heads/${branch}`, { sha: commit.sha, force: true }); }
-    catch (err) { if (err.status !== 404 && err.status !== 422) throw err; await ghApi(cfg.token, "POST", `${R}/git/refs`, { ref: `refs/heads/${branch}`, sha: commit.sha }); }
     const last = { ok: true, time: Date.now(), file: latest.name, size: gz.length, ms: Date.now() - t0 };
     setSetting("gh_last", JSON.stringify(last));
     console.log(`github backup ok: ${latest.name} ${(gz.length / 1024).toFixed(0)} KB -> ${cfg.repo}`);
@@ -874,6 +1044,28 @@ async function serverInfo() {
 setTimeout(backupDb, 60_000).unref();                       // 启动 1 分钟后先备份一次
 setInterval(backupDb, BACKUP_MS).unref();
 
+// 离线玩家后台结算：间隔读 config/rates.js 的 OFFLINE_SEC（秒，默认 10，0 关闭），管理员改了下一轮就生效。
+// 不在线的角色读出来、结算到现在、落盘，再进游戏时只补最后一小段，不用一次性补算整段离线时间。
+// 每人每次一个 JSON 读写 + 一个周期结算；整轮超过 1 秒会记日志，玩家多了再改成分批。
+const offlineIds = db.prepare("SELECT user_id FROM saves"), offlineBad = new Set();   // 结算出错的角色本次运行不再后台算（免得反复刷错误），上线时照常结算
+function offlineSec() { try { const v = Number(poolEngine(false, false).CFG.rates?.OFFLINE_SEC ?? 10); return Number.isFinite(v) && v > 0 ? Math.max(1, v) : 0; } catch { return 10; } }
+function offlineSettle() {
+  const t0 = Date.now(); let n = 0;
+  for (const { user_id: id } of offlineIds.all()) {
+    if (clients.has(id) || offlineBad.has(id)) continue;
+    try {
+      const st = getState(id); if (!st) continue;
+      const o = timedAdvance(getEngine(id), st, Date.now(), `offline u${id}`);
+      if (o.processedTicks > 0) { persist(id, o.state); n++; }
+    } catch (err) { offlineBad.add(id); console.error(`offline settle u${id} failed:`, err?.message || err); }
+  }
+  const ms = Date.now() - t0; if (ms >= 1000) console.log(`offline settle ${n} players ${ms}ms`);
+}
+(function offlineLoop() {
+  const sec = offlineSec();
+  setTimeout(() => { if (sec > 0) { try { offlineSettle(); } catch (err) { console.error("offline settle failed:", err?.message || err); } } offlineLoop(); }, (sec || 10) * 1000).unref();
+})();
+
 let lastHousekeeping = 0;
 const timer = setInterval(() => {
   const now = Date.now();
@@ -883,17 +1075,18 @@ const timer = setInterval(() => {
       if (now >= client.nextCheck) {
         const old = client.state, outcome = client.engine.advance(old, now); client.state = outcome.state;   // old 已被引擎改成和新状态一样，拿来当 lastSent
         client.nextCheck = Math.min(now + CHECK_MS, Math.max(now + 50, (outcome.nextDue || 0) + DUE_MARGIN_MS));
+        // 先落盘再推送：原来先推送、30 秒才落盘一次，进程在这窗口内崩溃时，客户端已看到
+        // 的进度会回滚，且重算的随机结果可能与已推送的不一致；每次结算都落盘
+        try { persist(userId, client.state); } catch (err) { console.error("timed save failed:", err?.message || err); }   // 定时落盘失败不踢人：下一次动作落盘（先落盘再回复）会把完整状态补上
+        client.lastPersist = now;
+        client.revision += 1;
         pushState(client, now, outcome.logs, false, false, old);
-        if (now - client.lastPersist >= 30_000) {
-          try { persist(userId, client.state); } catch (err) { console.error("timed save failed:", err?.message || err); }   // 定时落盘失败不踢人：下一次动作落盘（先落盘再回复）会把完整状态补上
-          client.lastPersist = now;
-          client.revision += 1;
-        }
       } else if (now - client.lastPush >= PUSH_IDLE_MS) pushState(client, now, [], true);
     } catch (err) { console.error("game tick failed:", err?.stack || err); client.socket.close(1011, "游戏结算失败"); }
   }
   if (now - lastHousekeeping >= 1000) {
     lastHousekeeping = now;
+    for (const [key, r] of loginFails) if (now - r.first > 10 * 60_000 && (!r.until || now > r.until)) loginFails.delete(key);
     for (const [ticket, item] of tickets) if (item.expiresAt < now) tickets.delete(ticket);
     for (const [userId, entry] of engines) if (!clients.has(userId) && now - entry.lastUsed > 120_000) dropEngine(userId);
     db.prepare("DELETE FROM tokens WHERE expires_at<?").run(now);
@@ -912,6 +1105,7 @@ process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
 server.listen(PORT, HOST, () => {
   console.log(`xiu-online authoritative server listening on http://${HOST}:${PORT}`);
+  warmEngines();
   console.log(`database: ${DB_FILE}`);
   console.log(`loaded ${validationEngine.G.modules.length} game modules; ${ACTIONS.size} whitelisted actions`);
 });

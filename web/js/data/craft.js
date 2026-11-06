@@ -18,7 +18,7 @@ DATA.matName = (kind, g) => kind === "sm" ? DATA.smName(g) : kind === "cu" ? g :
 DATA.matFull = (kind, g) => DATA.matName(kind, g);
 // [[名字, 数量], ...] → [{ kind, g, n }]，名字写错会在控制台报错
 DATA.parseMats = list => list.map(([name, n]) => {
-  const sm = !DATA.matByName[name] && DATA.smByName(name); if (sm) return { kind: "sm", g: sm.k, n };   // 秘境专用材料（养神露等），g = 代号
+  const sm = !DATA.matByName[name] && DATA.smByName(name); if (sm) return { kind: "sm", g: sm.k, n, ft: sm.ft };   // 秘境专用材料（养神露等），g = 代号；ft 也带上，分属性材料退款时才不会丢属性
   const m = DATA.matByName[name];
   if (m) return { kind: m.kind, g: m.g, n };
   if (typeof ITEMS !== "undefined" && ITEMS.list && ITEMS.list[name]) return { kind: "cu", g: name, n };   // 自定义物品（瑶池玉蕊、蟠桃灵果），g = 物品名
@@ -68,6 +68,8 @@ DATA.danPrice = (type, g) => (_AL.recipes[type].price || [])[g] || 0;
 /* ---------- 炼丹炉 / 炼器炉 ---------- */
 DATA.furnaces = _FU;                                                // dan / qi
 DATA.furnaceName = (kind, g) => (kind === "qi" ? DATA.XING : DATA.JIE)[g] + _FU[kind].name;   // 炼器炉 / 炼器仙炉按星
+DATA.furnaceN = kind => Math.min(DATA.FU_N_MAX(kind), (_FU[kind].mats || []).length);   // 炉子阶数：炼器炉 = 星数（十二），其他 = 丹阶数（十）
+DATA.FU_N_MAX = kind => kind === "qi" ? DATA.XING.length : DATA.DAN_JIE_N;
 DATA.furnaceMats = (kind, g) => DATA.parseMats(_FU[kind].mats[g]);
 DATA.furnaceTime = (kind, g) => _FU[kind].time[g] * 60000;
 DATA.furnaceBonus = (kind, g) => g >= 0 ? _FU[kind].bonus[g] : 0;  // 缩短时间 %
