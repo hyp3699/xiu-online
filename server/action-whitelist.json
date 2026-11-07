@@ -11,7 +11,6 @@
   "bmTxUp",
   "bodyBreak",
   "breakthrough",
-  "bsetFoe",
   "bsetMove",
   "bsetRound",
   "bsetSet",
@@ -91,6 +90,7 @@
   "mjAll",
   "openField",
   "plantField",
+  "fieldAuto",
   "promote",
   "refineEq",
   "removeAt",
@@ -153,5 +153,7 @@
   "ysBuyXd",
   "ysEnterMj",
   "ysStLearn",
-  "ysSubmit"
+  "ysSubmit",
+  "eatLg",
+  "ysBuyLgSeed"
 ]

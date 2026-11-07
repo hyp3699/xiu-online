@@ -126,3 +126,15 @@ test("心得灵石价格翻倍；炼丹师 / 炼器师 / 灵植夫升阶经验 =
   assert.deepEqual([...C.xinde.PRICE], [100000, 3000000]);
   const c = G.craftInfo("dan"); c.lv = 1; c.exp = 0; G.addCraftExp("dan", 800); assert.equal(c.lv, 1); G.addCraftExp("dan", 182); assert.equal(c.lv, 2); assert.equal(c.exp, 0);
 });
+
+test("强化可选耀石：装备 / 戒指指定那种只扣那种，法宝仍同属性", () => {
+  const { G, s } = setup(6);
+  const e = { slot: "weapon", g: 0, attrs: [{ k: "atk", c: 0, p: 0, m: 1 }], enh: 0, name: "x" }; s.bag = [{ t: "eq", e }];
+  s.stone = 1e9; G.addFire(1000); G.addSm("ys", 100, 0); G.addSm("ys", 7, 3); G.craftRate = () => 1;
+  G.doEnhance("b0", 3); assert.equal(G.smCount("ys", 3), 2); assert.equal(G.smCount("ys", 0), 100); assert.equal(e.enh, 1);
+  G.doEnhance("b0", 3); assert.equal(e.enh, 1);            // 火耀石不够，不强化
+  G.doEnhance("b0", "x"); assert.equal(G.smCount("ys", 0), 95); assert.equal(e.enh, 2);   // 非法 = 自动
+  const f = { slot: "fabao", g: 0, el: "huo", attrs: [] }; assert.equal(G.enhCost(f, 0).sf, G.ysFor(f));
+  let html = ""; G.modal = h => { html = h; }; G.openEnhance("b0"); G.setYs("enh", 3);
+  assert.ok(html.includes("G.doEnhance('b0',3)"));
+});

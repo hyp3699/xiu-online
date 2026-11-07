@@ -99,7 +99,8 @@ G.module({
     computeSpeed() {
       const st = this.stats(), s = this.s;
       const mifa = this.mifaBonus().expSpeed || 0;          // 宗门秘法「聚元」：固定加基础修炼速度
-      const base = st.cultivate + this.gongfaBonus().cultivate + mifa;
+      const lgc = this.lgBonus ? this.lgBonus().cult : 0;   // 灵果「玄元果」：固定加基础修炼速度
+      const base = st.cultivate + this.gongfaBonus().cultivate + mifa + lgc;
       const arr = this.arrayFactor();                     // 聚灵阵常开
       let pill = 0;
       for (const t in s.buffs) { const b = s.buffs[t]; if (b && b.left > 0) pill += b.pct; }

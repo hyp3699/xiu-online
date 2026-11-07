@@ -125,7 +125,6 @@ test("HTTP auth and WebSocket actions use authoritative server state", { timeout
   assert.equal(success.state.auto, true);
 
   const combatSettings = [
-    { id: "test-bset-foe-01", action: "bsetFoe", args: ["mob", "atk"], check: state => assert.equal(state.bset.foe.mob, "atk") },
     { id: "test-bset-round-1", action: "bsetRound", args: [0, "atk"], check: state => assert.equal(state.bset.r[0], "atk") },
     { id: "test-bset-mode-1", action: "bsetSet", args: ["mode", "atk"], check: state => assert.equal(state.bset.mode, "atk") },
   ];
@@ -136,12 +135,11 @@ test("HTTP auth and WebSocket actions use authoritative server state", { timeout
     action.check(result.state);
   }
   const invalidSettingId = "test-bset-invalid1";
-  socket.send(JSON.stringify({ type: "action", id: invalidSettingId, action: "bsetFoe", args: ["unknown", "atk"] }));
+  socket.send(JSON.stringify({ type: "action", id: invalidSettingId, action: "bsetSet", args: ["mode", "unknown"] }));
   const invalidSetting = await waitFor(m => m.type === "result" && m.id === invalidSettingId);
   assert.equal(invalidSetting.ok, false);
-  assert.equal(invalidSetting.state.bset.foe.mob, "atk");
+  assert.equal(invalidSetting.state.bset.mode, "atk");
   const persistedSettings = await fetch(`${base}/api/session`, { headers: { "X-Token": token } }).then(r => r.json());
-  assert.equal(persistedSettings.data.bset.foe.mob, "atk");
   assert.equal(persistedSettings.data.bset.r[0], "atk");
   assert.equal(persistedSettings.data.bset.mode, "atk");
 

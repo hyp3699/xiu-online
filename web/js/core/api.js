@@ -29,7 +29,7 @@ const API = {
   _actionCounter: 0,
   _seq: 0,
   // 开关 / 设置类操作：先在本地改好显示，服务器结果到了再以服务器为准（失败会自动恢复）。
-  OPTIMISTIC: new Set(["toggleAuto", "toggleAutoPill", "toggleBodyAuto", "toggleRefill", "bsetToggle", "bsetMove", "bsetFoe", "bsetRound", "bsetSet", "autoTaskSet", "cultSetSave", "atPickSet", "setHero", "setHeroSkin"]),
+  OPTIMISTIC: new Set(["toggleAuto", "toggleAutoPill", "toggleBodyAuto", "toggleRefill", "bsetToggle", "bsetMove", "bsetRound", "bsetSet", "autoTaskSet", "cultSetSave", "atPickSet", "setHero", "setHeroSkin"]),
 
   async req(path, body, method, timeoutMs) {
     const opt = { method: method || (body === undefined ? "GET" : "POST"), headers: { "Content-Type": "application/json" }, cache: "no-store" };
@@ -433,7 +433,7 @@ const API = {
     if (name === "startTrib") { G.tribOpen = true; if (G.tribRender) G.tribRender(true); }
     if (name === "startChuqiao") { G.closeModal(); G.exploreOpen = true; G.render(); }
     if (["autoTaskSet", "atPickSet"].includes(name) && G.openCultSet) G.openCultSet();
-    if (["learnBook", "learnGfBook", "learnBlueprint", "learnRingBp", "installFurnace", "equipItem", "unequip", "sellItem", "slotSpell", "swapFabao", "unslotSpell", "useStone", "useFurnace", "eatDan", "eatWuzhen", "eatQl", "eatYsDan", "eatYb", "useCxp", "learnXd", "learnDanScroll", "plantField", "clearField", "svAccept", "spellAdv"].includes(name) && G.closeModal) G.closeModal();
+    if (["learnBook", "learnGfBook", "learnBlueprint", "learnRingBp", "installFurnace", "equipItem", "unequip", "sellItem", "slotSpell", "swapFabao", "unslotSpell", "useStone", "useFurnace", "eatDan", "eatWuzhen", "eatQl", "eatYsDan", "eatLg", "eatYb", "useCxp", "learnXd", "learnDanScroll", "plantField", "clearField", "svAccept", "spellAdv"].includes(name) && G.closeModal) G.closeModal();
     // spellAdv 会删掉弹窗里的低星法术：不关弹窗的话 refreshOpenModal 会重开
     // 已删除法术的进阶弹窗，显示「修炼到 10 层才能进阶」。
     if (name === "craftFurnace" && args[2] === "fabao" && G.closeModal) G.closeModal();

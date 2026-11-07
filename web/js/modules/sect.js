@@ -581,7 +581,7 @@ G.module({
     seedList() {
       const L = this.treasuryMatList("herb"), H = (CFG.garden || {}).herbs || {}, star = this.sectInfo().star;
       DATA.herbs.forEach((n, g) => { const h = H[n]; if (h && h.star && star >= h.star && !L.some(x => x.g === g)) L.push({ g, lock: 0 }); });
-      return L;
+      return L.filter(x => DATA.herbGrow(x.g) && !DATA.seedDropOnly(x.g));   // 特色药材（drop）种子只能地图掉落
     },
     seedOK(g) { return DATA.herbGrow(g) && this.seedList().some(x => x.g === g && !x.lock); },
     // 兑换材料（药材、矿石，凡界全部可换）；n 不填就用输入框里的数量
@@ -642,11 +642,20 @@ G.module({
         <div class="btns"><button class="primary" onclick="G.matSwap('${kind}','${mode}',G.msw.from,${to},G.msw.n)" ${max < 1 ? "disabled" : ""}>兑换</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
     // 兑换种子（每种一次，永久可种）
-    exchangeSeed(g) {
-      if (!this.seedOK(g) || this.s.seeds.includes(g)) return;
-      const c = DATA.seedCost(g); if (this.s.contrib < c) return;
-      this.s.contrib -= c; this.s.seeds.push(g);
-      this.log(`获得${DATA.herbs[g]}种子，可在洞府灵药园种植。`, "gold"); this.after();
+    openExchangeSeed(g) {
+      if (!this.seedOK(g)) return;
+      const c = DATA.seedCost(g), max = Math.floor(this.s.contrib / Math.max(1, c));
+      if (max < 1) return this.log("贡献不足。", "sys");
+      this.qtyModal(`兑换${DATA.seedName(g)}`, `<p class="desc">每颗 ${U.fmt(c)} 贡献 · 贡献 ${U.fmt(this.s.contrib)} · 已有 ${U.fmt(this.seedCount(g))}</p>`, max, k => this.exchangeSeed(g, k), { max: "最多可换", ok: "兑换" });
+    },
+    // 兑换种子：不限次数，放进背包（贡献 = 药材出售价 × config/garden.js SEED_COST_MUL）
+    exchangeSeed(g, n) {
+      if (!this.seedOK(g)) return;
+      const c = DATA.seedCost(g), max = Math.floor(this.s.contrib / Math.max(1, c));
+      n = n === undefined ? 1 : Math.floor(+n); if (!(n >= 1) || n > max) return this.log("贡献不足。", "sys");
+      if (!this.addSeed(g, n)) return;
+      this.s.contrib -= c * n;
+      this.log(`兑换${DATA.seedName(g)} ×${U.fmt(n)}，贡献 -${U.fmt(c * n)}。`, "gold"); this.closeModal(); this.after();
     },
     // 兑换图纸：放进背包，点「学习」才能炼制
     exchangeBlueprint(kind, g) {
@@ -655,7 +664,7 @@ G.module({
       if (this.s.bag.some(it => it && it.t === "bp" && it.kind === kind && it.g === g)) return this.log("背包里已有这张图纸。", "sys");
       if (!this.addBlueprintItem(kind, g)) return;
       this.s.contrib -= c;
-      this.log(`获得${DATA.furnaceName(kind, g)}图纸，已放进背包（点击「学习」）。`, "gold"); this.after();
+      this.log(`获得${DATA.furnaceName(kind, g)}图纸。`, "gold"); this.after();
     },
 
     /* ---------- 试炼塔（v25：1~10 星，层数见 config/sect.js 的 sect.trial） ---------- */
@@ -974,7 +983,7 @@ G.module({
       h += `<div class="sub-tabs">${[["pill", "杂物"], ["herb", DATA.matKinds.herb], ["ore", DATA.matKinds.ore], ["seed", "种子"], ["bp", "图纸"]].map(([k, n]) =>
         `<button class="${tt === k ? "active" : ""}" onclick="G.setTreasuryTab('${k}')">${n}</button>`).join("")}</div>`;
       if (tt === "pill") {
-        h += `<div class="card"><h3>杂物<small>以贡献兑换 · 炉子放进背包后点「使用」</small></h3>` + U.doneLast(this.treasuryList().map((it, i) => {
+        h += `<div class="card"><h3>杂物<small>以贡献兑换</small></h3>` + U.doneLast(this.treasuryList().map((it, i) => {
           if (!it) return [0, ""];
           if (it.kind === "chuqiao") {
             const C = CFG.chuqiao, has = !!s.cqLearn, c = this.cqCost(), rl = !this.realmOK(C.REALM), sl = C.STAR > x.star;
@@ -1002,12 +1011,12 @@ G.module({
             <button class="sm" onclick="G.exchange(${i})" ${lock || s.contrib < c ? "disabled" : ""}>${lock ? `${it.star}星宗门可兑换` : "兑换"}</button></div>`];
         })) + `</div>`;
       } else if (tt === "seed") {
-        h += `<div class="card"><h3>灵药种子<small>每种兑换一次</small></h3>` + this.seedList().map(({ g, lock }) => { const n = DATA.herbs[g], c = DATA.seedCost(g), has = s.seeds.includes(g);
-          return `<div class="line"><div>${DATA.li(DATA.matImg("herb", g))}${n}种子<small>${U.fmt(c)} 贡献 · ${U.dur(DATA.growTime(g) / 1000)}成熟</small></div>
-            <button class="sm" onclick="G.exchangeSeed(${g})" ${has || lock || s.contrib < c ? "disabled" : ""}>${has ? "已拥有" : lock ? `${lock}星宗门可兑换` : "兑换"}</button></div>`; }).join("") + `</div>`;
+        h += `<div class="card"><h3>灵药种子<small>种一季用一颗</small></h3>` + this.seedList().map(({ g, lock }) => { const n = DATA.herbs[g], c = DATA.seedCost(g), has = false;
+          return `<div class="line"><div>${DATA.li(DATA.seedImg(g))}${n}种子<small>${U.fmt(c)} 贡献 · 已有 ${U.fmt(this.seedCount(g))}</small></div>
+            <button class="sm" onclick="G.openExchangeSeed(${g})" ${has || lock || s.contrib < c ? "disabled" : ""}>${has ? "已拥有" : lock ? `${lock}星宗门可兑换` : "兑换"}</button></div>`; }).join("") + `</div>`;
       } else if (tt === "bp") {
         h += this.ringShopHtml();   // 灵犀戒图纸、灵犀晶（6 星以上宗门）
-        h += U.doneCards(DATA.FURNACE_KINDS.map(k => ({ head: `<h3>${DATA.furnaces[k].name}图纸<small>放进背包后点「学习」</small></h3>`, rows: DATA.JIE.slice(0, DATA.DAN_JIE_N).map((jn, g) => g).filter(g => DATA.blueprintStar(k, g) <= x.star).map(g => {   // 只显示本宗门星级能兑换的
+        h += U.doneCards(DATA.FURNACE_KINDS.map(k => ({ head: `<h3>${DATA.furnaces[k].name}图纸</h3>`, rows: DATA.JIE.slice(0, DATA.DAN_JIE_N).map((jn, g) => g).filter(g => DATA.blueprintStar(k, g) <= x.star).map(g => {   // 只显示本宗门星级能兑换的
           const c = DATA.blueprintCost(k, g), has = s.blueprints[k].includes(g) || s.bag.some(it => it && it.t === "bp" && it.kind === k && it.g === g), need = DATA.blueprintStar(k, g), lock = need > x.star;
           return [s.blueprints[k].includes(g), `<div class="line"><div>${DATA.li(DATA.iconImg("bp"))}${DATA.furnaceName(k, g)}图纸<small>${U.fmt(c)} 贡献</small></div>
             <button class="sm" onclick="G.exchangeBlueprint('${k}',${g})" ${has || lock || s.contrib < c ? "disabled" : ""}>${has ? (s.blueprints[k].includes(g) ? "已学会" : "在背包") : lock ? `${need}星宗门可兑换` : "兑换"}</button></div>`]; }) })));

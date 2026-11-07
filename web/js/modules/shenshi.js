@@ -25,12 +25,12 @@ G.module({
     // 这本功法 / 秘法占用多少神识（不占用 = 0）
     ssCost(id) {
       const C = CFG.shenshi, g = DATA.skillInfo(id, 1); if (!g || !g.star) return 0;
-      if (g.src === "yl" || g.src === "ys") return 0;   // 游历功法、隐世宗门功法不占灵识点
-      if (g.sect && g.sect.dao === "zhandou") return 0;   // 悟道室战斗之道功法不占灵识点（修炼之道秘诀不受影响）
+      if (g.src === "yl") return 0;   // 游历功法不占灵识点；隐世宗门功法（ys）的功诀/心法/秘诀/炼体秘诀按 TYPES 占用（2026-11-06）
+      if (g.sect && g.sect.src === "wdroom") return 0;   // 悟道室功法（战斗之道、修炼之道的秘诀/炼体秘诀）都不占灵识点（2026-11-06）
       const ok = g.kind === "mf" ? C.MIFA : g.kind === "gf" && (C.TYPES || []).includes(DATA.gfTypeKey(g.type.id));
       return ok ? ((C.STAR || [])[g.star - 1] || 0) : 0;
     },
-    ssForgettable(id) { const g = DATA.skillInfo(id, 1); return !!g && g.kind === "gf" && g.src !== "yl" && g.src !== "ys" && (CFG.shenshi.TYPES || []).includes(DATA.gfTypeKey(g.type.id)); },
+    ssForgettable(id) { const g = DATA.skillInfo(id, 1); return !!g && g.kind === "gf" && g.src !== "yl" && g.src !== "ys" && !(g.sect && g.sect.src === "wdroom") && (CFG.shenshi.TYPES || []).includes(DATA.gfTypeKey(g.type.id)); },
     lsUsed() {
       const s = this.s; let n = 0;
       for (const id in s.gongfa) n += this.ssCost(id);
@@ -50,6 +50,7 @@ G.module({
     buyLingshi(n) {
       // 原来 n=0.5 时 lsBuyCost(0.5)=0（循环一次都不跑），却 lsMax += 0.5，白嫖灵识。
       const s = this.s; n = Math.min(Math.floor(+n), this.lsCap() - s.lsMax);
+      if (!Number.isFinite(n)) return this.log("数量无效。", "sys");
       if (n <= 0) return this.log("灵识点已达上限。", "sys");
       const c = this.lsBuyCost(n);
       if (c === null) return this.log("灵识点已达上限。", "sys");

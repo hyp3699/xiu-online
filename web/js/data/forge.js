@@ -197,7 +197,7 @@ DATA.rollForged = (slot, g, r, el) => {
 DATA.upgradeForged = (prev, g) => {
   const e = JSON.parse(JSON.stringify(prev));
   if (!e.uid) e.uid = DATA.newUid();
-  if (e.enh > 0) { const E = DATA.enhCfg(e); e.enh = Math.max(0, e.enh - Math.max(E.DOWN_MIN === undefined ? 1 : E.DOWN_MIN, Math.floor(e.enh * (E.DOWN_PCT || 0) / 100))); }   // v152 法宝升阶：强化等级 −20%，最少 −1
+  if (e.enh > 0) { const E = DATA.enhCfg(e); e.enh = Math.max(0, e.enh - Math.max(E.DOWN_MIN === undefined ? 1 : E.DOWN_MIN, Math.floor(e.enh * (E.DOWN_PCT || 0) / 100))); }   // 升阶掉强化等级：config/forge.js DOWN_PCT / DOWN_MIN（现为 0，不掉）
   e.g = g;   // 升星不清除精炼次数
   e.name = e.slot === "ring" ? DATA.ringNames[e.r] : e.slot === "fabao" ? DATA.fabaoName(e.ft, g) : DATA.forgeNames[e.slot][g];
   return e;
@@ -316,8 +316,10 @@ DATA.fabaoInfo = (e, own) => {
  *   img/icons/pill_丹药id.png 修炼丹、dan_类型.png 属性丹、fu_dan / fu_qi.png 炉子、ss.png 空间石
  *   fbs形状_属性.png 法宝（7 种形状 × 6 种属性）、sm_ys属性.png 耀石、mifa.png 秘法、seed.png 种子、stone.png 灵石、cu_misc.png 自定义物品
  *   hx.png 火髓、bp.png 图纸 */
-DATA.IMG_V = 81;
+DATA.IMG_V = 85;
 DATA.matImg = (kind, g) => `img/mats/${kind}${g}.png?v=${DATA.IMG_V}`;
+DATA.SEED_IMG = [...Array(20).keys()];   // 有种子图的药材序号（img/mats/seed序号.png）
+DATA.seedImg = g => DATA.isLg && DATA.isLg(g) ? `img/lg/seed${g - DATA.LG_BASE}.png?v=${DATA.IMG_V}` : DATA.SEED_IMG.includes(g) ? `img/mats/seed${g}.png?v=${DATA.IMG_V}` : DATA.matImg("herb", g);
 DATA.iconImg = n => `img/icons/${n}.png?v=${DATA.IMG_V}`;
 DATA.ICON_EQ = ["helmet", "armor", "weapon", "legs", "boots", "pendant", "ring"];
 // 自定义物品的图片：content/items.js 里写了 img（图片路径）就用它，没写用 cu_misc.png

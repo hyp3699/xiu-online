@@ -83,10 +83,25 @@ DATA.blueprintCost = (kind, g) => _FU[kind].blueprint[g];
 
 /* ---------- 灵田 ---------- */
 DATA.GARDEN_MAX = _GA.MAX;
-DATA.fieldCost = i => Math.floor(_GA.OPEN_COST * Math.pow(_GA.OPEN_RATE, i)); // 第 i+1 块
-DATA.herbGrow = g => _GA.herbs[DATA.herbs[g]];
+DATA.fieldCost = i => { const a = _GA.OPEN_COST, b = _GA.OPEN_LAST, n = (_GA.MAX || 1) - 1;   // 第 i+1 块
+  return Math.round(b && n > 0 ? a * Math.pow(b / a, Math.min(i, n) / n) : a * Math.pow(_GA.OPEN_RATE || 1, i)); };
+// 灵果（config/garden.js LINGGUO）：灵田作物编号 = LG_BASE + 序号，和药材序号分开；种子物品同样是 { t: "seed", g }
+DATA.LG_BASE = 100;
+DATA.LG = () => (_GA.LINGGUO || { list: [] });
+DATA.isLg = g => g >= DATA.LG_BASE;
+DATA.lgDef = i => (DATA.LG().list || [])[i];
+DATA.lgN = () => (DATA.LG().list || []).length;
+DATA.lgImg = i => `img/lg/${i}.png?v=${DATA.IMG_V}`;
+DATA.lgLab = k => k.startsWith("dmg_") ? ((DATA.elById[k.slice(4)] || {}).name || "") + "系属性伤害" : k.startsWith("dr_") ? ((DATA.elById[k.slice(3)] || {}).name || "") + "系属性减伤"
+  : { atk: "攻击", def: "防御", hp: "生命", mana: "法力", cult: "修为修炼速度", body: "气血修炼速度" }[k] || k;
+DATA.herbGrow = g => { if (DATA.isLg(g)) { const L = DATA.LG(); return DATA.lgDef(g - DATA.LG_BASE) ? { grow: L.GROW || 4320, ling: L.LING || 0, yield: [1, 3], lg: 1 } : undefined; } return _GA.herbs[DATA.herbs[g]]; };
+DATA.cropName = g => DATA.isLg(g) ? (DATA.lgDef(g - DATA.LG_BASE) || {}).name || "灵果" : DATA.herbs[g];
+DATA.cropImg = g => DATA.isLg(g) ? DATA.lgImg(g - DATA.LG_BASE) : DATA.matImg("herb", g);
 DATA.growTime = g => DATA.herbGrow(g).grow * 60000;
-DATA.seedCost = g => DATA.herbGrow(g).seed;
+DATA.seedCost = g => { const h = DATA.herbGrow(g); return !h ? 0 : Math.max(1, Math.ceil(DATA.matPrice("herb", g) * (_GA.SEED_COST_MUL ?? 5))); };   // 兑换一颗种子的贡献
+DATA.seedSell = g => DATA.isLg(g) ? (DATA.LG().SEED_SELL ?? 100) : Math.floor(DATA.matPrice("herb", g) * (_GA.SEED_SELL_MUL ?? 3));   // 种子出售价
+DATA.seedDropOnly = g => !!(DATA.herbGrow(g) || {}).drop;   // 特色药材：种子只能地图掉落
+DATA.seedName = g => DATA.cropName(g) + "种子";
 
 /* ---------- v213 宗主清灵丹（config/sect.js 的 qingling）：每个门派一种，数值 = 同星级对应属性丹一枚 ---------- */
 DATA.qlName = sectId => { const o = DATA.sectById[sectId]; return (o ? o.name : "") + CFG.sect.qingling.NAME; };

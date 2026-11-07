@@ -330,7 +330,15 @@ export class GameEngine {
     // 背包是固定格子，客户端不再自动排序：服务端这里也不能在操作前排序，
     // 否则客户端按格子序号点的操作会对到排序后的另一件物品；只有点「整理」时才排序。
     this.battles = [];
-    const result = method.apply(this.G, args);
+    const preBad = this.insane(this.G.s);   // 旧存档本来就有问题时不拦，免得以后每个操作都被拒
+    let result;
+    try { result = method.apply(this.G, args); }
+    catch (err) {
+      // 参数类型不对、在不该点的时候点（如没加入宗门点晋升）：引擎内部报 TypeError。服务器会回滚存档，这里只换成中文提示。
+      if (err && ["TypeError", "RangeError", "ReferenceError"].includes(err.name)) { const e2 = new Error("操作参数无效"); e2.cause = err; throw e2; }
+      throw err;
+    }
+    if (!preBad) { const bad = this.insane(this.G.s); if (bad) { const err = new Error("操作数据异常，已取消"); err.detail = bad; throw err; } }
     if (result && typeof result.then === "function") throw new Error("异步 UI 方法不能作为游戏操作调用");
     this.G.s.last = Math.max(Number(this.G.s.last) || 0, this.clock.now - ((this.clock.now - (Number(this.G.s.last) || this.clock.now)) % TICK_MS));
     const response = {
@@ -344,5 +352,23 @@ export class GameEngine {
     return response;
   }
 }
+
+// 兜底检查：操作后存档里不能有 NaN / Infinity（NaN 会让「灵石不足」之类的判断失效），历练 / 出窍的区域必须存在（否则之后每次结算都报错、存档卡死）。
+// 不通过就抛错，服务器丢弃这次操作的副本，存档保持原样。
+GameEngine.prototype.insane = function (s) {
+  const bad = [];
+  const walk = (o, p, d) => {
+    if (bad.length || d > 14 || !o || typeof o !== "object") return;
+    for (const k in o) {
+      if (k === "log" || k === "_nm") continue;
+      const v = o[k];
+      if (typeof v === "number") { if (!Number.isFinite(v)) { bad.push(p + "." + k); return; } }
+      else if (v && typeof v === "object") walk(v, p + "." + k, d + 1);
+    }
+  };
+  walk(s, "s", 0);
+  for (const k of ["explore", "cq"]) { const x = s[k]; if (x && x.map !== -1 && x.mj == null && typeof this.G.regionOk === "function" && !this.G.regionOk(x.map, x.reg)) bad.push("s." + k + ".reg"); }
+  return bad[0] || "";
+};
 
 export const GAME_TICK_MS = TICK_MS;

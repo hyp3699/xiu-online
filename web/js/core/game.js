@@ -69,6 +69,7 @@ const G = {
     for (const m of this.modules) if (m.defaults) Object.assign(s, m.defaults());
     s.brRandOk = 1; s.brRandV = 2;
     if (this.mobElInit) this.mobElInit(s);   // 首领 / 天将 / 星君 / 界主属性：第一次进游戏随机定死
+    if (this.lgYsInit) this.lgYsInit(s);   // 灵果种子：哪些隐世宗门换哪种，第一次进游戏随机定死（world.js）
     s._nm = DATA.nmSnap();   // 新存档记下当前用的名字（config/names.js），以后改名读档时对照
     s._oreV2 = 1;   // v254 矿石表新版（见 migrate）
     return s;
@@ -133,6 +134,7 @@ const G = {
     }
     if (this.brFill) this.brFill(s);   // 突破随机属性：老存档补掷（player.js）
     if (this.mobElInit) this.mobElInit(s);   // 首领 / 天将 / 星君 / 界主属性：第一次随机定死（world.js）
+    if (this.lgYsInit) this.lgYsInit(s);   // 灵果种子宗门（world.js）
     return s;
   },
   save() { /* 服务器持有唯一权威存档；禁止浏览器保存或上传状态。 */ },
@@ -368,6 +370,13 @@ const G = {
       if (n && t && t.nodeType === 3) t.textContent = n;
     });
     document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
+      // 再点当前所在的按钮 = 返回上一级：点页面里的「返回」（右下角固定的优先）
+      if (this.tab === b.dataset.tab && !document.querySelector("#modal:not(.hidden), .modal.show")) {
+        // 顺序：探索信息浮层的「关闭」→ 右下角固定的「返回」→ 页面里文字以「返回」开头的按钮（返回、返回修炼、返回储物格…）
+        const v = $("#view"), bk = v && (v.querySelector('.exov-tabs button[onclick^="G.setExploreOpen(false)"]')
+          || [...v.querySelectorAll(".fback > button")].pop() || [...v.querySelectorAll("button")].find(x => /^返回/.test(x.textContent.trim())));
+        if (bk) { bk.click(); return; }
+      }
       this.tab = b.dataset.tab; $("#view").scrollTop = 0; this.render(); if (this.tab === "world" && this.wsFirst) this.wsFirst();   // 回到四界地图卷轴：定位到第一张图
     });
     // 记录是否正在按住屏幕；抬起后再补一次重绘

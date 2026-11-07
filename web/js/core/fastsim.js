@@ -111,7 +111,7 @@
       const BSP = bodyOn ? this.bodySpeed().total : 0, BR = Math.max(0.0001, CFG.body.LING_RATE || 1);
       // 灵药园等灵气的田
       const CS = s.cultSet, CSL = CS && CS.on && CS.tgt ? CS.low : -Infinity;
-      const waitNeed = (s.fields || []).filter(f => f.g >= 0 && f.wait).map(f => DATA.herbGrow(f.g).ling);
+      const waitNeed = (s.fields || []).filter(f => f.g >= 0 && f.wait === true).map(f => DATA.herbGrow(f.g).ling);
       const waitMin = waitNeed.length ? Math.min(...waitNeed) : Infinity;
       // 道童自动发俸禄：灵石够了就是事件
       let payMin = Infinity;

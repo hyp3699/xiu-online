@@ -83,6 +83,7 @@ G.module({
     },
     buyWdFruit(n, a) {
       const s = this.s, c = this.wdFruitCost(a); n = Math.min(Math.floor(+n), Math.floor((s.merit || 0) / c));
+      if (!Number.isFinite(n)) return this.log("数量无效。", "sys");
       if (n <= 0) return this.log("功德不足。", "sys");
       if (!this.addSm("wdg", n)) return;
       s.merit -= c * n; this.log(`购得${DATA.smName("wdg")} ×${n}。`, "good"); this.after();

@@ -53,6 +53,7 @@ G.module({
       const need = Math.ceil((cap - this.s.ling) / rate);
       if (stones === "fill") stones = need;
       else stones = Math.floor(+stones);
+      if (!Number.isFinite(stones)) return this.log("数量无效。", "sys");
       stones = Math.min(stones, need, Math.floor(this.s.stone));
       if (stones <= 0) return this.log(this.s.ling >= cap ? "灵气已满。" : "灵石不足。", "sys");
       this.s.stone -= stones;
@@ -63,7 +64,7 @@ G.module({
     // 灵气换灵石：每 LING_STONE 灵气换 1 灵石；want = 换几个灵石（不填 = 全部兑换）
     lingToStone(want) {
       const per = DATA.array.LING_STONE, n = Math.min(want === undefined || want === null ? Infinity : Math.floor(+want), Math.floor(this.s.ling / per));
-      if (n <= 0) return this.log(`灵气不足 ${U.fmt(per)}。`, "sys");
+      if (!Number.isFinite(n) || n <= 0) return this.log(`灵气不足 ${U.fmt(per)}。`, "sys");
       this.s.ling -= n * per; this.s.stone += n;
       this.log(`消耗灵气 ${U.fmt(n * per)}，换得 ${U.fmt(n)} 灵石。`, "good");
       this.after();

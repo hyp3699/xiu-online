@@ -55,7 +55,7 @@ G.module({
     roomActive() { return this.cultRoomOn() || this.bodyRunning(); },
     bodySpeed() {
       const s = this.s, base = (CFG.body.BASE_SPEED || 0) * Math.pow(CFG.body.SPEED_GROW, s.mortal ? 0 : s.L);
-      const M = this.mifaBonus(), gf = this.gongfaBonus().body || 0, mf = M.bodySpeed || 0;
+      const M = this.mifaBonus(), gf = (this.gongfaBonus().body || 0) + (this.lgBonus ? this.lgBonus().body : 0), mf = M.bodySpeed || 0;   // 灵果「血菩提」加在功法这一项
       // 修炼室加成同样作用于肉身修炼（免费修炼室优先，和修为修炼一致）。
       // 修为修炼在跑时由 cultivate.tick() 扣次数 / 贡献；只开肉身时由 body tick 自己扣（bodyRoomCharge），不会白嫖。
       const room = this.roomActive() ? (this.freeCultOn && this.freeCultOn() ? this.freeCultPct() : s.room >= 0 && s.sect && this.roomPct ? this.roomPct(s.room) : 0) : 0;

@@ -2,7 +2,7 @@
  * 模块：战斗设置（世界 → 战斗）
  * ---------------------------------------------------------------------
  * 存档 s.bset：
- *   foe     v241 按对手类型的战斗方式 { mob 怪物 / elite 精英 / boss 首领 / xj 星君: "norm" 正常攻击（默认）/ "atk" 只能普通攻击 }，优先于 r
+ *   （v241 的「战斗方式」按对手类型只普攻已去掉，旧存档的 foe 不再读）
  *   r       第一 ~ 三回合（每回合第一次出手）：[ "auto" 按出手方式 / "atk" 普通攻击 / "sp:法术id" / "fb:法宝栏序号" ] × 3
  *   mode    剩余回合（第四回合起）："rot" 法术、法宝轮流 / "sp" 优先法术 / "fb" 优先法宝 / "max" 伤害最高优先 / "cheap" 消耗最低优先  / "list" 按列表顺序 / "atk" 普通攻击
  *   order   列表顺序 [key]（「按列表顺序」用）
@@ -36,10 +36,6 @@ G.module({
       if (i < 0 || j < 0 || j >= L.length) return;
       [L[i], L[j]] = [L[j], L[i]]; b.order = L; this.dirty(); this.render();
     },
-    bsetFoe(k, v) {
-      if (!['mob', 'elite', 'boss', 'xj'].includes(k) || !['norm', 'atk'].includes(v)) throw new Error('无效的对手战斗方式');
-      this.bsetGet().foe[k] = v; this.dirty(); this.render();
-    },
     bsetRound(i, v) {
       i = Number(i);
       if (!Number.isInteger(i) || i < 0 || i > 2) throw new Error('无效的回合设置');
@@ -52,7 +48,7 @@ G.module({
       const s = this.s, n = this.slotCount(), out = [];
       s.spellSlots.slice(0, n).forEach(id => { const g = id && DATA.spellInfo(id, s.gongfa[id]); if (g) out.push({ key: "sp:" + id, name: `法术·${g.name}` }); });
       s.fabao.slice(0, n).forEach((e, i) => { if (e && e.attrs) { const f = DATA.fabaoInfo(e); out.push({ key: "fb:" + i, name: `法宝·${f.name}`, shield: !!f.shield }); } });
-      { const f = this.bmInfo ? this.bmInfo() : null; if (f) out.push({ key: "fb:bm", name: `法宝·${f.name}`, shield: !!f.shield }); }   // 本命法宝（bag.js）
+      { const f = this.bmInfo ? this.bmInfo() : null; if (f) out.push({ key: "fb:bm", name: `本命法宝·${f.name}`, shield: !!f.shield }); }   // 本命法宝（bag.js）
       if (this.stEqList) this.stEqList().filter(id => !this.stIsPas(id)).forEach(id => out.push({ key: "st:" + id, name: `神通·${this.stName(id)}` }));   // 出战神通（world.js）
       return out;
     },
@@ -103,18 +99,17 @@ G.module({
       const num = k => `<input type="number" min="0" max="100" value="${b[k] || 0}" onchange="G.bsetSet('${k}',this.value)" style="width:5em">%`;
       const lost = key => key && key !== "auto" && key !== "atk" && !acts.some(a => a.key === key) ? `<small class="q5">已不在法术栏 / 法宝栏</small>` : "";
       const actOpts = acts.map(a => [a.key, a.name]);
-      const FOE = [["mob", "怪物"], ["elite", "精英"], ["boss", "首领"]];   // 星君等不受战斗设置影响
-      return `<div class="card"><h3>战斗方式<small>只对探索、出窍、历练生效（考核、试炼塔、测试、天将、星君、界主不受影响）</small></h3>
-        ${FOE.map(([k, t]) => `<div class="line"><div>${t}</div>${this.selBox("bs:foe" + k, [["norm", "正常攻击", "c-green"], ["atk", "普通攻击", "c-red"]], b.foe[k] || "norm", v => this.bsetFoe(k, v))}</div>`).join("")}</div>
-        <div class="card"><h3>战斗设置</h3>
+      const tab = this.bsetTab === "set" ? "set" : "ord";   // 两个页签：释放顺序 / 战斗方式（只在界面上记，不进存档）
+      const tabs = `<div class="bag-tabs">${[["ord", "释放顺序"], ["set", "战斗方式"]].map(([k, t]) => `<button class="${tab === k ? "active" : ""}" onclick="G.bsetTab='${k}';G.render()">${t}</button>`).join("")}</div>`;
+      if (tab === "ord") return tabs + `<div class="card"><h3>法术、法宝、神通列表<small>顺序和使用对所有战斗生效</small></h3>${this.bsetSorted().map((a, i, L) => { const on = !b.off.includes(a.key), k = esc(a.key);
+          return `<div class="line"><div>${i + 1}. ${esc(a.name)}</div><div><button class="sm" onclick="G.bsetMove('${k}',-1)" ${i ? "" : "disabled"}>↑</button><button class="sm" onclick="G.bsetMove('${k}',1)" ${i < L.length - 1 ? "" : "disabled"}>↓</button><button class="sm ${on ? "on" : ""}" onclick="G.bsetToggle('${k}')">${on ? "使用" : "不使用"}</button></div></div>`; }).join("") || `<p class="desc">法术栏、法宝栏、神通都还是空的。</p>`}</div>`;
+      return tabs + `<div class="card"><h3>战斗方式<small>只对探索、出窍、历练生效</small></h3>
         ${["第一回合", "第二回合", "第三回合"].map((t, i) => `<div class="line"><div>${t}${lost(b.r[i])}</div>${this.selBox("bs:r" + i, [["auto", "按出手方式"], ["atk", "普通攻击"], ...actOpts], b.r[i], v => this.bsetRound(i, v))}</div>`).join("")}
         <div class="line"><div>剩余回合</div>${sel("mode", [["rot", "法术、法宝轮流"], ["sp", "优先法术"], ["fb", "优先法宝"], ["max", "伤害最高优先"], ["cheap", "消耗最低优先"], ["list", "按列表顺序"], ["atk", "普通攻击"]])}</div>
         <div class="line"><div>生命低于</div>${num("lowPct")}</div>
         <div class="line"><div>先使用${lost(b.lowKey)}</div>${sel("lowKey", [["", "不使用"], ...acts.filter(a => a.shield).map(a => [a.key, a.name]), ...acts.filter(a => !a.shield).map(a => [a.key, a.name])])}</div>
         <div class="line"><div>生命高于</div><div>${num("goHp")} 继续探索</div></div>
-        <div class="line"><div>法力高于</div><div>${num("goMp")} 继续探索</div></div></div>
-        <div class="card"><h3>法术、法宝列表</h3>${this.bsetSorted().map((a, i, L) => { const on = !b.off.includes(a.key), k = esc(a.key);
-          return `<div class="line"><div>${i + 1}. ${esc(a.name)}</div><div><button class="sm" onclick="G.bsetMove('${k}',-1)" ${i ? "" : "disabled"}>↑</button><button class="sm" onclick="G.bsetMove('${k}',1)" ${i < L.length - 1 ? "" : "disabled"}>↓</button><button class="sm ${on ? "on" : ""}" onclick="G.bsetToggle('${k}')">${on ? "使用" : "不使用"}</button></div></div>`; }).join("")}</div>`;
+        <div class="line"><div>法力高于</div><div>${num("goMp")} 继续探索</div></div></div>`;
     },
   },
 });
