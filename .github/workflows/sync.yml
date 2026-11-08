@@ -1,5 +1,8 @@
 
 # 从 GitLab 手动同步代码到本仓库：保留 .github 工作流和仓库名
+# 以下文件只以 GitHub 为准，同步时不删除、不覆盖：
+#   android/xiu.keystore  安卓签名文件（换了签名，已装的 APK 就无法覆盖安装）
+#   server-url.txt        打包 APK 用的服务器地址
 # 仅在 Actions 页面手动点击 Run workflow 时执行
 name: 同步GitLab
 
@@ -29,7 +32,12 @@ jobs:
           SHA=$(git -C /tmp/gl rev-parse --short HEAD)
           MSG=$(git -C /tmp/gl log -1 --pretty=%s)
 
-          rsync -a --delete --exclude .git --exclude .github /tmp/gl/ ./
+          rsync -a --delete \
+            --exclude .git \
+            --exclude .github \
+            --exclude /android/xiu.keystore \
+            --exclude /server-url.txt \
+            /tmp/gl/ ./
 
           git add -A
 
