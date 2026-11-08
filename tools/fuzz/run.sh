@@ -4,7 +4,7 @@
 cd "$(dirname "$0")/../.."
 STEPS=${1:-100000}; N=${2:-4}; OUT=tools/fuzz/out; mkdir -p $OUT
 for i in $(seq 1 $N); do
-  MODE=$([ $((i % 2)) = 1 ] && echo test || echo boost)
+  MODE=$(case $((i % 3)) in 1) echo test;; 2) echo boost;; *) echo normal;; esac)   # 三种模式轮流（原来从不跑 normal）
   SEED=$((RANDOM * 32768 + RANDOM))
   nohup node tools/fuzz/fuzz.mjs --seed $SEED --steps $STEPS --mode $MODE --out $OUT > $OUT/run-$MODE-$SEED.log 2>&1 &
 done

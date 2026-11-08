@@ -23,6 +23,8 @@ G.module({
     let nNew = 0;   // v206 本次新开始的季数（扣灵气），记日志，免得灵气突然少一截看不出原因
     s.fields.forEach(f => {
       if (f.g < 0) return;
+      if (f.next != null && !DATA.herbGrow(f.next)) f.next = null;   // 换种的药材被管理员删了：不换
+      if (!DATA.herbGrow(f.g)) { f.g = -1; f.wait = false; f.next = null; if (!this.silent) this.log("一块灵田种的药材已不存在，灵田已清空。", "sys"); return; }   // 原来每 10 秒抛错卡死结算
       if (f.wait) { if (!this.payField(f, now)) return; nNew++; }
       let guard = 0;
       while (!f.wait && now >= f.start + this.fieldTime(f.g) && guard++ < 1e4) {

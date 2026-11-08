@@ -29,6 +29,10 @@ export function readConfig(name, { original = false } = {}) {
   return fs.readFileSync(path.join(CONFIG_DIR, n), "utf8");
 }
 const MAX_TICKS_PER_ADVANCE = 3_000_000;
+// 登录 / 会话 / 重连 / 动作单次最多补算的 tick 数（86400 个 10 秒 = 10 天）：
+// state.last 落后几十天时全量补算会卡住事件循环；截断后剩下的由定时结算继续补
+// （advance 截断时 s.last 不跳到现在，见 advance），所以这里可以比离线后台的 1 天大得多。
+export const ADVANCE_BUDGET_TICKS = 86_400;
 
 function elementStub() {
   const classes = new Set();
@@ -73,6 +77,7 @@ export class GameEngine {
     this.random = Math.random;
     this.sequence = 0;
     this.logs = [];
+    this.battles = [];
 
     const localStorage = { getItem: () => null, setItem() {}, removeItem() {}, clear() {} };
     const document = {
@@ -147,8 +152,30 @@ export class GameEngine {
       engine.logs.unshift(entry);
       if (engine.logs.length > 100) engine.logs.length = 100;
     };
-    // 悟道的读条在客户端播放，结束后发 wudaoDone；直接调用 wudao 时立即结算（服务器没有定时器）
-    this.G.wudao = function (dao) { if (this.wdCheck(dao)) this.wudaoDone(dao); };
+    // 悟道读条强制（服务端）：wudao 只记录开始时间、不结算；wudaoDone 结算时校验是否读满
+    // CFG.wudaoRoom.TIME 秒（见下面的 wudaoDone 包装）。开始时间存进存档（s._wdStart），
+    // 断线重连后仍有效；已有未完成的开始时间则保留，重复点「开始」不重置读条。
+    // 注意：正常客户端流程（web/js/core/api.js 的 wudao 拦截）只发 wudaoDone、不发 wudao，
+    // 自动任务（sect.js runAutoTask）也是直接调 wudaoDone——这两路都不带 _wdStart，
+    // 所以 wudaoDone 在无 _wdStart 时不拦（见下）；只有带开始时间却没读满时才拦。
+    // 想彻底堵住“只发 wudaoDone 跳过读条”，需前端在读条开始时先发一次 wudao。
+    this.G.wudao = function (dao) {
+      if (!this.wdCheck(dao)) return;
+      const cur = this.s._wdStart;
+      if (!cur || cur.dao !== dao) this.s._wdStart = { dao, at: engine.clock.now };
+    };
+    const origWudaoDone = this.G.wudaoDone;
+    if (typeof origWudaoDone === "function") {
+      this.G.wudaoDone = function (dao) {
+        const s = this.s, start = s && s._wdStart;
+        if (start && start.dao === dao) {
+          const needMs = ((engine.CFG.wudaoRoom || {}).TIME || 0) * 1000;
+          if (engine.clock.now - start.at < needMs) throw new Error("悟道尚未完成，请等读条结束");
+          delete s._wdStart;
+        }
+        return origWudaoDone.call(this, dao);
+      };
+    }
     this.G.save = function () {};
     this.G.upload = async function () {};
     this.G.render = function () {};
@@ -160,9 +187,10 @@ export class GameEngine {
       for (const module of this.modules) if (module.tick) module.tick.call(this, offline);
     };
     this.G.modal = function () {};
-    // 战斗画面在客户端播放：服务器只记下来，随操作结果发回
+    // 战斗画面在客户端播放：服务器只记下来，随操作结果发回（一次响应里多场战斗都保留，
+    // 不再每次调用都覆盖成只剩最后一场；act()/advance() 开始时清空一次，见下）
     this.G.playBattle = function (b, title, txt, win, logs, replay, opt) {
-      engine.battles = [safeClone({ b, title, txt, win, logs: logs || null, replay: !!replay, opt: opt || {} })];
+      (engine.battles ||= []).push(safeClone({ b, title, txt, win, logs: logs || null, replay: !!replay, opt: opt || {} }));
       // 全部信息：除实力测试、回放以外的战斗都记一条（服务器存 hist 表，见 server.mjs drainHist）
       if (!replay && !(opt && opt.test) && b && this.s) {
         const nm = opt && opt.tname !== undefined ? opt.tname : b.name, t = `${title}${nm ? " · " + nm : ""}`;
@@ -171,7 +199,6 @@ export class GameEngine {
     };
     this.G.closeModal = function () {};
     this.G.setSync = function () {};
-    this.G.offlineReport = function () {};
     // 多名玩家共用一个引擎（server.mjs 引擎池）：记下刚建好时 G 上的全部字段，
     // 换人时把上一位玩家留在 G 上的界面 / 临时字段（bagFilter、forgeMode……）收起来，恢复成初始，再放回下一位自己的
     this._base = new Map(Object.keys(this.G).map(k => [k, this.G[k]]));
@@ -261,13 +288,15 @@ export class GameEngine {
     return state;
   }
 
-  advance(state, now = Date.now()) {
+  advance(state, now = Date.now(), maxTicks = MAX_TICKS_PER_ADVANCE) {   // maxTicks：这次最多补算几个 10 秒（后台离线结算分批用，剩下的下一轮接着算）
     this.bindState(state, now);
     this.logs = [];
+    this.battles = [];
     const s = this.G.s;
     const last = Math.min(Number(s.last) || this.clock.now, this.clock.now);
-    let due = Math.floor(Math.max(0, this.clock.now - last) / TICK_MS);
-    due = Math.min(due, MAX_TICKS_PER_ADVANCE);
+    const totalDue = Math.floor(Math.max(0, this.clock.now - last) / TICK_MS);
+    let due = Math.min(totalDue, MAX_TICKS_PER_ADVANCE, Math.max(1, Math.floor(maxTicks) || MAX_TICKS_PER_ADVANCE));
+    const truncated = due < totalDue;   // 被 maxTicks / 300 万上限截断：s.last 只能推进到已算完的位置，剩下的下一轮接着算
     if (due > 0) {
       this.G.silent = false;
       this.G.runTicks(last, due);
@@ -288,9 +317,11 @@ export class GameEngine {
     if (typeof this.G.advanceExplore === "function" && (s.explore || s.cq)) this.G.advanceExplore();
     if (typeof this.G.advanceTrib === "function" && s.trib) this.G.advanceTrib();
     // Preserve the partial 10-second interval; the server owns this timestamp.
-    if (due < MAX_TICKS_PER_ADVANCE) s.last = this.clock.now - ((this.clock.now - last) % TICK_MS);
+    // 只有没被截断时才能把 s.last 对齐到现在：被截断时上面已把 s.last 设成 last+due*TICK_MS，
+    // 再对齐到现在会把还没算的离线时间直接丢掉（离线超过 1 天只算第 1 天、剩下 29 天永久丢失）。
+    if (!truncated) s.last = this.clock.now - ((this.clock.now - last) % TICK_MS);
     this.G._simNow = this.clock.now;
-    return { state: safeClone(s), logs: safeClone(this.logs), serverNow: this.clock.now, processedTicks: due, nextDue: this.nextDue(s) };
+    return { state: safeClone(s), logs: safeClone(this.logs), serverNow: this.clock.now, processedTicks: due, truncated, nextDue: this.nextDue(s) };
   }
 
   // 下一次会改变状态的时间点（修炼周期、探索下一步、下一道劫雷）；服务器在这一刻立即结算并推送。
@@ -320,8 +351,12 @@ export class GameEngine {
     return valid.length ? Math.min(...valid) : this.clock.now + TICK_MS;
   }
 
-  act(state, action, args = [], now = Date.now()) {
-    const advanced = this.advance(state, now);
+  act(state, action, args = [], now = Date.now(), maxTicks = ADVANCE_BUDGET_TICKS) {
+    // 单次操作最多补算 10 天：state.last 落后几十天时全量补算会卡住事件循环；
+    // 截断后剩下的由定时结算继续补（advance 截断时 s.last 不跳到现在）。
+    // battles 在 advance 之前清空：一次响应里的多场战斗（本次 advance 的探索/渡劫 + 本次操作）都保留。
+    this.battles = [];
+    const advanced = this.advance(state, now, maxTicks);
     const method = this.G[action];
     if (typeof method !== "function") throw new Error("未知操作");
     if (action.startsWith("_") || ["init", "start", "loop", "runTicks", "offline", "tickAll", "migrate", "newSave"].includes(action)) throw new Error("不允许调用该操作");
@@ -329,8 +364,13 @@ export class GameEngine {
     this.G._simNow = this.clock.now;
     // 背包是固定格子，客户端不再自动排序：服务端这里也不能在操作前排序，
     // 否则客户端按格子序号点的操作会对到排序后的另一件物品；只有点「整理」时才排序。
-    this.battles = [];
     const preBad = this.insane(this.G.s);   // 旧存档本来就有问题时不拦，免得以后每个操作都被拒
+    // 一键熔炼没有数量参数、按持有量逐颗循环：持有量（礼包一次最多 1e6 颗）不受 validateValue 约束，
+    // 单次超过 1000 颗就拒绝，改用 bmFuse(j, n) 分批（每批 ≤1000，见 server.mjs validateValue）。
+    if (action === "bmFuseAll" && typeof this.G.bmStones === "function" && typeof this.G.herbCount === "function") {
+      let tot = 0;
+      for (const x of this.G.bmStones()) { tot += this.G.herbCount(x.name) || 0; if (tot > 1000) throw new Error("熔炼石太多，一次最多熔炼 1000 颗，请分批熔炼"); }
+    }
     let result;
     try { result = method.apply(this.G, args); }
     catch (err) {
@@ -340,7 +380,8 @@ export class GameEngine {
     }
     if (!preBad) { const bad = this.insane(this.G.s); if (bad) { const err = new Error("操作数据异常，已取消"); err.detail = bad; throw err; } }
     if (result && typeof result.then === "function") throw new Error("异步 UI 方法不能作为游戏操作调用");
-    this.G.s.last = Math.max(Number(this.G.s.last) || 0, this.clock.now - ((this.clock.now - (Number(this.G.s.last) || this.clock.now)) % TICK_MS));
+    // 只有 advance 没被截断时才能把 s.last 对齐到现在，否则会丢掉还没算的离线时间（见 advance）。
+    if (!advanced.truncated) this.G.s.last = Math.max(Number(this.G.s.last) || 0, this.clock.now - ((this.clock.now - (Number(this.G.s.last) || this.clock.now)) % TICK_MS));
     const response = {
       state: safeClone(this.G.s),
       logs: safeClone(this.logs),
@@ -348,6 +389,7 @@ export class GameEngine {
       result: result === undefined ? null : result,
       battles: this.battles,
       processedTicks: advanced.processedTicks,
+      truncated: advanced.truncated,
     };
     return response;
   }

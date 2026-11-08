@@ -156,14 +156,16 @@ DATA.attrBase = (a, g, e) => {
 };
 DATA.bestQ = attrs => DATA.COLOR_Q[Math.max(...attrs.map(a => a.c))];
 // 随机一条属性（颜色 + 位置）；w = 颜色权重（不填 = attr.colors 的 weight）
-DATA.rollAttr = (k, m, el, w) => { const a = { k, c: U.weighted(w || _FG.attr.colors.map(c => c.weight)), p: Math.random(), m }; if (el) a.el = el; return a; };
+DATA.rollAttr = (k, m, el, w) => { const ws = w || _FG.attr.colors.map(c => c.weight), ci = U.weighted(ws);
+  // 权重全 0 / 为空时 weighted 返 -1：改按均匀随机取一色（不是静默取第 0 项），只影响配错权重的情形
+  const a = { k, c: ci < 0 ? Math.floor(Math.random() * (ws.length || 1)) : ci, p: Math.random(), m }; if (el) a.el = el; return a; };
 // 法宝颜色权重：新得到的最高 NEW_COLOR_MAX（默认绿），洗练用 reset.WASH_WEIGHT
 DATA.fabaoNewW = () => { const mx = _FG.fabao.NEW_COLOR_MAX === undefined ? 1 : _FG.fabao.NEW_COLOR_MAX; return _FG.attr.colors.map((c, i) => i <= mx ? c.weight : 0); };
 DATA.fabaoWashW = () => _FG.reset.WASH_WEIGHT || _FG.attr.colors.map(c => c.weight);
 // v53：新得到的装备 / 戒指颜色权重，最高 attr.NEW_COLOR_MAX（默认绿）；紫、金只能洗练
 DATA.equipNewW = () => { const mx = _FG.attr.NEW_COLOR_MAX === undefined ? 1 : _FG.attr.NEW_COLOR_MAX; return _FG.attr.colors.map((c, i) => i <= mx ? c.weight : 0); };
 // 法宝附加属性：附加伤害、无视抗性带属性（金木水火土雷随机，和法宝属性一样才生效）
-DATA.fbAffix = (k, W) => DATA.rollAttr(k, 0, k === "elDmg" || k === "ignRes" ? U.pick(DATA.elements).id : undefined, W);
+DATA.fbAffix = (k, W) => DATA.rollAttr(k, 0, k === "elDmg" || k === "ignRes" ? (U.pick(DATA.elements) || {}).id : undefined, W);
 // 随机生成一件装备 / 戒指（r = 戒指种类）/ 法宝
 DATA.fbPool = T => T && T.shield ? _FG.fabao.SHIELD_POOL : _FG.fabao.pool;   // 法宝附加属性池（盾单独一组）
 // v164 祭出次数（uses）一件法宝最多一条：已经有了就不再随机出来
@@ -178,7 +180,7 @@ DATA.rollForged = (slot, g, r, el) => {
   const A = _FG.attr;
   if (slot === "fabao") {   // r = 形状序号、el = 属性（不填就随机）
     const F = _FG.fabao, ft = r === undefined ? Math.floor(Math.random() * DATA.fabaoTypes.length) : r, T = DATA.fabaoTypes[ft];
-    const elv = el && DATA.elById[el] ? el : U.pick(DATA.elements).id;
+    const elv = el && DATA.elById[el] ? el : (U.pick(DATA.elements) || {}).id;
     const W = DATA.fabaoNewW(), attrs = (T.shield ? ["shHpMain", "shDef"] : ["pct"]).map(k => DATA.rollAttr(k, 1, undefined, W));
     for (const k of T.special || []) attrs.push(DATA.rollAttr(k, 2, undefined, W));
     const n = DATA.affixRollN(F.AFFIX_COUNT, g), pool = DATA.fbPool(T);
@@ -208,7 +210,7 @@ DATA.resetCost = (e, nLock) => { const R = _FG.reset, b = R.FIRE[e.g] || R.FIRE[
 // v224 附加属性上限（按物品阶）：reset.AFFIX_MAX 可写一个数或按阶的数组
 DATA.affixMax = g => { const M = _FG.reset.AFFIX_MAX; return Array.isArray(M) ? (M[g] !== undefined ? M[g] : M[M.length - 1]) : (M || 5); };
 // 新物品附加属性条数：按权重随机，超过上限的不算（权重第 1 个 = 1 条）
-DATA.affixRollN = (W, g) => { const mx = DATA.affixMax(g), w = W.slice(0, Math.max(1, mx)); return U.weighted(w.some(x => x > 0) ? w : w.map(() => 1)) + 1; };
+DATA.affixRollN = (W, g) => { const mx = DATA.affixMax(g), w = W.slice(0, Math.max(1, mx)), r = U.weighted(w.some(x => x > 0) ? w : w.map(() => 1)); return (r < 0 ? 0 : r) + 1; };   // weighted 返 -1（W 为空）时按最少 1 条算
 // v44：没锁的附加属性重新随机条数 —— 锁定的附加属性 + 新随机的 ≤ 附加属性上限（v224 按阶，DATA.affixMax），新随机的至少 1 条（锁满了就 0 条）
 //   新条数在 [1, AFFIX_MAX − 锁定的附加属性] 里按 reset.COUNT_WEIGHT 随机
 DATA.washRange = (e, locks) => {
@@ -221,7 +223,7 @@ DATA.rerollForged = (e, locks) => {
   const [lo, hi] = DATA.washRange(e, locks), CW = _FG.reset.COUNT_WEIGHT || [1, 1, 1, 1, 1];
   let w = []; for (let c = lo; c <= hi; c++) w.push(CW[c - 1] || 0);
   if (!w.some(x => x > 0)) w = w.map(() => 1);
-  const n = hi <= 0 ? 0 : lo + U.weighted(w);
+  const wi = U.weighted(w), n = hi <= 0 ? 0 : lo + (wi < 0 ? 0 : wi);   // weighted 返 -1（w 为空）时按最少条数 lo 算；权重全 0 时上面已把 w 换成全 1
   const have = e.attrs.filter((a, i) => locks.includes(i));   // v164 已有的（锁定的 + 新洗出来的），祭出次数最多一条
   const roll = () => {
     let k;
@@ -233,7 +235,7 @@ DATA.rerollForged = (e, locks) => {
   const out = [];
   e.attrs.forEach((a, i) => {
     if (locks.includes(i)) return out.push(a);
-    if (a.m) { a.c = U.weighted(W); a.p = Math.random(); return out.push(a); }
+    if (a.m) { const ci = U.weighted(W); a.c = ci < 0 ? Math.floor(Math.random() * (W.length || 1)) : ci; a.p = Math.random(); return out.push(a); }   // 权重无效时均匀随机取一色，不静默取第 0 项
     if (made < n) { const x = roll(); if (x) { out.push(x); made++; } }   // 原来的位置换成新属性，多出来的格子去掉
   });
   while (made < n) { const x = roll(); if (!x) break; out.push(x); made++; }

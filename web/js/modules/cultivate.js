@@ -19,7 +19,7 @@ G.module({
   defaults: () => ({
     auto: false,      // 自动修炼开关
     buffs: {},        // 丹药效果 { juqi: {pct, left} }，left = 剩余修炼次数
-    autoPill: { juqi: false, juling: false, peiyuan: false }, // 自动服丹开关
+    autoPill: { juqi: false, juling: false, peiyuan: false, taixu: false, jiuxuan: false, hongmeng: false }, // 自动服丹开关（与 CFG.pills 的 6 种丹同表；老存档缺的键按关处理，点开关即补上）
     lackWarned: false,
     trib: null,       // 正在进行（或刚结束未关闭）的渡劫（modules/trib.js）
     // 修炼设置：自动修炼中，灵石 < low 且灵气不足 → 去 tgt（"e:地图:区域" 自动探索）；灵气 ≥ 上限的 pct% → 停止探索回来修炼
@@ -56,9 +56,10 @@ G.module({
     const sp = this.speed().total, red = this.wdRed("exp");   // red：神魂之道减掉的灵气消耗
     if (freeExhausted) { s.freeCult.left = 0; s.freeCult.on = false; this.dirty(); }
     if (s.ling < sp - red && s.array.autoRefill && s.stone >= 1) {
-      const rate = this.lingPerStone();
-      const pay = Math.min(Math.ceil((sp - red - s.ling) / rate), Math.floor(s.stone));
-      s.stone -= pay; s.ling += pay * rate;
+      const rate = this.lingPerStone(), cap = this.lingCap();
+      // 与手动 buyLing 一致：补到灵气上限为止（cap − 当前灵气），结果再钳到 cap；同 tick 里功法先补、肉身后补，后者按剩余容量算
+      const pay = Math.min(Math.ceil((sp - red - s.ling) / rate), Math.floor(s.stone), Math.max(0, Math.ceil((cap - s.ling) / rate)));
+      if (pay > 0) { s.stone -= pay; s.ling = Math.min(cap, s.ling + pay * rate); }
     }
 
     // 4. 灵气转修为

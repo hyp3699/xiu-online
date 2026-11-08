@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#14110f">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>问道长生 · 文字修仙</title>
-<link rel="stylesheet" href="css/style.css?v=322">
+<link rel="stylesheet" href="css/style.css?v=334">
 </head>
 <body class="nologin">
 <div id="boot">问道长生<small>加载中…</small></div>
@@ -65,11 +65,29 @@
 <!-- 游戏参数（js/config/）：由服务器按顺序加载，管理员「数据修改」改过的优先 -->
 <script src="api/config-loader.js"></script>
 <script>
-  // 参数没加载到（多半是服务器正在更新 / 重启，或网络断了）：不报一堆脚本错误，提示后自动刷新
+  // 参数没加载到（多半是服务器正在更新 / 重启，或网络断了）：不报一堆脚本错误，提示后手动重试。
+  // 只自动重试一次（sessionStorage 记一次）：避免服务器一直没好时无限 3 秒刷新刷下去；
+  // 自动重试也失败就只留手动重试按钮，等玩家自己点。参数加载成功就把标记清掉，
+  // 下次再出问题还能再自动重试一次。
   if (!window.CFG) {
     window.__noCfg = true;
-    document.body.insertBefore(Object.assign(document.createElement("div"), { textContent: "连接服务器失败（可能正在更新），3 秒后自动刷新…", style: "background:#7a1f1f;color:#fff;padding:10px;font-size:14px;text-align:center" }), document.body.firstChild);
-    setTimeout(function () { location.reload(); }, 3000);
+    var cfgErr = document.createElement("div");
+    cfgErr.style.cssText = "background:#7a1f1f;color:#fff;padding:10px;font-size:14px;text-align:center";
+    cfgErr.textContent = "连接服务器失败（可能正在更新），请检查网络后重试。";
+    var cfgBtn = document.createElement("button");
+    cfgBtn.textContent = "手动重试";
+    cfgBtn.style.cssText = "margin-left:10px;padding:4px 14px;font-size:14px";
+    cfgBtn.onclick = function () { location.reload(); };
+    cfgErr.appendChild(cfgBtn);
+    document.body.insertBefore(cfgErr, document.body.firstChild);
+    try {
+      if (!sessionStorage.getItem("xiu_cfg_retry")) {
+        sessionStorage.setItem("xiu_cfg_retry", "1");
+        setTimeout(function () { location.reload(); }, 3000);
+      }
+    } catch (e) {}   // sessionStorage 不可用：不自动重试，只留手动按钮
+  } else {
+    try { sessionStorage.removeItem("xiu_cfg_retry"); } catch (e) {}
   }
 </script>
 <!-- 自定义物品、坊市、宗门宝库（不是数值文件） -->
@@ -86,33 +104,33 @@
 <script src="js/data/youli.js?v=3"></script>
 <script src="js/data/yinshi.js?v=4"></script>
 <script src="js/data/craft.js?v=227"></script>
-<script src="js/data/forge.js?v=308"></script>
+<script src="js/data/forge.js?v=309"></script>
 <script src="js/data/refstats.js?v=211"></script>
 <script src="js/data/mobs.js?v=220"></script>
 
-<script src="js/core/util.js?v=211"></script>
-<script src="js/core/api.js?v=247"></script>
-<script src="js/core/game.js?v=241"></script>
+<script src="js/core/util.js?v=213"></script>
+<script src="js/core/api.js?v=249"></script>
+<script src="js/core/game.js?v=243"></script>
 
 <script src="js/modules/player.js?v=219"></script>
 <script src="js/modules/cave.js?v=213"></script>
-<script src="js/modules/bag.js?v=284"></script>
+<script src="js/modules/bag.js?v=285"></script>
 <script src="js/modules/custom.js?v=210"></script>
-<script src="js/modules/gongfa.js?v=244"></script>
-<script src="js/modules/sect.js?v=279"></script>
-<script src="js/modules/cultivate.js?v=256"></script>
-<script src="js/modules/trib.js?v=225"></script>
-<script src="js/modules/body.js?v=226"></script>
-<script src="js/modules/world.js?v=388"></script>
+<script src="js/modules/gongfa.js?v=245"></script>
+<script src="js/modules/sect.js?v=282"></script>
+<script src="js/modules/cultivate.js?v=257"></script>
+<script src="js/modules/trib.js?v=226"></script>
+<script src="js/modules/body.js?v=227"></script>
+<script src="js/modules/world.js?v=391"></script>
 <script src="js/modules/xingjun.js?v=216"></script>
 <script src="js/modules/lingen.js?v=212"></script>
-<script src="js/modules/craft.js?v=288"></script>
+<script src="js/modules/craft.js?v=309"></script>
 <script src="js/modules/wudao.js?v=214"></script>
 <script src="js/modules/shenshi.js?v=216"></script>
 <script src="js/modules/jingmai.js?v=12"></script>
 <script src="js/modules/wudaoshi.js?v=221"></script>
-<script src="js/modules/garden.js?v=225"></script>
-<script src="js/modules/servant.js?v=214"></script>
+<script src="js/modules/garden.js?v=226"></script>
+<script src="js/modules/servant.js?v=215"></script>
 <script src="js/modules/gift.js?v=221"></script>
 <script src="js/modules/accounts.js?v=211"></script>
 <script src="js/modules/srvinfo.js?v=6"></script>
@@ -120,7 +138,7 @@
 <script src="js/modules/battleset.js?v=214"></script>
 <script src="js/modules/origin.js?v=1"></script>
 <script src="js/modules/account.js?v=211"></script>
-<script src="js/core/fastsim.js?v=230"></script>
+<script src="js/core/fastsim.js?v=232"></script>
 
 <script>
   // 图片常驻：界面刷新会重建 <img>，安卓包里的图没有缓存标记，重建时要重新读、重新解码，会闪一下。
@@ -151,6 +169,20 @@
     scan(document.body);
   })();
 </script>
-<script>G.init();</script>
+<script>
+  try { G.init(); } catch (e) {
+    console.error(e);
+    var boot = document.getElementById("boot"); if (boot) boot.remove();   // 别卡在「加载中…」
+    var initErr = document.createElement("div");
+    initErr.style.cssText = "background:#7a1f1f;color:#fff;padding:10px;font-size:14px;text-align:center";
+    initErr.textContent = "启动失败（" + (e && e.message ? e.message : "未知错误") + "），请重试。";
+    var initBtn = document.createElement("button");
+    initBtn.textContent = "手动重试";
+    initBtn.style.cssText = "margin-left:10px;padding:4px 14px;font-size:14px";
+    initBtn.onclick = function () { location.reload(); };
+    initErr.appendChild(initBtn);
+    document.body.insertBefore(initErr, document.body.firstChild);
+  }
+</script>
 </body>
 </html>

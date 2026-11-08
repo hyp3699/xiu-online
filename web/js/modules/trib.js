@@ -22,8 +22,9 @@ G.module({
     tribBusy() { const x = this.s.trib; return !!(x && !x.result); },
     // 渡劫时长（秒）：按突破后的大境界查 TIME（键 = 境界原名或改名后的名字）
     tribTime(L) {
-      const ri = Math.floor(L / DATA.LAYERS), o = CFG.trib.TIME;
-      return Math.max(1, o[DATA.realms[ri]] !== undefined ? o[DATA.realms[ri]] : o[DATA.NM_DEF.realm[ri]]);
+      const ri = Math.min(Math.floor(L / DATA.LAYERS) || 0, 23), o = CFG.trib.TIME;   // L ≥ 240（圣人以上）时 ri 钳到最高境界 23，不再查不到 TIME 返 NaN
+      const t = o[DATA.realms[ri]] !== undefined ? o[DATA.realms[ri]] : o[DATA.NM_DEF.realm[ri]];
+      return Math.max(1, Number.isFinite(t) ? t : 30);   // 兜底：TIME 里没写该境界也按 30 秒（现全部境界都是 30 秒）
     },
     // 劫云：L = 突破后的层序；按突破前那一层（L − 1）的境界、层查 CFG.trib.MOB，格式同怪物（[a, b] 开始渡劫时随机）
     //   属性 = 那一层配置的修为突破 + 肉身突破 + 三类功法（DATA.mobCalc）× (1 + (层 − 层起) × 每层增加)

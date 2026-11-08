@@ -8,7 +8,7 @@ import { GameEngine } from "../../server/game-engine.mjs";
 import fs from "node:fs";
 import path from "node:path";
 
-const argv = Object.fromEntries(process.argv.slice(2).reduce((a, x, i, A) => (x.startsWith("--") ? a.concat([[x.slice(2), A[i + 1]]]) : a), []));
+const argv = Object.fromEntries(process.argv.slice(2).reduce((a, x, i, A) => (!x.startsWith("--") ? a : x.includes("=") ? a.concat([[x.slice(2, x.indexOf("=")), x.slice(x.indexOf("=") + 1)]]) : a.concat([[x.slice(2), A[i + 1]]])), []));   // --seed 5 和 --seed=5 都认
 const SEED = +(argv.seed ?? Date.now() % 1e9), STEPS = +(argv.steps ?? 20000), MODE = argv.mode || "test";
 const OUT = argv.out || path.join(path.dirname(new URL(import.meta.url).pathname), "out");
 fs.mkdirSync(OUT, { recursive: true });
@@ -32,6 +32,7 @@ const WL = JSON.parse(fs.readFileSync(new URL("../../server/action-whitelist.jso
   .filter(a => typeof G[a] === "function");
 // 不点的：重置存档（会把进度清掉，单独低频点）
 const RARE = new Set(["doReset", "leaveSect", "forgetGongfa", "xjResign", "svFire"]);
+const WL_COMMON = WL.filter(a => !RARE.has(a));
 const params = {};
 for (const a of WL) { const m = G[a].toString().match(/^[^(]*\(([^)]*)\)/); params[a] = m ? m[1].split(",").map(x => x.trim().replace(/\s*=.*$/, "")).filter(Boolean) : []; }
 
@@ -126,7 +127,7 @@ for (step = 0; step < STEPS; step++) {
   if (MODE !== "normal" && step % 150 === 0) boost();
   // 拨快时间：多数操作间隔几秒，偶尔跳几分钟到几小时（推动炼制、种田、修炼、离线结算）
   const r = rnd(); now += r < .7 ? ri(1, 20) * 1000 : r < .95 ? ri(1, 30) * 60000 : ri(1, 12) * 3600000;
-  let act = RARE.has(pick(WL)) && rnd() > .02 ? null : pick(WL); if (!act) act = pick(WL.filter(a => !RARE.has(a)));
+  let act = pick(WL); if (RARE.has(act) && rnd() > .02) act = pick(WL_COMMON);   // 稀有操作只保留 2%（原来判断和取用的是两次不同的随机，等于没节流）
   const args = params[act].map(genArg);
   trail.push([now, act, args]); if (trail.length > 60) trail.shift();
   // 和服务器一样：在副本上执行，出错就丢弃副本（存档不变）

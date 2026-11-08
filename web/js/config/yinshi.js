@@ -144,7 +144,7 @@ CFG.yinshi = {
   //   每次走完的总量（随机分到各怪物步，[最少, 最多]）：FRAG_N 本宗神通碎片（放背包）、CXP_N 炼丹 / 炼器 / 灵药培育经验（放背包，每个使用后加 CXP_VAL 点对应技艺经验）、HERB_N 药材、ORE_N 矿石（宗门所在地图的表）、STONE 灵石
   MJ: {
     FAV_REQ: 0, FAV_COST: 5, DAILY: 1, TIME: 100, MONSTERS: 12, ELITES: 5, BOSS: 1, HERB: 0, ORE: 0,
-    FRAG_N: [30, 60], CXP_N: { dan: [10, 20], qi: [10, 20], ling: [10, 30] }, CXP_VAL: 10,   // 每次掉落个数 [最少, 最多]：dan 炼丹 / qi 炼器 / ling 灵药培育；CXP_VAL 每个加几点经验 HERB_N: [50, 100], ORE_N: [50, 100], STONE: [10000, 30000],
+    FRAG_N: [30, 60], CXP_N: { dan: [10, 20], qi: [10, 20], ling: [10, 30] }, CXP_VAL: 10, HERB_N: [50, 100], ORE_N: [50, 100], STONE: [10000, 30000],   // CXP_N 每次掉落个数 [最少, 最多]：dan 炼丹 / qi 炼器 / ling 灵药培育；CXP_VAL 每个加几点经验
   },
   // 炼丹房：用本宗好感度兑换丹药，兑换后直接服用；每颗固定 +VAL 对应属性，每种最多服 MAX 颗（所有宗门合计），每颗 FAV 好感度
   //   k：hp 生命 atk 攻击 def 防御 mana 法力 hit 命中 dodge 闪避 speed 速度 res_属性 该系抗性

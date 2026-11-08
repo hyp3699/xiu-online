@@ -1133,3 +1133,71 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .ilk{position:absolute;right:8px;top:8px;z-index:4;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#1b7a2e;line-height:0;border:2px solid #1b7a2e;border-radius:50%;background:var(--c-deep)}
 .ilk svg{width:18px;height:18px}
 .ilk.on{color:#a11616;border-color:#a11616}
+/* 炼丹 / 炼器 / 精炼 选择窗口（craft.js cpView）：上面格子可滚动，下面材料与开始按钮固定 */
+.modal-box:has(.cpk){overflow:hidden;display:flex;flex-direction:column;max-height:92vh;padding:10px 8px;max-width:none;width:100%}
+.modal:has(.cpk){padding:6px}
+.cpk{display:flex;flex-direction:column;min-height:0;flex:1}
+.cpk-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;overflow-y:auto;min-height:120px;flex:1 1 auto;padding:2px;margin-bottom:8px}
+.cpk-tile{display:flex;align-items:center;justify-content:center;gap:0;min-height:42px;padding:6px 6px;white-space:nowrap;overflow:hidden;background:var(--c-card2);border:1px solid var(--c-edge);border-radius:8px;cursor:pointer;line-height:1.3}
+.cpk-tile.on{border-color:var(--t-gold);box-shadow:0 0 0 1px var(--t-gold),0 0 10px #e9c46a55;background:var(--c-card3)}
+.cpk-tag{color:var(--t-orange);font-size:13px;white-space:nowrap;flex:none}
+.cpk-nm{color:var(--t-main);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cpk-nm small{display:block;color:var(--t-sub);font-size:12px}
+.cpk-full{display:inline-block;flex:none;margin-left:6px;color:#d62828;font-size:14px;font-weight:900;font-style:italic;transform:rotate(-15deg);letter-spacing:1px}
+.cpk-foot{display:grid;grid-template-columns:30% 1fr;gap:8px;border-top:1px solid var(--c-line);padding-top:8px;flex:none;max-height:52vh;overflow-y:auto}
+.cpk-sel{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;background:var(--c-card2);border:1px solid var(--c-edge);border-radius:8px;text-align:center}
+.cpk-ico{width:64px;height:64px;display:flex;align-items:center;justify-content:center}
+.cpk-ico>img,.cpk-ico .li{width:56px!important;height:56px!important;object-fit:contain}
+.cpk-ico .ico{float:none;width:56px;height:56px;margin:0;background:none;border:none}
+.cpk-ico .ico img{width:100%;height:100%;object-fit:contain}
+.cpk-sel b{color:var(--t-gold);font-size:14px}
+.cpk-sel small{color:var(--t-sub2);font-size:12px}
+.cpk-sel .tag{white-space:normal;font-size:11px}
+.cpk-r{display:flex;flex-direction:column;align-items:stretch;gap:6px;min-width:0}
+.cpk-rate{color:var(--t-gold2)!important;text-align:center;margin:0!important}
+.cpk-mats{display:flex;flex-wrap:nowrap;gap:4px;justify-content:center}
+.cpk-mat{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;padding:4px 2px;background:var(--c-cell);border:1px solid var(--c-edge);border-radius:6px;font-size:11px}
+.cpk-mat img{width:100%;max-width:40px;aspect-ratio:1;height:auto;object-fit:contain}
+.cpk-mat b{color:var(--t-sub2);font-weight:normal;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cpk-mat span{color:var(--t-good);font-size:10px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.cpk-mat.lack span{color:var(--t-bad)}
+.cpk-qty{display:flex;align-items:center;gap:3px;width:100%}
+.cpk-qty button{flex:1 1 0;min-width:0;padding:6px 0}
+.cpk-qty span{flex:1.6 1 0;min-width:0;white-space:nowrap;text-align:center;padding:5px 4px;background:var(--c-deep);border:1px solid var(--c-edge);border-radius:4px}
+.cpk-time{color:var(--t-sub2);text-align:center;margin:0!important}
+.cpk-note{text-align:center;margin:0!important;font-size:12px}
+.cpk-go{width:100%;padding:10px;font-size:16px}
+.cpk .btns{flex:none;margin-top:6px}
+
+/* 炼制弹窗的材料说明：耀石等小图标跟文字同一行，不浮动，避免把下面的列表挤歪 */
+.mats-desc .li{float:none;width:20px;height:20px;vertical-align:-4px;margin:0 2px 0 0}
+.mats-desc+.line,.mats-desc~.craft-log{clear:both}
+
+/* 耀石选择：不管几种都一行，图标在上、文字在下 */
+.room-grid.ys-row{gap:4px}
+.room-grid.ys-row button{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px 1px;min-width:0;font-size:12px;line-height:1.25;white-space:nowrap;overflow:hidden}
+.room-grid.ys-row .li{float:none;width:26px;height:26px;margin:2px 0}
+
+/* 选择窗口左下图标不显示星级数字角标（名字里已有） */
+.cpk-ico .ico>b,.cpk-ico b{display:none!important}
+.cpk-ico .ico{background:none!important;border:none!important;box-shadow:none!important;outline:none!important}
+.cpk-ico .ico::before,.cpk-ico .ico::after{display:none!important}
+
+/* 选择窗口固定大小：整框 92vh，下方选中信息固定高，上方格子占剩下的（选不同配方不再变高变矮） */
+.modal-box:has(.cpk){height:92vh}
+.cpk-grid{flex:1 1 0}
+.cpk-foot{height:27vh;max-height:none;align-items:stretch}
+/* 正在炼 / 排队列表左侧物品小图 */
+.job-row>div:first-child{position:relative;padding-left:50px;min-height:44px}
+.job-ico{position:absolute;left:0;top:50%;transform:translateY(-50%);width:42px;height:42px;object-fit:contain}
+
+/* 下方布局（2026-11-07 晚）：名字在框外和成功率同一行；图片框与右栏（材料到开始按钮）上下对齐，图在框正中；格子不拉伸，少了就空着 */
+.cpk-grid{align-content:start;grid-auto-rows:min-content}
+.cpk-foot{grid-template-rows:auto 1fr;row-gap:6px;overflow:hidden}
+.cpk-name{grid-column:1;grid-row:1;align-self:center;text-align:center;color:var(--t-gold);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cpk-foot>.cpk-rate{grid-column:2;grid-row:1;align-self:center}
+.cpk-foot>.cpk-sel{grid-column:1;grid-row:2;position:relative;justify-content:center;min-height:0;padding:4px}
+.cpk-foot>.cpk-r{grid-column:2;grid-row:2;min-height:0;overflow-y:auto}
+.cpk-sub{position:absolute;left:0;right:0;bottom:6px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.cpk-r>.cpk-go{margin-top:auto}
+.cpk-tag{color:var(--t-orange)!important}.cpk-nm,.cpk-nm span,.cpk-name,.cpk-name span{color:var(--t-good)!important}   /* 炼丹/炼器/精炼选择窗口：星级红、名字固定绿，不看品质 */

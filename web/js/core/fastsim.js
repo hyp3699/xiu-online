@@ -104,21 +104,21 @@
       const cultOn = this.isCultivating() && this.hasMijue() && !this.exBlocksCult();
       if (cultOn) for (const t in DATA.pills) { const b = s.buffs[t]; if (s.autoPill[t] && (!b || b.left <= 0) && this.bestPillIndex(t) >= 0) return 0; }
       const bodyOn = !!s.bodyAuto && this.hasTijue() && !this.exBlocksCult() && !this.bodyMax(), anyOn = cultOn || bodyOn;   // 只开肉身时修炼室由肉身扣
-      const freeOn = anyOn && this.freeCultOn(), roomOn = anyOn && !freeOn && s.room >= 0 && !!s.sect, roomC = roomOn ? this.roomCost(s.room) : 0;
+      const freeOn = anyOn && this.freeCultOn();   // 付费修炼室 / 练功房不在这里扣：下次扣贡献的时刻（roomAt / gfRoomAt）已由 fastNextEvent 算成事件，加速到不了那一刻，到了由逐个结算的 sect.tick → roomBill 扣
       const SP = sp.total, RED = this.wdRed("exp"), BRED = this.wdRed("body"), RATE = this.lingPerStone(), refill = !!s.array.autoRefill;
       const buffs = cultOn ? Object.values(s.buffs).filter(b => b.left > 0) : [];
       // 肉身修炼
       const BSP = bodyOn ? this.bodySpeed().total : 0, BR = Math.max(0.0001, CFG.body.LING_RATE || 1);
       // 灵药园等灵气的田
       const CS = s.cultSet, CSL = CS && CS.on && CS.tgt ? CS.low : -Infinity;
-      const waitNeed = (s.fields || []).filter(f => f.g >= 0 && f.wait === true).map(f => DATA.herbGrow(f.g).ling);
+      const waitNeed = (s.fields || []).filter(f => f.g >= 0 && f.wait === true).map(f => (DATA.herbGrow(f.g) || {}).ling ?? 0);
       const waitMin = waitNeed.length ? Math.min(...waitNeed) : Infinity;
       // 道童自动发俸禄：灵石够了就是事件
       let payMin = Infinity;
       if (s.svAuto) for (const d of s.servants || []) { const c = this.svOwed(d) * this.svSalary(d); if (c > 0) payMin = Math.min(payMin, c); }
 
       // ---------- 逐次做数字计算（顺序和各模块 tick 一致） ----------
-      let hp = s.hp, mana = s.mana, ling = s.ling, exp = s.exp, stone = s.stone, contrib = s.contrib, bodyExp = s.bodyExp, lack = s.lackWarned;
+      let hp = s.hp, mana = s.mana, ling = s.ling, exp = s.exp, stone = s.stone, bodyExp = s.bodyExp, lack = s.lackWarned;   // 贡献不在这里变：加速区间到不了扣贡献的时刻，s.contrib 原样不动
       let freeLeft = freeOn ? s.freeCult.left : 0;
       let bl = buffs.map(b => b.left);
       let at = gs ? gs.at : 0, done = gs ? gs.done : 0, spent = gs ? gs.spent : 0, spentStone = gs ? gs.spentStone : undefined, su = gs ? gs.su || 0 : 0, rU = gs ? gs.rU || 0 : 0, stalled = gs ? gs.stalled : undefined;
@@ -126,7 +126,7 @@
       for (; m < n && !stop; m++) {
         const now = tk + m * T;
         // 用临时变量算这一次，遇到事件就整次作废，交给逐个结算
-        let h = hp, mp = mana, L = ling, ex = exp, sn = stone, ct = contrib, be = bodyExp, lk = lack, fl = freeLeft;
+        let h = hp, mp = mana, L = ling, ex = exp, sn = stone, be = bodyExp, lk = lack, fl = freeLeft;
         let a2 = at, d2 = done, s2 = spent, ss2 = spentStone, su2 = su, ru2 = rU, sl2 = stalled, bl2 = bl;
         // 1. player：生命、法力恢复
         if (h < HP) h = Math.min(HP, h + HP * R0.hp / 100);
@@ -135,12 +135,14 @@
         if (L < CAP) L = Math.min(CAP, L + GATH);   // v207 上限变低不删已有灵气
         // 3. gongfa：功法修炼进度
         if (gs) {
+          { const mul0 = GR ? GR.mul : 1, rem0 = Math.ceil((gs.total - d2) / (STEP * mul0));   // 同 gongfa.js 的 fin：最后不足 10 秒的一段到点就结算 → 这层修完是事件，交给逐个结算
+            if (!sl2 && rem0 < 2 && now >= a2 + rem0 * STEP) break; }
           const steps = Math.floor((now - a2) / (2 * STEP));   // v247 每 10 秒结算（和 gongfa.js 一样）
           if (steps > 0) {
             a2 += steps * 2 * STEP;
             const mul = GR ? GR.mul : 1, per = gs.per * mul, sps = (gs.stone || 0) * mul;
             const rem = Math.ceil((gs.total - d2) / (STEP * mul)), want = Math.min(2 * steps, rem);
-            if (L < want * per && refill) { const pay = Math.min(Math.ceil((want * per - L) / RATE), Math.floor(sn - (sps ? want * sps : 0))); if (pay > 0) { sn -= pay; L += pay * RATE; } }
+            if (L < want * per && refill) { const pay = Math.min(Math.ceil((want * per - L) / RATE), Math.floor(sn - (sps ? want * sps : 0)), Math.max(0, Math.ceil((CAP - L) / RATE))); if (pay > 0) { sn -= pay; L = Math.min(CAP, L + pay * RATE); } }   // 自动补灵气封顶到 lingCap（同 gongfa.tick）
             // 同 gongfa.js：灵石为负时 can 不能为负，否则会倒加灵气 / 贡献。
             let can = Math.max(0, Math.min(want, Math.floor(L / per), sps ? Math.floor(sn / sps) : Infinity));
             if (can < rem && can % 2) can--;
@@ -158,7 +160,7 @@
         let ended = false;
         if (cultOn) {
           if (freeOn) { if (--fl <= 0) break; }   // 免费修炼室次数用完：事件（付费修炼室按分钟扣贡献，见 fastNextEvent）
-          if (L < SP - RED && refill && sn >= 1) { const pay = Math.min(Math.ceil((SP - RED - L) / RATE), Math.floor(sn)); sn -= pay; L += pay * RATE; }
+          if (L < SP - RED && refill && sn >= 1) { const pay = Math.min(Math.ceil((SP - RED - L) / RATE), Math.floor(sn), Math.max(0, Math.ceil((CAP - L) / RATE))); if (pay > 0) { sn -= pay; L = Math.min(CAP, L + pay * RATE); } }   // 自动补灵气封顶到 lingCap（同 cultivate.tick）
           const PER = Math.max(0, SP - RED) / Math.max(1e-9, SP), gain = PER > 0 ? Math.min(SP, Math.floor(L / PER)) : SP;
           if (gain <= 0) { if (!lk) lk = true; fl++; }   // 与 cultivate.tick 一致：灵气耗尽的 tick 不扣免费修炼室次数
           else {
@@ -172,7 +174,7 @@
           if (!cultOn) {
             if (freeOn) { if (--fl <= 0) break; }   // 免费修炼室次数用完：事件
           }
-          if (L < BSP * BR - BRED && refill && sn >= 1) { const pay = Math.min(Math.ceil((BSP * BR - BRED - L) / RATE), Math.floor(sn)); sn -= pay; L += pay * RATE; }
+          if (L < BSP * BR - BRED && refill && sn >= 1) { const pay = Math.min(Math.ceil((BSP * BR - BRED - L) / RATE), Math.floor(sn), Math.max(0, Math.ceil((CAP - L) / RATE))); if (pay > 0) { sn -= pay; L = Math.min(CAP, L + pay * RATE); } }   // 自动补灵气封顶到 lingCap（同 body.tick）
           const BPER = Math.max(0, BSP * BR - BRED) / Math.max(1e-9, BSP), g = BPER > 0 ? Math.min(BSP, Math.floor(L / BPER)) : BSP;
           if (g > 0) { L = Math.max(0, L - g * BPER); be += g; }
           else if (!cultOn && freeOn) fl++;   // 与 body.tick 一致：只开肉身且灵气耗尽的 tick 不扣免费修炼室次数
@@ -184,14 +186,14 @@
         // 12. servant：灵石够发俸禄 → 事件
         if (sn >= payMin) break;
         // 这一次没有事件：提交
-        hp = h; mana = mp; ling = L; exp = ex; stone = sn; contrib = ct; bodyExp = be; lack = lk; freeLeft = fl;
+        hp = h; mana = mp; ling = L; exp = ex; stone = sn; bodyExp = be; lack = lk; freeLeft = fl;
         at = a2; done = d2; spent = s2; spentStone = ss2; su = su2; rU = ru2; stalled = sl2; bl = bl2;
         if (ended) stop = true;
       }
       // 上面 break 时 m 是作废那一次的序号（= 已提交次数）；正常结束时 m = 已提交次数
       const done_n = m;
       if (!done_n) return 0;
-      s.hp = hp; s.mana = mana; s.ling = ling; s.exp = exp; s.stone = stone; s.contrib = contrib; s.bodyExp = bodyExp; s.lackWarned = lack;
+      s.hp = hp; s.mana = mana; s.ling = ling; s.exp = exp; s.stone = stone; s.bodyExp = bodyExp; s.lackWarned = lack;
       if (freeOn) s.freeCult.left = freeLeft;
       buffs.forEach((b, k) => { b.left = bl[k]; });
       if (gs) { gs.at = at; gs.done = done; gs.spent = spent; if (spentStone !== undefined) gs.spentStone = spentStone; if (su) gs.su = su; if (rU) gs.rU = rU; else delete gs.rU; if (stalled !== undefined) gs.stalled = stalled; }

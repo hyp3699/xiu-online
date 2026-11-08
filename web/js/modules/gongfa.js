@@ -38,10 +38,10 @@ G.module({
       const steps = fin ? 1 : Math.floor((this.now() - st.at) / (2 * STEP));
       if (steps <= 0) break;
       st.at += fin ? rem * STEP : steps * 2 * STEP;
-      // 灵气（秘法还要灵石）够几次就走几次；灵气不够且开了自动补充：用灵石补（秘法要的灵石先留够）
+      // 灵气（秘法还要灵石）够几次就走几次；灵气不够且开了自动补充：用灵石补（秘法要的灵石先留够）；补到灵气上限为止，不超过 lingCap()（同 tick 里功法最先补，修为 / 肉身后补时按剩余容量算）
       const sp = (st.stone || 0) * mul, want = Math.min(2 * steps, rem);
-      if (s.ling < want * per && s.array && s.array.autoRefill) { const keep = sp ? want * sp : 0, rate = this.lingPerStone(), pay = Math.min(Math.ceil((want * per - s.ling) / rate), Math.floor(s.stone - keep));
-        if (pay > 0) { s.stone -= pay; s.ling += pay * rate; } }
+      if (s.ling < want * per && s.array && s.array.autoRefill) { const keep = sp ? want * sp : 0, rate = this.lingPerStone(), cap = this.lingCap(), pay = Math.min(Math.ceil((want * per - s.ling) / rate), Math.floor(s.stone - keep), Math.max(0, Math.ceil((cap - s.ling) / rate)));
+        if (pay > 0) { s.stone -= pay; s.ling = Math.min(cap, s.ling + pay * rate); } }
       // 灵石为负时 Math.floor(负数 / sp) 为负，can 为负会倒扣灵气 / 倒加进度：
       // 先钳到 0，灵石不够就暂停，不再推进。
       let can = Math.max(0, Math.min(want, Math.floor(s.ling / per), sp ? Math.floor(s.stone / sp) : Infinity));
@@ -270,7 +270,7 @@ G.module({
       let html = "", acc = 0;   // acc：排到这一部为止还要多久（毫秒，按当前练功房加成估算）
       if (s.gfStudy) {
         const info = DATA.skillInfo(s.gfStudy.id, s.gongfa[s.gfStudy.id]);
-        const st = s.gfStudy, done = st.stalled ? st.done : Math.min(st.total, st.done + Math.max(0, Date.now() - st.at) * mul), left = st.stalled ? (st.total - done) / mul : Math.max(0, st.at + Math.ceil((st.total - st.done) / (DATA.STUDY_STEP * 1000 * mul)) * DATA.STUDY_STEP * 1000 - Date.now());
+        const st = s.gfStudy, done = st.stalled ? st.done : Math.min(st.total, st.done + Math.max(0, API.now() - st.at) * mul), left = st.stalled ? (st.total - done) / mul : Math.max(0, st.at + Math.ceil((st.total - st.done) / (DATA.STUDY_STEP * 1000 * mul)) * DATA.STUDY_STEP * 1000 - API.now());
         acc = left;
         html += `<div class="card"><h3>修炼中 ·《${info ? info.name : st.id}》${info ? this.gfLvTo(info.lv) : ""}</h3>
         <div class="bar tick"><div style="width:${done / st.total * 100}%"></div></div>

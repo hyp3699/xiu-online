@@ -12,7 +12,8 @@ G.module({
     const s = this.s, C = CFG.servant, p = s.svPick;
     if (p && p.end && this.now() >= p.end) {
       const av = Math.floor(Math.random() * C.AVATARS);
-      s.svPick = { q: U.weighted(C.QUAL_W || [5, 15, 30, 50]), el: U.pick(Object.keys(C.EL)), av, name: this.svRandName(av) };
+      const q = U.weighted(C.QUAL_W || [5, 15, 30, 50]);   // 权重全 0 / 为空时 weighted 返 -1，按最低资质黄品（3）算，不静默取天品（0）
+      s.svPick = { q: q < 0 ? 3 : q, el: U.pick(Object.keys(C.EL)), av, name: this.svRandName(av) };
       this.log(`道童选拔结束：选出${this.svName(s.svPick)}。`, "good"); this.dirty();
     }
     if (s.svAuto) s.servants.forEach(d => { const c = this.svOwed(d) * this.svSalary(d); if (c > 0 && s.stone >= c) { s.stone -= c; d.paid = this.bjDay(); this.dirty(); } });
@@ -25,7 +26,7 @@ G.module({
     svQ(d) { return d.q !== undefined ? d.q : d.star >= 9 ? 0 : d.star >= 7 ? 1 : d.star >= 4 ? 2 : 3; },
     svQName(d) { return (CFG.servant.QUAL || ["天品", "地品", "玄品", "黄品"])[this.svQ(d)]; },
     svQMul(d) { return ((CFG.servant.QUAL_COST || [100, 130, 160, 200])[this.svQ(d)] ?? 100) / 100; },
-    svRandName(av) { const C = CFG.servant; return U.pick(C.SURNAME) + U.pick((C.AV_FEMALE || []).includes(av) ? C.NAME_F : C.NAME_M); },
+    svRandName(av) { const C = CFG.servant; return (U.pick(C.SURNAME) || "") + (U.pick((C.AV_FEMALE || []).includes(av) ? C.NAME_F : C.NAME_M) || ""); },   // pick 空数组返 undefined 时不拼出“undefined”
     svImg(d) { return `img/sv${(d.av || 0) % CFG.servant.AVATARS}.png?v=2`; },
     // 1 级 a、满级 b，中间每级 × 同一个倍率
     svGeo(a, b, lv) { const M = CFG.servant.MAX_LV; return M <= 1 ? b : a * Math.pow(b / a, (Math.min(lv, M) - 1) / (M - 1)); },

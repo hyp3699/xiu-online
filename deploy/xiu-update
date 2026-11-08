@@ -4,23 +4,39 @@ set -euo pipefail
 [ "$(id -u)" = 0 ] || exec sudo "$0" "$@"
 DIR=/opt/xiu-online
 SERVICE=xiu-online-test
+# 公网 IP 只用来生成「IP 直连」的 nginx 配置：探测不到就沿用旧配置，不再因此拒绝更新
 PUBLIC_IP="$(curl -4fsS --max-time 8 https://api.ipify.org || true)"
 if [[ ! "$PUBLIC_IP" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
-  echo "无法自动探测服务器公网 IPv4；请检查服务器的出网连接后重试。" >&2
-  exit 1
+  echo ">>> 无法探测公网 IPv4（api.ipify.org 不通），IP 直连的 nginx 配置保持不变，其余照常更新。" >&2
+  PUBLIC_IP=""
 fi
 REPO="${XIU_REPO:-https://gitlab.com/hepicpde-group/xiu.git}"
 printf '>>> 从 %s 拉取 main 分支（强制覆盖服务器上的代码）\n' "$REPO"
 # 远程地址统一指向 GitLab（旧服务器的 origin 还是 GitHub，这里自动改过来）
 git -C "$DIR" remote set-url origin "$REPO" 2>/dev/null || git -C "$DIR" remote add origin "$REPO"
+OLD_HEAD="${XIU_OLD_HEAD:-$(git -C "$DIR" rev-parse HEAD 2>/dev/null || true)}"   # 重新执行新版脚本时沿用第一次记下的旧版本
 git -C "$DIR" fetch --depth 1 --force origin main
+# 失败回滚：更新中途出错（依赖装不上、服务起不来等）就退回更新前的代码并重装依赖、重启
+rollback() {
+  local rc=$?
+  trap - ERR
+  if [ -n "$OLD_HEAD" ] && [ -z "${XIU_NO_ROLLBACK:-}" ]; then
+    echo ">>> 更新失败（退出码 $rc），回滚到更新前的版本 ${OLD_HEAD:0:8}" >&2
+    git -C "$DIR" reset --hard "$OLD_HEAD" && git -C "$DIR" clean -fdx -e server/node_modules \
+      && (cd "$DIR/server" && npm ci --omit=dev --no-audit --no-fund) \
+      && systemctl restart "$SERVICE" && echo ">>> 已回滚并重启。" >&2 || echo ">>> 回滚也失败了，请手动检查 $DIR" >&2
+  fi
+  exit "$rc"
+}
+trap rollback ERR
 # 强制覆盖：丢弃服务器上对代码的任何改动，并删掉仓库里没有的文件（保留 server/node_modules；存档在 /var/lib/xiu-online 不受影响）
 git -C "$DIR" reset --hard FETCH_HEAD
 git -C "$DIR" clean -fdx -e server/node_modules
 # 更新器自己有新版本时，装好后用新版本重新执行一遍（否则本次仍按旧脚本跑，新增步骤要等下次才生效）
 if [ -z "${XIU_UPDATE_REEXEC:-}" ] && ! cmp -s "$DIR/deploy/xiu-update" /usr/local/bin/xiu-online-update; then
   install -m 0755 "$DIR/deploy/xiu-update" /usr/local/bin/xiu-online-update
-  XIU_UPDATE_REEXEC=1 exec /usr/local/bin/xiu-online-update "$@"
+  trap - ERR
+  XIU_UPDATE_REEXEC=1 XIU_OLD_HEAD="$OLD_HEAD" exec /usr/local/bin/xiu-online-update "$@"
 fi
 install -m 0755 "$DIR/deploy/xiu-update" /usr/local/bin/xiu-online-update
 install -m 0755 "$DIR/deploy/uninstall.sh" /usr/local/bin/xiu-online-uninstall
@@ -62,13 +78,16 @@ systemctl restart "$SERVICE"
 systemctl is-active --quiet "$SERVICE"
 for _ in $(seq 1 20); do curl -fsS http://127.0.0.1:18301/health >/dev/null && break || sleep 1; done
 curl -fsS http://127.0.0.1:18301/health
+trap - ERR   # 游戏服务已经起来了，后面 nginx 的问题不回滚代码
 for D in /etc/nginx/conf.d/central_vps_users/*/ /etc/nginx/snippets/; do
   [ -f "${D}xiu-online-test.conf" ] && install -m 0644 "$DIR/deploy/nginx-xiuxian.conf" "${D}xiu-online-test.conf"
 done
-IP_NGX_TMP=$(mktemp)
-sed "s/__XIU_PUBLIC_IP__/${PUBLIC_IP}/g" "$DIR/deploy/nginx-xiuxian-ip.conf" > "$IP_NGX_TMP"
-install -m 0644 "$IP_NGX_TMP" /etc/nginx/conf.d/xiu-online-ip-test.conf
-rm -f "$IP_NGX_TMP"
+if [ -n "$PUBLIC_IP" ]; then
+  IP_NGX_TMP=$(mktemp)
+  sed "s/__XIU_PUBLIC_IP__/${PUBLIC_IP}/g" "$DIR/deploy/nginx-xiuxian-ip.conf" > "$IP_NGX_TMP"
+  install -m 0644 "$IP_NGX_TMP" /etc/nginx/conf.d/xiu-online-ip-test.conf
+  rm -f "$IP_NGX_TMP"
+fi
 nginx -t
 systemctl reload nginx
-printf '\n更新完成。测试入口：http://%s/（HTTP，仅供临时测试）\nCloudflare Tunnel origin：http://127.0.0.1:18302（HTTP）\n' "$PUBLIC_IP"
+printf '\n更新完成。测试入口：http://%s/（HTTP，仅供临时测试）\nCloudflare Tunnel origin：http://127.0.0.1:18302（HTTP）\n' "${PUBLIC_IP:-服务器IP}"

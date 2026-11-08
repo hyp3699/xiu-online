@@ -50,6 +50,16 @@ const G = {
   now() { return this._simNow || Date.now(); },
 
   /* ---------- 日志 ---------- */
+  // 日志 class 白名单：全仓 log 调用只用这几个（空 = 默认色）；其它值（例如旧存档 / 战斗记录里混入的）一律回退默认色，不让任意 class 插进 innerHTML。
+  // q0-q5 不当 class 用：品质色只出现在消息文本里的 <span class="qN">，由 safeLog 换回（见下）。
+  LOG_CLS: ["", "sys", "good", "gold", "bad"],
+  logCls(c) { return this.LOG_CLS.includes(c) ? c : ""; },
+  // 日志文本转义（与 api.js toastLogs 的 safeLog 同策略）：先全转义，再把有意写的品质色 <span class="q0-q5"> 换回来；其它 HTML 一律当文本显示。
+  safeLog(m) {
+    return String(m == null ? "" : m).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]))
+      .replace(/&lt;span class=&quot;(q[0-5])&quot;&gt;/g, '<span class="$1">')
+      .replace(/&lt;\/span&gt;/g, "</span>");
+  },
   log(m, c = "") {
     if (this.silent) return;
     this.s.log.unshift({ m, c });
@@ -58,7 +68,7 @@ const G = {
     // 信息栏只在修炼页显示，其他页面用浮动提示
     if (this.tab !== "cultivate") {
       const t = $("#toast"); if (!t) return;
-      t.innerHTML = `<p class="${c}">${m}</p>`; t.classList.remove("center"); delete t.dataset.tone; t.classList.add("show");
+      t.innerHTML = `<p class="${this.logCls(c)}">${this.safeLog(m)}</p>`; t.classList.remove("center"); delete t.dataset.tone; t.classList.add("show");
       clearTimeout(this._toastT); this._toastT = setTimeout(() => t.classList.remove("show"), 1800);
     }
   },
@@ -72,6 +82,7 @@ const G = {
     if (this.lgYsInit) this.lgYsInit(s);   // 灵果种子：哪些隐世宗门换哪种，第一次进游戏随机定死（world.js）
     s._nm = DATA.nmSnap();   // 新存档记下当前用的名字（config/names.js），以后改名读档时对照
     s._oreV2 = 1;   // v254 矿石表新版（见 migrate）
+    s.lzB1000 = true;   // 新存档的灵珠直接按 v261 后的 1000 算（见 migrate 的补 +990：只补老存档，新存档不再补）
     return s;
   },
   // v254 矿石表：去掉仙 / 冥 / 魔特色矿石（仙霞玉髓、冥河寒晶、魔焰晶），三者都并入新的通用矿石（序号 11），神辉金及神界矿石序号 -2
@@ -107,8 +118,11 @@ const G = {
       if (Array.isArray(s.cqZj)) s.cqZj = s.cqZj.filter(v => v >= 1 && v <= n);
       if (s.cqzjL && !(s.cqzjL.v >= 1 && s.cqzjL.v <= n)) s.cqzjL = null; }
     { const K = ["contrib", "stone", "merit"], BIG = 1e15;   // 测试模式（config/rates.js TEST）：贡献、灵石、功德随便花；打开时记下原数，关掉恢复
+      // _testBak 随 s 一起落盘（服务端存的就是整份 s），所以只快照三种货币，绝不塞整份 s（整份快照会让存档体积翻倍）；
+      // 关掉时恢复 = 快照值 + 测试期净赚的部分（当前值 − BIG，>0 才算），测试期挣的合法收益不再被一刀切回快照值；
+      // 不恢复：修为 / 肉身 / 功法 / 装备 / 背包 / 丹方等测试期所得全部保留——测试模式不改动这些字段，无需快照，恢复它们反而会抹掉测试期进度。
       if (DATA.isTest()) { if (!s._testBak) s._testBak = Object.fromEntries(K.map(k => [k, s[k] || 0])); for (const k of K) s[k] = BIG; }
-      else if (s._testBak) { for (const k of K) s[k] = s._testBak[k] || 0; delete s._testBak; } }
+      else if (s._testBak) { for (const k of K) { const bak = s._testBak[k] || 0, gain = (s[k] || 0) - BIG; s[k] = bak + (Number.isFinite(gain) && gain > 0 ? gain : 0); } delete s._testBak; } }
     if (DATA.isTest() && this.ysEnsure) { const o = this.s; this.s = s; try { this.ysEnsure(); } finally { this.s = o; } }   // 测试模式格子全亮：先定下隐世宗门位置，才能显示在格子上
     {   // v261 灵珠初始聚灵 10 → 1000：已放入的灵珠补上差值（强化部分不变），只补一次
       if (!s.lzB1000 && Array.isArray(s.lzSlot)) s.lzSlot.forEach(z => { if (z && Number.isFinite(z.v)) z.v += 990; });
@@ -119,6 +133,7 @@ const G = {
       const X = o => o && (o.kind === "xqi" || o.k === "xqi");
       for (const f of ["blueprints", "furnaces", "furnaceUse"]) if (s[f]) delete s[f].xqi;
       if (Array.isArray(s.bag)) s.bag = s.bag.filter(it => !it || !((it.t === "bp" || it.t === "fu") && it.kind === "xqi"));
+      if (Array.isArray(s.mailbox)) s.mailbox = s.mailbox.filter(x => !(x && x.it && (x.it.t === "bp" || x.it.t === "fu") && x.it.kind === "xqi"));   // 传音暂存里的也清
       if (s.lq && Array.isArray(s.lq.forge)) s.lq.forge = s.lq.forge.filter(x => !X(x));
       if (X(s.forgeStudy)) s.forgeStudy = null;
       if (Array.isArray(s.forgeQueue)) s.forgeQueue = s.forgeQueue.filter(x => !X(x));
@@ -152,41 +167,6 @@ const G = {
   offline() { /* 离线结算由服务器根据其时钟完成。 */ },
   // 背包里每种物品的数量（按名字），用来算离线新增
   bagCount() { const m = {}; for (const it of this.s.bag) { if (!it) continue; const k = this.itemName(it); m[k] = (m[k] || 0) + (it.n || 1); } return m; },
-  // 离线收益明细：写进信息栏 + 弹窗
-  offlineReport(sec, b, o) {
-    const s = this.s, f = U.fmt, sign = v => (v >= 0 ? "+" : "-") + f(Math.abs(v)), rows = [];
-    const dExp = s.exp - b.exp, dStone = s.stone - b.stone, dContrib = (s.contrib || 0) - b.contrib, dLing = s.ling - b.ling;
-    rows.push(`<b>总计</b>`);
-    rows.push(`修为 ${sign(dExp)}　灵石 ${sign(dStone)}　灵气 ${sign(dLing)}${s.sect || dContrib ? `　贡献 ${sign(dContrib)}` : ""}`);
-    const items = m => Object.keys(m).map(k => `${k}×${f(m[k])}`).join("、"), kills = (s.kills || 0) - b.kills, cqOn = !!s.cq;
-    if (o.learn.length) { rows.push(`<b>学会</b>`); rows.push(o.learn.join("、")); }   // v173 学了什么
-    const ups = Object.keys(o.gfUp); if (ups.length) { rows.push(`<b>功法升层</b>`); rows.push(ups.map(k => `${k} 第 ${o.gfUp[k]} 层`).join("、")); }
-    if (o.exRuns || (s.explore && !cqOn)) {
-      rows.push(`<b>自动探索</b>`);
-      rows.push(`结算 ${o.exRuns} 次${o.cq.runs ? "" : `，击败 ${f(kills)} 只`}，灵石 +${f(o.exStone)}${items(o.exItems) ? "<br>" + items(o.exItems) : ""}`);
-    }
-    if (o.cq.runs || cqOn) {   // v173 出窍单独显示
-      rows.push(`<b>元婴出窍</b>`);
-      rows.push(`探索 ${o.cq.runs} 次${o.exRuns ? "" : `，击败 ${f(kills)} 只`}，灵石 +${f(o.cq.stone)}${items(o.cq.exItems) ? "<br>" + items(o.cq.exItems) : ""}`);
-    }
-    if (o.exRuns && o.cq.runs) rows.push(`探索和出窍共击败 ${f(kills)} 只`);
-    if (o.exLost) rows.push(`<span class="bad">背包已满，遗失 ${o.exLost} 件</span>`);
-    if (s.explore && s.explore.step) rows.push(`当前这次探索已走 ${s.explore.step} 步，收获在走完后结算`);
-    if (s.cq && s.cq.step) rows.push(`当前这次出窍已走 ${s.cq.step} 步，收获在走完后结算`);
-    if (!s.explore && o.exRuns) rows.push(`<span class="bad">离线期间自动探索已结束（生命不足或战败）</span>`);
-    if (!s.cq && o.cq.runs) rows.push(`<span class="bad">离线期间出窍已结束（次数用完、生命不足或战败）</span>`);
-    if (o.afN) { rows.push(`<b>事务堂</b>`); rows.push(`完成 ${f(o.afN)} 轮，灵石 +${f(o.afStone)}，贡献 +${f(o.afContrib)}`); }
-    const other = dStone - o.exStone - o.cq.stone - o.afStone;
-    if (other) rows.push(`<b>其他灵石</b>`, `${sign(other)}（自动补充灵气、种田、炼制等收支）`);
-    // 背包新增（探索以外：灵药园收获、炼丹、炼器出炉等）
-    const now = this.bagCount(), gain = [];
-    for (const k in now) { const d = now[k] - (b.bag[k] || 0) - (o.allItems[k] || 0); if (d > 0) gain.push(`${k}×${f(d)}`); }
-    if (gain.length) rows.push(`<b>其他新增物品</b>`, gain.join("、"));
-    const short = [`修为 ${sign(dExp)}`, `灵石 ${sign(dStone)}`]; if (o.exRuns) short.push(`探索 ${o.exRuns} 次`); if (o.cq.runs) short.push(`出窍 ${o.cq.runs} 次`); if (o.learn.length) short.push(`学会 ${o.learn.join("、")}`); if (o.afN) short.push(`事务堂 ${o.afN} 轮`);
-    this.log(`你离开了 ${U.dur(sec)}，离线收益：${short.join("，")}。`, "gold");
-    this.lastOffline = rows;
-    try { this.modal(`<h2>离线 ${U.dur(sec)}</h2><div class="explore-log">${rows.map(r => `<p>${r}</p>`).join("")}</div><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`); } catch (e) {}
-  },
 
   // 离开收益（服务器一直在结算，离线不再单独补算）：客户端在前台时每 30 秒记一次快照，
   // 打开游戏 / 切回前台时和快照比，离开超过 AWAY_MIN_SEC 秒且有变化就弹窗。
@@ -199,13 +179,14 @@ const G = {
   awayCheck() {
     const s = this.s; if (!s || typeof localStorage === "undefined") return;
     let b = null; try { b = JSON.parse(localStorage.getItem(this.awayKey()) || "null"); } catch (e) {}
-    this.awaySnap();
-    if (!b || !b.t) return;
-    const sec = Math.floor((Date.now() - b.t) / 1000); if (sec < this.AWAY_MIN_SEC) return;
+    if (!b || !b.t) { this.awaySnap(); return; }   // 还没有基线：先记一条，不弹窗
+    const sec = Math.floor((Date.now() - b.t) / 1000); if (sec < this.AWAY_MIN_SEC) return;   // 没离开够久：不动基线（前台每 30 秒的 awaySnap 会正常刷新它）
     const f = U.fmt, sign = v => (v >= 0 ? "+" : "-") + f(Math.abs(v)), rows = [];
     const dExp = (s.exp || 0) - b.exp, dStone = (s.stone || 0) - b.stone, dLing = (s.ling || 0) - b.ling, dContrib = (s.contrib || 0) - b.contrib, kills = (s.kills || 0) - b.kills;
     const now = this.bagCount(), gain = [];
     for (const k in now) { const d = now[k] - ((b.bag || {})[k] || 0); if (d > 0) gain.push(`${k}×${f(d)}`); }
+    // 没有收益：不动基线——api.js 切回前台 20 秒超时兜底可能先于服务器推送触发，那时手里的还是旧状态；
+    // 基线留给推送到达后的那次 awayCheck 再算（见 api.js 侧配合点：超时后推送到达时需再调一次 awayCheck）。
     if (!dExp && !dStone && !dLing && !dContrib && !kills && !gain.length) return;
     rows.push(`<b>总计</b>`, `修为 ${sign(dExp)}　灵石 ${sign(dStone)}　灵气 ${sign(dLing)}${s.sect || dContrib ? `　贡献 ${sign(dContrib)}` : ""}`);
     if (kills > 0) rows.push(`<b>探索</b>`, `击败 ${f(kills)} 只${s.explore ? "，自动探索仍在继续" : ""}${s.cq ? "，出窍仍在继续" : ""}`);
@@ -214,6 +195,7 @@ const G = {
     this.log(`你离开了 ${U.dur(sec)}，期间收益：修为 ${sign(dExp)}，灵石 ${sign(dStone)}${kills > 0 ? `，击败 ${f(kills)} 只` : ""}。`, "gold");
     this.lastOffline = rows;
     try { this.modal(`<h2>离开 ${U.dur(sec)}</h2><div class="explore-log">${rows.map(r => `<p>${r}</p>`).join("")}</div><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`); } catch (e) {}
+    this.awaySnap();   // 弹窗已按旧基线算完差值：这时才把基线推到当前状态，下次不再重复报同一笔收益
   },
 
   /* ---------- 主循环（每 0.2 秒检查一次） ---------- */
@@ -321,7 +303,7 @@ const G = {
     const a = document.activeElement;
     return !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && root && root.contains(a));
   },
-  renderLog() { $("#log").innerHTML = this.s.log.map(l => `<p class="${l.c}">${l.m}</p>`).join(""); },
+  renderLog() { $("#log").innerHTML = this.s.log.map(l => `<p class="${this.logCls(l.c)}">${this.safeLog(l.m)}</p>`).join(""); },
   // 进度条（叠在“学习中 / 剩余时间”文字下面）：left 剩余毫秒，total 总毫秒；外层元素加 class="pg"
   pgFill(left, total) { const p = total > 0 ? Math.min(100, Math.max(0, (1 - left / total) * 100)) : 0; return `<i class="pgf" style="width:${p.toFixed(1)}%"></i>`; },
   modal(html) { $("#modal-box").innerHTML = html; $("#modal").classList.remove("hidden"); },

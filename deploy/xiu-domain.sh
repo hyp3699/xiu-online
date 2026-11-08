@@ -156,7 +156,11 @@ console.log("已加入游戏线路：" + process.env.XIU_URL);
 
 reload_or_rollback() {   # $1 = 备份文件（空 = 原来没有配置）
     local out
-    if out=$(nginx -t 2>&1); then systemctl reload nginx; rm -f "$1"; return 0; fi
+    if out=$(nginx -t 2>&1); then
+        # reload 失败（nginx 没在运行等）时先试着启动；都失败就恢复原配置，不再打印「已设置」
+        if systemctl reload nginx 2>/dev/null || systemctl start nginx; then rm -f "$1"; return 0; fi
+        out="nginx 重载 / 启动失败（systemctl status nginx 查看原因）"
+    fi
     if [[ -n "$1" ]]; then mv "$1" "$CONF"; else rm -f "$CONF"; fi
     red "Nginx 配置检查没通过，已恢复原来的配置："
     echo "$out" | sed 's/^/  /'

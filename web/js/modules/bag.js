@@ -118,6 +118,7 @@ G.module({
     stackMax(it) { const S = CFG.stack; return S.ONE.includes(it.t) || (it.t === "sm" && S.ONE_SM.includes(it.k)) ? 1 : S.MAX; },
     // ---------- 传音暂存：背包放不下的物品先放这里，10 天未领自动清除 ----------
     MAILBOX_DAYS: 10,
+    MAILBOX_MAX: 300,   // 传音暂存最多几件
     mailboxDue(it) { return (it && it.at || 0) + this.MAILBOX_DAYS * 86400000; },
     mailboxList() { return Array.isArray(this.s.mailbox) ? this.s.mailbox : (this.s.mailbox = []); },
     // 清掉已过期（暂存满 10 天）的条目，返回清掉数；只在确实有过期项时才遍历
@@ -125,12 +126,15 @@ G.module({
       const list = this.mailboxList(); if (!list.length) return 0;
       now = now || this.now(); let n = 0;
       for (let i = list.length - 1; i >= 0; i--) if (now >= this.mailboxDue(list[i])) { list.splice(i, 1); n++; }
+      if (list.length > this.MAILBOX_MAX) { n += list.length - this.MAILBOX_MAX; list.splice(0, list.length - this.MAILBOX_MAX); }   // 旧存档超上限的也削掉
       if (n && !this.silent) this.log(`传音暂存里 ${n} 件物品超过 10 天未领，已自动清除。`, "sys");
       return n;
     },
     mailboxAdd(it, quiet) {
       const list = this.mailboxList(); this.mailboxPrune();
       list.push({ id: DATA.newUid(), it, at: this.now() });
+      // 上限 MAILBOX_MAX 件，超出丢最早的：原来只增不减，存档超过 4MB 后服务器拒绝保存，账号进不去
+      const MAX = this.MAILBOX_MAX; if (list.length > MAX) { const k = list.length - MAX; list.splice(0, k); if (!this.silent) this.log(`传音暂存已满（最多 ${MAX} 件），最早的 ${k} 件已清除。`, "bad"); }
       if (!quiet && !this.silent) this.log("背包已满，已暂存到传音，10 天内领取。", "bad");
       return true;
     },

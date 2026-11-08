@@ -171,7 +171,6 @@ G.module({
       if (!this.realmOK(this.rankReqRealm(i))) return;
       const c = this.rankTrialCost(i);
       if (s.contrib < c) return this.log(`贡献不足，参加考验需要 ${U.fmt(c)}。`, "sys");
-      if (s.hp < this.stats().hp * CFG.battle.TOWER_HP_MIN) return this.log("生命不足三成，先休养片刻。", "sys");
       s.contrib -= c;
       const res = this.battle(this.makeRankGuard(i));
       let txt;
@@ -298,7 +297,6 @@ G.module({
       [2, 0, 0], [3, 0, 0], 1]; },
     fightAffair(i) {
       this.affairGen(); const s = this.s, t = (s.affairFights || [])[i]; if (!s.sect || !t || t.done || t.failed) return;
-      if (s.hp < this.stats().hp * CFG.battle.TOWER_HP_MIN) return this.log("生命不足三成，先休养片刻。", "sys");
       const b = DATA.mobRoll(this.affairFightRow(t), CFG.sect.affairFight.CRIT), v = (x, k) => x * DATA.mobRnd(k);
       const a = t.a >= 0 ? t.a : DATA.maps.findIndex(m => (m.monsters || []).includes(t.name));   // 地图序号：战斗画面按它找怪物图
       const m = this.addMagic({ name: t.name, a, boss: false, hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.resEl || b.res, manaBr: b.manaBr, L: b.L, crit: b.crit }, "normal");
@@ -792,7 +790,6 @@ G.module({
       if (!this.sectInfo()) return this.log("尚未加入门派。", "sys");
       const star = this.sectInfo().star, f = this.towerFloor() + 1; if (f > this.towerMax()) return;
       const st = this.stats();
-      if (this.s.hp < st.hp * CFG.battle.TOWER_HP_MIN) return this.log("生命不足三成，先休养片刻。", "sys");
       const m = this.makeTowerGuard(f);
       const res = this.battle(m);
       let txt;
@@ -858,7 +855,7 @@ G.module({
       this.log(`前往讲道室听取${L.nm}讲道${free ? "（今日免费）" : `，消耗贡献 ${U.fmt(c)}`}。`, "sys"); this.after();
     },
     jdSettle() {
-      const d = this.s.jd; if (!d || !d.cur || this.now() < d.cur.end || !this.s.sect) return;
+      const d = this.s.jd; if (!d || !d.cur || this.now() < d.cur.end) return;   // 不再要求有门派：听讲中途叛出也照常结算（奖励按 cur.star），否则 cur 永远清不掉
       const c = d.cur; d.cur = null;
       let gain;
       if (c.k === "dan" || c.k === "qi") {
@@ -944,8 +941,8 @@ G.module({
       } else {
       const a = s.affair, cur = a.task >= 0 ? DATA.affairs[a.task] : null;
       h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "affair", "事务堂")}<small>点任务开始，完成后自动继续，离线也进行</small></h3>` +
-        (cur ? (() => { const T = cur.time * 60000, p = Math.min(100, (Date.now() - a.start) / T * 100);
-          return `<div class="row small"><span>执行中：${cur.name}（已完成 ${a.count} 次）</span><span>${U.cd(Math.max(0, a.start + T - Date.now()) / 1000)}</span></div>
+        (cur ? (() => { const T = cur.time * 60000, p = Math.min(100, (API.now() - a.start) / T * 100);
+          return `<div class="row small"><span>执行中：${cur.name}（已完成 ${a.count} 次）</span><span>${U.cd(Math.max(0, a.start + T - API.now()) / 1000)}</span></div>
             <div class="bar tick"><div style="width:${p}%"></div></div>`; })() : `<p class="desc">当前没有执行任务。</p>`) +
         DATA.affairs.map((t, i) => { const lock = t.rank > s.rank, on = a.task === i;
           return `<div class="line"><div>${t.name}<span class="tag">${DATA.ranks[t.rank].name}</span><small>每次 ${U.dur(t.time * 60)} · 贡献 +${U.fmt(this.affairContrib(i))} · 灵石 +${U.fmt(this.affairStone(i))}</small></div>
