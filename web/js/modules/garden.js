@@ -27,10 +27,10 @@ G.module({
       if (!DATA.herbGrow(f.g)) { f.g = -1; f.wait = false; f.next = null; if (!this.silent) this.log("一块灵田种的药材已不存在，灵田已清空。", "sys"); return; }   // 原来每 10 秒抛错卡死结算
       if (f.wait) { if (!this.payField(f, now)) return; nNew++; }
       let guard = 0;
-      while (!f.wait && now >= f.start + this.fieldTime(f.g) && guard++ < 1e4) {
-        const end = f.start + this.fieldTime(f.g), Y = DATA.herbGrow(f.g).yield, lg = DATA.isLg(f.g);
+      while (!f.wait && now >= f.start + this.fieldTime(f.g, f) && guard++ < 1e4) {
+        const end = f.start + this.fieldTime(f.g, f), Y = DATA.herbGrow(f.g).yield, lg = DATA.isLg(f.g);
         const n = lg ? this.lgYieldRoll() : Math.floor(U.rand(Y[0], Y[1]) * (1 + this.plantYieldPct(f.g) / 100)), ck = this.plantCraft(f.g);
-        if (lg) this.addLg(f.g - DATA.LG_BASE, n); else this.addMat("herb", DATA.herbs[f.g], f.g, n);   // 背包满时进传音暂存，不再丢药材却照算经验
+        if (lg) this.addLg(f.g - DATA.LG_BASE, n); else this.addMat("herb", DATA.herbs[f.g], f.g, n);   // 背包满时进传音，不再丢药材却照算经验
         { const K = CFG.craftsman[ck], IE = K.ITEM_EXP, lm = CFG.craftsman.LING_EXP_MULT ?? 1; this.addCraftExp(ck, n * (IE ? ((lg ? IE[(DATA.LG().EXP_TIER ?? 15) - 1] : IE[f.g]) ?? IE[IE.length - 1] ?? 0) : (f.g + 1) * (K.EXP_RATE || 0)) * lm); }   // 每株 ITEM_EXP[品级−1]，再 × 种植经验总倍率   // 品级按药材总序号（仙界药材接在凡界后面）
         if (f.next != null) { f.g = f.next; f.next = null; } // 当季结束才换种
         if (this.payField(f, end)) nNew++;                   // 下一季：扣灵气
@@ -45,8 +45,18 @@ G.module({
     //   g = 药材序号：凡界药材按灵植夫，仙界药材（序号 ≥ 凡界种数）按仙植师（v42）
     plantCraft() { return "ling"; },   // 灵植夫统一 1~30 阶（11~20 阶显示为仙植师，21~30 阶神植师）
     plantCut(g = 0) { const k = this.plantCraft(g), L = CFG.craftsman[k]; return (L.GROW_CUT[this.craftLv(k) - 1] || 0) + (this.mifaBonus().plantTime || 0) + this.servantPct("ling"); },   // 种植速度 %（没上限）
-    plantYieldPct(g = 0) { const k = this.plantCraft(g); return (CFG.craftsman[k].YIELD_ADD[this.craftLv(k) - 1] || 0) + (this.mifaBonus().plantYield || 0) + (this.servantPct ? this.servantPct("ling", "YIELD_") : 0); },   // 技艺 + 丰灵秘法 + 道童
-    fieldTime(g) { return Math.ceil(DATA.growTime(g) / (1 + Math.max(0, this.plantCut(g)) / 100)); },   // 生长时间 ÷ (1 + 种植速度%)
+    plantYieldPct(g = 0) { return (this.mifaBonus().plantYield || 0) + (this.servantPct ? this.servantPct("ling", "YIELD_") : 0); },   // 丰灵秘法 + 道童（灵植夫不加产量，用户定）
+    fieldTime(g, f) { return Math.ceil(DATA.growTime(g) / (1 + Math.max(0, this.plantCut(g) + DATA.landPct(f && f.lv)) / 100)); },   // 生长时间 ÷ (1 + 种植速度% + 土地%)
+    // 升级第 i 块灵田的地块（扣灵液）
+    fieldLandUp(i) {
+      const f = this.s.fields[Math.floor(+i)]; if (!f) return;
+      const L = DATA.LAND(), lv = Math.floor(+f.lv || 0);
+      if (lv >= L.MAX) return this.log("灵田已满级。", "sys");
+      const c = DATA.landCost(lv + 1);
+      if (!DATA.isTest()) { if (this.smCount("lingye") < c) return this.log(`灵液不足，需要 ${U.fmt(c)}。`, "sys"); this.takeSm("lingye", c); }
+      f.lv = lv + 1;
+      this.log(`第 ${Math.floor(+i) + 1} 块灵田升至 ${f.lv} 级，生长速度 +${U.num(DATA.landPct(f.lv))}%。`, "good"); this.dirty(); this.after();
+    },
     // 开始新的一季：扣灵气，不够就等待
     payField(f, at) {
       const need = DATA.herbGrow(f.g).ling, sn = this.plantSeedN();
@@ -92,32 +102,54 @@ G.module({
     addSeed(g, n = 1) { return this.bagAdd(x => x.t === "seed" && x.g === g, k => ({ t: "seed", g, n: k }), n, "背包已满，种子遗失了。"); },
     takeSeed(g, n) { return this.bagTake(x => x.t === "seed" && x.g === g, n); },
     // 背包里有的种子（药材序号，去重排序）
+    // 弹窗：开辟灵田，显示要消耗的矿石（图）和灵石
+    openFieldBuy() {
+      const s = this.s, i = s.fields.length; if (i >= DATA.GARDEN_MAX) return this.log("灵田已达上限。", "sys");
+      const c = { mats: DATA.fieldMats(i), stone: DATA.fieldCost(i) };
+      this.modal(`<h2>开辟第 ${i + 1} 块灵田</h2>${this.zfCostHtml(c, "开辟消耗")}
+        <div class="btns"><button class="primary" onclick="G.closeModal();G.openField()" ${this.zfCanPay(c) ? "" : "disabled"}>开辟</button><button onclick="G.closeModal()">关闭</button></div>`);
+    },
     seedsHave() { return [...new Set(this.s.bag.filter(x => x && x.t === "seed" && x.n > 0 && DATA.herbGrow(x.g)).map(x => x.g))].sort((a, b) => a - b); },
     openField() {
-      const s = this.s, i = s.fields.length, c = DATA.fieldCost(i);
+      const s = this.s, i = s.fields.length, c = DATA.fieldCost(i), mats = DATA.fieldMats(i), test = DATA.isTest();
       if (i >= DATA.GARDEN_MAX) return this.log("灵田已达上限。", "sys");
-      if (s.stone < c) return this.log("灵石不足。", "sys");
-      s.stone -= c; s.fields.push({ g: -1, start: 0, next: null, wait: false });
+      if (!test && s.stone < c) return this.log("灵石不足。", "sys");
+      if (!test && !this.hasMats(mats)) return this.log("矿石不足。", "sys");
+      if (!test) { s.stone -= c; mats.forEach(x => this.takeMat(x.kind, x.g, x.n)); }
+      s.fields.push({ g: -1, start: 0, next: null, wait: false });
       this.log(`开辟第 ${i + 1} 块灵田。`, "good"); this.gardenPage = Math.floor(i / Math.max(1, CFG.garden.PAGE || 20)); this.after();
+    },
+    // 地块升级：按灵药园分页列出灵田，逐块升级（扣灵液）；升完重开本弹窗刷新等级，留在当前页
+    openLandUp(pg) {
+      const s = this.s, n = s.fields.length, P = Math.max(1, CFG.garden.PAGE || 20), pages = Math.max(1, Math.ceil(Math.max(DATA.GARDEN_MAX, n) / P));
+      const CN = "一二三四五六七八九十", cur = Math.min(pages - 1, Math.max(0, pg == null ? (this.gardenPage || 0) : pg));
+      const lh = this.smCount("lingye"), L = DATA.LAND();
+      const tabs = `<div class="bag-tabs">${[...Array(pages).keys()].map(k => `<button class="${k === cur ? "active" : ""}" onclick="G.openLandUp(${k})">${DATA.caveName("garden")}${CN[k] || k + 1}</button>`).join("")}</div>`;
+      const rows = s.fields.slice(cur * P, cur * P + P).map((f, j) => {
+        const i = cur * P + j, lv = Math.floor(+f.lv || 0), lfull = lv >= L.MAX, lc = lfull ? 0 : DATA.landCost(lv + 1);
+        return `<div class="line"><div>第 ${i + 1} 块 · ${f.g >= 0 ? DATA.cropName(f.g) : "空地"}<small>${lv} 级 · 生长速度 +${U.num(DATA.landPct(lv))}%${lfull ? " · 已满级" : ` · 升级需灵液 ${U.fmt(lc)}`}</small></div>${lfull ? "<b>已满级</b>" : `<button class="primary sm" onclick="G.fieldLandUp(${i});G.openLandUp(${cur})" ${lh >= lc || DATA.isTest() ? "" : "disabled"}>升级</button>`}</div>`;
+      }).join("");
+      this.modal(`${tabs}<div class="line"><div>灵液</div><b>${U.fmt(lh)}</b></div><div class="landup-list">${rows || `<p class="desc">这一页还没有灵田。</p>`}</div><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
     openFieldMenu(i) {
       const s = this.s, f = s.fields[i];
       const have = this.seedsHave();
-      if (!have.length && f.g < 0) return this.log("没有种子，可在门派 → 宗门宝库兑换，或探索、出窍时掉落。", "sys");
       if (f.g >= 0 && f.next != null && !have.includes(f.g)) have.unshift(f.g);   // 已约好换种：当前药材没种子也要能点它取消换种
       const seeds = have.map(g => { const H = DATA.herbGrow(g);
         return `<button onclick="G.plantField(${i},${g})" ${f.g === g && f.next == null ? "disabled" : ""}><img class="mi" src="${DATA.seedImg(g)}" alt="" style="width:36px">${DATA.cropName(g)}<small>种子 ${U.fmt(this.seedCount(g))} · 每季消耗灵气${U.fmt(H.ling)}</small></button>`; }).join("");
+      const lv = Math.floor(+f.lv || 0);
       let info = "";
       if (f.g >= 0) {
-        const T = this.fieldTime(f.g), now = this.now(), H = DATA.herbGrow(f.g), k = 1 + this.plantYieldPct(f.g) / 100, p = f.wait ? 0 : Math.min(100, (now - f.start) / T * 100);
+        const T = this.fieldTime(f.g, f), now = this.now(), H = DATA.herbGrow(f.g), k = 1 + this.plantYieldPct(f.g) / 100, p = f.wait ? 100 : Math.max(0, 100 - Math.min(100, (now - f.start) / T * 100));   // 倒退：剩余比例
         info = `<div class="line"><div>剩余时间</div><b>${f.wait === "seed" ? "缺少种子，等待中" : f.wait ? "灵气不足，等待中" : U.cd(Math.max(0, f.start + T - now) / 1000)}</b></div>
-          <div class="bar"><div style="width:${p}%"></div></div>
+          <div class="bar fc-pop${f.wait ? " bad" : ""}"><div style="width:${p}%"></div></div>
           <div class="line"><div>产量</div><b>${DATA.isLg(f.g) ? this.lgYieldTxt() : `${Math.floor(H.yield[0] * k)}~${Math.floor(H.yield[1] * k)} 株`}</b></div>
+          <div class="line"><div>灵田等级</div><b>${lv} 级</b></div>
           ${f.next != null ? `<div class="line"><div>本季结束后改种</div><b>${DATA.cropName(f.next)}</b></div>` : ""}`;
       }
       this.modal(`<h2>${f.g < 0 ? "空地" : DATA.cropName(f.g)}</h2>${info}
         <h3 style="margin-top:8px">${f.g < 0 ? "种植" : "更换种植"}</h3>
-        <div class="room-grid">${seeds || `<p class="desc">背包里没有种子。</p>`}</div>
+        <div class="room-grid">${seeds || `<p class="desc">背包里没有种子，可在门派 → 宗门宝库兑换，或探索、出窍时掉落。</p>`}</div>
         <label style="display:flex;align-items:center;justify-content:flex-start;gap:6px;margin:8px 0;width:100%;max-width:100%;overflow:hidden;white-space:nowrap;font-size:13px;text-align:left"><input type="checkbox" style="margin:0;padding:0;flex:0 0 18px;width:18px;min-width:0;height:18px" ${f.auto ? "checked" : ""} onchange="G.fieldAuto(${i},this.checked)"><span style="flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis">种子用完自动随机改种有种子的作物</span></label>
         <div class="btns">${f.g >= 0 ? `<button onclick="G.ask('铲除后本季作物作废，确定？').then(ok=>ok&&G.clearField(${i},true))">铲除</button>` : ""}<button onclick="G.closeModal()">关闭</button></div>`);
     },
@@ -155,14 +187,17 @@ G.module({
 
 /* 洞府 · 灵药园 */
 G.caveViews.garden = function () {
-  const s = this.s, n = s.fields.length, P = Math.max(1, CFG.garden.PAGE || 20), pages = Math.max(1, Math.ceil(DATA.GARDEN_MAX / P));
+  const s = this.s, n = s.fields.length, P = Math.max(1, CFG.garden.PAGE || 20), pages = Math.max(1, Math.ceil(Math.max(DATA.GARDEN_MAX, n) / P));   // 旧存档已开超过上限的灵田照样显示
   const CN = "一二三四五六七八九十", pg = Math.min(pages - 1, Math.max(0, this.gardenPage || 0));
-  const cell = (f, i) => f.g < 0 ? `<div class="slot-eq field-cell" onclick="G.openFieldMenu(${i})"><span class="g">空地</span></div>`
-    : `<div class="slot-eq field-cell q${Math.min(5, Math.floor(f.g / 2))}" onclick="G.openFieldMenu(${i})"><img class="si" src="${DATA.cropImg(f.g)}" alt=""><span>${DATA.cropName(f.g)}</span></div>`;
+  // 名字下的进度条：倒退（刚种下满格，慢慢减到 0）；正常生长绿色，灵气不足 / 缺种子红色满格
+  const now = this.now(), fbar = f => { const left = f.wait ? 100 : Math.max(0, Math.min(100, 100 - (now - f.start) / this.fieldTime(f.g, f) * 100));
+    return `<div class="fc-bar${f.wait ? " bad" : ""}"><div style="width:${left.toFixed(1)}%"></div></div>`; };
+  const cell = (f, i) => f.g < 0 ? `<div class="slot-eq field-cell land" style="${DATA.landStyle(f.lv)}" onclick="G.openFieldMenu(${i})"><span class="g">空地</span></div>`
+    : `<div class="slot-eq field-cell land q${Math.min(5, Math.floor(f.g / 2))}" style="${DATA.landStyle(f.lv)}" onclick="G.openFieldMenu(${i})"><img class="si" src="${DATA.cropImg(f.g)}" alt=""><span>${DATA.cropName(f.g)}</span>${fbar(f)}</div>`;
   const cells = s.fields.slice(pg * P, pg * P + P).map((f, j) => cell(f, pg * P + j)).join("");
   const tabs = pages > 1 ? `<div class="bag-tabs">${[...Array(pages).keys()].map(k => `<button class="${k === pg ? "active" : ""}" onclick="G.gardenPage=${k};G.render()">${DATA.caveName("garden")}${CN[k] || k + 1}</button>`).join("")}</div>` : "";
-  const full = n >= DATA.GARDEN_MAX, c = DATA.fieldCost(n);
+  const full = n >= DATA.GARDEN_MAX;
   return this.craftsmanCard("ling") + `<div class="card">${tabs}
     ${cells ? `<div class="equip four">${cells}</div>` : `<p class="desc">这一页还没有灵田。</p>`}
-    <div class="btns"><button class="primary" onclick="G.openField()" ${full || s.stone < c ? "disabled" : ""}>${full ? "灵田已满" : `开辟灵田（${U.fmt(c)} 灵石）`}</button></div></div>`;
+    <div class="btns"><button onclick="G.openLandUp()">灵田升级</button><button class="primary" onclick="G.openFieldBuy()" ${full ? "disabled" : ""}>${full ? "灵田已满" : "开辟灵田"}</button></div></div>`;
 };

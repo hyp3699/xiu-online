@@ -13,7 +13,7 @@ test("种子：宝库无限兑换进背包，种植和续种各扣 1 颗，可�
   assert.equal(G.sellPrice(it), D.matPrice("herb", 0) * 3);
   const qh = D.herbs.indexOf("琼华仙草"); assert.ok(qh >= 0 && D.herbGrow(qh) && D.seedDropOnly(qh));
   assert.equal(G.seedList().some(x => x.g === qh), false);
-  G.openField(); G.plantField(0, 0);
+  [0, 1, 2].forEach(g => G.addMat("ore", e.DATA.ores[g], g, 5000)); G.openField(); G.plantField(0, 0);
   assert.equal(s.fields[0].g, 0); assert.equal(G.seedCount(0), 4);
   const f = s.fields[0]; f.start -= G.fieldTime(0) + 1000;
   G.tickAll(false);   // 成熟收获，自动续种再扣 1 颗
@@ -36,18 +36,21 @@ test("种子掉落：地图探索走完按几率掉，特色药材只在本界�
   const y = { map: 0, loot: G.newLoot() }; G.rollSeedDrop(y);
   assert.equal(Object.keys(y.loot.seed).length, 1); assert.ok(+Object.keys(y.loot.seed)[0] < D.FAN_HERB_N);
   G.giveLoot(x.loot); assert.ok(s.bag.filter(b => b && b.t === "seed").length >= 1);
-  C.garden.SEED_DROP = 6; C.garden.SEED_DROP_SPECIAL = 12;
+  C.garden.SEED_DROP = 15; C.garden.SEED_DROP_SPECIAL = 30;
 });
 
 test("种子掉落：每人每天每种最多 SEED_DROP_DAY_MAX 颗", () => {
   const e = new GameEngine(), G = e.G, C = e.CFG || globalThis.CFG;
   const s = e.createState("种子3", 1_800_003_000_000); e.bindState(s, 1_800_003_000_000); G.s = s; G._cache = null;
-  C.garden.SEED_DROP = 100; C.garden.SEED_DROP_SPECIAL = 0;
+  C.garden.SEED_DROP = 100; C.garden.SEED_DROP_SPECIAL = 0; const NM = C.garden.SEED_DAY_NORM; C.garden.SEED_DAY_NORM = 999;
   const tot = {};
   for (let i = 0; i < 300; i++) { const x = { map: 0, loot: G.newLoot() }; G.rollSeedDrop(x); for (const k in x.loot.seed || {}) tot[k] = (tot[k] || 0) + x.loot.seed[k]; }
   const n = Object.keys(tot).length; assert.ok(n >= 1);
-  for (const k in tot) assert.equal(tot[k], 9);
+  for (const k in tot) assert.equal(tot[k], C.garden.SEED_DROP_DAY_MAX);
   s.seedDrop.day = -1; const y = { map: 0, loot: G.newLoot() }; G.rollSeedDrop(y);   // 换日重置
   assert.equal(Object.keys(y.loot.seed || {}).length, 1);
-  C.garden.SEED_DROP = 6; C.garden.SEED_DROP_SPECIAL = 12;
+  C.garden.SEED_DAY_NORM = NM; s.seedDrop.day = -1; let sum = 0;   // 每天普通种子合计上限
+  for (let i = 0; i < 300; i++) { const x = { map: 0, loot: G.newLoot() }; G.rollSeedDrop(x); for (const k in x.loot.seed || {}) sum += x.loot.seed[k]; }
+  assert.ok(sum <= C.garden.SEED_DAY_NORM);
+  C.garden.SEED_DROP = 15; C.garden.SEED_DROP_SPECIAL = 30;
 });

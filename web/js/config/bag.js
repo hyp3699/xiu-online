@@ -9,4 +9,5 @@ CFG.stack = {
   MAX: 9999,
   ONE: ["fu", "ss"],
   ONE_SM: ["lz"],
+  BIG_SM: ["lingye"],   // 这些专用材料一格不限数量（灵液动辄上万，用户要求放进背包）
 };

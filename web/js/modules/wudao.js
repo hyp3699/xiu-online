@@ -17,7 +17,7 @@ G.module({
         if (!DATA.isMifa(id)) continue;
         const g = DATA.mifaInfo(id, this.s.gongfa[id]); if (g) out[g.mk.id] += g.value;
       }
-      for (const K of DATA.mifaKinds) { const C = K.cfg && CFG.wudao[K.cfg]; if (C) out[K.id] = Math.round(Math.min(C.MAX === undefined ? Infinity : C.MAX, out[K.id] || 0) * 1e6) / 1e6; }   // 战斗秘法几率上限
+      for (const K of DATA.mifaKinds) { const C = K.cfg && CFG.wudao[K.cfg]; out[K.id] = Math.round(Math.min(C && C.MAX !== undefined ? C.MAX : Infinity, out[K.id] || 0) * 1e6) / 1e6; }   // 战斗秘法几率上限；六位小数消浮点尘（如育灵 10 星全满 72.00000000000001）
       // 破军无视防御 %、金蝉伤害降低 %：按修满的星级相加
       const PJ = CFG.wudao.POJUN || {}, JC = CFG.wudao.JINCHAN || {}, full = k => { const r = []; for (let st = 1; st <= 10; st++) if ((this.s.gongfa[DATA.mifaId(st, k)] || 0) >= DATA.GONGFA_MAX) r.push(st); return r; };
       out.pojunIgn = Math.min(PJ.IGNORE_MAX === undefined ? 100 : PJ.IGNORE_MAX, full("pojun").reduce((t, st) => t + ((PJ.IGNORE || [])[st - 1] || 0), 0));
@@ -67,6 +67,7 @@ G.sectWudaoView = function () {
     }) });
   }
   return this.lqCard("gf") +
-    U.doneCards(cards) +
-    `<div class="card"><h3>秘法总加成</h3><div class="stats">${DATA.mifaKinds.map(K => `<div><span>${K.label}</span>${fmt(K, tot[K.id])}</div>`).join("")}<div><span>战斗每步回血上限</span>+${U.num(tot.hpBattlePct)}%</div><div><span>战斗每步回法力上限</span>+${U.num(tot.mpBattlePct)}%</div><div><span>破军无视防御</span>${U.num(tot.pojunIgn)}%</div><div><span>金蝉伤害降低</span>${tot.jinchan ? U.num(tot.jinchanCut) + "%" : "-"}</div></div></div>`;
+    U.doneCards(cards.map(c => ({ head: c.head, rows: c.rows.filter(x => !x[0]) }))) +   // 没学会的
+    `<div class="card"><h3>秘法总加成</h3><div class="stats">${DATA.mifaKinds.map(K => `<div><span>${K.label}</span>${fmt(K, tot[K.id])}</div>`).join("")}<div><span>战斗每步回血上限</span>+${U.num(tot.hpBattlePct)}%</div><div><span>战斗每步回法力上限</span>+${U.num(tot.mpBattlePct)}%</div><div><span>破军无视防御</span>${U.num(tot.pojunIgn)}%</div><div><span>金蝉伤害降低</span>${tot.jinchan ? U.num(tot.jinchanCut) + "%" : "-"}</div></div></div>` +
+    U.doneCard(cards.flatMap(c => c.rows));   // 已学会放最后
 };

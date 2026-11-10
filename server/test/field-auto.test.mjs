@@ -3,7 +3,7 @@ import { GameEngine } from "../game-engine.mjs";
 test("灵田勾选自动更换：种子用完随机换有种子的作物", () => {
   const e = new GameEngine(); let now = 1_800_000_000_000; const s = e.createState("t", now);
   e.bindState(s, now); const G = e.G; s.stone = 1e9; s.ling = 1e12;
-  G.openField(); G.addSeed(0, 1); G.addSeed(1, 3); G.addSeed(2, 3);
+  [0, 1, 2].forEach(g => G.addMat("ore", e.DATA.ores[g], g, 5000)); G.openField(); G.addSeed(0, 1); G.addSeed(1, 3); G.addSeed(2, 3);
   e.act(s, "plantField", [0, 0], now); const st = e.G.s;
   assert.equal(st.fields[0].g, 0);
   e.act(st, "fieldAuto", [0, true], now);
@@ -14,7 +14,7 @@ test("灵田勾选自动更换：种子用完随机换有种子的作物", () =>
 test("没勾选：缺种子就等待", () => {
   const e = new GameEngine(); let now = 1_800_000_000_000; const s = e.createState("t", now);
   e.bindState(s, now); const G = e.G; s.stone = 1e9; s.ling = 1e12;
-  G.openField(); G.addSeed(0, 1); G.addSeed(1, 3);
+  [0, 1, 2].forEach(g => G.addMat("ore", e.DATA.ores[g], g, 5000)); G.openField(); G.addSeed(0, 1); G.addSeed(1, 3);
   e.act(s, "plantField", [0, 0], now); now += 400 * 3600e3; e.act(e.G.s, "sortBagNow", [], now);
   assert.equal(e.G.s.fields[0].g, 0); assert.equal(e.G.s.fields[0].wait, "seed");
 });

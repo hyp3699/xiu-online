@@ -285,12 +285,12 @@ G.module({
       const s = this.s, st = this.stats(), sp = this.speed(), R0 = this.regen(false), R1 = this.regenStep();
       this.modal(`<h2>${s.name}<small>${this.realmName()}</small></h2>
         <div class="stats">
-          <div><span>生命</span><b id="pf-hp" style="font-weight:normal">${U.full(s.hp)}/${U.full(st.hp)}</b></div><div><span>法力</span><b id="pf-mana" style="font-weight:normal">${U.full(s.mana)}/${U.full(st.mana)}</b></div>
-          <div><span>攻击</span>${U.full(st.atk)}</div><div><span>防御</span>${U.full(st.def)}</div>
-          <div><span>命中</span>${st.hit < 100 ? U.num(st.hit) : U.full(st.hit)}</div><div><span>闪避</span>${st.dodge < 100 ? U.num(st.dodge) : U.full(st.dodge)}</div>
-          <div><span>速度</span>${U.full(st.speed)}</div><div><span>暴击</span>${st.crit.toFixed(1)}%</div>
-          ${DATA.elements.map(e => `<div><span>${e.name}抗</span>${U.full(st.res[e.id])}</div>`).join("")}
-          <div style="grid-column:1/3"><span>修炼速度</span>${U.full(sp.total)} / 10秒</div>
+          <div><span>生命</span><b id="pf-hp" style="font-weight:normal">${U.int(s.hp)}<i class="pf-sl">  /  </i>${U.int(st.hp)}</b></div><div><span>法力</span><b id="pf-mana" style="font-weight:normal">${U.int(s.mana)}<i class="pf-sl">  /  </i>${U.int(st.mana)}</b></div>
+          <div><span>攻击</span>${U.int(st.atk)}</div><div><span>防御</span>${U.int(st.def)}</div>
+          <div><span>命中</span>${st.hit < 100 ? U.num(st.hit) : U.int(st.hit)}</div><div><span>闪避</span>${st.dodge < 100 ? U.num(st.dodge) : U.int(st.dodge)}</div>
+          <div><span>速度</span>${U.int(st.speed)}</div><div><span>暴击</span>${st.crit.toFixed(1)}%</div>
+          ${DATA.elements.map(e => `<div><span>${e.name}抗</span>${U.int(st.res[e.id])}</div>`).join("")}
+          <div style="grid-column:1/3"><span>修炼速度</span><b style="font-weight:normal">${U.int(sp.total)}<i class="pf-sl">  /  </i>10秒</b></div>
         </div>
         <p class="desc" style="margin-top:6px">平时每 10 秒恢复 生命 ${U.num(R0.hp)}% · 法力 ${U.num(R0.mana)}%；历练/探索每走一步恢复 生命 ${U.num(R1.hp)}%${R1.hpFlat ? ` + ${U.fmt(R1.hpFlat)}` : ""} · 法力 ${U.num(R1.mana)}%${R1.manaFlat ? ` + ${U.fmt(R1.manaFlat)}` : ""}</p>
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);

@@ -60,7 +60,7 @@ CFG.gongfa = {
     [23, 10],   // 12 星：圣人十层
   ],
   MANA_PCT: 21,         // 法力消耗占参考法力 %
-  MANA_LV: 0.03,        // 法术层消耗倍率：1 层 ×1，每多 1 层 +8%（第 N 层 × (1 + (N−1) × MANA_LV)）
+  MANA_LV: 0.033,        // 法术层消耗倍率：1 层 ×1，每多 1 层 +8%（第 N 层 × (1 + (N−1) × MANA_LV)）
 };
 
 /* 宗门功法 & 法术（门派功法殿）
@@ -71,7 +71,7 @@ CFG.gongfa = {
 CFG.gongfa.sect = {
   TYPE_MULT: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1, tijue: 1 },   // 类别效果倍率
   // 1~10 星宗门功法（含各阶段多出来的书）全学满后每项属性合计（不算灵根）；res 按所有真经合计
-  TOTAL: { def: 1997600, atk: 2197950, hp: 7496000, mana: 1795600, speed: 699390, dodge: 817000, res: 1938680, hit: 1029800,
+  TOTAL: { def: 1997600, atk: 2197950, hp: 7496000, mana: 1795600, speed: 699390, dodge: 817000, res: 1838680, hit: 1029800,
     cultivate: 7586300,   // 秘诀 → 修炼速度
     body: 7595800 },      // 炼体秘诀 → 肉身修炼速度
   RAND: 0.05,        // 每本效果随机幅度（±5%，按书固定）

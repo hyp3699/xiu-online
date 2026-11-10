@@ -318,7 +318,7 @@ DATA.fabaoInfo = (e, own) => {
  *   img/icons/pill_丹药id.png 修炼丹、dan_类型.png 属性丹、fu_dan / fu_qi.png 炉子、ss.png 空间石
  *   fbs形状_属性.png 法宝（7 种形状 × 6 种属性）、sm_ys属性.png 耀石、mifa.png 秘法、seed.png 种子、stone.png 灵石、cu_misc.png 自定义物品
  *   hx.png 火髓、bp.png 图纸 */
-DATA.IMG_V = 85;
+DATA.IMG_V = 95;
 DATA.matImg = (kind, g) => `img/mats/${kind}${g}.png?v=${DATA.IMG_V}`;
 DATA.SEED_IMG = [...Array(20).keys()];   // 有种子图的药材序号（img/mats/seed序号.png）
 DATA.seedImg = g => DATA.isLg && DATA.isLg(g) ? `img/lg/seed${g - DATA.LG_BASE}.png?v=${DATA.IMG_V}` : DATA.SEED_IMG.includes(g) ? `img/mats/seed${g}.png?v=${DATA.IMG_V}` : DATA.matImg("herb", g);

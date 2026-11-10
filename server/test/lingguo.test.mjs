@@ -20,7 +20,7 @@ test("灵果：服用永久加属性，无上限；修为 / 气血速度加数�
 
 test("灵果种植：72 小时、扣 240 万灵气和 1 颗种子，收获 1~3 颗进背包", () => {
   const { G, D, s } = mk(); s.stone = 1e9; s.ling = 3e6;
-  const g = D.LG_BASE + 5; G.addSeed(g, 2); G.openField(); G.plantField(0, g);
+  const g = D.LG_BASE + 5; G.addSeed(g, 2); [0, 1, 2].forEach(g => G.addMat("ore", D.ores[g], g, 5000)); G.openField(); G.plantField(0, g);
   assert.equal(s.fields[0].g, g); assert.equal(s.ling, 600000); assert.equal(G.seedCount(g), 1);
   assert.equal(D.growTime(g), 72 * 3600000);
   s.ling = 3e6; s.fields[0].start -= G.fieldTime(g) + 1000; G.tickAll(false);
@@ -34,8 +34,8 @@ test("灵果种子：秘境掉落（金丹以上、每人每天每种最多 2）
   const lo = C.mijing.list.findIndex(d => (d.realm || 0) < 2), hi = C.mijing.list.findIndex(d => (d.realm || 0) >= 2);
   let x = { mj: lo, loot: G.newLoot() }; G.rollLgSeed(x); assert.equal(x.loot.seed, undefined);
   let total = 0; for (let k = 0; k < 60; k++) { x = { mj: hi, loot: G.newLoot() }; G.rollLgSeed(x); total += Object.values(x.loot.seed || {}).reduce((a, b) => a + b, 0); }
-  assert.equal(total, 36); assert.ok(Object.values(s.lgDrop.n).every(n => n === 2));
-  C.garden.LINGGUO.DROP_PCT = 40;
+  assert.equal(total, 18 * C.garden.LINGGUO.DROP_DAY_MAX); assert.ok(Object.values(s.lgDrop.n).every(n => n === C.garden.LINGGUO.DROP_DAY_MAX));
+  C.garden.LINGGUO.DROP_PCT = 15;
   const map = s.lgYs; assert.equal(Object.keys(map).length, 18); assert.equal(new Set(Object.values(map)).size, 18);
   const id = Object.keys(map)[0]; G.ysFound = () => true; s.ysFav = { [id]: 25 };
   G.ysBuyLgSeed(id); G.ysBuyLgSeed(id);

@@ -29,7 +29,7 @@ test("灵果：防御、法力生效；属性伤害真的加进法术伤害", ()
 
 test("灵果田：离线结算也能收获；灵果种子随秘境结算发放；存档重载后服用记录保留", () => {
   const { e, G, D, s } = mk(); s.stone = 1e9; s.ling = 3e6;
-  const g = D.LG_BASE + 7; G.addSeed(g, 1); G.openField(); G.plantField(0, g);
+  const g = D.LG_BASE + 7; G.addSeed(g, 1); [0, 1, 2].forEach(g => G.addMat("ore", e.DATA.ores[g], g, 5000)); G.openField(); G.plantField(0, g);
   s.ling = 3e6; s.fields[0].start -= G.fieldTime(g) + 1000; G.tickAll(true);
   assert.ok(s.bag.some(x => x && x.t === "lg" && x.k === 7), "离线收获");
   const loot = G.newLoot(); loot.seed = { [D.LG_BASE + 3]: 2 }; G.giveLoot(loot);

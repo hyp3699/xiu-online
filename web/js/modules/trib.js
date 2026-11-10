@@ -85,6 +85,7 @@ G.module({
         let [d, c] = this.tribHit(x, el.id);
         if (el.id === "lei" && this.oriSum && this.oriSum("leiCut")) d *= Math.max(0, 1 - this.oriSum("leiCut") / 100);   // 出身「天降异象」
         if (this.jmElCut && this.jmElCut(el.id)) d *= Math.max(0, 1 - this.jmElCut(el.id) / 100);   // 经脉腿部：受到该系属性伤害 −%
+        if (this.zfDmg) d = Math.max(0, d - this.zfDmg(el.id, d));   // 洞府主动阵法：固定点数减 / 加，不乘倍率
         s.hp -= d; x.taken += d; x.hits++;
         hit = { n: x.hits, d, c, el: el.id };
         x.last = hit;   // 最近一击：联网时客户端按它画闪电、飘伤害

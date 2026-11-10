@@ -85,6 +85,19 @@ DATA.blueprintCost = (kind, g) => _FU[kind].blueprint[g];
 DATA.GARDEN_MAX = _GA.MAX;
 DATA.fieldCost = i => { const a = _GA.OPEN_COST, b = _GA.OPEN_LAST, n = (_GA.MAX || 1) - 1;   // 第 i+1 块
   return Math.round(b && n > 0 ? a * Math.pow(b / a, Math.min(i, n) / n) : a * Math.pow(_GA.OPEN_RATE || 1, i)); };
+// 土地（config/garden.js LAND）：等级 0~36，每块灵田单独（s.fields[i].lv）
+DATA.LAND = () => Object.assign({ MAX: 36, BAND: [12, 24, 36], PCT: [1, 1, 1], LY: [100, 5000] }, _GA.LAND || {});   // 默认值与 config/garden.js 一致（每级 +1%，满级 36%）：配置缺失时也不静默变分档
+DATA.landBand = lv => { const B = DATA.LAND().BAND; const i = B.findIndex(v => lv <= v); return i < 0 ? B.length - 1 : i; };
+DATA.landPct = lv => { lv = Math.max(0, Math.min(DATA.LAND().MAX, Math.floor(+lv || 0))); const L = DATA.LAND(); let t = 0, lo = 0;
+  L.BAND.forEach((hi, b) => { t += Math.max(0, Math.min(lv, hi) - lo) * (+L.PCT[b] || 0); lo = hi; }); return Math.round(t * 100) / 100; };
+DATA.landCost = lv => { const L = DATA.LAND(), a = +L.LY[0] || 0, b = +L.LY[1] || a, n = Math.max(1, L.MAX - 1); return Math.round(a + (b - a) * (Math.max(1, Math.min(L.MAX, lv)) - 1) / n); };   // 升到第 lv 级的灵液
+DATA.landColorName = lv => ["普通", "绿色", "红色"][DATA.landBand(lv)] || "";
+// 土地外观：三张满幅土壤图（0~12 级普通土、13~24 绿、25~36 红），同一样式、只换土色，边缘带一点坡度、不带硬边框，不随等级加深
+DATA.landStyle = lv => { const n = Math.floor(+lv || 0) ? DATA.landBand(Math.floor(+lv)) + 1 : 1;
+  return `background-color:transparent;background-image:url(img/land_${n}.webp?v=${DATA.IMG_V});background-size:cover;background-position:center;background-repeat:no-repeat`; };
+// 开辟第 i+1 块灵田的矿石：每种 OPEN_ORE × (i+1)，从 OPEN_ORES 第 i 种起连续取 OPEN_ORE_N 种
+DATA.fieldMats = i => { const P = _GA.OPEN_ORES || [], L = P.length, k = Math.min(L, Math.max(0, +_GA.OPEN_ORE_N || 0)), n = Math.round((+_GA.OPEN_ORE || 0) * (i + 1));
+  return L && k && n > 0 ? DATA.parseMats([...Array(k).keys()].map(j => [P[(i + j) % L], n])) : []; };
 // 灵果（config/garden.js LINGGUO）：灵田作物编号 = LG_BASE + 序号，和药材序号分开；种子物品同样是 { t: "seed", g }
 DATA.LG_BASE = 100;
 DATA.LG = () => (_GA.LINGGUO || { list: [] });
@@ -94,7 +107,7 @@ DATA.lgN = () => (DATA.LG().list || []).length;
 DATA.lgImg = i => `img/lg/${i}.png?v=${DATA.IMG_V}`;
 DATA.lgLab = k => k.startsWith("dmg_") ? ((DATA.elById[k.slice(4)] || {}).name || "") + "系属性伤害" : k.startsWith("dr_") ? ((DATA.elById[k.slice(3)] || {}).name || "") + "系属性减伤"
   : { atk: "攻击", def: "防御", hp: "生命", mana: "法力", cult: "修为修炼速度", body: "气血修炼速度" }[k] || k;
-DATA.herbGrow = g => { if (DATA.isLg(g)) { const L = DATA.LG(); return DATA.lgDef(g - DATA.LG_BASE) ? { grow: L.GROW || 4320, ling: L.LING || 0, yield: [1, 3], lg: 1 } : undefined; } return _GA.herbs[DATA.herbs[g]]; };
+DATA.herbGrow = g => { if (DATA.isLg(g)) { const L = DATA.LG(); return DATA.lgDef(g - DATA.LG_BASE) ? { grow: L.GROW || 4320, ling: L.LING || 0, yield: [1, 3], lg: 1 } : undefined; } const h = _GA.herbs[DATA.herbs[g]]; if (!h || h.ling != null) return h; return Object.assign({}, h, { ling: h.div ? Math.round((h.yield || [0])[0] * DATA.matPrice("herb", g) * ((DATA.array || {}).STONE_LING || 0) / h.div) : 0 }); };   // 种植灵气 = 最低产量 × 售价 × 1 灵石灵气 ÷ div；没写 div 的药材灵气按 0 算，不返回 undefined（否则扣灵气会变 NaN）
 DATA.cropName = g => DATA.isLg(g) ? (DATA.lgDef(g - DATA.LG_BASE) || {}).name || "灵果" : DATA.herbs[g];
 DATA.cropImg = g => DATA.isLg(g) ? DATA.lgImg(g - DATA.LG_BASE) : DATA.matImg("herb", g);
 DATA.growTime = g => DATA.herbGrow(g).grow * 60000;

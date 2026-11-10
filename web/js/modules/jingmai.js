@@ -3,11 +3,11 @@
  * ---------------------------------------------------------------------
  * 修炼页人物身前光球进入：人体上 6 条主脉 × 6 个光点；点光点进入光点页，10 个穴位各 10 层，加生命 法力 攻击 防御 六系抗性
  * （craft.js danBonus 里加 jmBonus）。
- * 存档：jmv[光点序号 × 10 + 穴位序号] = 层数；灵液 lingye；冲脉丹是秘境专用材料 cmd（bag.js smCount）
+ * 存档：jmv[光点序号 × 10 + 穴位序号] = 层数；灵液是背包专用材料 sm "lingye"（旧存档 s.lingye 由 core/game.js migrate 转进背包）；冲脉丹是秘境专用材料 cmd（bag.js smCount）
  * ===================================================================== */
 G.module({
   id: "jingmai",
-  defaults: () => ({ jmv: [], lingye: 0 }),
+  defaults: () => ({ jmv: [], jmi: {} }),
 
   api: {
     jmList() { return (CFG.jingmai || {}).LIST || []; },
@@ -37,6 +37,7 @@ G.module({
     jmStatName(k) { return k === "hp" ? "生命" : (DATA.MOB_RAND_ZH[k] || k).replace("抗性", "抗"); },
     jmBonus() { const b = {}, N = this.jmNodes().length;
       for (let i = 0; i < N; i++) for (let x = 0; x < this.jmXN(); x++) { const lv = this.jmGet(i, x); if (lv) { const k = this.jmXue(i, x)[1]; if (k) b[k] = (b[k] || 0) + lv * this.jmVal(i, x); } }
+      const I = this.s.jmi || {}; for (const i in I) { const v = (I[i] || {}).v || {}; for (const k in v) b[k] = (b[k] || 0) + (+v[k] || 0); }   // 中间 2 个窍穴
       return b; },
     // 穴位冲满额外：修炼速度、练体速度各随机 FULL_MIN~FULL_MAX，平均 FULL_AVG（三角分布）
     jmRollFull() { const C = CFG.jingmai || {}, a = +C.FULL_MIN || 0, b = Math.max(a, +C.FULL_MAX || 0), avg = +C.FULL_AVG || (a + b) / 2;
@@ -58,8 +59,8 @@ G.module({
         return this.log(this.jmCap() ? `当前境界最多开启 ${this.jmCap()} 个光点，突破后可再开 ${+C.UNLOCK_PER || 0} 个。` : `${DATA.realmLabel(+C.UNLOCK_REALM || 0)}才能开启。`, "sys"); }
       const dan = this.jmDan(), lq = this.jmLyNeed();
       if (this.smCount("cmd") < dan) return this.log(`${DATA.smName("cmd")}不足，这一层需要 ${dan} 颗。`, "sys");
-      if ((s.lingye || 0) < lq) return this.log(`灵液不足，这一层需要 ${U.fmt(lq)} 灵液。`, "sys");
-      if (dan) this.takeSm("cmd", dan); s.lingye = (s.lingye || 0) - lq;
+      if (this.smCount("lingye") < lq) return this.log(`灵液不足，这一层需要 ${U.fmt(lq)} 灵液。`, "sys");
+      if (dan) this.takeSm("cmd", dan); if (lq) this.takeSm("lingye", lq);
       if (!Array.isArray(s.jmv)) s.jmv = []; const k = node * this.jmXN() + x; s.jmv[k] = (+s.jmv[k] || 0) + 1; this._jmFx = Date.now();
       let ex = "";
       if (s.jmv[k] >= ly) { const c = this.jmRollFull(), b = this.jmRollFull(); (s.jmx = s.jmx || {})[k] = [c, b]; ex = `，额外修炼速度 +${U.fmt(c)}、练体速度 +${U.fmt(b)}`; }
@@ -68,20 +69,45 @@ G.module({
     },
     // 灵液兑换：药材 → 灵液；n = -1 全部（只有 -1 是哨兵，-999、-0.5 都不再算全部）
     jmSwap(name, n) {
-      const r = +((CFG.jingmai || {}).LY_RATE || {})[name] || 0, m = DATA.matByName[name];
-      if (!r || !m || m.kind !== "herb") return this.log("这种药材不能兑换灵液。", "sys");
-      const have = this.countMat("herb", m.g); n = n === -1 ? have : Math.min(Math.floor(+n || 0), have);
+      const r = +((CFG.jingmai || {}).LY_RATE || {})[name] || 0, m = DATA.matByName[name], sm = !m || m.kind !== "herb" ? this.jmSwapSm(name) : null;
+      if (!r || (!sm && (!m || m.kind !== "herb"))) return this.log("这种药材不能兑换灵液。", "sys");
+      const have = sm ? this.smCount(sm) : this.countMat("herb", m.g); n = n === -1 ? have : Math.min(Math.floor(+n || 0), have);
       if (n <= 0) return this.log(`${name}不足。`, "sys");
-      this.takeMat("herb", m.g, n); this.s.lingye = (this.s.lingye || 0) + n * r;
+      if (sm) this.takeSm(sm, n); else this.takeMat("herb", m.g, n); this.addSm("lingye", n * r);
       this.log(`${name} ×${U.fmt(n)} 兑换灵液 ${U.fmt(n * r)}。`, "good"); this.dirty(); this.after();
       if (this._jmSwapOn) this.openJmSwap();
     },
+    // 能换灵液的专用材料（神识功法药材 元魂果 yhg、凝魂芝 nhz）：名字 → 键
+    jmSwapSm(name) { const k = ((CFG.shenshi || {}).HERB_DROP || {}).ITEMS || []; const f = DATA.smByName(name); return f && k.includes(f.k) ? f.k : null; },
     openJmSwap() {
       const R = (CFG.jingmai || {}).LY_RATE || {}; this._jmSwapOn = true;
-      const rows = Object.keys(R).filter(n => DATA.matByName[n] && DATA.matByName[n].kind === "herb").map(n => { const g = DATA.matByName[n].g, h = this.countMat("herb", g);
+      const rows = Object.keys(R).filter(n => (DATA.matByName[n] && DATA.matByName[n].kind === "herb") || this.jmSwapSm(n)).map(n => { const sm = this.jmSwapSm(n), h = sm ? this.smCount(sm) : this.countMat("herb", DATA.matByName[n].g);
         return `<div class="line${h ? "" : " dimrow"}"><div>${n}<small>拥有 ${U.fmt(h)} · 每个 ${R[n]} 灵液</small></div><div>${(CFG.jingmai.SWAP_N || [1, 100, 1000]).map(k => `<button class="sm" onclick="G.jmSwap('${n}',${k})" ${h ? "" : "disabled"}>${U.fmt(k)}</button>`).join(" ")}</div></div>`; });
-      this.modal(`<h2>灵液兑换</h2><p class="desc" style="text-align:center">当前灵液 <b>${U.fmt(this.s.lingye || 0)}</b></p><div class="runlist">${rows.join("")}</div>
+      this.modal(`<h2>灵液兑换</h2><p class="desc" style="text-align:center">当前灵液 <b>${U.fmt(this.smCount("lingye"))}</b></p><div class="runlist">${rows.join("")}</div>
         <div class="btns"><button onclick="G._jmSwapOn=false;G.closeModal()">关闭</button></div>`);
+    },
+    /* ---------- 中间 2 个窍穴：存档 s.jmi[node * 2 + j] = { n: 冲过次数, v: { 属性: 累计 } } ---------- */
+    jmIn() { return (CFG.jingmai || {}).INNER || {}; },
+    jmInList() { return this.jmIn().LIST || []; },
+    jmInGet(node, j) { const o = (this.s.jmi || {})[node * 2 + j]; if (!o || typeof o !== "object") return { n: 0, v: {} };
+      o.n = Math.max(0, Math.floor(+o.n) || 0); if (!o.v || typeof o.v !== "object") o.v = {}; return o; },   // 坏数据也不出 NaN
+    jmInCost(node, j) { const C = this.jmIn(), k = this.jmInGet(node, j).n + 1; return Math.round(k * (+C.COST_FIRST || 0) + k); },   // 冲到第 k 层：k × 108万 + k
+    jmInOk(node) { const C = CFG.jingmai || {}, r = this.s.mortal ? -1 : this.r(), rq = this.jmReq(node); return r >= (+C.UNLOCK_REALM || 0) && (rq < 0 || r >= rq); },
+    jmInOpen(node, j) {
+      node = Math.floor(+node); j = Math.floor(+j);
+      const s = this.s, d = this.jmNodes()[node], X = this.jmInList()[j], C = this.jmIn(); if (!d || !X) return;
+      if (!this.jmInOk(node)) { const rq = Math.max(this.jmReq(node), +(CFG.jingmai || {}).UNLOCK_REALM || 0); return this.log(`「${X.name}」需要${DATA.realmLabel(rq)}才能冲。`, "sys"); }
+      const key = X.cost === "bodyExp" ? "bodyExp" : "exp", cn = key === "exp" ? "修为" : "气血", need = this.jmInCost(node, j);
+      if ((+s[key] || 0) < need) return this.log(`${cn}不足，冲「${X.name}」需要 ${U.fmt(need)} ${cn}。`, "sys");
+      const ST = C.STATS || []; if (!ST.length) return;
+      const k = ST[Math.floor(Math.random() * ST.length)], P = C.PTS || [[1, 100]], tot = P.reduce((t, p) => t + (+p[1] || 0), 0) || 1;
+      let u = Math.random() * tot, pt = +P[P.length - 1][0] || 1; for (const p of P) { u -= +p[1] || 0; if (u < 0) { pt = +p[0] || 1; break; } }
+      const add = pt * (+(C.MULT || {})[k] || 1);
+      s[key] = (+s[key] || 0) - need;
+      if (!s.jmi || typeof s.jmi !== "object" || Array.isArray(s.jmi)) s.jmi = {};
+      const o = s.jmi[node * 2 + j] = this.jmInGet(node, j); o.n = (+o.n || 0) + 1; o.v = o.v || {}; o.v[k] = (+o.v[k] || 0) + add; this._jmFx = Date.now();
+      this.log(`「${X.name}」冲至第 ${o.n} 层，${this.jmStatName(k)}增加 ${U.num(add)}。`, "good");
+      this.dirty(); this.after();
     },
     openJingmai(on) { this.cultView = on ? "jingmai" : ""; this.jmNode = null; this.render(); },
     openJmNode(i) { this.jmNode = i === null || i === undefined ? null : i; this.render(); },
@@ -118,8 +144,8 @@ G.jmMini = function () {
 };
 
 G.jmCostBar = function () {
-  const dan = this.jmDan(), lq = this.jmLyNeed(), hd = this.smCount("cmd"), hl = this.s.lingye || 0;
-  return `<div class="jm-cost"><span><img src="${DATA.smIcon("cmd")}" alt="">${DATA.smName("cmd")} <b class="${hd >= dan ? "" : "q5"}">${U.fmt(hd)}/${dan}</b></span><span><img src="${DATA.iconImg("sm_lingye")}" alt="">灵液 <b class="${hl >= lq ? "" : "q5"}">${U.fmt(hl)}/${U.fmt(lq)}</b></span></div>`;
+  const dan = this.jmDan(), lq = this.jmLyNeed(), hd = this.smCount("cmd"), hl = this.smCount("lingye");
+  return `<div class="jm-cost"><span><img src="${DATA.smIcon("cmd")}" alt="">${DATA.smName("cmd")} <b class="${hd >= dan ? "" : "q5"}">${U.fmt(hd)}/${dan}</b></span><span><img src="${DATA.smIcon("lingye")}" alt="">灵液 <b class="${hl >= lq ? "" : "q5"}">${U.fmt(hl)}/${U.fmt(lq)}</b></span></div>`;
 };
 
 G.jmSumTxt = function () {
@@ -130,20 +156,31 @@ G.jmSumTxt = function () {
   return t.length ? `<p class="desc jm-info" style="text-align:center">经脉：${t.join(" · ")}</p>` : "";
 };
 
-G.jmNodeInfo = function (node) {
-  const rq = this.jmReq(node), cut = this.jmCutOf(node), full = this.jmCur(node) >= this.jmXN(), r = this.s.mortal ? -1 : this.r(), t = [];
-  if (rq >= 0) t.push(`开启需要 <b class="${r >= rq || this.jmStarted(node) ? "" : "q5"}">${DATA.realmLabel(rq)}</b>`);
-  if (cut) t.push(`全部冲满：功法修炼时间 -${U.num(cut)}%${full ? "（已生效）" : ""}`);
-  const en = id => (DATA.elById[id] || {}).name || id, ed = this.jmElOf(node, "elDmg"), ec = this.jmElOf(node, "elCut");
-  if (ed) t.push(`全部冲满：${en(ed[0])}属性伤害 +${U.num(ed[1])}%${full ? "（已生效）" : ""}`);
-  if (ec) t.push(`全部冲满：受到${en(ec[0])}属性伤害 -${U.num(ec[1])}%${full ? "（已生效）" : ""}`);
-  return t.length ? `<p class="desc jm-info" style="text-align:center">${t.join(" · ")}</p>` : "";
+G.jmNodeInfo = function (node) {   // 只显示开启需要的境界；冲满效果生效后在「已增加属性」里显示
+  const rq = this.jmReq(node), r = this.s.mortal ? -1 : this.r();
+  return rq >= 0 ? `<p class="desc jm-info" style="text-align:center">开启需要 <b class="${r >= rq || this.jmStarted(node) ? "" : "q5"}">${DATA.realmLabel(rq)}</b></p>` : "";
+};
+
+/* 光点页圈下方：这个光点 10 个穴位已经加了多少属性（每系抗性单独一项） */
+G.jmNodeStats = function (node) {
+  const ly = this.jmLy(), cur = {}, max = {}, ord = [];
+  for (let x = 0; x < this.jmXN(); x++) { const k = this.jmXue(node, x)[1]; if (!k) continue; if (!(k in max)) { ord.push(k); cur[k] = 0; max[k] = 0; }
+    const v = this.jmVal(node, x); cur[k] += this.jmGet(node, x) * v; max[k] += ly * v; }
+  for (let j = 0; j < this.jmInList().length; j++) { const v = this.jmInGet(node, j).v || {}; for (const k in v) { if (!(k in cur)) { ord.push(k); cur[k] = 0; } cur[k] += +v[k] || 0; } }   // 中间 2 个窍穴
+  const t = ord.filter(k => cur[k] > 0).map(k => [this.jmStatName(k), U.num(cur[k])]);   // 加 0 的不显示
+  // 穴位冲满的修炼/练体速度、光点全部冲满的效果：实际生效了才显示
+  const X = this.s.jmx || {}; let sc = 0, sb = 0; for (let x = 0; x < this.jmXN(); x++) { const v = X[node * this.jmXN() + x]; if (v) { sc += +v[0] || 0; sb += +v[1] || 0; } }
+  if (sc) t.push(["修炼速度", U.fmt(sc)]); if (sb) t.push(["练体速度", U.fmt(sb)]);
+  if (this.jmCur(node) >= this.jmXN()) { const en = id => (DATA.elById[id] || {}).name || id, c = this.jmCutOf(node), ed = this.jmElOf(node, "elDmg"), ec = this.jmElOf(node, "elCut");
+    if (c) t.push(["功法修炼时间", `-${U.num(c)}%`]); if (ed) t.push([`${en(ed[0])}属性伤害`, `${U.num(ed[1])}%`]); if (ec) t.push([`受到${en(ec[0])}属性伤害`, `-${U.num(ec[1])}%`]); }
+  if (!t.length) return "";
+  return `<div class="jm-nst"><div class="jm-nst-t">已增加属性</div><div class="jm-nst-g">${t.map(([a, b]) => `<span>${a} <b>${b}</b></span>`).join("")}</div></div>`;
 };
 
 /* 光点页：10 个穴位围成一圈，点穴位冲穴（不显示每个穴位加什么属性） */
 G.jmNodeView = function (node) {
   const d = this.jmNodes()[node], ly = this.jmLy(), xn = this.jmXN(), cur = this.jmCur(node), col = d.m.color;
-  const pts = []; for (let x = 0; x < xn; x++) { const a = -Math.PI / 2 + x * 2 * Math.PI / xn; pts.push([200 + 140 * Math.cos(a), 200 + 140 * Math.sin(a)]); }
+  const pts = []; for (let x = 0; x < xn; x++) { const a = -Math.PI / 2 + x * 2 * Math.PI / xn; pts.push([200 + 165 * Math.cos(a), 200 + 165 * Math.sin(a)]); }   // 外圈半径 165
   const lines = [], dots = [];
   for (let x = 0; x < xn; x++) { const [px, py] = pts[x], nm = this.jmXue(node, x)[0], lv = this.jmGet(node, x), on = lv >= ly, nx = x === cur;
     if (x > 0) { const [qx, qy] = pts[x - 1], lit = this.jmGet(node, x - 1) >= ly && lv > 0;
@@ -151,10 +188,15 @@ G.jmNodeView = function (node) {
     dots.push(`<g class="jm-pt${nx ? " nx" : ""}" onclick="G.jmOpen(${node},${x})"><circle cx="${px}" cy="${py}" r="26" fill="transparent"/>
       <circle cx="${px}" cy="${py}" r="${nx ? 13 : 11}" fill="${on || lv ? col : "#3a3028"}" fill-opacity="${on ? 1 : lv ? 0.4 + lv / ly * 0.5 : 1}" stroke="${on || nx ? "#fff" : "#a89070"}" stroke-width="${nx ? 2 : 1.2}"${on || nx || lv ? ` filter="url(#jmGlow)"` : ""}/>
       <text x="${px}" y="${py + 30}" class="jm-xn">${nm}</text><text x="${px}" y="${py + 46}" class="jm-xs">${lv}/${ly}</text></g>`); }
+  const inOk = this.jmInOk(node), inn = this.jmInList().map((X, j) => { const px = j ? 288 : 112, py = 200, o = this.jmInGet(node, j), cn = X.cost === "bodyExp" ? "气血" : "修为",
+      ok = true;   // 一直闪（用户定）
+    return `<g class="jm-pt${ok ? " nx" : ""}" onclick="G.jmInOpen(${node},${j})"><circle cx="${px}" cy="${py}" r="24" fill="transparent"/>
+      <circle cx="${px}" cy="${py}" r="12" fill="${o.n ? col : "#3a3028"}" fill-opacity="${o.n ? 0.9 : 1}" stroke="${ok ? "#fff" : "#a89070"}" stroke-width="${ok ? 2 : 1.2}"${o.n || ok ? ` filter="url(#jmGlow)"` : ""}/>
+      <text x="${px}" y="${py + 30}" class="jm-xn">${X.name}</text><text x="${px}" y="${py + 46}" class="jm-xs">${o.n} 层</text><text x="${px}" y="${py + 61}" class="jm-xs">消耗${cn} ${U.fmt(this.jmInCost(node, j))}</text></g>`; }).join("");
   return `<div class="jm-card"><div class="jm-stage${this._jmFx && Date.now() - this._jmFx < 1000 ? " fx" : ""}">
-    <svg viewBox="-10 20 420 420" preserveAspectRatio="xMidYMid meet" class="jm-svg">${JM_DEFS}
-      <circle cx="200" cy="215" r="70" fill="${col}" fill-opacity="0.12" filter="url(#jmGlow)"/><text x="200" y="210" class="jm-cn">${d.n.name}</text><text x="200" y="236" class="jm-xs">${d.m.name}</text>
-      <g transform="translate(0,15)">${lines.join("")}${dots.join("")}</g></svg>
+    <div class="jm-ringbox"><svg viewBox="-10 20 420 420" preserveAspectRatio="xMidYMid meet" class="jm-svg jm-ring">${JM_DEFS}
+      <circle cx="200" cy="215" r="52" fill="${col}" fill-opacity="0.12" filter="url(#jmGlow)"/><text x="200" y="210" class="jm-cn">${d.n.name}</text><text x="200" y="236" class="jm-xs">${d.m.name}</text>
+      <g transform="translate(0,15)">${lines.join("")}${dots.join("")}${inn}</g></svg>${this.jmNodeStats(node)}</div>
     <div class="ys-pow"><span>${d.m.name}</span><b>${d.n.name}</b></div>
     <button class="sm jm-swap" onclick="G.openJmSwap()">灵液兑换</button>
     ${this.jmCostBar()}</div>

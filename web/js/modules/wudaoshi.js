@@ -68,7 +68,9 @@ G.module({
 
   api: {
     // 神魂之道减掉的每次修炼灵气消耗（kind: exp 修为 / body 肉身）
-    wdRed(kind) { return ((this.s.wd || {}).red || {})[kind] || 0; },
+    wdRedRaw(kind) { return ((this.s.wd || {}).red || {})[kind] || 0; },   // 神魂之道减的灵气（点 / 10 秒）
+    // 修炼灵气减少量（点 / 10 秒）= 神魂之道 + 神识功法《敛息归元诀》分到的那份；kind exp 修为 / body 肉身
+    wdRed(kind) { return this.wdRedRaw(kind) + (this.lxShare ? this.lxShare()[kind] || 0 : 0); },   // 敛息：和功法修炼共用一份（lxShare）
     // 战斗之道随机属性累计（player.js computeStats 里加进属性）
     wdBat() { const b = ((this.s.wd || {}).bat || {}); return { atk: b.atk || 0, def: b.def || 0, hp: b.hp || 0, res: Object.assign({}, b.res || {}) }; },
     wdLeft(dao) { const w = this.s.wd || {}; return (w.day || {})[dao] === this.today() ? 0 : 1; },   // 每条道每天 1 次
@@ -117,7 +119,7 @@ G.module({
       const j = t / interval - 1;
       if (t % interval === 0 && j < DATA.wdBooksCount(st.k)) {
         const id = DATA.wdBookId(st.k, j), nm = `《${DATA.gongfaInfo(id, 1).name}》`;
-        { const where = this.bagPutOrMail({ t: "gfb", id, n: 1 }); book = `悟得${nm}（已放入${where === "mail" ? "传音暂存" : "背包"}）`; }
+        { const where = this.bagPutOrMail({ t: "gfb", id, n: 1 }); book = `悟得${nm}（已放入${where === "mail" ? "传音" : "背包"}）`; }
         msg += "，" + book;
       }
       this._wdFx = Date.now();
@@ -160,7 +162,7 @@ G.module({
       if (t % interval === 0) {
         const j = t / interval - 1;
         const id = `wz${k}_${j}:${DATA.wzSrc(`wz${k}_${j}`).type}`, nm = `《${DATA.gongfaInfo(id, 1).name}》`;
-        { const where = this.bagPutOrMail({ t: "gfb", id, n: 1 }); book = `悟得${nm}（已放入${where === "mail" ? "传音暂存" : "背包"}）`; }
+        { const where = this.bagPutOrMail({ t: "gfb", id, n: 1 }); book = `悟得${nm}（已放入${where === "mail" ? "传音" : "背包"}）`; }
         msg.push(book);
       }
       this._wdFx = Date.now();
@@ -187,7 +189,7 @@ G.caveViews.wudao = function () {
   else {
     const st = DATA.wdStage(w.n[cur.id] || 0, cur.id), need = DATA.wdStageFruit(st.k, cur.id), have = this.smCount("wdg"), left = this.wdLeft(cur.id), run = this._wdRun;
     body = `<div class="ys-need"><img src="${DATA.smIcon("wdg")}" alt=""><b class="${have >= need ? "" : "q5"}">${U.fmt(have)}/${need}</b></div>
-      <p class="desc wd-tip">${cur.desc}</p>${cur.id === "shenhun" ? `<div class="stats"><div><span>修为灵气消耗</span>−${U.fmt(this.wdRed("exp"))}</div><div><span>肉身灵气消耗</span>−${U.fmt(this.wdRed("body"))}</div></div>` : ""}
+      <p class="desc wd-tip">${cur.desc}</p>${cur.id === "shenhun" ? `<div class="stats"><div><span>修为灵气消耗</span>−${U.fmt(this.wdRedRaw("exp"))}</div><div><span>肉身灵气消耗</span>−${U.fmt(this.wdRedRaw("body"))}</div></div>` : ""}
       ${run ? `<div class="bar wd-run"><div style="animation-duration:${_WR.TIME}s;animation-delay:-${Math.max(0, _WR.TIME - (run.end - Date.now()) / 1000).toFixed(2)}s"></div></div><div class="btns"><button class="primary" disabled>悟道中……</button></div>`
         : `<div class="btns"><button class="primary" onclick="G.wudao('${cur.id}')" ${left > 0 && have >= need ? "" : "disabled"}>开始悟道</button></div>`}`;
   }

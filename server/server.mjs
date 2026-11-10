@@ -682,7 +682,7 @@ const server = http.createServer(async (req, res) => {
       db.prepare("INSERT INTO gifts(code,payload,max_uses,expires_at,created_at) VALUES(?,?,?,?,?)").run(code, JSON.stringify(payload), maxUses, expiresAt, Date.now());
       return sendJson(res, 201, { ok: true, code });
     }
-    // 管理员：礼包物品直接传音发送给全部玩家（进传音暂存，10 天未领清除）
+    // 管理员：礼包物品直接传音发送给全部玩家（进传音，10 天未领清除）
     if (user.is_admin && req.method === "POST" && route === "/api/admin/gift/mail") {
       const body = await readBody(req), items = Array.isArray(body.items) ? body.items : [];
       if (!items.length || items.length > 100) return error(res, 400, "礼包物品数量需为 1–100 件");

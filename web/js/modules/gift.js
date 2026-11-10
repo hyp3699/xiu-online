@@ -12,7 +12,7 @@
  *   eq {slot, g, n}                     装备（slot = 部位，戒指写 "ring:种类序号"）
  *   herb / ore {g, n}                   药材 / 矿石（不含特产）；ore 的 g ≥ 1000 = 耀石（g − 1000 = 属性序号）
  *   tc {name, n}                        四界特产
- *   dan {item: "p:类型" 修炼丹 | "d:丹方", g, n}
+ *   dan {item: "p:类型" 修炼丹 | "d:丹方", g, n} / {item: "s:cmd", n} 冲脉丹
  *   bp {item: "f:炉子" | "r:戒指序号", g, n}   图纸
  *   lj / lz {ft, n}                     灵晶 / 灵珠（ft = 金木水火土 0~4）
  *   hx {n}                              火髓
@@ -57,16 +57,21 @@ G.module({
       if (c === "tc") return [{ k: "name", label: "名称", opts: [...this.giftSpecial().filter(n => DATA.matByName[n]).map(n => [n, n]), [DATA.smName("wdg"), DATA.smName("wdg")]] }, N];   // 悟道果也放在特产里
       if (c === "dan") {
         const items = [...Object.keys(DATA.pills).map(t => ["p:" + t, DATA.pills[t].name]),
-          ...Object.keys(DATA.dans).map(t => ["d:" + t, DATA.recipes[t].name])];
-        const it = a.item || items[0][0], R = DATA.recipes[it.slice(2)] || {};
+          ...Object.keys(DATA.dans).map(t => ["d:" + t, DATA.recipes[t].name]), ["s:cmd", DATA.smName("cmd")]];   // 冲脉丹（秘境专用材料，无品质/阶）
+        const it = a.item || items[0][0];
+        if (it[0] === "s") return [{ k: "item", label: "丹药", opts: items }, N];
+        const R = DATA.recipes[it.slice(2)] || {};
         // 阶数按配方行数算（悟真丹没有 val 数组，只有 1 行配方，不能按 val 算，否则阶下拉为空，giftNorm 在第 80 行崩）
         const tiers = it[0] === "p" ? 0 : Math.max(1, (R.herbs || R.val || []).length);
         const gs = it[0] === "p" ? DATA.realms.map((n, i) => [i, DATA.realmLabel(i)]) : Array.from({ length: tiers }, (_, i) => [i, DATA.JIE[i]]);
         return [{ k: "item", label: "丹药", opts: items }, { k: "g", label: it[0] === "p" ? "品质" : "阶", opts: gs }, N];
       }
       if (c === "bp") {
-        const items = [...DATA.FURNACE_KINDS.map(k => ["f:" + k, DATA.furnaceKinds[k] + "图纸"]), ...DATA.ringList().map(r => ["r:" + r, DATA.ringNames[r] + "图纸"])];
-        const it = a.item || items[0][0], fk = it.slice(2), gs = it[0] === "f" ? Array.from({ length: DATA.furnaceN(fk) }, (_, i) => [i, (fk === "qi" ? DATA.XING : DATA.JIE)[i]]) : xing;
+        const items = [...DATA.FURNACE_KINDS.map(k => ["f:" + k, DATA.furnaceKinds[k] + "图纸"]), ...DATA.ringList().map(r => ["r:" + r, DATA.ringNames[r] + "图纸"]), ...((CFG.zhenfa || {}).ACTIVE || []).map(f => ["za:" + f.id, f.name + "图纸"]), ...((CFG.zhenfa || {}).STAT || []).map(f => ["z:" + f.id, f.name + "图纸"])];
+        const it = a.item || items[0][0], fk = it.slice(2);
+        if (it.startsWith("za:")) return [{ k: "item", label: "图纸", opts: items }, N];
+        if (it[0] === "z") return [{ k: "item", label: "图纸", opts: items }, { k: "g", label: "阶", opts: Array.from({ length: this.zfTiers() }, (_, i) => [i, this.zfTierZh(i + 1)]) }, N];
+        const gs = it[0] === "f" ? Array.from({ length: DATA.furnaceN(fk) }, (_, i) => [i, (fk === "qi" ? DATA.XING : DATA.JIE)[i]]) : xing;
         return [{ k: "item", label: "图纸", opts: items }, { k: "g", label: it[0] === "f" && fk !== "qi" ? "阶" : "星", opts: gs }, N];
       }
       return [];
@@ -102,8 +107,8 @@ G.module({
           case "hx": return DATA.HX + n;
           case "st": return `神通「${this.stName(it.id)}」`;
           case "bm": return this.bmCfg().MIFA;
-          case "dan": { const [k, t] = it.item.split(":"); return (k === "p" ? `${DATA.realms[it.g]}·${DATA.pills[t].name}` : DATA.danName(t, it.g)) + n; }
-          case "bp": { const [k, t] = it.item.split(":"); return (k === "f" ? DATA.furnaceName(t, it.g) + "图纸" : DATA.ringBpName(it.g, +t)) + n; }
+          case "dan": { const [k, t] = it.item.split(":"); return (k === "s" ? DATA.smName(t) : k === "p" ? `${DATA.realms[it.g]}·${DATA.pills[t].name}` : DATA.danName(t, it.g)) + n; }
+          case "bp": { const [k, t] = it.item.split(":"); if (k === "z") return this.zfBpName(t, it.g + 1) + n; if (k === "za") return this.zfBpName(t, 0) + n; return (k === "f" ? DATA.furnaceName(t, it.g) + "图纸" : DATA.ringBpName(it.g, +t)) + n; }
         }
       } catch (e) {}
       return "未知物品";
@@ -128,7 +133,7 @@ G.module({
           return this.addMat(it.c, DATA.matName(it.c, it.g), it.g, n);
         case "lj": case "lz": return this.addSm(it.c, n, it.ft);
         case "hx": return this.addFire(n);
-        case "bm": if (this.bmBpHave()) return true; this.bagPutOrMail({ t: "bmbp" }); return true;   // 本命法宝炼制图纸：已有就不再给，背包满时进传音暂存
+        case "bm": if (this.bmBpHave()) return true; this.bagPutOrMail({ t: "bmbp" }); return true;   // 本命法宝炼制图纸：已有就不再给，背包满时进传音
         case "st": {   // 神通：直接修满（领悟），出战位有空就自动出战
           if (!this.stDef(it.id)) return false;
           const S = this.ysStFix(), had = this.ysStLv(it.id) >= this.ysStMax(); S[it.id] = this.ysStMax();
@@ -136,8 +141,10 @@ G.module({
           return true;
         }
         case "tc": { if (it.name === DATA.smName("wdg")) return this.addSm("wdg", n); const m = DATA.matByName[it.name]; return !!m && this.addMat(m.kind, it.name, m.g, n); }
-        case "dan": { const [k, t] = it.item.split(":"); return k === "p" ? this.addPill(t, it.g, n) : this.addDan(t, it.g, n); }
+        case "dan": { const [k, t] = it.item.split(":"); if (k === "s") return t === "cmd" && this.addSm(t, n); return k === "p" ? this.addPill(t, it.g, n) : this.addDan(t, it.g, n); }
         case "bp": { const [k, t] = it.item.split(":");
+          if (k === "za") return rep(() => { if (!this.zfAct(t)) return false; this.bagPutOrMail({ t: "zfbp", kind: t, g: 0 }); return true; });
+          if (k === "z") return rep(() => { if (!this.zfStat(t) || !(it.g >= 0 && it.g < this.zfTiers())) return false; this.bagPutOrMail({ t: "zfbp", kind: t, g: it.g + 1 }); return true; });
           return k === "f" ? rep(() => this.addBlueprintItem(t, it.g)) : rep(() => { this.bagPutOrMail({ t: "rbp", r: +t, g: it.g }); return true; }); }
       }
       return false;
@@ -180,7 +187,7 @@ G.module({
         this.loadGifts();
       } catch (e) { this.log("生成失败：" + e.message, "bad"); }
     },
-    // 传音发送：把礼包物品直接发到全部玩家的传音暂存（服务器 /api/admin/gift/mail）
+    // 传音发送：把礼包物品直接发到全部玩家的传音（服务器 /api/admin/gift/mail）
     async gdMail() {
       const d = this.gd;
       if (!d.list.length) return this.log("礼包里还没有物品。", "sys");
@@ -191,7 +198,7 @@ G.module({
         d.list = []; this.render();
       } catch (e) { this.log("传音发送失败：" + e.message, "bad"); }
     },
-    // 服务器调用：发放一件物品到传音暂存。灵石、功法等不占格的直接到账；占格的物品先放进临时空背包再全部转进传音
+    // 服务器调用：发放一件物品到传音。灵石、功法等不占格的直接到账；占格的物品先放进临时空背包再全部转进传音
     giftMailGive(it) {
       const s = this.s, bag = s.bag, cap = s.bagCap;
       s.bag = []; s.bagCap = 100000;

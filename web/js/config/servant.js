@@ -26,8 +26,8 @@ CFG.servant = {
     dan:  { name: "辅助炼丹", els: ["huo"], LV1: 1, MAX: 150 },   // 炼丹速度 +%
     qi:   { name: "辅助炼器", els: ["jin"], LV1: 1, MAX: 150 },   // 炼器速度 +%
     cult: { name: "辅助修炼", els: ["shui"], LV1: 0.6, MAX: 150 },   // 修为、肉身修炼速度 +%
-    ling: { name: "灵田种植", els: ["mu"], LV1: 0.5, MAX: 50,   // 种植速度 +%（生长时间 ÷ (1 + %)）
-            YIELD_LV1: 0.5, YIELD_MAX: 50 },   // 灵药产量 +%
+    ling: { name: "灵田种植", els: ["mu"], LV1: 0.5, MAX: 72,   // 种植速度 +%（生长时间 ÷ (1 + %)，满级 72%，用户定）
+            YIELD_LV1: 0.5, YIELD_MAX: 36 },   // 灵药产量 +%（满级 36%，用户定；原 50%）
     zhen: { name: "阵法辅助", els: ["jin", "mu", "shui", "huo", "tu"], LV1: 0, MAX: 0,   // v260 不再加聚灵 %，只加固定聚灵
             FLAT_LV1: 30, FLAT_MAX: 240000 },   // 另加固定聚灵（每 10 秒，不吃任何 % 加成）：1 级 FLAT_LV1 → 满级 FLAT_MAX，每级 × 同一倍率，多个相加
   },

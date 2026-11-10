@@ -140,6 +140,10 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 /* 物品、功法图标 */
 .slot-eq img.si{display:block;width:34px;height:34px;margin:0 auto 2px}
 .slot-eq.field-cell,.slot-eq.sv-cell{aspect-ratio:1;min-height:0;padding:4px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;line-height:1.25;cursor:pointer}
+.fc-bar{width:82%;height:5px;margin-top:3px;border-radius:3px;background:rgba(0,0,0,.12);overflow:hidden;flex:none}   /* 360px 宽手机上 margin-top 8px 会把进度条底部约 3px 顶出格子被裁掉，只剩细线 */
+.fc-bar>div{height:100%;background:#3fae5a;border-radius:3px}
+.fc-bar.bad>div,.bar.fc-pop.bad>div{background:#d9483b}
+.bar.fc-pop>div{background:#3fae5a}
 .slot-eq.field-cell img.si{width:56%;height:auto;max-height:56%;object-fit:contain}
 .sv-row{display:grid;grid-template-columns:44px 1fr auto auto auto auto;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #2e261f}
 .sv-row img{width:44px;height:44px;border-radius:50%;background:radial-gradient(circle,var(--c-line),#1a1511);border:1px solid var(--c-edge);object-fit:cover}
@@ -560,17 +564,24 @@ button small .cd{min-width:0}
 
 /* v199 神识 · 养神：人物打坐动画 */
 #view:has(.ys-card) { display: flex; flex-direction: column; overflow: hidden; }
-.ys-card { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; box-sizing: border-box; }
+.ys-card { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; box-sizing: border-box; padding: 0 0 8px; overflow: hidden; }
+.ys-card > .btns { padding: 0 10px; }
 .ys-card .btns { margin-top: 4px; }
-.ls-card { flex: 1 1 0; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; box-sizing: border-box; margin-bottom: 0; }
+.ls-card { flex: 0 0 auto; overflow-y: auto; display: flex; flex-direction: column; box-sizing: border-box; margin-bottom: 0; }
 .ls-card .btns { margin-top: auto; padding-top: 6px; }
-.ys-stage { position: relative; flex: 1; min-height: 120px; overflow: hidden; border-radius: 8px; margin: -4px -4px 8px;
+.ys-stage { position: relative; flex: 1; min-height: 120px; overflow: hidden; border-radius: 8px 8px 0 0; margin: 0 0 8px;
   background: radial-gradient(ellipse at 50% 45%, #6b4a7a 0%, #3a2440 55%, #1e1424 100%); }
 .ys-hero { position: absolute; left: 50%; bottom: 6%; height: 86%; max-width: 70%; object-fit: contain; transform: translateX(-50%); animation: ys-float 4s ease-in-out infinite; filter: drop-shadow(0 0 10px #fff3c880); }
 .ys-aura { position: absolute; left: 50%; top: 8%; width: 32%; aspect-ratio: 1; transform: translateX(-50%); border-radius: 50%;
   background: radial-gradient(circle, #fff6d0aa 0%, #e8d6ff55 40%, transparent 70%); animation: ys-pulse 3s ease-in-out infinite; }
 .ys-wisps i { position: absolute; bottom: -20px; width: 14px; height: 22px; border-radius: 50% 50% 45% 45%;
   background: radial-gradient(ellipse at 50% 40%, #e8f6ff 0%, #8fc8ff 45%, #4a8fe066 75%, transparent 100%); box-shadow: 0 0 10px #8fc8ff; opacity: 0; animation: ys-rise 7s linear infinite; }
+.ys-hbox { position: absolute; left: 50%; bottom: 6%; height: 86%; transform: translateX(-50%); animation: ys-float 4s ease-in-out infinite; }
+.ys-hbox .ys-hero { position: static; display: block; height: 100%; max-width: none; width: auto; transform: none; animation: none; }
+.ys-dots { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.ys-dot { position: absolute; width: 26px; height: 26px; transform: translate(-50%, -50%); pointer-events: auto; background: none; border: 0; padding: 0; margin: 0; min-width: 0; min-height: 0; box-shadow: none; display: flex; align-items: center; justify-content: center; animation: ys-dot 2.4s ease-in-out infinite; }
+.ys-dot i { display: block; width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle, #fffbe8 0%, #ffe28a 38%, #ffb92e 62%, transparent 74%); box-shadow: 0 0 8px #ffd760, 0 0 16px #ffb52ecc, 0 0 26px #ffa21a88; }
+@keyframes ys-dot { 0%, 100% { opacity: .8; transform: translate(-50%, -50%) scale(.85); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); } }
 .ys-pow { position: absolute; left: 8px; top: 8px; z-index: 2; padding: 4px 10px; border-radius: 6px; background: #0008; border: 1px solid #c9a96a; text-align: center; line-height: 1.2; }
 .ys-pow span { display: block; font-size: 11px; color: #d8c8a8; } .ys-pow b { font-size: 18px; color: #ffe08a; }
 .ys-stage.fx .ys-aura { animation: ys-burst 1.2s ease-out; } .ys-stage.fx .ys-pow b { animation: ys-pop .8s ease-out; }
@@ -803,7 +814,7 @@ button.sm.pill{padding:4px 12px}
 .atl-l{position:absolute;left:2.5%;top:2%;display:flex;flex-direction:column;gap:4px;max-width:44%}
 .atl-btns{display:flex;gap:6px}
 .atl-btns .pill,.atl-r .pill{box-sizing:border-box;width:76px;min-width:0;height:28px;padding:0;font-size:12px;line-height:26px;text-align:center;white-space:nowrap;margin:0}
-.atl-l p{margin:0;padding:2px 8px;border-radius:10px;background:rgba(10,8,6,.62);color:#f1e3c2;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.atl-l p{margin:0;padding:2px 8px;border-radius:10px;background:rgba(10,8,6,.62);color:#f1e3c2;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;align-self:flex-start;max-width:80%;box-sizing:border-box}
 .atl-l p i{font-style:normal;color:#ffd77a;margin-right:4px}
 .atl-r{position:absolute;right:2.5%;top:2%;display:flex;gap:6px}
 .atl-bl{position:absolute;left:3%;bottom:1.2%}
@@ -1185,6 +1196,9 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 
 /* 选择窗口固定大小：整框 92vh，下方选中信息固定高，上方格子占剩下的（选不同配方不再变高变矮） */
 .modal-box:has(.cpk){height:92vh}
+/* 地块升级窗口固定大小：整框 84vh（和灵药园一页满时一样高），列表在框内滑动，换页/空页不再变高变矮 */
+.modal-box:has(.landup-list){display:flex;flex-direction:column;height:84vh;overflow:hidden}
+.landup-list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
 .cpk-grid{flex:1 1 0}
 .cpk-foot{height:27vh;max-height:none;align-items:stretch}
 /* 正在炼 / 排队列表左侧物品小图 */
@@ -1201,3 +1215,65 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .cpk-sub{position:absolute;left:0;right:0;bottom:6px;display:flex;flex-direction:column;align-items:center;gap:2px}
 .cpk-r>.cpk-go{margin-top:auto}
 .cpk-tag{color:var(--t-orange)!important}.cpk-nm,.cpk-nm span,.cpk-name,.cpk-name span{color:var(--t-good)!important}   /* 炼丹/炼器/精炼选择窗口：星级红、名字固定绿，不看品质 */
+/* 经脉光点页：穴位圈上移，下方显示这个光点加的属性 */
+.jm-ringbox{position:absolute;top:6%;left:0;right:0;z-index:1}.jm-ringbox .jm-svg.jm-ring{position:static;display:block;width:100%;height:auto;aspect-ratio:1/1}
+.jm-nst{position:relative;margin:-1% 10px 0;text-align:center;color:#e8d8b8;text-shadow:0 0 4px #000;font-size:13px}
+.jm-nst-t{color:#ffe8b0;margin-bottom:4px}
+.jm-nst-g{display:grid;grid-template-columns:repeat(4,auto);justify-content:center;gap:4px 14px}.jm-nst-g span{white-space:nowrap;text-align:left}
+.jm-nst-g b{color:var(--t-good)}.jm-nst-g small{color:#a89878;font-size:11px}
+
+/* 人物属性：当前/总 生命法力中间的斜杠加粗加深，前后各空一格（用户定） */
+.pf-sl { font-style: normal; font-weight: 900; color: #000; white-space: pre; -webkit-text-stroke: .6px #000;
+  display: inline-block; position: relative; top: -.1em; line-height: 1; }   /* 斜杠底部和数字底部对齐（衬线体斜杠会往下伸） */
+.ssgf-cost { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 8px 0 4px; }
+.ssgf-cost .ys-need { width: auto; min-width: 58px; margin: 0; padding: 3px 6px 2px; } .ssgf-cost .ys-need b { white-space: nowrap; }
+
+.jl-add{flex:none;align-self:center;padding:2px 10px;font-size:12px;min-height:0;width:auto}
+
+/* 阵法室（formation.js）：每行 3 格 */
+.zf-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.zf-cell{display:flex;flex-direction:column;align-items:center;text-align:center;padding:4px 1px;border:1px solid rgba(201,169,107,.55);border-radius:6px;background:rgba(201,169,107,.08);cursor:pointer;min-width:0}
+.zf-cell img{width:100%;max-width:84px;aspect-ratio:1;object-fit:contain;margin:2px 0}
+.zf-cell .zf-nm{font-size:12px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;font-weight:normal}
+.zf-cell small{font-size:11px;line-height:1.25;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.zf-cell .zf-v{color:#c0392b;opacity:1}
+.zf-cell.zf-off img{filter:grayscale(.6) brightness(.85)}
+.zf-cell.zf-on{border-color:#3fbf6f;box-shadow:0 0 6px rgba(63,191,111,.5)}
+.zf-tot{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;padding-top:6px;border-top:1px solid rgba(201,169,107,.4);font-size:12px}
+.zf-mhead{display:flex;align-items:center;gap:10px}
+.zf-cost{margin:2px 0 6px}
+.zf-cost-t{margin:8px 0 2px;font-size:13px}
+.zf-mimg{width:64px;height:64px;object-fit:contain;flex:none}
+/* 灵田土地：满幅土壤图（DATA.landStyle），不带外框，只用土地自己的边 */
+.slot-eq.field-cell.land{position:relative;color:#fff;text-shadow:0 1px 2px #000,0 0 3px #000;border:0;background:transparent}
+/* 一点立体感：左上受光的亮边、右下暗边，底下一点投影（只加阴影，不改图） */
+.slot-eq.field-cell.land{border-radius:4px;box-shadow:inset 2px 2px 2px rgba(255,240,210,.22),inset -2px -3px 3px rgba(0,0,0,.45),0 2px 3px rgba(0,0,0,.5)}
+.slot-eq.field-cell.land .g{color:#f2efe8}
+
+/* 背包页整体固定不滑动，只有储物格里的格子在框内上下滑动 */
+#view:has(.bag-store){display:flex;flex-direction:column;overflow:hidden}
+#view:has(.bag-store)>*{flex-shrink:0}
+#view>.card.bag-store{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;margin-bottom:0}
+.card.bag-store>h3,.card.bag-store>.bag-tabs{flex-shrink:0}
+.card.bag-store>#bag-grid{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}   /* 外层滚动框，里面的 .grid 高度不固定，格子保持方形不挤在一起 */
+/* 功法页：上面分类/排序按钮固定，只有下面的功法列表滑动 */
+#view:has(.gf-scroll){display:flex;flex-direction:column;overflow:hidden}
+#view:has(.gf-scroll)>*{flex-shrink:0}
+#view>.gf-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+/* 背包储物格：边框统一用青灵草那种颜色，不随物品品质变；装备阶位（eqt4~11）与法宝五行（fb-*）边框是阶位/五行标识，不拍平 */
+#bag-grid .cell:not(.eqt4):not(.eqt5):not(.eqt6):not(.eqt7):not(.eqt8):not(.eqt9):not(.eqt10):not(.eqt11):not(.fb-jin):not(.fb-mu):not(.fb-shui):not(.fb-huo):not(.fb-tu):not(.fb-lei){border-color:var(--c-edge)!important}
+/* 功法页「每 10 秒消耗」一行：功法加成按钮与文字底部对齐 */
+.row.gf-cost{align-items:flex-end}.row.gf-cost>button{flex-shrink:0}
+
+/* 主动阵法小火苗：绕人物转（world.js btZfRing），外层横向、内层纵向错开四分之一周期 = 椭圆，前半圈压在人物前面 */
+.btv-u>img,.btv-u .btv-hero{position:relative;z-index:1}
+.zfr{position:absolute;left:50%;bottom:36%;width:0;height:0;pointer-events:none}
+.zff{position:absolute;left:0;top:0;--R:min(9vw,38px);--r:min(3vw,12px);animation:zfx 1.6s ease-in-out var(--d) infinite alternate,zfz 1.6s linear calc(var(--d) - .8s) infinite alternate}
+.zff b{position:absolute;left:-5px;top:-14px;width:10px;height:16px;border-radius:50% 50% 45% 45%/65% 65% 35% 35%;
+  background:radial-gradient(ellipse at 50% 72%,#fff 0,#fff 18%,var(--c) 48%,transparent 78%);filter:brightness(1.35) saturate(1.3) drop-shadow(0 0 3px var(--c)) drop-shadow(0 0 7px var(--c));mix-blend-mode:screen;
+  animation:zfy 1.6s ease-in-out calc(var(--d) - .8s) infinite alternate,zffl .35s ease-in-out infinite alternate;transform-origin:50% 90%}
+@keyframes zfx{from{transform:translateX(calc(var(--R) * -1))}to{transform:translateX(var(--R))}}
+@keyframes zfy{from{translate:0 calc(var(--r) * -1);opacity:.75}to{translate:0 var(--r);opacity:1}}
+@keyframes zfz{0%,49%{z-index:0}50%,100%{z-index:3}}
+@keyframes zffl{from{transform:scale(.9,1)}to{transform:scale(1.05,1.18)}}
+.zf-jin{--c:rgb(255,230,110)}.zf-mu{--c:rgb(130,255,110)}.zf-shui{--c:rgb(110,205,255)}.zf-huo{--c:rgb(255,140,50)}.zf-tu{--c:rgb(240,190,110)}.zf-lei{--c:rgb(195,165,255)}

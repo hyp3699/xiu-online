@@ -1,7 +1,7 @@
 /* =====================================================================
  * 模块：洞府
  * ---------------------------------------------------------------------
- * 房间：聚灵阵、炼丹房、炼器室、灵根、灵药园、灵兽室、洞府阵法、道童居
+ * 房间：聚灵阵、炼丹房、炼器室、灵根、灵药园、灵兽室、阵法室、道童居
  * （房间列表在 data/cave.js 的 DATA.caveRooms；炼丹房、炼器室见 craft.js，灵药园见 garden.js）
  *
  * 聚灵阵：
@@ -23,6 +23,7 @@ G.module({
 
   // 每 10 秒聚集灵气
   tick() {
+    if (this.zfTick) this.zfTick();   // 阵法室：属性阵修炼到时结算（formation.js；主动阵改按次收费，不再按时间扣维持费）
     const cap = this.lingCap(); if (this.s.ling < cap) this.s.ling = Math.min(cap, this.s.ling + this.speed().gather);   // v207 上限只挡聚灵，上限变低时不删已有灵气
   },
 
@@ -34,6 +35,21 @@ G.module({
     // 每 10 秒聚灵量（只由等级决定，开关不影响）
     gatherAmount() { return DATA.array.gather(this.s.array.lv) + this.gatherLz() + this.gatherServant() + DATA.array.flat(this.s.array.lv) + (this.servantFlat ? this.servantFlat() : 0); },   // 固定聚灵最后加，不吃道童等加成
     gatherServant() { return (DATA.array.gather(this.s.array.lv) + this.gatherLz()) * (this.servantPct ? this.servantPct("zhen") : 0) / 100; },   // 道童阵法辅助：聚灵 +%
+    // 聚灵加成明细弹窗（聚灵阵页「聚灵加成」按钮）
+    openGatherInfo() {
+      const s = this.s, lv = (s.array || {}).lv || 0, base = DATA.array.gather(lv), lz = this.gatherLz(), pct = this.servantPct ? this.servantPct("zhen") : 0,
+        sv = this.gatherServant(), fl = DATA.array.flat(lv), sf = this.servantFlat ? this.servantFlat() : 0, line = (a, b, sub) => `<div class="line"><div>${a}${sub ? `<br><small class="desc">${sub}</small>` : ""}</div><b>${b}</b></div>`;
+      const lzs = (s.lzSlot || []).map(z => z ? `${DATA.smName("lz", z.ft)} +${U.num(z.v)}` : "").filter(Boolean);
+      this.modal(`<h2>聚灵加成<small> 每 10 秒</small></h2>
+        ${line(`${DATA.caveName("array")} ${lv} 级`, "+" + U.num(base))}
+        ${line("灵珠", "+" + U.num(lz), lzs.length ? lzs.join("、") : "未放灵珠")}
+        ${line("道童阵法辅助", "+" + U.num(sv), `${DATA.caveName("array")}和灵珠合计 +${U.num(pct)}%`)}
+        ${line(`${DATA.caveName("array")}固定聚灵`, "+" + U.num(fl))}
+        ${line("道童固定聚灵", "+" + U.num(sf))}
+        ${(o => o.gf + o.exp + o.body > 0 ? line("神识功法《敛息归元诀》", "−" + U.num(o.gf + o.exp + o.body), `修炼消耗已减：功法 ${U.num(o.gf)}、修为 ${U.num(o.exp)}、肉身 ${U.num(o.body)}`) : "")(this.lxShare ? this.lxShare() : { gf: 0, exp: 0, body: 0 })}
+        ${line("<b>合计</b>", "+" + U.num(this.gatherAmount()))}
+        <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+    },
     gatherLz() { return (this.s.lzSlot || []).reduce((t, z) => t + (z ? z.v : 0), 0); },   // 灵珠格聚灵
     lingCap() { const sp = this.speed(); return Math.max(100, sp.gather * DATA.LING_CAP_GATHER + sp.total * DATA.LING_CAP_SPEED); },
     // v247 每 10 秒修炼消耗的灵气：修为修炼 + 肉身修炼 + 功法修炼（只算正在进行的）
@@ -42,7 +58,7 @@ G.module({
       if (s.auto && this.hasMijue() && !this.exBlocksCult()) u += Math.max(0, this.speed().total - this.wdRed("exp"));
       if (s.bodyAuto && this.hasTijue() && !this.exBlocksCult() && !this.bodyMax()) u += Math.max(0, this.bodySpeed().total * Math.max(0.0001, CFG.body.LING_RATE || 1) - this.wdRed("body"));
       const st = s.gfStudy;
-      if (st && st.done < st.total) { const R = this.gfRoomNow(DATA.skillInfo(st.id, s.gongfa[st.id] || 1)); u += st.per * (R ? R.mul : 1) * 2; }
+      if (st && st.done < st.total) { const R = this.gfRoomNow(DATA.skillInfo(st.id, s.gongfa[st.id] || 1)); u += this.ssGfPer(st.per * (R ? R.mul : 1)) * 2; }
       return u;
     },
     lingPerStone() { return DATA.array.STONE_LING; }, // 固定数值
@@ -89,12 +105,12 @@ G.module({
     lzOpen(i) {
       const C = CFG.lingzhu, z = this.s.lzSlot[i];
       if (z) {
-        const have = this.smCount("lj", z.ft), per = C.ENH_JING;
+        const per = C.ENH_JING, ps = C.ENH_STONE || 0, have = this.smCount("lj", z.ft), can = k => have >= per * k && (this.s.stone || 0) >= ps * k;
         return this.modal(`<h2>${DATA.li(DATA.smIcon("lz", z.ft), "lz-glow")}${DATA.smName("lz", z.ft)}<small> 聚灵 +${U.fmt(z.v)}</small></h2>
-          <p>强化一次：${DATA.smName("lj", z.ft)} ×${per}，聚灵 +${U.fmt(C.ENH)}（拥有 ${U.fmt(have)}）</p>
-          <div class="btns"><button class="primary" onclick="G.lzEnh(${i},1)" ${have >= per ? "" : "disabled"}>强化</button>
-          <button onclick="G.lzEnh(${i},10)" ${have >= per * 10 ? "" : "disabled"}>强化10次</button>
-          <button onclick="G.lzEnh(${i},0)" ${have >= per ? "" : "disabled"}>全部强化</button><button onclick="G.closeModal()">关闭</button></div>`);
+          <p>每次强化：消耗${DATA.smName("lj", z.ft)} ×${per}${ps ? `、灵石 ${U.fmt(ps)}` : ""}，聚灵 +${U.fmt(C.ENH)}（拥有${DATA.smName("lj", z.ft)} ${U.fmt(have)}）</p>
+          <div class="btns"><button class="primary" onclick="G.lzEnh(${i},1)" ${can(1) ? "" : "disabled"}>强化</button>
+          <button onclick="G.lzEnh(${i},10)" ${can(10) ? "" : "disabled"}>强化10次</button>
+          <button onclick="G.lzEnh(${i},0)" ${can(1) ? "" : "disabled"}>全部强化</button><button onclick="G.closeModal()">关闭</button></div>`);
       }
       const own = C.NAMES.map((_, ft) => [ft, this.smCount("lz", ft)]).filter(x => x[1] > 0);
       this.modal(`<h2>灵珠格</h2>${own.length ? own.map(([ft, n]) => `<div class="line"><div>${DATA.li(DATA.smIcon("lz", ft), "lz-glow")}${DATA.smName("lz", ft)}<small>拥有 ${n} · 聚灵 +${U.fmt(C.BASE)}</small></div>
@@ -110,9 +126,11 @@ G.module({
       const C = CFG.lingzhu, z = this.s.lzSlot[i]; if (!z) return;
       // 按钮传 Infinity 时 JSON 序列化成 null，Math.min(null, ...) = 0 永远失败：
       // 0 / null / undefined 都表示「全部」，其它数按次数算。
-      const max = Math.floor(this.smCount("lj", z.ft) / C.ENH_JING);
+      const ps = C.ENH_STONE || 0, byJ = Math.floor(this.smCount("lj", z.ft) / C.ENH_JING), byS = ps ? Math.floor((this.s.stone || 0) / ps) : Infinity, max = Math.min(byJ, byS);   // 每次强化另扣固定灵石 ENH_STONE
       const n = times ? Math.min(Math.floor(+times), max) : max;   // 0/null = 全部哨兵保留，负数/小数先取整，负数走下面 n<=0 退出
-      if (n <= 0 || !this.takeSm("lj", n * C.ENH_JING, z.ft)) return this.log(`${DATA.smName("lj", z.ft)}不足。`, "sys");
+      if (n <= 0) return this.log(byS < 1 && byJ >= 1 ? "灵石不足。" : `${DATA.smName("lj", z.ft)}不足。`, "sys");
+      if (!this.takeSm("lj", n * C.ENH_JING, z.ft)) return this.log(`${DATA.smName("lj", z.ft)}不足。`, "sys");
+      this.s.stone -= n * ps;
       z.v += n * C.ENH;
       this.log(`${DATA.smName("lz", z.ft)}强化 ${n} 次，聚灵 +${U.fmt(n * C.ENH)}。`, "good"); this.after(); this.lzOpen(i);
     },
@@ -146,11 +164,11 @@ G.module({
     // 聚灵阵
     const cap = this.lingCap(), max = a.lv >= DATA.array.MAX, f = this.arrayFactor();
     return rooms + `<div class="card"><h3>${DATA.caveName("array")} · ${a.lv} / ${DATA.array.MAX} 级</h3>
-      <div class="row small"><span>聚灵中（每 10 秒 +${U.num(this.gatherAmount())} 灵气）${(u => u > 0 ? `　修炼消耗 <b class="c-red">-${U.num(u)}</b>` : "")(this.lingUse())}</span></div>
+      <div class="row small"><span>聚灵中（每 10 秒 +${U.num(this.gatherAmount())} 灵气）${(u => u > 0 ? `　修炼消耗 <b class="c-red">-${U.num(u)}</b>` : "")(this.lingUse())}</span><button class="sm jl-add" onclick="G.openGatherInfo()">聚灵加成</button></div>
       <div class="bar tick"><div id="gather-bar"></div></div>
       <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
       <div class="bar ling"><div style="width:${Math.min(100, s.ling / cap * 100)}%"></div></div>
-      <div class="line"><div>每 10 秒聚灵</div><b>+${U.num(this.gatherAmount())}${this.gatherLz() > 0 ? `<small>灵珠 +${U.num(this.gatherLz())}</small>` : ""}</b></div>
+      <div class="line"><div>每 10 秒聚灵</div><b>+${U.num(this.gatherAmount())}</b></div>
       <div class="line"><div>修炼速度加成</div><b>+${U.num((f - 1) * 100)}%</b></div>
       <div class="line"><div>下一级<small>加成 +${U.num((DATA.array.factor(a.lv + 1) - 1) * 100)}%，聚灵 +${U.num(DATA.array.gather(a.lv + 1) + DATA.array.flat(a.lv + 1))}</small></div><b>${max ? "满级" : U.fmt(DATA.array.cost(a.lv)) + " 灵石"}</b></div>
       <div class="btns">

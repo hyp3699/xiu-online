@@ -124,6 +124,9 @@ const G = {
       if (DATA.isTest()) { if (!s._testBak) s._testBak = Object.fromEntries(K.map(k => [k, s[k] || 0])); for (const k of K) s[k] = BIG; }
       else if (s._testBak) { for (const k of K) { const bak = s._testBak[k] || 0, gain = (s[k] || 0) - BIG; s[k] = bak + (Number.isFinite(gain) && gain > 0 ? gain : 0); } delete s._testBak; } }
     if (DATA.isTest() && this.ysEnsure) { const o = this.s; this.s = s; try { this.ysEnsure(); } finally { this.s = o; } }   // 测试模式格子全亮：先定下隐世宗门位置，才能显示在格子上
+    if (+s.lingye > 0 && Array.isArray(s.bag) && this.addSm) {   // 灵液改成背包专用材料：旧存档的 s.lingye 转进背包（放不下的进传音）
+      const o = this.s, n = Math.floor(+s.lingye); this.s = s; try { this.addSm("lingye", n); } finally { this.s = o; } }
+    if ("lingye" in s) delete s.lingye;
     {   // v261 灵珠初始聚灵 10 → 1000：已放入的灵珠补上差值（强化部分不变），只补一次
       if (!s.lzB1000 && Array.isArray(s.lzSlot)) s.lzSlot.forEach(z => { if (z && Number.isFinite(z.v)) z.v += 990; });
       s.lzB1000 = true; }
@@ -133,7 +136,7 @@ const G = {
       const X = o => o && (o.kind === "xqi" || o.k === "xqi");
       for (const f of ["blueprints", "furnaces", "furnaceUse"]) if (s[f]) delete s[f].xqi;
       if (Array.isArray(s.bag)) s.bag = s.bag.filter(it => !it || !((it.t === "bp" || it.t === "fu") && it.kind === "xqi"));
-      if (Array.isArray(s.mailbox)) s.mailbox = s.mailbox.filter(x => !(x && x.it && (x.it.t === "bp" || x.it.t === "fu") && x.it.kind === "xqi"));   // 传音暂存里的也清
+      if (Array.isArray(s.mailbox)) s.mailbox = s.mailbox.filter(x => !(x && x.it && (x.it.t === "bp" || x.it.t === "fu") && x.it.kind === "xqi"));   // 传音里的也清
       if (s.lq && Array.isArray(s.lq.forge)) s.lq.forge = s.lq.forge.filter(x => !X(x));
       if (X(s.forgeStudy)) s.forgeStudy = null;
       if (Array.isArray(s.forgeQueue)) s.forgeQueue = s.forgeQueue.filter(x => !X(x));
@@ -216,6 +219,26 @@ const G = {
     if (bb) bb.style.width = this.bodyActive() ? pct : "0%";
     const tl = $("#tick-left");  // 本次修炼倒计时
     if (tl) tl.textContent = (cycleMs > 0 ? Math.ceil((cycleMs - phaseMs) / 1000) : 0) + " 秒";
+    // 功法页修炼倒计时：直接改文字和进度条，不走整页重绘，否则每秒重建列表、滑动被打断
+    // （修炼中卡片和排队列表的 HTML 里只留空位，数值全在这里填；500ms 节流，值没变不写）
+    if (this.tab === "gongfa" && now - (this._gfCdT || 0) > 500) {
+      this._gfCdT = now;
+      const st = this.s.gfStudy, p = st && this.gfStudyProg && this.gfStudyProg();
+      const gcd = $("#gf-cd");
+      if (gcd && p) { const t = this.countdownTxt(p.left); if (gcd.textContent !== t) gcd.textContent = t; }
+      const gbar = $("#gf-cd-bar");
+      if (gbar && p) gbar.style.width = (st.total > 0 ? Math.min(100, Math.max(0, p.done / st.total * 100)) : 0) + "%";
+      if (this.gfQueueTimes) {
+        const { rows, total } = this.gfQueueTimes();
+        const qt = $("#gf-q-total");
+        if (qt) { const t = this.countdownTxt(total); if (qt.textContent !== t) qt.textContent = t; }
+        rows.forEach((r, i) => {
+          const ms = $("#gf-q-" + i + "-ms"), ac = $("#gf-q-" + i + "-acc");
+          if (ms) { const t = this.countdownTxt(r.ms); if (ms.textContent !== t) ms.textContent = t; }
+          if (ac) { const t = this.countdownTxt(r.acc); if (ac.textContent !== t) ac.textContent = t; }
+        });
+      }
+    }
     // 头像弹窗里的生命 / 法力：服务器每次结算恢复后实时刷新，不用关掉重开
     const oh = $("#orb-hp"), om = $("#orb-mp");   // 修炼页圆钮外圈：生命 / 法力
     if ((oh || om) && now - (this._orbT || 0) > 500) {
@@ -226,9 +249,9 @@ const G = {
     const ph = $("#pf-hp"), pm = $("#pf-mana");
     if ((ph || pm) && now - (this._pfT || 0) > 500) {
       this._pfT = now; const st = this.stats();
-      const h = `${U.full(this.s.hp)}/${U.full(st.hp)}`, m = `${U.full(this.s.mana)}/${U.full(st.mana)}`;
-      if (ph && ph.textContent !== h) ph.textContent = h;
-      if (pm && pm.textContent !== m) pm.textContent = m;
+      const sl = `<i class="pf-sl">  /  </i>`, h = `${U.int(this.s.hp)}${sl}${U.int(st.hp)}`, m = `${U.int(this.s.mana)}${sl}${U.int(st.mana)}`;
+      if (ph && ph.innerHTML !== h) ph.innerHTML = h;
+      if (pm && pm.innerHTML !== m) pm.innerHTML = m;
     }
   },
 
@@ -256,11 +279,15 @@ const G = {
   },
   render() {
     const s = this.s; if (!s || this.silent) return;
+    if (this._btHoldView()) { this._renderDeferred = true; return; }   // 战斗还没播完：页面保持战前（关闭战斗时 closeBattle 会重绘）
     $("#p-name").textContent = s.name;
     $("#p-realm").textContent = this.realmName();
-    $("#p-stone").textContent = U.fmt(s.stone);
-    $("#p-contrib").textContent = U.fmt(s.contrib || 0);   // v27：贡献、功德
-    $("#p-merit").textContent = U.fmt(s.merit || 0);
+    // 顶部灵石、贡献、功德：不到 1 亿显示到个位数，满 1 亿显示「1.5236亿」（保留 4 位小数，舍去不进位，用户定）
+    // 三项满 1 兆（1 万亿）显示「1.5236兆」（用户定）
+    const topN = v => { v = Math.floor(v || 0); return v >= 1e12 ? (Math.floor(v / 1e8) / 1e4).toFixed(4) + "兆" : v >= 1e8 ? (Math.floor(v / 1e4) / 1e4).toFixed(4) + "亿" : String(v); };
+    $("#p-stone").textContent = topN(s.stone);
+    $("#p-contrib").textContent = topN(s.contrib);   // v27：贡献、功德
+    $("#p-merit").textContent = topN(s.merit);
     { const mb = $("#p-mailbox"); if (mb) { let n = 0; try { n = this.mailboxCount ? this.mailboxCount() : 0; } catch {} mb.textContent = n ? `(${n})` : ""; } }
     document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === this.tab));
     // 顶部（道号、灵石、贡献、功德）和信息栏只在修炼页显示
@@ -272,12 +299,17 @@ const G = {
     // 内容没变就不重绘：避免每秒重绘时按钮被替换、点了没反应，也省手机电量
     // 手指 / 鼠标按住时先不替换页面：否则按下和抬起之间按钮被换掉，这次点击就丢了
     if (this._pressing && v.innerHTML !== "") { this._renderDeferred = true; return; }
+    // 背包储物格 / 功法列表在框内滑动（含惯性）时先不替换页面，否则滑动框被换掉、滑动中断；停下 250 毫秒后补一次重绘
+    if (this._innerScrollAt && Date.now() - this._innerScrollAt < 250 && v.innerHTML !== "") { this._renderDeferred = true; clearTimeout(this._innerScrollT); this._innerScrollT = setTimeout(() => { if (this._renderDeferred) { this._renderDeferred = false; this.render(); } }, 260); return; }
     // 正在输入框里打字时也先不替换页面：否则输入框被换掉，手机输入法会自动收起
     if (this.editing(v)) { this._renderDeferred = true; return; }
     const lg0 = document.getElementById("exov-log"), lgTop = lg0 ? lg0.scrollTop : -1;
+    const bg0 = document.getElementById("bag-grid"), bgTop = bg0 ? bg0.scrollTop : 0, gs0 = document.getElementById("gf-scroll"), gsTop = gs0 ? gs0.scrollTop : 0;   // 背包储物格 / 功法列表：页面固定，只有格子框内滑动，重绘后保持位置
     const mw0 = document.getElementById("mgwrap"), mwPos = mw0 ? [mw0.scrollLeft, mw0.scrollTop] : null;   // 地图格子：重绘后保持拖动位置   // 探索信息浮层：重绘后保持位置，或「跟随最新」滚到底
     try { const html = this.views[this.tab] ? this.views[this.tab].call(this) : ""; if (html !== this._viewHtml || v.innerHTML === "") { v.innerHTML = html; this._viewHtml = html;
+      this._gfCdT = 0;   // 功法页倒计时/进度条是空位：重绘后同一帧立刻由 bars() 填上，否则空白最多半秒，看起来一闪一闪
       const lg = document.getElementById("exov-log"); if (lg) lg.scrollTop = this.exFollow === false && lgTop >= 0 ? lgTop : 0;
+      const bg = document.getElementById("bag-grid"); if (bg && bgTop) bg.scrollTop = bgTop; const gs = document.getElementById("gf-scroll"); if (gs && gsTop) gs.scrollTop = gsTop;
       const mw = document.getElementById("mgwrap");
       if (mw) this.gridFit(mw);
       if (mw) { if (mwPos) { mw.scrollLeft = mwPos[0]; mw.scrollTop = mwPos[1]; }
@@ -287,6 +319,11 @@ const G = {
       this.exovFit(); }   // 最新一条在最上面
     catch (err) { console.error(err); this._viewHtml = null; v.innerHTML = `<div class="card"><h3>页面出错</h3><p class="desc">${String(err && err.message || err)}<br>如果刚改过 js/config/ 里的数值，请检查有没有写错（例如少了小数点、多了问号）。</p></div>`; }
     v.scrollTop = top;
+  },
+  // 服务器打完的战斗排队待播或正在播（战斗画面还在）时为 true：此时不重绘页面，免得先看到通关层数、奖励等结果
+  _btHoldView() {
+    if (typeof API === "undefined" || !API._battleQueue) return false;
+    return API._battleQueue.length > 0 || !!(this._bp && typeof document !== "undefined" && document.querySelector("#modal-box .btv"));
   },
   // 地图格子：竖向 9 格刚好占满可用高度，横向超出就左右拖动
   gridFit(mw) {
@@ -366,6 +403,7 @@ const G = {
       this._pressing = on;
       if (!on && this._renderDeferred) { this._renderDeferred = false; setTimeout(() => this.render(), 0); }
     };
+    document.addEventListener("scroll", e => { const t = e.target; if (t && (t.id === "bag-grid" || t.id === "gf-scroll")) this._innerScrollAt = Date.now(); }, true);
     document.addEventListener("pointerdown", press(true), true);
     ["pointerup", "pointercancel"].forEach(t => document.addEventListener(t, press(false), true));
     // 输入框失去焦点后补一次重绘

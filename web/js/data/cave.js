@@ -40,7 +40,7 @@ DATA.caveRooms = [
   { id: "lingen",  name: "灵根",     open: true,  desc: "只提升对应属性的修炼速度类功法效果。" },
   { id: "garden",  name: "灵药园",   open: true,  desc: "种植灵草灵药。" },
   { id: "wudao",   name: "悟道室",   open: true,  desc: "参悟大道，每天一次。" },
-  { id: "formation",name:"洞府阵法", open: false, desc: "布置护府大阵。" },
+  { id: "formation",name:"阵法室", open: true,  desc: "布置护府大阵。" },
   { id: "servant", name: "道童居",   open: true,  desc: "招募道童，代为打理洞府。" },
 ];
 DATA.caveRooms.forEach(r => { r.name = DATA.nmPick(CFG.names.cave, r.id, r.name); });   // 名字在 config/names.js 的 cave

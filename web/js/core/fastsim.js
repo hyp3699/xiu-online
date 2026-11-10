@@ -37,6 +37,7 @@
       const ids = this.modules.filter(m => m.tick).map(m => m.id);
       if (ids.length !== FAST_MODULES.length || ids.some((id, k) => id !== FAST_MODULES[k])) return -Infinity;
       if (s.explore || s.cq || (s.trib && !s.trib.result)) return -Infinity;   // 探索 / 渡劫中：逐个结算；渡劫已出结果（只剩领奖）可以加速
+      if (s.zf && s.zf.job) ev.push(s.zf.job.end);   // 属性阵修炼到时结算：快进到 job 结束那一刻再逐个结算（灵气修炼开始时已扣完，修炼中无逐秒消耗；主动阵按次收费不影响加速）
       const cs = s.cultSet;                                       // 修炼设置：快要自动去探索时逐个结算
       if (cs && cs.on && cs.tgt && s.stone < cs.low) return -Infinity;
       // 灵气不足时修炼设置挡住不修炼：原来只看灵石，灵气不足也加速会把“不修炼”加速成“修炼”
@@ -67,13 +68,13 @@
       if (s.danStudy) ev.push(s.danStudy.end);
       if (s.forgeStudy) ev.push(s.forgeStudy.end);
       if (s.bmJob && s.bmJob.end) ev.push(s.bmJob.end);   // 本命法宝炼成：到时加成才生效，不能跨过它做纯数值结算
-      if (Array.isArray(s.mailbox)) for (const x of s.mailbox) if (x && x.at) ev.push(x.at + 10 * 86400000);   // 传音暂存到期：到时清掉过期项
+      if (Array.isArray(s.mailbox)) for (const x of s.mailbox) if (x && x.at) ev.push(x.at + 10 * 86400000);   // 传音到期：到时清掉过期项
       const j = s.forgeJob;
-      if (j) ev.push(j.end);   // 背包满不再暂停出炉（出炉物品进传音暂存），原来“背包满等待”分支已失效，留着会让加速跨过到期的炉子
+      if (j) ev.push(j.end);   // 背包满不再暂停出炉（出炉物品进传音），原来“背包满等待”分支已失效，留着会让加速跨过到期的炉子
       const al = s.alchJob;
       if (al) { if (al.done >= al.n) return -Infinity; ev.push(al.next); }
       // 灵药园（等灵气的在 fastTick 里按灵气判断）
-      for (const f of s.fields || []) if (f.g >= 0 && !f.wait) ev.push(f.start + this.fieldTime(f.g));
+      for (const f of s.fields || []) if (f.g >= 0 && !f.wait) ev.push(f.start + this.fieldTime(f.g, f));
       // 道童选拔
       if (s.svPick && s.svPick.end) ev.push(s.svPick.end);
       return Math.min(...ev);
@@ -140,11 +141,11 @@
           const steps = Math.floor((now - a2) / (2 * STEP));   // v247 每 10 秒结算（和 gongfa.js 一样）
           if (steps > 0) {
             a2 += steps * 2 * STEP;
-            const mul = GR ? GR.mul : 1, per = gs.per * mul, sps = (gs.stone || 0) * mul;
+            const mul = GR ? GR.mul : 1, per = this.ssGfPer(gs.per * mul), sps = (gs.stone || 0) * mul;
             const rem = Math.ceil((gs.total - d2) / (STEP * mul)), want = Math.min(2 * steps, rem);
             if (L < want * per && refill) { const pay = Math.min(Math.ceil((want * per - L) / RATE), Math.floor(sn - (sps ? want * sps : 0)), Math.max(0, Math.ceil((CAP - L) / RATE))); if (pay > 0) { sn -= pay; L = Math.min(CAP, L + pay * RATE); } }   // 自动补灵气封顶到 lingCap（同 gongfa.tick）
             // 同 gongfa.js：灵石为负时 can 不能为负，否则会倒加灵气 / 贡献。
-            let can = Math.max(0, Math.min(want, Math.floor(L / per), sps ? Math.floor(sn / sps) : Infinity));
+            let can = Math.max(0, Math.min(want, per > 0 ? Math.floor(L / per) : Infinity, sps ? Math.floor(sn / sps) : Infinity));
             if (can < rem && can % 2) can--;
             L -= can * per; s2 += can * per; d2 = can >= rem ? gs.total : Math.min(gs.total, d2 + can * STEP * mul);
             if (sps) {   // 同 gongfa.js：按单位四舍五入累计，这层走完扣满 sc

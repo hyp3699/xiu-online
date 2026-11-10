@@ -28,6 +28,8 @@ const U = {
     for (const [v, u] of U.UNITS) if (n >= v) { const x = (n / v).toFixed(n / v >= 100 ? 0 : 2); return (x.includes(".") ? x.replace(/\.?0+$/, "") : x) + u; } // 只去掉小数部分末尾的 0（400万 不能变成 4万）
     return String(n);
   },
+  // 纯数字整数，不带万 / 亿单位（如 32856、123456789）；人物属性、法宝攻击用（用户定）
+  int(n) { n = +n; if (Number.isNaN(n)) return "0"; if (!isFinite(n)) return "∞"; return n < 0 ? "-" + U.int(-n) : Math.floor(n).toLocaleString("en-US", { useGrouping: false, maximumFractionDigits: 0 }); },
   // 完整数字（个位也显示）：每 4 位一个单位，如 12亿3456万7890；超过 1e16 精度不够，退回 fmt
   full(n) {
     if (Number.isNaN(n)) return "0";   // 与 fmt 一致：NaN 按 0，不显示“∞”
@@ -65,6 +67,8 @@ const U = {
   },
   // v195 多张卡片的学习列表：cards = [{ head: 卡片标题 html, rows: [[已学会?, html], ...] }]
   //   每张卡片只放没学会的（全学会的卡片不显示），所有已学会的统一放到最后一张「已学会」卡片里（变灰）
+  // 只要一张「已学会」卡片：list = [[已学会?, html], ...] 里已学会的那些
+  doneCard(list, title = "已学会") { const d = list.filter(x => x[0]); return d.length ? `<div class="card"><h3>${title}<small>${d.length} 项</small></h3>${U.doneLast(d)}</div>` : ""; },
   doneCards(cards, title = "已学会") {
     const done = [];
     const h = cards.map(c => { const todo = c.rows.filter(x => !x[0]); c.rows.forEach(x => { if (x[0]) done.push(x); });

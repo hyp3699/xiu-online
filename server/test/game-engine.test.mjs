@@ -10,7 +10,7 @@ const actions = JSON.parse(fs.readFileSync(path.join(HERE, "../action-whitelist.
 
 test("server runtime loads the existing game modules and whitelisted handlers", () => {
   const engine = new GameEngine();
-  assert.equal(engine.G.modules.length, 26);
+  assert.equal(engine.G.modules.length, 27);
   assert.ok(engine.G.runTicks);
   assert.ok(actions.length > 80);
   for (const name of actions) {
@@ -28,6 +28,7 @@ test("button-driven study, purchase, garden, and out-of-body actions are authori
   const start = 1_800_000_200_000;
   const state = engine.createState("灵田操作测试", start);
   state.stone = 1_000_000_000;
+  engine.bindState(state, start); [0, 1, 2].forEach(g => engine.G.addMat("ore", engine.DATA.ores[g], g, 5000));
   const opened = engine.act(state, "openField", [], start + 1);
   assert.equal(opened.state.fields.length, 1);
 

@@ -28,7 +28,7 @@ G.module({
     bm: null,                                                 // 本命法宝 { e: 法宝, t: 炼成时间 }（config/benming.js）
     bmJob: null,                                              // 正在炼成本命的法宝 { e, end }
     bmLearn: false,                                           // 是否学会本命法宝炼制图纸（仙界第 1 图功德司买图纸，背包里学习）
-    mailbox: [],                                              // 传音暂存：背包放不下的物品 [{ id, it: 背包物品, at: 暂存时间 }]，10 天未领自动清除
+    mailbox: [],                                              // 传音：背包放不下的物品 [{ id, it: 背包物品, at: 暂存时间 }]，10 天未领自动清除
   }),
 
   api: {
@@ -89,7 +89,7 @@ G.module({
           const f = e.bm && this.bmEq() === e ? this.bmInfo() : DATA.fabaoInfo(e);   // 本命：含通玄加的使用次数
           head = `${DATA.elById[e.el].name}属性${e.name} · 每次祭出消耗法力 ${U.fmt(f.mana)}<br>`;
           // 合计（攻击 / 护盾 / 鼎）单独一块，和下面的属性条隔开
-          let sum = f.shield ? `护盾值 ${U.fmt(f.shield.hp)} · 防御 ${U.fmt(f.shield.def)}` : `攻击 ${U.fmt(f.atk)}`;
+          let sum = f.shield ? `护盾值 ${U.int(f.shield.hp)} · 防御 ${U.int(f.shield.def)}` : `攻击 ${U.int(f.atk || 0)}`;
           sum += `<br>每场战斗最多祭出 ${f.uses} 次`;
           if (f.ding) sum += `<br>击中后对方速度 -${U.num(f.ding.speed)}%、命中 -${U.num(f.ding.hit)}%、闪避 -${U.num(f.ding.dodge)}%，持续 ${f.ding.rounds} 回合`;
           head += `<span class="fb-sum">${sum}</span>`;
@@ -115,10 +115,10 @@ G.module({
       return false;
     },
     // 一格最多叠几个（config/bag.js）
-    stackMax(it) { const S = CFG.stack; return S.ONE.includes(it.t) || (it.t === "sm" && S.ONE_SM.includes(it.k)) ? 1 : S.MAX; },
-    // ---------- 传音暂存：背包放不下的物品先放这里，10 天未领自动清除 ----------
+    stackMax(it) { const S = CFG.stack; return S.ONE.includes(it.t) || (it.t === "sm" && S.ONE_SM.includes(it.k)) ? 1 : it.t === "sm" && (S.BIG_SM || []).includes(it.k) ? 1e12 : S.MAX; },
+    // ---------- 传音：背包放不下的物品先放这里，10 天未领自动清除 ----------
     MAILBOX_DAYS: 10,
-    MAILBOX_MAX: 300,   // 传音暂存最多几件
+    MAILBOX_MAX: 300,   // 传音最多几件
     mailboxDue(it) { return (it && it.at || 0) + this.MAILBOX_DAYS * 86400000; },
     mailboxList() { return Array.isArray(this.s.mailbox) ? this.s.mailbox : (this.s.mailbox = []); },
     // 清掉已过期（暂存满 10 天）的条目，返回清掉数；只在确实有过期项时才遍历
@@ -127,20 +127,20 @@ G.module({
       now = now || this.now(); let n = 0;
       for (let i = list.length - 1; i >= 0; i--) if (now >= this.mailboxDue(list[i])) { list.splice(i, 1); n++; }
       if (list.length > this.MAILBOX_MAX) { n += list.length - this.MAILBOX_MAX; list.splice(0, list.length - this.MAILBOX_MAX); }   // 旧存档超上限的也削掉
-      if (n && !this.silent) this.log(`传音暂存里 ${n} 件物品超过 10 天未领，已自动清除。`, "sys");
+      if (n && !this.silent) this.log(`传音里 ${n} 件物品超过 10 天未领，已自动清除。`, "sys");
       return n;
     },
     mailboxAdd(it, quiet) {
       const list = this.mailboxList(); this.mailboxPrune();
       list.push({ id: DATA.newUid(), it, at: this.now() });
       // 上限 MAILBOX_MAX 件，超出丢最早的：原来只增不减，存档超过 4MB 后服务器拒绝保存，账号进不去
-      const MAX = this.MAILBOX_MAX; if (list.length > MAX) { const k = list.length - MAX; list.splice(0, k); if (!this.silent) this.log(`传音暂存已满（最多 ${MAX} 件），最早的 ${k} 件已清除。`, "bad"); }
+      const MAX = this.MAILBOX_MAX; if (list.length > MAX) { const k = list.length - MAX; list.splice(0, k); if (!this.silent) this.log(`传音已满（最多 ${MAX} 件），最早的 ${k} 件已清除。`, "bad"); }
       if (!quiet && !this.silent) this.log("背包已满，已暂存到传音，10 天内领取。", "bad");
       return true;
     },
     // 单件物品：能进背包就进背包，否则进传音；返回 "bag" / "mail"
     bagPutOrMail(it) { return this.bagPut(it) ? "bag" : (this.mailboxAdd(it), "mail"); },
-    // 放进背包：先补满同种的格子，剩下的每 stackMax 个开一格；make(k) 造一格 k 个。背包放不下的剩余部分进传音暂存，不再静默丢失、也不再部分成功却按失败算账（原来先补堆叠、装不下返回 false，调用方按失败处理就白嫖了已补的部分）。
+    // 放进背包：先补满同种的格子，剩下的每 stackMax 个开一格；make(k) 造一格 k 个。背包放不下的剩余部分进传音，不再静默丢失、也不再部分成功却按失败算账（原来先补堆叠、装不下返回 false，调用方按失败处理就白嫖了已补的部分）。
     // 新开的格子先填第一个空格，不往后追加（固定格子）。
     bagAdd(match, make, n, lost, noMail) {
       n = Math.floor(+n); if (!(n >= 1)) return true;   // 小数向下取整，负数/0 不加（防控制台直接调 add 系函数刷物品）
@@ -245,7 +245,7 @@ G.module({
         const left = Math.max(0, this.mailboxDue(x) - now), days = Math.floor(left / 86400000), hours = Math.floor(left % 86400000 / 3600000);
         return `<div class="line"><div>${this.itemName(x.it)}${x.it.n > 1 ? ` ×${x.it.n}` : ""}<small>　剩余 ${days} 天 ${hours} 小时</small></div><button class="sm primary" onclick="G.mailboxClaim('${x.id}')">领取</button></div>`;
       }).join("");
-      this.modal(`<h2>传音暂存</h2>
+      this.modal(`<h2>传音</h2>
         ${rows}
         <div class="btns">${list.length ? `<button class="primary" onclick="G.mailboxClaimAll()">全部领取</button>` : ""}<button onclick="G.closeModal()">关闭</button></div>`);
     },
@@ -269,6 +269,7 @@ G.module({
       if (it.t === "mat") return DATA.matFull(it.kind, it.g);
       if (it.t === "fu") return DATA.furnaceName(it.kind, it.g);
       if (it.t === "bp") return DATA.furnaceName(it.kind, it.g) + "图纸";
+      if (it.t === "zfbp") return this.zfBpName(it.kind, it.g);
       if (it.t === "cu") return it.name;
       if (it.t === "book") return CFG.start.book.name;
       if (it.t === "gfb") { const g = DATA.skillInfo(it.id, 1); return g ? `《${g.name}》` : "秘诀"; }   // 试炼塔秘诀
@@ -419,7 +420,7 @@ G.module({
       const h = this.bmBpHave(); if (h) return this.log(h === 1 ? "已经学会了。" : `背包里已有${B.MIFA}。`, "sys");
       if ((s.merit || 0) < B.MERIT) return this.log("功德不足。", "sys");
       s.merit -= B.MERIT; const where = this.bagPutOrMail({ t: "bmbp" });
-      this.log(`购买了${B.MIFA}，已放入${where === "mail" ? "传音暂存" : "背包"}，学习后可打开${B.NAME}页面。`, "gold"); this.after();
+      this.log(`购买了${B.MIFA}，已放入${where === "mail" ? "传音" : "背包"}，学习后可打开${B.NAME}页面。`, "gold"); this.after();
     },
     learnBmBp(i) {
       const s = this.s, B = this.bmCfg(), it = s.bag[i]; if (!it || it.t !== "bmbp" || it.lq) return;
@@ -430,8 +431,14 @@ G.module({
     bmMifaCard(a) {
       if (!this.bmMapOK(a)) return "";
       const s = this.s, B = this.bmCfg(), h = this.bmBpHave();
-      return `<div class="card"><h3>图纸</h3><div class="line"><div>${DATA.li(DATA.iconImg("bp"))}${B.MIFA}<small>${U.fmt(B.MERIT)} 功德</small></div>
-        ${h ? `<button class="sm" disabled>${h === 1 ? "已学会" : "已购买"}</button>` : `<button class="sm" onclick="G.buyBmBp(${a})" ${(s.merit || 0) < B.MERIT ? "disabled" : ""}>购买</button>`}</div></div>`;
+      const r = this.bmMifaRow(a);
+      return r[0] ? "" : `<div class="card"><h3>图纸</h3>${r[1]}</div>`;   // 已学会的放页面最后「已学会」卡（jieGfView）
+    },
+    bmMifaRow(a) {   // [已学会?, 一行 html]
+      if (!this.bmMapOK(a)) return [0, ""];
+      const s = this.s, B = this.bmCfg(), h = this.bmBpHave();
+      return [h === 1, `<div class="line"><div>${DATA.li(DATA.iconImg("bp"))}${B.MIFA}<small>${U.fmt(B.MERIT)} 功德</small></div>
+        ${h ? `<button class="sm" disabled>${h === 1 ? "已学会" : "已购买"}</button>` : `<button class="sm" onclick="G.buyBmBp(${a})" ${(s.merit || 0) < B.MERIT ? "disabled" : ""}>购买</button>`}</div>`];
     },
     // 可选的法宝：src = "bag"（背包序号）/ "fb"（法宝栏序号）
     bmPick(src, i) { const s = this.s; i = Math.floor(+i);
@@ -456,9 +463,9 @@ G.module({
     // 取消炼制：法宝和矿石原样退回
     bmCancel() {
       const s = this.s, j = s.bmJob; if (!j) return;
-      // 背包满时法宝和矿石进传音暂存，不再以“至少 1 格”校验后丢掉后面的矿石；日志说退回即包含传音
+      // 背包满时法宝和矿石进传音，不再以“至少 1 格”校验后丢掉后面的矿石；日志说退回即包含传音
       this.addEquip(j.e); this.giveBack(j.mats || this.bmMats()); s.bmJob = null;
-      this.log(`取消炼制${this.bmCfg().NAME}，法宝和矿石已退回${this.bagFull() ? "（背包满的部分在传音暂存）" : ""}。`, "sys"); this.dirty(); this.after();
+      this.log(`取消炼制${this.bmCfg().NAME}，法宝和矿石已退回${this.bagFull() ? "（背包满的部分在传音）" : ""}。`, "sys"); this.dirty(); this.after();
     },
     // 本命法宝没有附加属性和专属属性（config/benming.js）
     //   只留一条主属性「伤害」（数值固定 PCT%，见 data/forge.js 的 DATA.attrVal），去掉附加和专属属性；c 保留只用来算法力消耗
@@ -612,7 +619,7 @@ G.module({
         case "hx": return DATA.iconImg("hx");
         case "sm": return DATA.smIcon(it.k, it.ft);
         case "book": case "gfb": return DATA.iconImg("mifa");
-        case "bp": case "rbp": case "bmbp": return DATA.iconImg("bp");
+        case "bp": case "rbp": case "bmbp": case "zfbp": return DATA.iconImg("bp");
         case "dfb": return DATA.danIcon(it.type);
         case "cu": return DATA.cuIcon(this.cuDef(it.name));
       }
@@ -673,7 +680,7 @@ G.module({
       if (st === 1) { const c = this.s[this.lqSlot(ch)], left = Math.max(0, c.end - this.now()); return `<button class="primary" disabled>学习中 ${U.cd(left / 1000)}</button>`; }
       if (st === 2) return `<button class="primary" disabled>排队中</button>`;
       if (this.lqFull(ch)) return `<button class="primary" disabled>学习队列已满</button>`;
-      return `<button class="primary" onclick="${on}">${this.s[this.lqSlot(ch)] ? "排队学习" : "学习"}（${U.dur(ms / 1000)}）</button>`;
+      return `<button class="primary" onclick="${on}">${this.s[this.lqSlot(ch)] ? "排队学习" : "学习"}（${U.dur(ms / 1000)}）</button>`;   // 先关框会把学习失败（队列满 / 灵识不够 / 已学会）也关掉；成功时各 learn 函数自己关框
     },
     /* ---------- 弹窗：点储物格 ---------- */
     openItem(i) {
@@ -731,6 +738,10 @@ G.module({
         const own = this.s.furnaces[it.kind].includes(it.g);
         h += `<p>${this.furnaceDesc(it.kind, it.g)}。<br>使用后装进洞府${DATA.isDanFu(it.kind) ? "炼丹房" : "炼器室"}，可随时更换。${own ? "<br><span class='q5'>洞府里已有同阶炉子。</span>" : ""}</p>
           <div class="btns"><button class="primary" onclick="G.installFurnace(${i})" ${own ? "disabled" : ""}>使用</button>${sell}</div>`;
+      } else if (it.t === "zfbp") {
+        const has = it.g ? this.zfTOpen(it.kind, it.g) : this.zfAOpen(it.kind);
+        h += `<p>学习后可在阵法室里布阵：${this.zfBpName(it.kind, it.g).replace("图纸", "")}。${has ? "<br><span class='q5'>已学会。</span>" : ""}</p>
+          <div class="btns">${this.bagLearnBtn(it, "forge", `zfbp|${it.kind}|${it.g}`, `G.learnZfBp(${i})`, has, this.zfBpMs(it.g))}</div>`;
       } else if (it.t === "bp") {
         const has = this.s.blueprints[it.kind].includes(it.g);
         h += `<p>学习后可在洞府炼器室炼制${DATA.furnaceName(it.kind, it.g)}。<br>材料：${this.matsText(DATA.furnaceMats(it.kind, it.g))}${has ? "<br><span class='q5'>已学会。</span>" : ""}</p>
@@ -1156,12 +1167,13 @@ G.module({
  else if (it.t === "seed") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.seedImg(it.g)}" alt="">${DATA.seedName(it.g)}<span class="n">${U.fmt(it.n)}</span></div>`;
  else if (it.t === "hx") cells += `<div class="cell q4" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("hx")}" alt="">${DATA.HX}<span class="n">${U.fmt(it.n)}</span></div>`;
       else if (it.t === "dfb") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${DATA.danImg(DATA.danIcon(it.type), DATA.danCls(it.type, it.g), "mi")}${DATA.danName(it.type, it.g)}丹方</div>`;
+      else if (it.t === "zfbp") cells += `<div class="cell q${Math.min(5, Math.floor(Math.max(0, it.g - 1) / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("bp")}" alt="">${this.zfBpName(it.kind, it.g).replace("图纸", "")}</div>`;
       else if (it.t === "rbp") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("bp")}" alt="">${DATA.ringNames[it.r] || "戒指"}图纸${it.n > 1 ? `<span class="n">${it.n}</span>` : ""}</div>`;
  else if (it.t === "ss") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("ss")}" alt="">${DATA.stoneName(it.g)}<span class="n">${it.n}</span></div>`;
       else if (it.t === "bmbp") cells += `<div class="cell q4" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("bp")}" alt="">${this.bmCfg().MIFA}</div>`;
       else if (it.t === "cu") { const d = this.cuDef(it.name); cells += `<div class="cell q${d ? d.q || 0 : 0}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.cuIcon(d)}" alt="">${it.name}<span class="n">${U.fmt(it.n)}</span></div>`; }
       else { const src = DATA.eqIcon(it.e); cells += `<div class="cell q${it.e.q}${DATA.eqCls(it.e)}" onclick="G.openItem(${i})">${src ? DATA.fbArt(it.e, src, "mi") : ""}${it.e.name}${it.e.enh ? `<span class="n">+${it.e.enh}</span>` : ""}${src ? "" : `<span class="g">${DATA.slots[it.e.slot]}</span>`}</div>`; }
     }
-    return top + `<div class="card"><h3>储物格<small>${this.bagUsed()} / ${s.bagCap}</small></h3>${ftabs}<div class="grid">${cells || `<p class="desc">没有这类物品。</p>`}</div></div>`;
+    return top + `<div class="card bag-store"><h3>储物格<small>${this.bagUsed()} / ${s.bagCap}</small></h3>${ftabs}<div class="bag-scroll" id="bag-grid"><div class="grid">${cells || `<p class="desc">没有这类物品。</p>`}</div></div></div>`;
   },
 });

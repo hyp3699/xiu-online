@@ -494,7 +494,10 @@ const API = {
     const onlyLog = p => !p || (p.$p === 1 && !(p.d || []).length && Object.keys(p.s || {}).every(k => k === "log"));
     const noLog = st => st ? JSON.stringify({ ...st, log: 0 }) : "";
     const before = "patch" in message ? "" : noLog(this.serverState);
-    if (!this.applyState(message) && message.ok) { pending.resolve(message); return; }   // 补丁没对上：已请求完整状态，不播战斗、不报成功，等完整状态到了界面自然更新
+    // 有战斗要播：先排进队列再应用状态，这样页面在战斗播完、玩家关闭之前保持战前的样子（G.render 见 _btHoldView），不会先看到结果
+    const battles = message.ok && Array.isArray(message.battles) ? message.battles.filter(bt => bt && bt.b) : [];
+    const qn = this._battleQueue.length; if (battles.length && typeof G !== "undefined" && G.playBattle) this._battleQueue.push(...battles);
+    if (!this.applyState(message) && message.ok) { this._battleQueue.length = qn; if (typeof G !== "undefined" && G.render) G.render(); pending.resolve(message); return; }   // 补丁没对上：已请求完整状态，不播战斗、不报成功，等完整状态到了界面自然更新
     const failed = message.ok && ("patch" in message ? onlyLog(message.patch) : before === noLog(this.serverState));
     if (!message.ok) {
       const error = message.error || "操作失败";
@@ -503,8 +506,7 @@ const API = {
     }
     this.afterRemoteAction(pending.name, pending.args, pending.refresh, message.result, pending.exStart, message.logs || [], pending.cqStart);
     // 服务器打完的战斗在这里播放：一次回多场时按顺序逐场播（以前只取最后一场，前面的直接丢了）
-    const battles = Array.isArray(message.battles) ? message.battles.filter(bt => bt && bt.b) : [];
-    if (battles.length && typeof G !== "undefined" && G.playBattle) this.queueBattles(battles);
+    if (battles.length && typeof G !== "undefined" && G.playBattle) this._pumpBattles();
     else if (pending.name !== "wudaoDone") this.toastLogs(message.logs, true, failed);
     pending.resolve(message);
   },
@@ -519,15 +521,17 @@ const API = {
   },
   _pumpBattles() {
     if (this._battlePump || !this._battleQueue.length) return;
-    this._battlePump = setInterval(() => {
+    const tick = () => {
       if (!this._battleQueue.length) { clearInterval(this._battlePump); this._battlePump = 0; return; }
       if (typeof G === "undefined" || !G.playBattle || !G.s) return;   // 界面还没好：等着，别丢
       // 上一场还在：_bp 在且战斗画面还在 DOM 里就等；画面已不在（异常关闭）则当作播完
       if (G._bp && typeof document !== "undefined" && document.querySelector("#modal-box .btv")) return;
       const bt = this._battleQueue.shift();
       try { G.playBattle(bt.b, bt.title, bt.txt, bt.win, bt.logs || undefined, bt.replay, bt.opt || {}); }
-      catch (e) { /* 这场播不了就跳过，下一场继续 */ }
-    }, 500);
+      catch (e) { /* 这场播不了就跳过，下一场继续 */ if (!this._battleQueue.length && G.render) G.render(); }
+    };
+    this._battlePump = setInterval(tick, 500);
+    tick();   // 第一场马上播，不等 0.5 秒
   },
 
   afterRemoteAction(name, args, refresh, result, exStart, logs = [], cqStart) {
