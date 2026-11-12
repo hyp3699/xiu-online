@@ -336,9 +336,9 @@ G.module({
     },
     sjSgCard(a) {
       const C = this.sjC(), N = C.SG_LEARN_N || 12, d = this.bjDay();
-      const rows = [0, 1, 2].map(j => { const o = this.sjSgSt(a, j), done = o.n >= N;
-        return `<div class="line"><div>${DATA.li(this.sjSgImg(a, j))}${this.sjSgName(a, j)}<span class="tag">${done ? "已学会" : `学习 ${o.n} / ${N}`}</span>${!done && o.d === d ? "<small>今日已学习</small>" : ""}</div><button class="sm" onclick="G.${done ? "openSjSw" : "openSjSg"}(${a},${j})">${done ? "神纹" : "学习"}</button></div>`; }).join("");
-      return `<div class="card"><h3>神功<small>每本每天学习一次，学满 ${N} 次解锁神纹</small></h3>${rows}</div>`;
+      const books = [0, 1, 2].map(j => { const o = this.sjSgSt(a, j), done = o.n >= N;
+        return `<button class="sg-book" style="animation-delay:${(j * 0.7).toFixed(1)}s" onclick="G.${done ? "openSjSw" : "openSjSg"}(${a},${j})"><img src="${this.sjSgImg(a, j)}" alt=""><b>${this.sjSgName(a, j)}</b><span class="tag">${done ? "已学会" : `学习 ${o.n} / ${N}`}</span>${!done && o.d === d ? "<small>今日已学习</small>" : ""}</button>`; }).join("");
+      return `<div class="card"><h3>神功<small>每本每天学习一次，学满 ${N} 次解锁神纹</small></h3><div class="sg-books">${books}</div></div>`;
     },
     openSjSg(a, j) {
       a = +a; j = +j; const o = this.sjSgSt(a, j), N = this.sjC().SG_LEARN_N || 12, nm = this.sjSgName(a, j);
