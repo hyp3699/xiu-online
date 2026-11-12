@@ -59,6 +59,8 @@ if (CFG.lingzhu) CFG.mijing.items.lz = { name: "灵珠", names: CFG.lingzhu.NAME
 if (!CFG.mijing.items.ly) CFG.mijing.items.ly = { name: "灵元", names: ["金灵元", "木灵元", "水灵元", "火灵元", "土灵元", "雷灵元"], sell: 5, desc: "升级道童、灵根的材料。" };   // 管理员改过 mijing.js 也有
 DATA.SM_GRADED = ["ys", "lj", "lz", "ly"];
 // 等比数列：第 i 次（0 起，共 n 次）= first × (last / first)^(i / (n − 1))，每次涨的倍率相同（道童、灵根升级用）
+// 幂曲线：first + (last − first) × (i ÷ (n−1))^pow（pow 越大前期越便宜、后期越陡）
+DATA.powStep = (first, last, i, n, pow) => n <= 1 ? last : Math.round(first + (last - first) * Math.pow(Math.min(Math.max(i, 0), n - 1) / (n - 1), pow));
 DATA.geoStep = (first, last, i, n) => n <= 1 || first <= 0 ? last : Math.round(first * Math.pow(last / first, Math.min(Math.max(i, 0), n - 1) / (n - 1)));
 DATA.smName = (k, ft) => {
   const I = CFG.mijing.items;

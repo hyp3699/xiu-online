@@ -15,7 +15,7 @@ DATA.jieGf = { jshop: [], gd: [] };
     const list = DATA.jieGf[kind];
     DATA.JIE_GF_WORLDS.forEach(w => (DATA.worldMapIdx[w] || []).forEach((a, i) => {
       const m = DATA.maps[a], mk = (id, star, old) => ({ id, src: kind, map: a, w, star, plain: true, old,
-        prefix: m.name + (kind === "gd" ? word : ""), name: m.name + (kind === "gd" ? "功德司" : "坊市"), reqRealm: DATA.mapReq(a), els: {} });
+        prefix: m.name + (kind === "gd" ? (w === "shen" ? "" : word) : ""), rw: kind === "gd" && w === "shen" || undefined, name: m.name + (kind === "gd" ? (w === "shen" ? "愿力祠" : "功德司") : w === "shen" ? "神市" : "坊市"), reqRealm: DATA.mapReq(a), els: {} });
       if (w === "shen") { list.push(mk(pre + a, Math.min(10, 6 + Math.floor(i / 2)), true)); list.push(Object.assign(mk(pre + "s" + a, i < 5 ? 11 : 12), { nw: true })); }   // 神界：旧 6~10 星只保留已学的；新 11、12 星
       else list.push(mk(pre + a, Math.min(10, 6 + Math.floor(i / 2))));
     }));
@@ -26,7 +26,7 @@ DATA.jieGf = { jshop: [], gd: [] };
       grp.forEach((o, i) => { o.els[t.id] = seq[i]; });
     });
     const E = DATA.elements;   // 真经 6 本：第 1 本属性不变，后面 5 本依次补齐金木水火土雷（每处六种抗性各一本）
-    list.forEach(o => { const b0 = E.findIndex(e => e.id === o.els.zhenjue); for (let b = 2; b <= 6; b++) if (("zhenjue" + b) in o.els) o.els["zhenjue" + b] = E[(b0 + b - 1) % E.length].id; });
+    list.forEach(o => { const b0 = E.findIndex(e => e.id === o.els.zhenjue); for (let b = 2; b <= 12; b++) if (("zhenjue" + b) in o.els) o.els["zhenjue" + b] = E[(b0 + b - 1) % E.length].id; });   // 第 7 本起再从第 1 本那系轮
     list.forEach(o => { o.el = o.els.mijue; DATA.gfSrcById[o.id] = o; });
   }
 })();

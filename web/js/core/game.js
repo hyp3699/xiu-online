@@ -35,7 +35,8 @@ const G = {
   dirty() { this._ver++; this._cache = null; },
   calc() {
     if (!this._cache) {
-      this._cache = { stats: this.computeStats() };   // 先算属性
+      this._calcBusy = true;
+      try { this._cache = { stats: this.computeStats() }; } finally { this._calcBusy = false; }   // 先算属性（计算中 ownAtk 不再回调，避免循环）
       this._cache.speed = this.computeSpeed();         // 修炼速度依赖属性（神识）
     }
     return this._cache;
@@ -82,7 +83,7 @@ const G = {
     if (this.lgYsInit) this.lgYsInit(s);   // 灵果种子：哪些隐世宗门换哪种，第一次进游戏随机定死（world.js）
     s._nm = DATA.nmSnap();   // 新存档记下当前用的名字（config/names.js），以后改名读档时对照
     s._oreV2 = 1;   // v254 矿石表新版（见 migrate）
-    s.lzB1000 = true;   // 新存档的灵珠直接按 v261 后的 1000 算（见 migrate 的补 +990：只补老存档，新存档不再补）
+    s.lzB1000 = true; s.lzV3 = true;   // lzV3：灵珠 3000 / 每强化 +24（见 migrate）   // 新存档的灵珠直接按 v261 后的 1000 算（见 migrate 的补 +990：只补老存档，新存档不再补）
     return s;
   },
   // v254 矿石表：去掉仙 / 冥 / 魔特色矿石（仙霞玉髓、冥河寒晶、魔焰晶），三者都并入新的通用矿石（序号 11），神辉金及神界矿石序号 -2
@@ -130,6 +131,9 @@ const G = {
     {   // v261 灵珠初始聚灵 10 → 1000：已放入的灵珠补上差值（强化部分不变），只补一次
       if (!s.lzB1000 && Array.isArray(s.lzSlot)) s.lzSlot.forEach(z => { if (z && Number.isFinite(z.v)) z.v += 990; });
       s.lzB1000 = true; }
+    {   // 2026-11-12 灵珠初始 1000 → 3000、每强化 +3 → +24：已放入的按强化次数重算（老灵珠没记次数：(聚灵 − 1000) ÷ 3），只算一次
+      if (!s.lzV3 && Array.isArray(s.lzSlot)) { const C = CFG.lingzhu; s.lzSlot.forEach(z => { if (!z || !Number.isFinite(z.v)) return; const n = Number.isFinite(z.n) ? z.n : Math.max(0, Math.round((z.v - 1000) / 3)); z.n = n; z.v = (C.BASE || 0) + n * (C.ENH || 0); }); }
+      s.lzV3 = true; }
     {   // v259 渡劫准备格子去掉：老存档的格子记录删掉；进行中的渡劫护盾、格子冷却清掉
       delete s.tribSlots; if (s.trib) { s.trib.shield = null; delete s.trib.cd; delete s.trib.used; } }
     {   // 炼器仙炉（xqi）删掉：清掉老存档里的图纸、炉子、背包图纸 / 炉子、学习和炼制队列
@@ -207,7 +211,7 @@ const G = {
   // 进度条：每一帧按时间直接算宽度（不用 CSS 过渡），页面每秒重绘也不会一顿一顿
   bars() {
     if (!this.s) return;
-    const now = Date.now();
+    const now = this.dispNow();   // 进度条按服务器时钟算（_lastTick 是服务器的 s.last；手机时钟快慢会让进度条没走完就重置、或开头卡几秒）
     // 进度是显示预测，不负责结算；走满后停在满格，等服务器结算推送到达再从 0 开始，保证和结算同步。
     const cycleMs = DATA.TICK * 1000, phaseMs = this.tickElapsedMs(now);
     const pct = (cycleMs > 0 ? phaseMs / cycleMs * 100 : 0) + "%";
@@ -257,7 +261,8 @@ const G = {
 
   // 当前服务器结算周期内的显示时间；只绘制进度，不在浏览器执行状态结算。
   // 走满后先停在满格等服务器结算（服务器到点立即推送）；超过 3 秒还没收到（断线等）才按周期继续走。
-  tickElapsedMs(now = Date.now()) {
+  dispNow() { return typeof API !== "undefined" && API.now ? API.now() : Date.now(); },   // 显示用时钟（经服务器校准）
+  tickElapsedMs(now = this.dispNow()) {
     const cycleMs = DATA.TICK * 1000;
     if (cycleMs <= 0) return 0;
     const elapsed = Math.max(0, now - this._lastTick);

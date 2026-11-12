@@ -4,7 +4,7 @@
  * 管理员：设置 → 生成礼包码（选物品、兑换次数；可随时删除）。礼包码存在服务器（server/server.py 的 gifts 表）。
  * 所有玩家：设置 → 礼包码兑换。每个账号每个礼包码只能兑换一次；兑换次数用完就失效。
  * 礼包里的物品格式 { c: 类别, ... }：
- *   stone / contrib / merit {n}         灵石 / 贡献 / 功德
+ *   stone / contrib / merit / yl {n}    灵石 / 贡献 / 功德 / 愿力
  *   gf {src, type}                      功法（来源 = 门派 / 坊市 / 试炼塔）
  *   sp {src}                            法术（门派本属性）
  *   mf {star, kind}                     秘法
@@ -24,7 +24,7 @@ G.module({
 
   api: {
     giftCats() {
-      return [["stone", "灵石"], ["contrib", "贡献"], ["merit", "功德"], ["gf", "功法"], ["sp", "法术"], ["mf", "秘法"], ["fabao", "法宝"], ["eq", "装备"],
+      return [["stone", "灵石"], ["contrib", "贡献"], ["merit", "功德"], ["yl", "愿力"], ["gf", "功法"], ["sp", "法术"], ["mf", "秘法"], ["fabao", "法宝"], ["eq", "装备"],
         ["herb", DATA.matKinds.herb], ["ore", DATA.matKinds.ore], ["tc", "特产"], ["dan", "丹药"], ["bp", "图纸"],
         ["lj", DATA.smName("lj")], ["lz", DATA.smName("lz")], ["hx", DATA.HX], ["st", "神通"], ["bm", "本命法宝图纸"]];
     },
@@ -34,7 +34,7 @@ G.module({
     giftFields(c, a) {
       const N = { k: "n", label: "数量", num: true }, jie = this.giftJie(), xing = DATA.XING.map((n, i) => [i, n]);   // 装备、法宝、戒指、炼器炉按星（一星 ~ 十二星）
       const srcName = o => `${o.star}星·${o.name}${o.book ? `·第${o.book}卷` : ""}`;
-      if (c === "stone" || c === "contrib" || c === "merit" || c === "hx") return [N];
+      if (c === "stone" || c === "contrib" || c === "merit" || c === "yl" || c === "hx") return [N];
       if (c === "lj" || c === "lz") return [{ k: "ft", label: "名称", opts: CFG.mijing.items[c].names.map((n, i) => [i, n]) }, N];
       if (c === "gf") {
         const srcs = [...DATA.sects, ...DATA.shopSources, ...DATA.jieGf.jshop.filter(x => !x.old), ...DATA.jieGf.gd.filter(x => !x.old), ...DATA.towerBooks, ...DATA.twSources].sort((x, y) => x.star - y.star);
@@ -96,6 +96,7 @@ G.module({
           case "stone": return `灵石 ${U.fmt(it.n)}`;
           case "contrib": return `贡献 ${U.fmt(it.n)}`;
           case "merit": return `功德 ${U.fmt(it.n)}`;
+          case "yl": return `愿力 ${U.fmt(it.n)}`;
           case "gf": { const g = DATA.gongfaInfo(DATA.gongfaId(it.src, it.type)); return `功法《${g.name}》`; }
           case "sp": { const o = DATA.gfSrcById[it.src]; if (!o) return "未知物品"; return `法术《${DATA.spellInfo(DATA.spellId(it.src, o.el)).name}》`; }
           case "mf": return `秘法《${DATA.mifaInfo(DATA.mifaId(it.star, it.kind)).name}》`;
@@ -121,6 +122,7 @@ G.module({
         case "stone": s.stone += n; return true;
         case "contrib": s.contrib = (s.contrib || 0) + n; return true;
         case "merit": s.merit = (s.merit || 0) + n; return true;
+        case "yl": s.yuanli = (+s.yuanli || 0) + n; return true;
         case "gf": case "sp": case "mf": {
           const id = it.c === "gf" ? DATA.gongfaId(it.src, it.type) : it.c === "sp" ? DATA.spellId(it.src, DATA.gfSrcById[it.src].el) : DATA.mifaId(it.star, it.kind);
           if (!DATA.skillInfo(id)) return false;

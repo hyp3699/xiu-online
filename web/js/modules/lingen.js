@@ -17,7 +17,7 @@ G.module({
 
   api: {
     // 从 lv 升到 lv+1：灵石 COST_FIRST → COST_LAST、同属性灵元 LY_FIRST → LY_LAST，每次 × 同一倍率
-    lingenCost(lv) { const C = CFG.lingen; return DATA.geoStep(C.COST_FIRST ?? 1000, C.COST_LAST ?? 300000, lv, C.MAX); },
+    lingenCost(lv) { const C = CFG.lingen; return C.COST_POW ? DATA.powStep(C.COST_FIRST ?? 1000, C.COST_LAST ?? 300000, lv, C.MAX, +C.COST_POW) : DATA.geoStep(C.COST_FIRST ?? 1000, C.COST_LAST ?? 300000, lv, C.MAX); },
     lingenLy(el, lv) { const C = CFG.lingen; return DATA.geoStep(C.LY_FIRST ?? 1, C.LY_LAST ?? 1200, lv, C.MAX); },
     // lv 级的总加成 %（只走功法加成表）
     lingenPct(lv) { return DATA.segSum(CFG.lingen, "GONGFA", lv); },

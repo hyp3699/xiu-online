@@ -44,19 +44,22 @@ G.module({
     setWHall(h) { this.hallSel = h; this.render(); this.viewScroll(!h && this.mapRev(this.worldId || "fan") ? -1 : 0); },   // 地图卷轴左下角的 灵地 / 悟道碑
     // 一张地图的东西南北四域（历练 / 探索 / 出窍）
     regionsCard(sel, noTitle) {
-      const s = this.s, map = DATA.maps[sel], lock = !this.realmOK(DATA.mapReq(sel)), unl = this.mapUnlocked(sel), tile = true;   // 凡界、四界都用图片格子
+      const tile = true, rows = DATA.regionDirs.map((d, r) => this.rgTile(sel, r)).join("");   // 凡界、四界都用图片格子
+      return `<div class="card${tile ? " rgcard" : ""}">${noTitle ? "" : `<h3>${DATA.maps[sel].name}</h3>`}${tile ? `<div class="rggrid">${rows}</div>` : rows}</div>`;
+    },
+    // 一个域的图片格子（历练 / 探索按钮）；出窍不在这里开：统一用六界图左上「元婴出窍」（openRunList）
+    rgTile(sel, r, cls) {
+      const s = this.s, map = DATA.maps[sel], lock = !this.realmOK(DATA.mapReq(sel)), unl = this.mapUnlocked(sel), tile = true, d = DATA.regionDirs[r];
       const RG = ["dong", "xi", "nan", "bei"];   // 东西南北四域图 img/map/rg_*.webp
-      // 出窍不在这里开：统一用六界图左上「元婴出窍」（openRunList）；这里只显示历练 / 探索
-      const rows = DATA.regionDirs.map((d, r) => {
+      {
         const R = DATA.region(sel, r), ok = this.isTrained(sel, r), x = s.explore && s.explore.map === sel && (s.explore.reg || 0) === r ? s.explore : null, q = s.cq && s.cq.map === sel && (s.cq.reg || 0) === r ? s.cq : null;
         const btns = lock ? `<button class="sm" disabled>需${DATA.realmLabel(DATA.mapReq(sel))}</button>` : !unl || !this.regionOpen(sel, r) ? `<button class="sm" disabled>未开启</button>` : `<div><button class="sm ${x && x.once ? "on" : ""}" onclick="G.toggleExplore(${sel},${r},true)">${x && x.once ? "停止" : "历练"}</button>
               <button class="sm ${x && !x.once ? "on" : ""}" onclick="G.toggleExplore(${sel},${r})" ${ok ? "" : "disabled"}>${x && !x.once ? "停止" : "探索"}</button></div>`;
         const info = `${ok ? "已通过历练" : "未历练"}${q ? " · 出窍中" : ""}`;   // 不显示首领名
         const gk = this.gridOpen(sel, r) ? ` class="rg-go" onclick="G.openGrid(${sel},${r})"` : "";   // 点区域图进地图格子（独立玩法）
-        return tile ? `<div class="rgt${x || q ? " cur" : ""}"><img${gk} src="img/map/rg_${map.w === "fan" ? "" : map.w + "_"}${RG[r] || "dong"}.webp" alt=""><b>${d}域</b><small>${info}</small>${btns}</div>`
+        return tile ? `<div class="rgt${cls ? " " + cls : ""}${x || q ? " cur" : ""}"><img${gk} src="img/map/rg_${map.w === "fan" ? "" : map.w + "_"}${RG[r] || "dong"}.webp" alt=""><b>${d}域</b><small>${info}</small>${btns}</div>`
           : `<div class="line"><div>${d}域<small>${info}</small></div>${btns}</div>`;
-      }).join("");
-      return `<div class="card${tile ? " rgcard" : ""}">${noTitle ? "" : `<h3>${map.name}</h3>`}${tile ? `<div class="rggrid">${rows}</div>` : rows}</div>`;
+      }
     },
     /* ---------- 地图格子（config/youli.js）：每域一张 N×N 格子图，和历练 / 探索 / 出窍无关
      * 点任意格子 = 游历一次（可重复点同一格），每天共 DAILY 次（北京时间 0 点重置），每次按 W 几率得一种：灵石、本图药材、本图矿石、火髓、宝物、游历功法
@@ -64,9 +67,13 @@ G.module({
      * 宝物服用：s.ybEaten["种类|级"] = 已服个数（data/youli.js）
      * 以后格子里放宗门遗迹、古修洞府 ---------- */
     gridCfg() { return CFG.youli || {}; },
-    gridN() { return Math.max(4, Math.min(30, this.gridCfg().N || 9)); },
+    gridN(r) { if (r >= DATA.regionCount) return (CFG.shenjie || {}).JIE_N || 9;   // 神界界：9 × 9
+      return Math.max(4, Math.min(30, this.gridCfg().N || 9)); },
+    gridJie(r) { return r >= DATA.regionCount; },   // 神界界格子：用小世界令牌走，不算每日游历次数、没有快速游历和已获机缘
     gridDaily() { const d = this.gridCfg().DAILY; return d === undefined ? 30 : d; },
-    gridOpen(a, r) { return !!DATA.maps[a] && r >= 0 && r < DATA.regionCount && this.realmOK(DATA.mapReq(a)) && this.mapUnlocked(a) && this.regionOpen(a, r); },
+    gridOpen(a, r) { if (r >= DATA.regionCount) return !!DATA.maps[a] && DATA.maps[a].w === "shen" && r < DATA.regionCount + 8 && this.gridOpen(a, (r - DATA.regionCount) >> 1);   // 神界每域 2 界（shenjie.js sjGr）：本域开了就能进
+      return !!DATA.maps[a] && r >= 0 && r < DATA.regionCount && this.realmOK(DATA.mapReq(a)) && this.mapUnlocked(a) && this.regionOpen(a, r); },
+    gridName(a, r) { return r >= DATA.regionCount && this.sjGrName ? this.sjGrName(a, r) : DATA.regionName(a, r); },   // 神界界格子名
     gridToday() {
       const s = this.s, day = this.bjDay();
       if (!s.gridDay || s.gridDay.day !== day) s.gridDay = { day, n: 0, last: "", rec: [] };
@@ -75,20 +82,41 @@ G.module({
     // 游历：点格子 i（服务器动作）
     gridYouli(a, r, i) {
       a = Number(a); r = Number(r); i = Number(i);
-      const N = this.gridN();
+      const N = this.gridN(r);
       if (!Number.isInteger(a) || !Number.isInteger(r) || !Number.isInteger(i) || i < 0 || i >= N * N) throw new Error("格子不存在");
       if (!this.gridOpen(a, r)) throw new Error("该区域尚未开启");
+      if (this.gridJie(r)) {   // 神界界：每走一格耗小世界令牌
+        if (i === this.sjSxCell(r)) return this.log("中间是神像，点神像查看 / 升级。", "sys");   // 神像格：不走、不耗令牌
+        const c = (CFG.shenjie || {}).JIE_LP || 1;
+        if (this.smCount("sjlp") < c) { this.log(`${DATA.smName("sjlp")}不足（每步消耗 ${c} 个），去愿力祠兑换。`, "sys"); return; }
+        this.takeSm("sjlp", c);
+        const o = this.sjJieG(a, r);
+        if (o.m.includes(i) && !o.k.includes(i)) {   // 怪物格：打赢才算走到、计入征服度
+          const R0 = (r - DATA.regionCount) >> 1, m = this.makeMob(a, R0, (CFG.shenjie || {}).JIE_MOB_KIND || "elite"); m.a = a;
+          const res = this.battle(m, { foe: m.boss ? "boss" : m.elite ? "elite" : "mob", useSet: true }), nm = String(m.name).replace(/^精英·/, "");
+          this.playBattle(res.detail, `${this.gridName(a, r)} · ${nm}`, res.win ? "胜利" : "失败", !!res.win, []);
+          if (!res.win) { this.log(`在${this.gridName(a, r)}遭遇${nm}，${res.timeout ? `${res.rounds} 回合未能击败` : "不敌退走"}。`, "bad"); this.dirty(); this.render(); return; }
+          o.k.push(i); this.s.kills = (this.s.kills || 0) + 1;
+          const SC = CFG.shenjie || {}, YL = SC.JIE_YL || [300, 500], ys = (SC.JIE_YL_STEP || 0) * (this.sjWi ? this.sjWi(a) : DATA.maps[a].wi || 0);
+          const yl = U.rand(YL[0] + ys, YL[1] + ys); this.s.yuanli = (this.s.yuanli || 0) + yl;   // 界里打怪给愿力
+          const t0 = this.gridOnce(a, r, i), txt = `愿力 ${U.fmt(yl)}` + (t0 ? "、" + t0 : ""), done = o.k.length >= o.m.length;
+          this.log(`击败${nm}（${this.sjJiePct(a, r)}），获得${txt}。${done ? `${this.gridName(a, r)}已占领，可以升级神像。` : ""}`, "gold"); this.dirty(); this.render(); return;
+        }
+        const txt = this.gridOnce(a, r, i);
+        this.log(`探索${this.gridName(a, r)}，获得${txt}。`, "gold"); this.dirty(); this.render(); return;
+      }
       const d = this.gridToday();
       if (d.n >= this.gridDaily()) { this.log(`今日游历次数已用完（${this.gridDaily()} 次）。`, "sys"); return; }
       d.n++;
       d.last = this.gridOnce(a, r, i);
-      this.log(`游历${DATA.regionName(a, r)}，获得${d.last}。`, "gold");
+      this.log(`游历${this.gridName(a, r)}，获得${d.last}。`, "gold");
       this.dirty(); this.render();
     },
     // 快速游历：一次用完今日剩余次数，优先点亮还黑着的格子（都亮了就随机）
     gridQuick(a, r) {
       a = Number(a); r = Number(r);
       if (!Number.isInteger(a) || !Number.isInteger(r) || !this.gridOpen(a, r)) throw new Error("该区域尚未开启");
+      if (this.gridJie(r)) throw new Error("界里不能快速游历");
       const d = this.gridToday(), left = this.gridDaily() - d.n, N = this.gridN();
       if (left <= 0) { this.log(`今日游历次数已用完（${this.gridDaily()} 次）。`, "sys"); return; }
       const got = [];
@@ -98,24 +126,24 @@ G.module({
         d.n++; got.push(this.gridOnce(a, r, dark.length ? U.pick(dark) : U.rand(0, N * N - 1)));
       }
       d.last = got.join("、");
-      this.log(`快速游历${DATA.regionName(a, r)} ${left} 次，获得${d.last}。`, "gold");
+      this.log(`快速游历${this.gridName(a, r)} ${left} 次，获得${d.last}。`, "gold");
       this.dirty(); this.render();
     },
     // 游历一格：点亮格子、发奖励、记进今日「已获机缘」，返回收获文字（不扣次数）
     gridOnce(a, r, i) {
       const loot = this.newLoot();
-      const s = this.s, N = this.gridN(), C = this.gridCfg();
+      const s = this.s, N = this.gridN(r), C = this.gridCfg();
       if (!s.grids || typeof s.grids !== "object") s.grids = {};
       const gk = a + "_" + r, g0 = s.grids[gk] && typeof s.grids[gk] === "object" ? s.grids[gk] : {};
       const lit = Array.isArray(g0.v) ? g0.v.filter(n => Number.isInteger(n) && n >= 0 && n < N * N) : (Number.isInteger(g0.p) ? [g0.p] : []);
       if (!lit.includes(i)) lit.push(i);
-      s.grids[gk] = { p: i, v: lit };   // v = 已点亮（游历过）的格子
+      s.grids[gk] = Object.assign({}, g0, { p: i, v: lit });   // 保留界的怪物 / 征服 / 神像（m k sx）   // v = 已点亮（游历过）的格子
       this.ysEnsure();
       const R = (v, lo, hi) => Array.isArray(v) ? U.rand(v[0], v[1]) : v === undefined ? U.rand(lo, hi) : v;
       const pool = DATA.mapPool(a);
       // 每次只随机得一种（按 config/youli.js 的 W 几率）：灵石 / 本图药材 / 本图矿石 / 火髓 / 宝物 / 游历功法
       const W = C.W || {}, w = (k, d) => Math.max(0, W[k] === undefined ? d : +W[k] || 0);
-      const gfIds = DATA.ylGfIds(a, r).filter(id => !this.ylGfOwned(id)), grades = DATA.ybGradesOf(a);
+      const gfIds = DATA.ylGfIds(a, r >= DATA.regionCount ? (r - DATA.regionCount) >> 1 : r).filter(id => !this.ylGfOwned(id)), grades = DATA.ybGradesOf(a);
       const opts = [["stone", w("stone", 47)], ["herb", pool.herb && pool.herb.length ? w("herb", 16) : 0], ["ore", pool.ore && pool.ore.length ? w("ore", 16) : 0],
         ["hx", w("hx", 10)], ["yb", DATA.YB.length && grades.length ? w("yb", 8) : 0], ["gf", gfIds.length ? w("gf", 3) : 0]];
       let roll = Math.random() * opts.reduce((t, o) => t + o[1], 0), k = "stone";
@@ -132,7 +160,7 @@ G.module({
         else this.lootAdd(loot, DATA.HX, R(C.HX, 5, 20));
         txt = this.giveLoot(loot);
       }
-      if (rec) this.ylGotAdd(Object.assign(rec, { a, w: DATA.regionName(a, r) }));   // 已获机缘：只记宝物、功法（永久）
+      if (rec && !this.gridJie(r)) this.ylGotAdd(Object.assign(rec, { a, w: this.gridName(a, r) }));   // 已获机缘：只记宝物、功法（永久）
       return txt;
     },
     // 游历功法得到过一次（已获机缘里有）/ 已学会 / 正在学 / 排队 / 背包里有：以后游历不再掉
@@ -160,7 +188,7 @@ G.module({
     gridTap(a, r, i) {
       if (this._glRun) return;
       const d = this.s.gridDay;
-      if (d && d.day === this.bjDay() && d.n >= this.gridDaily()) return this.gridYouli(a, r, i);
+      if (this.gridJie(r) ? this.smCount("sjlp") < ((CFG.shenjie || {}).JIE_LP || 1) : d && d.day === this.bjDay() && d.n >= this.gridDaily()) return this.gridYouli(a, r, i);
       this._glRun = { a, r, i }; this.render();
       setTimeout(() => { this._glRun = null; try { this.gridYouli(a, r, i); } finally { this.render(); } }, 1500);
     },
@@ -196,18 +224,20 @@ G.module({
       this.modal(`<h2>已获机缘</h2>${cells.length ? `<div class="grid">${cells.join("")}</div>` : ""}<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
     // 打开 / 关闭格子页（纯界面）
-    openGrid(a, r) { this.ysSel = null; this.gridSel = a === undefined || a === null ? null : { a: Number(a), r: Number(r) }; this.render(); this.viewScroll(0); },
+    openGrid(a, r) { this.ysPick = null; this.gridSel = a === undefined || a === null ? null : { a: Number(a), r: Number(r) }; this.render(); this.viewScroll(0); },
     gridView(a, r, wid) {
-      const s = this.s, N = this.gridN(), g = (s.grids || {})[a + "_" + r], d = s.gridDay && s.gridDay.day === this.bjDay() ? s.gridDay : { n: 0, last: "" };
-      const D = this.gridDaily(), full = d.n >= D, cells = [];
-      const lit = new Set(DATA.isTest() ? Array.from({ length: N * N }, (_, i) => i) : g ? (Array.isArray(g.v) ? g.v : Number.isInteger(g.p) ? [g.p] : []) : []), cur =   // 测试模式（调试人物）：格子全亮，隐世宗门直接可见
+      const s = this.s, N = this.gridN(r), g = (s.grids || {})[a + "_" + r], d = s.gridDay && s.gridDay.day === this.bjDay() ? s.gridDay : { n: 0, last: "" }, jie = this.gridJie(r);
+      const D = this.gridDaily(), full = !jie && d.n >= D, cells = [];
+      const lit = new Set(g ? (Array.isArray(g.v) ? g.v : Number.isInteger(g.p) ? [g.p] : []) : []), cur =   // 测试模式也只亮走过的格子（用户定 2026-11-12）
         g && Number.isInteger(g.p) ? g.p : Math.floor(N * N / 2);
       const ys = this.ysAt(a, r);   // 隐世宗门：发现后格子上显示宗门模型，点进去
       for (let i = 0; i < N * N; i++) { const on = lit.has(i);
         const run = this._glRun && this._glRun.a === a && this._glRun.r === r && this._glRun.i === i;
+        if (jie && i === this.sjSxCell(r)) { const sl = Math.floor(+this.sjJieG(a, r).sx) || 0; cells.push(`<button class="gc on ys sx" onclick="G.openSjSx(${a},${r})"><img src="img/map/sjsx.webp?v=1" alt=""><span>神像 ${sl} 级</span></button>`); continue; }   // 界中间固定神像格（0 级起）
         if (ys && ys.i === i && (ys.fixed || on)) { cells.push(`<button class="gc on ys${g && g.p === i ? " me" : ""}" onclick="G.ysOpen('${ys.id}')"><img src="img/icons/ys_sect.png" alt=""><span>${ys.name}</span></button>`); continue; }
-        cells.push(`<button class="gc${on ? " on" : ""}${g && g.p === i ? " me" : ""}${run ? " run" : ""}" onclick="G.gridTap(${a},${r},${i})" ${full ? "disabled" : ""}>${run ? "<span>游历中</span>" : ""}</button>`); }
-      return `<div class="gridbar gt"><span>今日游历 ${d.n} / ${D} 次</span></div>
+        const mob = jie && on && !run && g && Array.isArray(g.m) && g.m.includes(i) && !(g.k || []).includes(i);   // 走过但怪还在的格子（老存档补怪落在走过的格子上）：标出来，点它打
+        cells.push(`<button class="gc${on ? " on" : ""}${mob ? " mob" : ""}${g && g.p === i ? " me" : ""}${run ? " run" : ""}" onclick="G.gridTap(${a},${r},${i})" ${full ? "disabled" : ""}>${run ? (jie ? "<span>探索中</span>" : "<span>游历中</span>") : mob ? "<span>怪</span>" : ""}</button>`); }
+      return `<div class="gridbar gt"><span>${jie ? `${DATA.smName("sjlp")} ${U.fmt(this.smCount("sjlp"))} 个 · 每步消耗 ${(CFG.shenjie || {}).JIE_LP || 1} 个 · ${this.sjJiePct(a, r)}` : `今日游历 ${d.n} / ${D} 次`}</span></div>
         <div id="mgwrap" class="mgwrap" data-c="${cur}" data-n="${N}"><div class="mgrid${this._glRun ? " busy" : ""}" style="background-image:url(img/map/grid_${wid || "fan"}.webp);grid-template-columns:repeat(${N},var(--gcw));grid-template-rows:repeat(${N},var(--gcw))">${cells.join("")}</div></div>`;
     },
 
@@ -343,7 +373,7 @@ G.module({
     },
     xdN(src) { return this.xdOrder(src).length * this.xdCfg(src).VOLS; },
     xdRank(src, id, v) { const i = this.xdOrder(src).indexOf(src === "js" ? +id : id); return i < 0 ? -1 : i * this.xdCfg(src).VOLS + v; },
-    xdItem(it) { return { k: it.k === "qi" ? "qi" : "dan", src: it.src === "js" ? "js" : "ys", id: it.id !== undefined ? it.id : it.ys, v: it.v | 0 }; },
+    xdItem(it) { return { k: it.k === "qi" || it.k === "jl" ? it.k : "dan", src: it.src === "js" ? "js" : "ys", id: it.id !== undefined ? it.id : it.ys, v: it.v | 0 }; },
     xdTotalExp(k) { const M = this.craftMax(k); let T = 0; for (let l = 1; l < M; l++) T += this.craftNeed(k, l); return T; },
     /* 心得经验：每组按卷序线性递增，合计 = 满阶总经验 × PCT%。
      * 隐世：最后一卷 = 第一卷 × ys.RATIO；四界：最后一本 = 隐世第一卷 × PRICE[1]/PRICE[0]（这样最贵 300 万、最便宜 10 万），第一本由合计反推。
@@ -356,16 +386,23 @@ G.module({
       return [Math.max(0, T * (X.PCT || 0) / 100 * 2 / N - last), last];
     },
     xdExp(k, src, id, v) {
+      if (k === "jl") return 0;
       const r = this.xdRank(src, id, v), N = this.xdN(src); if (r < 0 || !N) return 0;
       const [e0, e1] = this.xdEnds(k, src); return Math.round(N > 1 ? e0 + (e1 - e0) * r / (N - 1) : e0);
     },
     xdPrice(k, src, id, v) {
+      if (k === "jl") return this.xdJl().PRICE;
       const P = (CFG.xinde || {}).PRICE || [100000, 3000000], hi = Math.max(this.xdEnds(k, "ys")[1], this.xdEnds(k, "js")[1]);
       return Math.round(P[1] * this.xdExp(k, src, id, v) / hi / 1000) * 1000;
     },
     xdName(k, src, id, v) {
       const pre = src === "js" ? ((DATA.maps[+id] || {}).name || "") : ((this.ysById(id) || {}).name || "");
-      return `${pre}${k === "qi" ? "炼器" : "炼丹"}心得${this.xdCfg(src).VOLS > 1 ? ` 第${v + 1}卷` : ""}`;
+      return `${pre}${this.xdLab(k)}心得${this.xdCfg(src).VOLS > 1 ? ` 第${v + 1}卷` : ""}`;
+    },
+    xdLab(k) { return k === "qi" ? "炼器" : k === "jl" ? "聚灵阵" : "炼丹"; },
+    // 聚灵阵心得（只在四界坊市卖，CFG.xinde.jl）：每本学完永久 + GATHER 固定聚灵（每 10 秒，不吃任何 % 加成），没有技艺经验
+    xdJl() { return Object.assign({ GATHER: 120000, PRICE: 12000000 }, (CFG.xinde || {}).jl || {}); },
+    xdJlGather() { const L = this.s.jsXdLearn || {}; let n = 0; for (const id in L) n += ((L[id] || {}).jl || []).length; return n * this.xdJl().GATHER;
     },
     xdQ(src, id, v) { const N = this.xdN(src); return N ? Math.min(5, Math.floor(this.xdRank(src, id, v) / N * 6)) : 0; },
     xdHas(src, what, id, k, v) { return ((((this.s[src + "Xd" + what] || {})[id]) || {})[k] || []).includes(v); },
@@ -374,7 +411,7 @@ G.module({
     xdSpeed(k) { let n = 0; for (const sr of ["ys", "js"]) { const L = this.s[sr + "XdLearn"] || {}; for (const id in L) n += ((L[id] || {})[k] || []).length; } return n * ((CFG.xinde || {}).SPD ?? 1); },
     xdBuy(src, id, k, v) {
       const s = this.s; src = src === "js" ? "js" : "ys"; v = Math.floor(+v); if (src === "js") id = +id;
-      if ((k !== "dan" && k !== "qi") || !(v >= 0 && v < this.xdCfg(src).VOLS) || this.xdRank(src, id, v) < 0) return;
+      if ((k !== "dan" && k !== "qi" && !(k === "jl" && src === "js")) || !(v >= 0 && v < this.xdCfg(src).VOLS) || this.xdRank(src, id, v) < 0) return;
       if (src === "ys" && !this.ysFound(id)) return;
       if (src === "js" && !this.realmOK((DATA.jieGfOf("jshop", id) || {}).reqRealm)) return this.log("境界不足。", "sys");
       if (this.xdHas(src, "Got", id, k, v)) return this.log("这卷心得已经买过了。", "sys");
@@ -384,7 +421,7 @@ G.module({
     },
     ysBuyXd(id, k, v) { return this.xdBuy("ys", id, k, v); },
     xdKey(x) { return `xd|${x.src}|${x.id}|${x.k}|${x.v}`; },
-    xdCh(k) { return k === "qi" ? "forge" : "dan"; },
+    xdCh(k) { return k === "qi" ? "forge" : k === "jl" ? "gf" : "dan"; },   // 聚灵阵心得走功法学习队列
     learnXd(i) {
       const it = this.s.bag[i]; if (!it || it.t !== "xd" || it.lq) return; const x = this.xdItem(it), ch = this.xdCh(x.k), key = this.xdKey(x);
       if (this.xdHas(x.src, "Learn", x.id, x.k, x.v)) { this.removeAt(i, 1); this.closeModal(); this.after(); return this.log("这卷心得已经学过了。", "sys"); }
@@ -396,18 +433,19 @@ G.module({
     xdLearnDone(c) {
       const i = this.s.bag.findIndex(it => it && it.t === "xd" && it.lq && this.xdKey(this.xdItem(it)) === c.key); if (i >= 0) this.removeAt(i, 1);
       const k = c.xk, src = c.src; if (this.xdHas(src, "Learn", c.id, k, c.v)) return;
+      if (k === "jl") { this.xdMark(src, "Learn", c.id, k, c.v); this.dirty(); return this.log(`研读完${this.xdName(k, src, c.id, c.v)}，每 10 秒聚灵永久 +${U.fmt(this.xdJl().GATHER)}。`, "gold"); }
       const e = this.xdExp(k, src, c.id, c.v), sp = (CFG.xinde || {}).SPD ?? 1; this.xdMark(src, "Learn", c.id, k, c.v); this.addCraftExp(k, e);
       this.log(`研读完${this.xdName(k, src, c.id, c.v)}，${CFG.craftsman[k].name}经验 +${U.fmt(e)}，${k === "qi" ? "炼器" : "炼丹"}速度 +${sp}%。`, "gold");
     },
     xdRows(src, id, k) {
       const X = this.xdCfg(src), st = this.s.stone || 0, sp = (CFG.xinde || {}).SPD ?? 1; let h = "";
       for (let v = 0; v < X.VOLS; v++) { const got = this.xdHas(src, "Got", id, k, v), p = this.xdPrice(k, src, id, v);
-        h += `<div class="line"><div>${DATA.li(DATA.iconImg("xd_" + k))}<span class="q${this.xdQ(src, id, v)}">${this.xdName(k, src, id, v)}</span><small>${CFG.craftsman[k].name}经验 +${U.fmt(this.xdExp(k, src, id, v))} · ${k === "qi" ? "炼器" : "炼丹"}速度 +${sp}%</small></div>${got ? `<span class="q5">已购买</span>` : `<button class="sm" onclick="G.xdBuy('${src}','${id}','${k}',${v})" ${st < p ? "disabled" : ""}>${U.fmt(p)} 灵石</button>`}</div>`; }
-      return `<h3>${k === "qi" ? "炼器" : "炼丹"}心得<small>灵石 ${U.fmt(st)}</small></h3>${h}`;
+        h += `<div class="line"><div>${DATA.li(DATA.iconImg("xd_" + k))}<span class="q${this.xdQ(src, id, v)}">${this.xdName(k, src, id, v)}</span><small>${k === "jl" ? `每 10 秒聚灵永久 +${U.fmt(this.xdJl().GATHER)}` : `${CFG.craftsman[k].name}经验 +${U.fmt(this.xdExp(k, src, id, v))} · ${this.xdLab(k)}速度 +${sp}%`}</small></div>${got ? `<span class="q5">已购买</span>` : `<button class="sm" onclick="G.xdBuy('${src}','${id}','${k}',${v})" ${st < p ? "disabled" : ""}>${U.fmt(p)} 灵石</button>`}</div>`; }
+      return `<h3>${this.xdLab(k)}心得<small>灵石 ${U.fmt(st)}</small></h3>${h}`;
     },
     ysXdRows(id, k) { return this.xdRows("ys", id, k); },
     // 打开宗门地图（纯界面）
-    ysOpen(id) { this.ysHall = null; this.ysSel = id && this.ysById(id) ? id : null; this.render(); this.viewScroll(0); },
+    ysOpen(id) { this.ysHall = null; this.ysPick = id && this.ysById(id) ? id : null; this.render(); this.viewScroll(0); },
     ysHallBack() { this.ysHall = null; this.render(); this.viewScroll(0); },
     openYsPlace(id, pid) {
       const y = this.ysById(id), p = (this.ysCfg().PLACES || []).find(x => x.id === pid); if (!y || !p) return;
@@ -805,7 +843,7 @@ G.module({
       const st0 = this.stats(), st = Object.assign({}, st0, { res: Object.assign({}, st0.res || {}) }), s = this.s, TEST = !!opt.test;   // 复制一份：神通增益会改本场的攻击 / 防御 / 抗性
       if (!m.tf) this.mobTalents(m);
       const TL = CFG.battle.TALENT || {}, tf = k => m.tf.includes(k), tfOf = (X, k) => !!(X && X.tf && X.tf.includes(k));
-      const tHp = s.hp, tMp = s.mana; if (TEST) { s.hp = st.hp; s.mana = st.mana; }   // v245 实力测试：进入时生命、法力回满，结束后还原成测试前的数
+      const GOD = DATA.isTest(), tHp = s.hp, tMp = s.mana; if (TEST) { s.hp = st.hp; s.mana = st.mana; }   // v245 实力测试：进入时生命、法力回满，结束后还原成测试前的数
       const spells = s.spellSlots.slice(0, this.slotCount()).filter(Boolean).map(id => DATA.spellInfo(id, s.gongfa[id])).filter(Boolean);
       let si = 0, act = null;   // act：这一下出手的方式 { k: 0 普通攻击 / 1 法术 / 2 法宝, sp 法术名序号, f: 0 命中 / 1 被闪避 / 2 暴击 }
       const BT = CFG.battle, myL = s.mortal ? 0 : s.L, mL = m.L === undefined ? myL : m.L, MIN = A => A === st ? DATA.minDmg(myL, mL) : DATA.minDmg(A.L === undefined ? myL : A.L, myL), rnd = () => BT.RAND_MIN + Math.random() * (BT.RAND_MAX - BT.RAND_MIN);
@@ -1064,6 +1102,7 @@ G.module({
           if (mShield.hp <= 0) { mShield = null; act.x = (act.x || 0) | 4; if (d > 0 && act.altR) d = d / dS * dSo * act.altR; }   // 盾碎：溢出部分按怪物本身防御算
         }
         if (act.healP && d > 0) { const v = Math.max(0, Math.min(st.hp - php, d * act.healP / 100)); if (v >= 1) { php += v; act.st = (act.st ? act.st + "，" : "") + `恢复生命 ${U.fmt(v)}`; } }   // 神通回血：按最终伤害算（金蝉挡下/护盾全挡时 d 为 0，不回血）
+        if (GOD && act.k !== 4 && (d > 0 || act.f === 1)) { d = m.hp * (BT.TEST_DMG_PCT === undefined ? 30 : BT.TEST_DMG_PCT) / 100; if (act.f === 1) act.f = 0; }   // 测试号：固定打对方最大生命 30%
         const mhpBefore = mhp;
         mhp -= d; dealt += d;
         if (mhp <= 0 && php > 0 && cnt.mob.yt < pMob.ytT && ch(pMob.yt)) { dealt -= 1 - mhp; mhp = 1; cnt.mob.yt++; act.x = (act.x || 0) | 16; }   // 对方御天保命
@@ -1098,6 +1137,7 @@ G.module({
           if (shield.hp <= 0) { shield = null; act.x = (act.x || 0) | 4; if (d > 0 && act.altR) d = d / dS * dSo * act.altR; }   // 盾碎：溢出部分按人物本身防御算
         }
         if (act.healP && d > 0) { const v = Math.max(0, Math.min(m.hp - mhp, d * act.healP / 100)); if (v >= 1) { mhp += v; act.st = (act.st ? act.st + "，" : "") + `恢复生命 ${U.fmt(v)}`; } }   // 怪物神通回血
+        if (GOD) d = 0;   // 测试号无敌：不掉血
         php -= d; taken += d;
         if (php <= 0 && mhp > 0 && cnt.me.yt < pMe.ytT && ch(pMe.yt)) { taken -= 1 - php; php = 1; cnt.me.yt++; act.x = (act.x || 0) | 16; }   // 御天保命
         rec(1, d);
@@ -2411,13 +2451,15 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       this.s.stone -= g.cost; this.startGfLearn(id); this.after();
     },
     // 仙魔冥神坊市 / 功德司功法：坊市 = 灵石 + 本图贡献，功德司 = 功德
+    jieCur(a) { return DATA.maps[a] && DATA.maps[a].w === "shen" ? "yuanli" : "merit"; },   // 神界愿力祠用愿力，其他界功德司用功德
+    jieCurName(a) { return this.jieCur(a) === "yuanli" ? "愿力" : "功德"; },
     learnJieGf(id) {
       const g = DATA.skillInfo(id), s = this.s;
       if (!g || (g.src !== "jshop" && g.src !== "gd") || (g.sect && g.sect.old) || this.hasGongfa(id)) return;   // 神界旧 6~10 星不再出售
       if (!this.realmOK(g.sect.reqRealm)) return this.log(`境界不足，需要${DATA.realmLabel(g.sect.reqRealm)}。`, "sys");
       if (!this.lqCan("gf", id)) return;   // v173 学习队列
       if (!this.lsCheck(id)) return;   // 神识（shenshi.js）
-      if (g.src === "gd") { if ((s.merit || 0) < g.cost) return this.log("功德不足。", "sys"); s.merit -= g.cost; }
+      if (g.src === "gd") { const ck = this.jieCur(g.sect.map); if ((s[ck] || 0) < g.cost) return this.log(`${this.jieCurName(g.sect.map)}不足。`, "sys"); s[ck] -= g.cost; }
       else {
         if (s.stone < g.cost) return this.log("灵石不足。", "sys");
         if (this.xjGxOf(g.sect.map) < g.gx) return this.log("本图贡献不足。", "sys");
@@ -2443,35 +2485,35 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       if (s.recipes.includes(key)) return this.log("已经学会了。", "sys");
       if (s.bag.some(x => x && x.t === "dfb" && x.type === type && x.g === d.g)) return this.log("背包里已经有这张丹方了。", "sys");
       if (!this.realmOK(o.reqRealm)) return this.log(`境界不足，需要${DATA.realmLabel(o.reqRealm)}。`, "sys");
-      if ((s.merit || 0) < d.cost) return this.log("功德不足。", "sys");
-      s.merit -= d.cost; const where = this.bagPutOrMail({ t: "dfb", type, g: d.g });   // 兑换到背包（满时进传音），在背包里学习
+      const ck = this.jieCur(a); if ((s[ck] || 0) < d.cost) return this.log(`${this.jieCurName(a)}不足。`, "sys");
+      s[ck] -= d.cost; const where = this.bagPutOrMail({ t: "dfb", type, g: d.g });   // 兑换到背包（满时进传音），在背包里学习
       this.log(`兑换了${DATA.danName(type, d.g)}丹方，放入${where === "mail" ? "传音" : "背包"}，可在背包里学习。`, "good"); this.after();
     },
     buySgDan(a, type, n) {
       const s = this.s, o = DATA.jieGfOf("gd", a), d = this.sgDanList(a).find(x => x.type === type); if (!o || !d) return;
       if (!this.realmOK(o.reqRealm)) return this.log(`境界不足，需要${DATA.realmLabel(o.reqRealm)}。`, "sys");
-      n = Math.min(Math.floor(+n), Math.floor((s.merit || 0) / d.cost)); if (n <= 0) return this.log("功德不足。", "sys");
+      const ck = this.jieCur(a); n = Math.min(Math.floor(+n), Math.floor((s[ck] || 0) / d.cost)); if (n <= 0) return this.log(`${this.jieCurName(a)}不足。`, "sys");
       if (!this.addDan(type, d.g, n, 1)) return;
-      s.merit -= d.cost * n; this.log(`购得${DATA.danName(type, d.g, 1)} ×${n}。`, "good"); this.after();
+      s[ck] -= d.cost * n; this.log(`购得${DATA.danName(type, d.g, 1)} ×${n}。`, "good"); this.after();
     },
     jieGfView(kind, a) {
       const s = this.s, o = DATA.jieGfOf(kind, a); if (!o) return "";
-      const lock = !this.realmOK(o.reqRealm), gd = kind === "gd";
+      const lock = !this.realmOK(o.reqRealm), gd = kind === "gd", ck = this.jieCur(a), cn = this.jieCurName(a), cur = s[ck] || 0;
       const gfl = DATA.gfTypesOf(o.src, o.star).map(ty => { const g = DATA.gongfaInfo(DATA.gongfaId(o.id, ty.id)), has = this.hasGongfa(g.id);
-        const poor = gd ? (s.merit || 0) < g.cost : s.stone < g.cost || this.xjGxOf(a) < g.gx;
-        return [has, `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.el.name}</span><span class="tag">${ty.name}</span><small>每层${g.label} +${U.num(g.perLv)}${g.label2 ? ` · ${g.label2} +${U.num(g.perLv2)}` : ""} · ${gd ? `${U.fmt(g.cost)} 功德` : `${U.fmt(g.cost)} 灵石 · ${U.fmt(g.gx)} 贡献`} · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>
+        const poor = gd ? cur < g.cost : s.stone < g.cost || this.xjGxOf(a) < g.gx;
+        return [has, `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.el.name}</span><span class="tag">${ty.name}</span><small>每层${g.label} +${U.num(g.perLv)}${g.label2 ? ` · ${g.label2} +${U.num(g.perLv2)}` : ""} · ${gd ? `${U.fmt(g.cost)} ${cn}` : `${U.fmt(g.cost)} 灵石 · ${U.fmt(g.gx)} 贡献`} · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>
           ${lock && !has ? `<button class="sm" disabled>境界不足</button>` : this.gfLearnBtn(g, `G.learnJieGf('${g.id}')`, poor)}</div>`]; });
       const todo = l => l.filter(x => !x[0]).map(x => x[1]).join(""), rows = todo(gfl);
-      const dans = gd ? this.sgDanList(a).map(d => { const r = DATA.dans[d.type], poor = (s.merit || 0) < d.cost;
-        return `<div class="line"><div>${DATA.danImg(DATA.danIcon(d.type), DATA.danCls(d.type, d.g), "li")}${DATA.danName(d.type, d.g, 1)}<small>${r.label} +${U.num(DATA.danVal(d.type, d.g))} · 已服 ${DATA.danLimit(d.type, d.g) - this.danLeft(d.type, d.g)} / ${DATA.danLimit(d.type, d.g)} · ${U.fmt(d.cost)} 功德</small></div>
+      const dans = gd ? this.sgDanList(a).map(d => { const r = DATA.dans[d.type], poor = cur < d.cost;
+        return `<div class="line"><div>${DATA.danImg(DATA.danIcon(d.type), DATA.danCls(d.type, d.g), "li")}${DATA.danName(d.type, d.g, 1)}<small>${r.label} +${U.num(DATA.danVal(d.type, d.g))} · 已服 ${DATA.danLimit(d.type, d.g) - this.danLeft(d.type, d.g)} / ${DATA.danLimit(d.type, d.g)} · ${U.fmt(d.cost)} ${cn}</small></div>
           ${lock ? `<button class="sm" disabled>境界不足</button>` : `<div class="sg-btns"><button class="sm" onclick="G.buySgDan(${a},'${d.type}',1)" ${poor ? "disabled" : ""}>购买</button><button class="sm" onclick="G.buySgDan(${a},'${d.type}',10)" ${poor ? "disabled" : ""}>×10</button></div>`}</div>`; }).join("") : "";
       const recs = gd ? this.gdRecipeList(a).map(d => { const key = d.type + "|" + d.g, has = s.recipes.includes(key);
         return [has, `<div class="line"><div>${DATA.danImg(DATA.danIcon(d.type), DATA.danCls(d.type, d.g), "li")}《${DATA.danName(d.type, d.g)}》<span class="tag">${DATA.recipeEffect(d.type, d.g)}</span>
-          <small>${this.matsText(DATA.danRecipe(d.type, d.g))}<br>${U.fmt(d.cost)} 功德</small></div>
-          ${has ? `<button class="sm" disabled>已学会</button>` : s.bag.some(x => x && x.t === "dfb" && x.type === d.type && x.g === d.g) ? `<button class="sm" disabled>已在背包</button>` : lock ? `<button class="sm" disabled>境界不足</button>` : `<button class="sm" onclick="G.learnGdRecipe(${a},'${d.type}')" ${(s.merit || 0) < d.cost ? "disabled" : ""}>兑换</button>`}</div>`]; }) : [];
-      const fruit = gd ? (c => `<div class="card"><h3>${DATA.smName("wdg")}</h3><div class="line"><div>${DATA.li(DATA.smIcon("wdg"))}${DATA.smName("wdg")}<small>洞府悟道室悟道用 · ${c} 功德/个 · 已有 ${U.fmt(this.smCount("wdg"))}</small></div>
+          <small>${this.matsText(DATA.danRecipe(d.type, d.g))}<br>${U.fmt(d.cost)} ${cn}</small></div>
+          ${has ? `<button class="sm" disabled>已学会</button>` : s.bag.some(x => x && x.t === "dfb" && x.type === d.type && x.g === d.g) ? `<button class="sm" disabled>已在背包</button>` : lock ? `<button class="sm" disabled>境界不足</button>` : `<button class="sm" onclick="G.learnGdRecipe(${a},'${d.type}')" ${cur < d.cost ? "disabled" : ""}>兑换</button>`}</div>`]; }) : [];
+      const fruit = gd && (DATA.maps[a] || {}).w !== "shen" ? (c => `<div class="card"><h3>${DATA.smName("wdg")}</h3><div class="line"><div>${DATA.li(DATA.smIcon("wdg"))}${DATA.smName("wdg")}<small>洞府悟道室悟道用 · ${c} 功德/个 · 已有 ${U.fmt(this.smCount("wdg"))}</small></div>
         <button class="sm" onclick="G.openWdFruit(${a})" ${(s.merit || 0) < c ? "disabled" : ""}>购买</button></div></div>`)(this.wdFruitCost(a)) : "";
-      return this.lqCard("gf") + fruit + (gd ? this.bmMifaCard(a) : "") + `<div class="card"><h3>${o.name}<small>${gd ? `功德 ${U.fmt(s.merit || 0)}` : `灵石 ${U.fmt(s.stone)} · 本图贡献 ${U.fmt(this.xjGxOf(a))}`}</small></h3>${rows}</div>${recs.length ? this.lqCard("dan") + (todo(recs) ? `<div class="card"><h3>丹方</h3>${todo(recs)}</div>` : "") : ""}${dans ? `<div class="card"><h3>上古丹</h3>${dans}</div>` : ""}${gd ? "" : `<div class="card">${this.xdRows("js", a, "dan")}</div><div class="card">${this.xdRows("js", a, "qi")}</div>`}` + U.doneCard([...gfl, ...recs, ...(gd ? [this.bmMifaRow(a)] : [])]);   // 已学会的功法、丹方、图纸合并成一张，放最后
+      return this.lqCard("gf") + fruit + (gd ? this.bmMifaCard(a) : "") + `<div class="card"><h3>${o.name}<small>${gd ? `${cn} ${U.fmt(cur)}` : `灵石 ${U.fmt(s.stone)} · 本图贡献 ${U.fmt(this.xjGxOf(a))}`}</small></h3>${rows}</div>${recs.length ? this.lqCard("dan") + (todo(recs) ? `<div class="card"><h3>丹方</h3>${todo(recs)}</div>` : "") : ""}${dans ? `<div class="card"><h3>上古丹</h3>${dans}</div>` : ""}${gd ? "" : `<div class="card">${this.xdRows("js", a, "dan")}</div><div class="card">${this.xdRows("js", a, "qi")}</div><div class="card">${this.xdRows("js", a, "jl")}</div>`}` + U.doneCard([...gfl, ...recs, ...(gd ? [this.bmMifaRow(a)] : [])]);   // 已学会的功法、丹方、图纸合并成一张，放最后
     },
     // 管理员：网页里更新游戏（服务器拉取 GitHub 最新代码，完成后刷新页面）
     async webUpdate() {
@@ -2595,24 +2637,28 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       }
       const mb = fback(sel === "shop" && this.shopFromCult ? "G.backFromShop()" : "G.setMapPage(false)"), pg = h => `<div class="mpage" style="background-image:url(img/map/bg_${wid}.webp)">${h}${mb}</div>`;   // 点进去的页面也铺满（本界背景图）
       const gs = this.gridSel;   // 地图格子页
-      if (gs && gs.a === sel && this.ysSel && this.ysHall === this.ysSel && this.ysById(this.ysSel)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.ysById(this.ysSel).name} · 宗门大殿</div>${this.ysHallView(this.ysSel)}<div class="fback"><div class="fl"></div><button onclick="G.ysHallBack()">返回</button></div></div>`;
-      if (gs && gs.a === sel && this.ysSel && this.ysById(this.ysSel)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.ysById(this.ysSel).name}</div>${this.ysView(this.ysSel)}<div class="fback"><div class="fl"></div><button onclick="G.ysOpen()">返回</button></div></div>`;
-      if (gs && gs.a === sel && this.gridOpen(gs.a, gs.r)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${DATA.regionName(gs.a, gs.r)}</div>${this.gridView(gs.a, gs.r, wid)}<div class="fback"><div class="fl"><button class="gq" onclick="G.gridQuick(${gs.a},${gs.r})">快速<br>游历</button><button class="gq" onclick="G.openGridRec(${gs.a})">已获<br>机缘</button></div><button onclick="G.openGrid()">返回</button></div></div>`;
+      if (gs && gs.a === sel && this.ysPick && this.ysHall === this.ysPick && this.ysById(this.ysPick)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.ysById(this.ysPick).name} · 宗门大殿</div>${this.ysHallView(this.ysPick)}<div class="fback"><div class="fl"></div><button onclick="G.ysHallBack()">返回</button></div></div>`;
+      if (gs && gs.a === sel && this.ysPick && this.ysById(this.ysPick)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.ysById(this.ysPick).name}</div>${this.ysView(this.ysPick)}<div class="fback"><div class="fl"></div><button onclick="G.ysOpen()">返回</button></div></div>`;
+      if (gs && gs.a === sel && this.gridOpen(gs.a, gs.r)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.gridName(gs.a, gs.r)}</div>${this.gridView(gs.a, gs.r, wid)}<div class="fback"><div class="fl">${this.gridJie(gs.r) ? "" : `<button class="gq" onclick="G.gridQuick(${gs.a},${gs.r})">快速<br>游历</button><button class="gq" onclick="G.openGridRec(${gs.a})">已获<br>机缘</button>`}</div><button onclick="${wid === "shen" ? `G.openGrid();G.openSjRg(${gs.a},${gs.r >= DATA.regionCount ? (gs.r - DATA.regionCount) >> 1 : gs.r})` : "G.openGrid()"}">返回</button></div></div>`;
       if (sel === "shop") return pg(`<div class="pghead">${DATA.nmPick(CFG.names.worldTab, "shop", "坊市")}</div>` + this.shopView());
       const mback = `<div class="pghead">${sel === "mj" ? this.mjLabel("mj") : DATA.maps[sel].name}</div>`;
       if (halls && sel !== "mj") {
         // v49：仙冥魔神每张地图 7 处地点（config/worldmaps.js 的 halls，图片 img/hall_<id>.png），点进去是各自的页面
-        const hn = id => this.xjHallName(sel, id), hs = halls[this.hallSel] ? this.hallSel : null;
+        const shen = wid === "shen" && this.sjMapView;   // 神界：每重天一张图，四域 + 大殿 / 天尊殿 / 愿力祠 / 神市 / 道场（shenjie.js）
+        const hn = id => shen && id === "dc" ? "道场" : this.xjHallName(sel, id);
+        const hs = shen ? (["tg", "xj", "gd", "shop", "dc"].includes(this.hallSel) ? this.hallSel : null) : halls[this.hallSel] ? this.hallSel : null;   // 神界没有神纹、神将殿、九重天
         if (hs) {
           const back = `<div class="pghead">${DATA.maps[sel].name} · ${hn(hs)}</div>`;
-          const page = hs === "tg" ? this.tgView(sel) : hs === "xj" ? this.xjView(sel)
+          const page = shen && hs === "dc" ? this.sjDcView(sel) : shen && hs === "gd" ? this.sjShopCard(sel) + this.jieGfView("gd", sel) : hs === "tg" ? this.tgView(sel) + (shen && this.sjSgCard ? this.sjSgCard(sel) : "") : hs === "xj" ? this.xjView(sel)
             : hs === "lilian" ? bars + status + this.regionsCard(sel) : hs === "lingdi" ? bars + status + this.lingdiView()
+            : shen && hs === "shop" ? this.sjShopView(sel)
             : hs === "shop" || hs === "gd" ? this.jieGfView(hs === "gd" ? "gd" : "jshop", sel) : `<div class="card"><h3>${hn(hs)}</h3></div>`;
           return `<div class="mpage" style="background-image:url(img/map/bg_${wid}.webp)">${back + page + fback("G.setHall(null)")}</div>`;
         }
+        if (shen) return `<div class="mpage mfit sjfit" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${DATA.maps[sel].name}</div>${this.sjMapView(sel)}${this.exOverlay()}${mb}</div>`;
         const ico = (id, cls) => halls[id] === undefined ? "" : `<button class="${cls || ""}" onclick="G.setHall('${id}')"><img src="img/hall_${id}.png" alt=""><span>${hn(id)}</span></button>`;
         const gxTag = this.xjGxOf ? `<div class="xs-gx">贡献<b>${U.fmt(this.xjGxOf(sel))}</b></div>` : "";   // 本图贡献：显示在天宫图片左边
-        return `<div class="mpage mfit" style="background-image:url(img/map/bg_${wid}.webp)"><div class="xscene xs-${wid}"><div class="xs-name">${DATA.maps[sel].name}</div><div class="tgrow">${gxTag}${ico("tg", "tg")}</div><div class="xsrow">${ico("xj")}${ico("shop", "mid")}${ico("gd")}</div></div>` + this.regionsCard(sel, true) + this.exOverlay() + mb + "</div>";   // 四界：不显示生命法力 / 探索中；东西南北四域直接显示在下面（灵地、悟道碑在地图卷轴左下角）
+        return `<div class="mpage${shen ? "" : " mfit"}" style="background-image:url(img/map/bg_${wid}.webp)"><div class="xscene xs-${wid}"><div class="xs-name">${DATA.maps[sel].name}</div><div class="tgrow">${gxTag}${ico("tg", "tg")}</div><div class="xsrow">${ico("xj")}${ico("shop", "mid")}${ico("gd")}</div></div>` + (this.regionsCard(sel, true)) + this.exOverlay() + mb + "</div>";   // 四界：不显示生命法力 / 探索中；东西南北四域直接显示在下面（灵地、悟道碑在地图卷轴左下角）
       }
       return pg(mback + bars + status + (sel === "mj" ? this.mijingView() : this.regionsCard(sel)));
     }

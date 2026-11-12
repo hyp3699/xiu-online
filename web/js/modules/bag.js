@@ -612,7 +612,7 @@ G.module({
         case "ylb": return DATA.ybIcon(it.k);
         case "stp": return DATA.iconImg("st_frag");
         case "cxp": return DATA.cxpIcon(it.k);
-        case "xd": return DATA.iconImg("xd_" + (it.k === "qi" ? "qi" : "dan"));
+        case "xd": return DATA.iconImg("xd_" + (it.k === "qi" || it.k === "jl" ? it.k : "dan"));
         case "ysd": return `img/ysdan/${it.k}.webp`;
         case "fu": return DATA.furnaceIcon(it.kind);
         case "ss": return DATA.iconImg("ss");
@@ -720,7 +720,7 @@ G.module({
           <button onclick="G.eatYsDan(${i},${it.n})" ${left > 0 && it.n > 1 ? "" : "disabled"}>全部服用</button></div>`;
       } else if (it.t === "xd") {
         const x = this.xdItem(it), ch = this.xdCh(x.k), key = this.xdKey(x), sp = (CFG.xinde || {}).SPD ?? 1;
-        h += `<p>${x.src === "js" ? "四界坊市" : "隐世宗门"}心得，学习 ${(CFG.xinde || {}).MIN ?? 30} 分钟，学完获得 ${U.fmt(this.xdExp(x.k, x.src, x.id, x.v))} 点${CFG.craftsman[x.k].name}经验，${x.k === "qi" ? "炼器" : "炼丹"}速度永久 +${sp}%。</p>
+        h += `<p>${x.src === "js" ? "四界坊市" : "隐世宗门"}心得，学习 ${(CFG.xinde || {}).MIN ?? 30} 分钟，${x.k === "jl" ? `学完每 10 秒聚灵永久 +${U.fmt(this.xdJl().GATHER)}` : `学完获得 ${U.fmt(this.xdExp(x.k, x.src, x.id, x.v))} 点${CFG.craftsman[x.k].name}经验，${this.xdLab(x.k)}速度永久 +${sp}%`}。</p>
           ${this.lqCard(ch)}<div class="btns">${this.lqBtn(ch, key, `G.learnXd(${i})`, false)}</div>`;
       } else if (it.t === "cxp") {
         const v = (CFG.yinshi.MJ || {}).CXP_VAL || 10, ck = it.k === "qi" || it.k === "ling" ? it.k : "dan", max = this.craftLv(ck) >= this.craftMax(ck);
@@ -1157,7 +1157,7 @@ G.module({
       else if (it.t === "bp") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("bp")}" alt="">${DATA.furnaceName(it.kind, it.g)}</div>`;
  else if (it.t === "sm") cells += `<div class="cell q3" onclick="G.openItem(${i})"><img class="mi" src="${DATA.smIcon(it.k, it.ft)}" alt="">${DATA.smName(it.k, it.ft, it.tier)}<span class="n">${U.fmt(it.n)}</span></div>`;
  else if (it.t === "ysd") cells += `<div class="cell q5" onclick="G.openItem(${i})"><img class="mi" src="img/ysdan/${it.k}.webp" alt="">${this.itemName(it)}<span class="n">${U.fmt(it.n)}</span></div>`;
- else if (it.t === "xd") cells += `<div class="cell q${(x => this.xdQ(x.src, x.id, x.v))(this.xdItem(it))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("xd_" + (it.k === "qi" ? "qi" : "dan"))}" alt="">${this.itemName(it)}</div>`;
+ else if (it.t === "xd") cells += `<div class="cell q${(x => this.xdQ(x.src, x.id, x.v))(this.xdItem(it))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("xd_" + (it.k === "qi" || it.k === "jl" ? it.k : "dan"))}" alt="">${this.itemName(it)}</div>`;
  else if (it.t === "cxp") cells += `<div class="cell q3" onclick="G.openItem(${i})"><img class="mi" src="${DATA.cxpIcon(it.k)}" alt="">${this.itemName(it)}<span class="n">${U.fmt(it.n)}</span></div>`;
  else if (it.t === "stp") cells += `<div class="cell q4" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("st_frag")}" alt="">${this.itemName(it)}<span class="n">${U.fmt(it.n)}</span></div>`;
  else if (it.t === "ylb") cells += `<div class="cell q${DATA.ybQ(it.g)}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.ybIcon(it.k)}" alt="">${(DATA.YB[it.k] || {}).name || "宝物"}<span class="n">${it.n}</span></div>`;

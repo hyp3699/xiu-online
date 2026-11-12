@@ -64,7 +64,7 @@ CFG.xingjun = {
       PAY_MULT: 1,
     },
     shen: {
-      SEAT: "{seat}神君", TJ: "神将",
+      SEAT: "{seat}天尊", TJ: "神将",
       SEATS: [["少昊", "太昊", "黄枢", "玄冥", "白藏", "赤明", "青阳"]],
       PAY_MULT: 1.3,
     },

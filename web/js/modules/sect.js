@@ -160,7 +160,7 @@ G.module({
     rankCost(i) { return DATA.ranks[i].cost; },   // 晋升贡献：就是 ranks 表的 cost，不乘宗门星级
     promote() {
       const i = this.s.rank + 1; if (i >= DATA.ranks.length) return;
-      if (!this.realmOK(this.rankReqRealm(i)) || this.s.contrib < this.rankCost(i)) return;
+      if (this.s.contrib < this.rankCost(i)) return;   // 职务不限境界，过了考核就行（用户定 2026-11-11）
       if (this.s.rankPass !== i && !DATA.isTest()) return this.log("需先通过晋升考验。", "sys");   // 测试模式不用考核
       this.s.contrib -= this.rankCost(i); this.s.rank = i; this.s.rankPass = -1;
       this.log(`晋升为【${DATA.ranks[i].name}】！`, "gold"); this.after();
@@ -173,7 +173,6 @@ G.module({
     },
     challengeRank() {
       const s = this.s, i = s.rank + 1; if (i >= DATA.ranks.length || s.rankPass === i) return;
-      if (!this.realmOK(this.rankReqRealm(i))) return;
       const c = this.rankTrialCost(i);
       if (s.contrib < c) return this.log(`贡献不足，参加考验需要 ${U.fmt(c)}。`, "sys");
       s.contrib -= c;
@@ -628,6 +627,33 @@ G.module({
       if (!this.addMat(kind, DATA.matName(kind, to), to, n)) { this.addMat(kind, DATA.matName(kind, from), from, need); return; }
       this.log(`${DATA.matName(kind, from)} ×${U.fmt(need)} 换得 ${DATA.matName(kind, to)} ×${U.fmt(n)}。`, "good"); this.after();
     },
+    // 神识功法药材互换（CFG.sect.SS_SWAP）：元魂果 ⇄ 凝魂芝，每换 1 个 = 1 个另一种 + COST 贡献，宗门 STAR 星起
+    ssSwapCfg() { return Object.assign({ STAR: 2, COST: 50, ITEMS: ["yhg", "nhz"] }, CFG.sect.SS_SWAP || {}); },
+    ssSwapTo(from) { const I = this.ssSwapCfg().ITEMS; return I.includes(from) ? I.find(k => k !== from) : null; },
+    ssSwapMax(from) { const C = this.ssSwapCfg(); return Math.min(this.smCount(from), Math.floor((this.s.contrib || 0) / Math.max(1, C.COST))); },
+    ssSwap(from, n) {
+      const C = this.ssSwapCfg(), to = this.ssSwapTo(from); n = Math.floor(+n || 0);
+      if (!this.s.sect || !to) return;
+      if (this.sectInfo().star < C.STAR) return this.log(`${C.STAR}星宗门才能兑换。`, "sys");
+      if (n <= 0) return;
+      if (this.smCount(from) < n) return this.log(`${DATA.smName(from)}不足，需要 ${U.fmt(n)} 个。`, "sys");
+      if ((this.s.contrib || 0) < C.COST * n) return this.log(`贡献不足，需要 ${U.fmt(C.COST * n)}。`, "sys");
+      if (!this.takeSm(from, n)) return;
+      if (!this.addSm(to, n)) { this.addSm(from, n); return; }
+      this.s.contrib -= C.COST * n;
+      this.log(`${DATA.smName(from)} ×${U.fmt(n)} + ${U.fmt(C.COST * n)} 贡献，换得 ${DATA.smName(to)} ×${U.fmt(n)}。`, "good"); this.closeModal(); this.after();
+    },
+    openSsSwap(from) {
+      const C = this.ssSwapCfg(), to = this.ssSwapTo(from); if (!to) return;
+      const max = this.ssSwapMax(from); if (max < 1) return this.log(`${DATA.smName(from)}或贡献不足。`, "sys");
+      this.qtyModal(`兑换${DATA.smName(to)}`, `<p class="desc">每个 1 个${DATA.smName(from)} + ${U.fmt(C.COST)} 贡献 · 已有${DATA.smName(from)} ${U.fmt(this.smCount(from))} · 贡献 ${U.fmt(this.s.contrib || 0)}</p>`, max, k => this.ssSwap(from, k), { max: "最多可换", ok: "兑换" });
+    },
+    ssSwapCard() {
+      const C = this.ssSwapCfg(), lock = this.sectInfo().star < C.STAR;
+      return `<div class="card">` + C.ITEMS.map(to => { const from = this.ssSwapTo(to);
+        return `<div class="line"><div>${DATA.li(DATA.smIcon(to))}${DATA.smName(to)}<small>1 个${DATA.smName(from)} + ${U.fmt(C.COST)} 贡献换 1 个 · 已有 ${U.fmt(this.smCount(to))}</small></div>
+          <button class="sm" onclick="G.openSsSwap('${from}')" ${lock || this.ssSwapMax(from) < 1 ? "disabled" : ""}>${lock ? `${C.STAR}星宗门可兑换` : "兑换"}</button></div>`; }).join("") + `</div>`;
+    },
     // 互换窗口：上面是可拿出的材料（跟背包一样显示数量，点选），下面输入换得数量；选择存在 G.msw，不走服务器
     openMatSwap(kind, mode, to) {
       const w = this.msw = this.msw && this.msw.kind === kind && this.msw.mode === mode && this.msw.to === to ? this.msw : { kind, mode, to, from: -1, n: 1 };
@@ -909,10 +935,10 @@ G.module({
         ${this.isMaster() ? `<div class="line"><div>宗主俸禄 · ${DATA.qlName(s.sect)}<small>每天 1 颗 · ${DATA.qlTxt(s.sect)} · 已服 ${(s.qlEaten || {})[s.sect] || 0} / ${DATA.qlLimit(s.sect)}</small></div>
         <button class="sm" onclick="G.claimQl()" ${s.qlDay === this.today() ? "disabled" : ""}>${s.qlDay === this.today() ? "今日已领" : "领取"}</button></div>` : ""}
         ${next < 0 ? `<p class="desc">你已是一宗之主。</p>` : `<div class="line"><div>晋升【${DATA.ranks[next].name}】
-          <small>需${DATA.realmLabel(this.rankReqRealm(next))} · ${U.fmt(this.rankCost(next))} 贡献 · ${s.rankPass === next ? "已通过考验" : "需先通过考验"}</small></div>
-          <button class="sm" onclick="G.promote()" ${(s.rankPass !== next && !DATA.isTest()) || !this.realmOK(this.rankReqRealm(next)) || s.contrib < this.rankCost(next) ? "disabled" : ""}>晋升</button></div>
+          <small>${U.fmt(this.rankCost(next))} 贡献 · ${s.rankPass === next ? "已通过考验" : "需先通过考验"}</small></div>
+          <button class="sm" onclick="G.promote()" ${(s.rankPass !== next && !DATA.isTest()) || s.contrib < this.rankCost(next) ? "disabled" : ""}>晋升</button></div>
           <div class="line"><div>晋升考验 · ${DATA.ranks[next].name}考官<small>每次消耗 ${U.fmt(this.rankTrialCost(next))} 贡献 · 战斗胜利后才能晋升</small></div>
-          <button class="sm ${s.rankPass === next ? "on" : ""}" onclick="G.challengeRank()" ${s.rankPass === next || !this.realmOK(this.rankReqRealm(next)) || s.contrib < this.rankTrialCost(next) ? "disabled" : ""}>${s.rankPass === next ? "已通过" : "考验"}</button></div>`}</div>
+          <button class="sm ${s.rankPass === next ? "on" : ""}" onclick="G.challengeRank()" ${s.rankPass === next || s.contrib < this.rankTrialCost(next) ? "disabled" : ""}>${s.rankPass === next ? "已通过" : "考验"}</button></div>`}</div>
         ${this.isMaster() ? this.ccCard() : ""}
         <div class="card"><h3>职务一览</h3>${DATA.ranks.map((r, i) => `<div class="line"><div>${r.name}<small>俸禄 ${U.fmt(Math.floor(r.daily * this.starMul() * this.rankMul(i)))} 灵石 · 晋升 ${U.fmt(this.rankCost(i))} 贡献</small></div>${i === s.rank ? "<b>当前</b>" : i < s.rank ? "<small>已历</small>" : ""}</div>`).join("")}</div>
         ${this.isMaster() ? this.ccCard(1) : ""}
@@ -1032,8 +1058,9 @@ G.module({
         const row = (g, sub, btn) => `<div class="line"><div>${DATA.li(DATA.matImg(tt, g))}${DATA.matFull(tt, g)}<small>${sub} · 已有 ${U.fmt(this.countMat(tt, g))}</small></div>${btn}</div>`;
         h += `<div class="card"><h3>贡献兑换<small>贡献 ${U.fmt(s.contrib)}</small></h3>` + ml.map(({ g, lock }) => { const c = DATA.matContrib(tt, g);
           return row(g, `${U.fmt(c)} 贡献/个`, `<button class="sm" onclick="G.openExchangeMat('${tt}',${g})" ${lock || s.contrib < c ? "disabled" : ""}>${lock ? `${lock}星宗门可兑换` : "兑换"}</button>`); }).join("") + `</div>`;
-        h += `<div class="card"><h3>二换一<small>${this.matSwapRate("two")} 个相同的其他${kn}换 1 个</small></h3>` + ml.map(({ g }) =>
+        h += `<div class="card">` + ml.map(({ g }) =>
           row(g, `${this.matSwapRate("two")} 个其他${g < fanN ? "凡界" : "四界"}${kn}换 1 个`, `<button class="sm" onclick="G.openMatSwap('${tt}','two',${g})">兑换</button>`)).join("") + `</div>`;
+        if (tt === "herb" && x.star >= this.ssSwapCfg().STAR) h += this.ssSwapCard();   // 神识功法药材互换（2 星宗门起，不到不显示）
         if (this.matSwapFourOK()) h += `<div class="card"><h3>四界换凡界<small>${this.matSwapRate("four")} 个四界${kn}换 1 个凡界${kn}</small></h3>` + ml.filter(({ g }) => g < fanN).map(({ g }) =>
           row(g, `${this.matSwapRate("four")} 个四界${kn}换 1 个`, `<button class="sm" onclick="G.openMatSwap('${tt}','four',${g})">兑换</button>`)).join("") + `</div>`;
       }

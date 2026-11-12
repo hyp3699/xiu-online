@@ -16,6 +16,7 @@ CFG.alchemy = {
   //   名字 = 阶 + PREFIX + 原丹名去「丹」+ 分类名，例：一阶上古太乙神锋仙丹
   SHANGGU: {
     PREFIX: "上古",
+    CAT_NAME: { 4: "丹" },   // 上古丹名后缀按分类（没写用 CATS）：神界写「丹」（上古太初神力丹），2026-11-12 用户定
     WORLD_CAT: { xian: 1, ming: 2, mo: 3, shen: 4 },   // 各界卖哪类丹（CATS 序号）
     MERIT: [300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200],   // 仙冥魔：每枚功德，一阶~十阶
     SHEN_MERIT: [600, 800, 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400],   // 神界：每枚功德，一阶~十阶
@@ -338,7 +339,7 @@ CFG.alchemy = {
       ] },
     // 养神丹：不分阶，数组只写 1 个数；star 学习需门派星级；item 炼出的专用材料（config/mijing.js items.yd），神识养神用
     yangshen: { name: "养神丹", item: "yd", star: 2,
-      time:      [30],
+      time:      [15],
       learnTime: [5],
       learnCost: [2000],
       herbs: [

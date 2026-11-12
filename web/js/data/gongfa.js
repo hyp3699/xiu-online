@@ -48,11 +48,11 @@ DATA.GF_NEW_SRC = ["sect", "shop", "jshop", "gd", "tianwai"];   // 按新算法�
 DATA.gfStage = star => { const n = (_GF.BOOK_STAGE || [1]).length; return Math.max(1, Math.min(n, Math.ceil((star || 1) / (_GF.BOOK_STAGE_STARS || 2)))); };
 DATA.gfBookN = (src, star, fam) => {   // 某来源、某星级、某一类有几本
   src = src || "sect"; const b1 = src === "sect" ? (_GF.BOOKS || {})[fam] || 1
-    : Math.min(DATA.gfBookMax(fam), ((_GF[src] || {}).BOOKS || {})[fam] || 1);   // 坊市、功德司：config 里 BOOKS 写几本就几本（没写 1 本）
+    : Math.min(DATA.gfBookMax(fam), (((star >= 11 && (_GF[src] || {}).SHEN_BOOKS) || (_GF[src] || {}).BOOKS || {})[fam]) || 1);   // 坊市、功德司：config 里 BOOKS 写几本就几本（没写 1 本）；神界 11、12 星有 SHEN_BOOKS 就用它
   if (!DATA.GF_STAGE_SRC.includes(src)) return b1;
   return b1 * ((_GF.BOOK_STAGE || [1])[DATA.gfStage(star) - 1] || 1);
 };
-DATA.gfBookMax = fam => Math.max(((_GF.BOOKS || {})[fam] || 1) * Math.max(1, ...(_GF.BOOK_STAGE || [1])), ...["jshop", "gd"].map(k => (((_GF[k] || {}).BOOKS || {})[fam]) || 1));   // 四界坊市、功德司真经 6 本也算进来
+DATA.gfBookMax = fam => Math.max(((_GF.BOOKS || {})[fam] || 1) * Math.max(1, ...(_GF.BOOK_STAGE || [1])), ...["jshop", "gd"].flatMap(k => [(((_GF[k] || {}).BOOKS || {})[fam]) || 1, (((_GF[k] || {}).SHEN_BOOKS || {})[fam]) || 1]));   // 四界坊市、功德司真经 6 本也算进来
 DATA.gongfaTypes = DATA.gongfaTypes.flatMap((t, i) => { t.ni = i; t.fam = t.id; t.bk = 1; const r = [t];
   for (let b = 2; b <= DATA.gfBookMax(t.id); b++) r.push(Object.assign({}, t, { id: t.id + b, base: t.id, book: b, bk: b }));
   if (t.id === "shenfa") { const sf = Object.assign({}, t, { id: "sufa", base: "shenfa", book: 2, allSrc: true, stat: "speed", label: "速度", catLabel: undefined, fam: "sufa", bk: 1 });   // v240：另一本身法只加速度（同属身法类，宗门、坊市、功德司都有）
@@ -133,7 +133,10 @@ DATA.gongfaName = (sect, type) => {
   if (sect.src === "cc") { const C = CFG.sect.chuancheng; return sect.name + C.WORD + (C.NAME[type.id] || type.suffix); }   // 宗门传承
   if (sect.src === "wdroom") { const W = CFG.wudaoRoom || {}, NM = (sect.dao && W[sect.dao] && W[sect.dao].NAME) || W.xiulian.NAME || {}; return `${NM[type.id] || type.suffix}·第${DATA.cnNum(sect.juan)}卷`; }   // 悟道室秘诀（修炼之道 / 战斗之道各用自己的名字）
   if (sect.book) return `${sect.prefix}${type.suffix}·第${sect.book}卷`;   // 试炼塔秘诀
-  if (sect.plain && type.fam === "zhenjue") return sect.prefix + (DATA.elById[(sect.els || {})[type.id]] || {}).name + type.suffix;   // 四界真经 6 本：地图名 + 属性 + 真经（梵度天火真经）
+  if (sect.rw) {   // 神界愿力祠：地图名 + 随机词 + 后缀（每本不同词；同后缀的身法 / 速度身法共用词表不重名）
+    const fk = type.fam === "sufa" ? "shenfa" : type.fam || type.id, w = DATA.sectWords(sect, fk), off = type.fam === "sufa" ? 8 : 0;
+    return sect.prefix + w[((type.ni * 7 + 3) + (sect.map || 0) * 5 + off + (type.bk || 1) - 1) % w.length] + type.suffix; }
+  if (sect.plain && type.fam === "zhenjue" && (type.bk || 1) <= 6) return sect.prefix + (DATA.elById[(sect.els || {})[type.id]] || {}).name + type.suffix;   // 四界真经 6 本：地图名 + 属性 + 真经（梵度天火真经）
   // 分阶段多出来的书：也用随机词起名（跳过同类原有书已用的词，同类不重名；宗门原来就有的第 2、3 本不变）
   const isSect = (sect.src || "sect") === "sect", bOf = f => isSect ? (_GF.BOOKS || {})[f] || 1 : 1;
   const nb = bOf(type.fam), old = !type.bk || type.bk <= nb || ["cc", "wdroom", "tianwai"].includes(sect.src);
@@ -270,6 +273,9 @@ DATA.jiePrice = (o, key) => { const J = _GF[o.src] || {}; return (o.nw ? (J["SHE
 DATA.gfLearnCost = (o, typeId) => {
   if (DATA.srcType(o) !== "shop") {   // 宗门学习贡献单独设置：learn × LEARN_TYPE × LEARN_STAR × EFFECT_LEARN（不用效果倍率）
     const C = DATA.srcCfg(o), v = (x, d = 1) => x === undefined ? d : x;
+    if (o.src === "gd" && o.w === "shen" && (_GF.gd || {}).SHEN_YL) {   // 神界愿力祠：按第几重天平均，从 SHEN_YL[0] 到 SHEN_YL[1]
+      const M = DATA.worldMapIdx.shen || [], i = Math.max(0, M.indexOf(o.map)), [lo, hi] = _GF.gd.SHEN_YL;
+      return Math.round(lo + (hi - lo) * (M.length > 1 ? i / (M.length - 1) : 0)); }
     if (o.src === "jshop" || o.src === "gd") { const t = v(((_GF[o.src] || {}).TYPE || {})[DATA.gfTypeKey(typeId)]);   // 仙魔冥 / 神界价格分开（DATA.jiePrice）
       const c = Math.floor(DATA.jiePrice(o, o.src === "gd" ? "MERIT" : "STONE") * t); return o.src === "jshop" ? DATA.shopPrice(c) : c; }
     return Math.floor(v(C.learn, 0) * v((C.LEARN_TYPE || {})[DATA.gfTypeKey(typeId)]) * v((C.LEARN_STAR || [])[o.star - 1]) * v(C.EFFECT_LEARN));
@@ -358,7 +364,7 @@ DATA.ownAtk = () => {
   const br = DATA.plRealmStat(G.s.mortal ? -1 : G.s.L, "atk") + (G.s.mortal || !G.brRand ? 0 : G.brRand("xw", "atk")) + ((G.bodyBonus ? G.bodyBonus() : {}).atk || 0);
   // v235 上限只管 修为 + 肉身；其余全算（功法、装备、戒指、法宝、丹药、炼体池……）= 人物总攻击 − 修为肉身
   //   属性正在计算中（还没有缓存）时退回只算功法攻击，避免循环
-  const st = G._cache && G._cache.stats;
+  const st = G._cache ? G._cache.stats : !G._calcBusy && G.calc ? G.calc().stats : null;   // 缓存刚清掉时先补算，免得法术攻击在两种算法间来回跳
   return { br, gf: st ? Math.max(0, st.atk - br) : G.gongfaBonus().atk };
 };
 // v165 通用版：k = hp / def …（盾的护盾值、防御用）：min(修为 + 肉身, 参考值) + 功法
@@ -420,7 +426,7 @@ DATA.mifaLearnCost = (star, kind) => { const W = CFG.wudao, m = (W.STAR_COST || 
 DATA.mifaInfo = (id, lv = 1) => {
   const [w, , kind] = id.split(":"), star = +w.slice(1), K = DATA.mifaKindById[kind], W = CFG.wudao;
   if (!K || !(star >= 1 && star <= 10)) return null;
-  const per = K.cfg ? (((W[K.cfg] || {}).STAR || [])[star - 1] || 0) : kind === "explore" && W.SHENXING ? (W.SHENXING[star - 1] || 0) : kind === "gfStudy" && W.WUDAO ? (W.WUDAO[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : kind === "spStudy" && W.WUFA ? (W.WUFA[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : K.cfg2 && W[K.cfg2] ? ((W[K.cfg2].FLAT || [])[star - 1] || 0) : kind === "danTime" && W.DANHUO ? (W.DANHUO[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : kind === "qiTime" && W.QIHUO ? (W.QIHUO[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : kind === "plantTime" && W.YULING ? (W.YULING[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : kind === "plantYield" && W.FENGLING ? (W.FENGLING[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : (W.base[kind] || 0) * ((W.STAR_MULT || [])[star - 1] || 1), max = DATA.GONGFA_MAX;
+  const per = K.cfg ? (((W[K.cfg] || {}).STAR || [])[star - 1] || 0) : kind === "explore" && W.SHENXING ? (W.SHENXING[star - 1] || 0) : kind === "gfStudy" && W.WUDAO ? (W.WUDAO[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : kind === "spStudy" && W.WUFA ? (W.WUFA[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : K.cfg2 && W[K.cfg2] ? ((W[K.cfg2].FLAT || [])[star - 1] || 0) : kind === "danExtra" && W.DANLING ? (W.DANLING[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : kind === "danTime" && W.DANHUO ? (W.DANHUO[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : kind === "qiTime" && W.QIHUO ? (W.QIHUO[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : kind === "plantTime" && W.YULING ? (W.YULING[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : kind === "plantYield" && W.FENGLING ? (W.FENGLING[star - 1] || 0) / DATA.lvMul(DATA.GONGFA_MAX) : (W.base[kind] || 0) * ((W.STAR_MULT || [])[star - 1] || 1), max = DATA.GONGFA_MAX;
   // 神行：修到圆满才生效一次（不乘层数）
   const val = l => kind === "explore" || K.full ? (l >= max ? per : 0) : per * DATA.lvMul(l);
   return { kind: "mf", id, star, mk: K, lv, el: DATA.elById[K.el], label: K.label,

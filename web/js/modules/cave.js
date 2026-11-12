@@ -33,7 +33,7 @@ G.module({
     arrayFactor() { return DATA.array.factor(this.s.array.lv); },
     arrayGfCut() { return DATA.array.gfStudy ? DATA.array.gfStudy((this.s.array || {}).lv || 0) : 0; },   // 聚灵阵每 30 级减少功法修炼时间 %
     // 每 10 秒聚灵量（只由等级决定，开关不影响）
-    gatherAmount() { return DATA.array.gather(this.s.array.lv) + this.gatherLz() + this.gatherServant() + DATA.array.flat(this.s.array.lv) + (this.servantFlat ? this.servantFlat() : 0); },   // 固定聚灵最后加，不吃道童等加成
+    gatherAmount() { return DATA.array.gather(this.s.array.lv) + this.gatherLz() + this.gatherServant() + DATA.array.flat(this.s.array.lv) + (this.servantFlat ? this.servantFlat() : 0) + (this.xdJlGather ? this.xdJlGather() : 0); },   // + 四界坊市聚灵阵心得（固定）   // 固定聚灵最后加，不吃道童等加成
     gatherServant() { return (DATA.array.gather(this.s.array.lv) + this.gatherLz()) * (this.servantPct ? this.servantPct("zhen") : 0) / 100; },   // 道童阵法辅助：聚灵 +%
     // 聚灵加成明细弹窗（聚灵阵页「聚灵加成」按钮）
     openGatherInfo() {
@@ -46,20 +46,25 @@ G.module({
         ${line("道童阵法辅助", "+" + U.num(sv), `${DATA.caveName("array")}和灵珠合计 +${U.num(pct)}%`)}
         ${line(`${DATA.caveName("array")}固定聚灵`, "+" + U.num(fl))}
         ${line("道童固定聚灵", "+" + U.num(sf))}
-        ${(o => o.gf + o.exp + o.body > 0 ? line("神识功法《敛息归元诀》", "−" + U.num(o.gf + o.exp + o.body), `修炼消耗已减：功法 ${U.num(o.gf)}、修为 ${U.num(o.exp)}、肉身 ${U.num(o.body)}`) : "")(this.lxShare ? this.lxShare() : { gf: 0, exp: 0, body: 0 })}
-        ${line("<b>合计</b>", "+" + U.num(this.gatherAmount()))}
+        ${(n => n > 0 ? line("聚灵阵心得", "+" + U.num(n)) : "")(this.xdJlGather ? this.xdJlGather() : 0)}
+        ${line("<b>聚灵合计</b>", "+" + U.num(this.gatherAmount()))}
+        <h3 style="margin-top:12px">修炼消耗</h3>
+        ${(u => line("修为修炼", U.num(u.exp)) + line("肉身修炼", U.num(u.body)) + line("功法修炼", U.num(u.gf)))(this.lingUseParts())}
+        ${(o => o.gf + o.exp + o.body > 0 ? line("神识功法《敛息归元诀》", "减少消耗 " + U.num(o.gf + o.exp + o.body)) : "")(this.lxShare ? this.lxShare() : { gf: 0, exp: 0, body: 0 })}
+        ${line("<b>消耗合计</b>", (u => u ? "−" + U.num(u) : "0")(this.lingUse()))}
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
     gatherLz() { return (this.s.lzSlot || []).reduce((t, z) => t + (z ? z.v : 0), 0); },   // 灵珠格聚灵
     lingCap() { const sp = this.speed(); return Math.max(100, sp.gather * DATA.LING_CAP_GATHER + sp.total * DATA.LING_CAP_SPEED); },
     // v247 每 10 秒修炼消耗的灵气：修为修炼 + 肉身修炼 + 功法修炼（只算正在进行的）
-    lingUse() {
-      const s = this.s; let u = 0;
-      if (s.auto && this.hasMijue() && !this.exBlocksCult()) u += Math.max(0, this.speed().total - this.wdRed("exp"));
-      if (s.bodyAuto && this.hasTijue() && !this.exBlocksCult() && !this.bodyMax()) u += Math.max(0, this.bodySpeed().total * Math.max(0.0001, CFG.body.LING_RATE || 1) - this.wdRed("body"));
+    lingUse() { const p = this.lingUseParts(); return p.exp + p.body + p.gf; },
+    lingUseParts() {   // 各项修炼每 10 秒实际消耗（已扣敛息等减免）
+      const s = this.s, o = { exp: 0, body: 0, gf: 0 };
+      if (s.auto && this.hasMijue() && !this.exBlocksCult()) o.exp = Math.max(0, this.speed().total - this.wdRed("exp"));
+      if (s.bodyAuto && this.hasTijue() && !this.exBlocksCult() && !this.bodyMax()) o.body = Math.max(0, this.bodySpeed().total * Math.max(0.0001, CFG.body.LING_RATE || 1) - this.wdRed("body"));
       const st = s.gfStudy;
-      if (st && st.done < st.total) { const R = this.gfRoomNow(DATA.skillInfo(st.id, s.gongfa[st.id] || 1)); u += this.ssGfPer(st.per * (R ? R.mul : 1)) * 2; }
-      return u;
+      if (st && st.done < st.total) { const R = this.gfRoomNow(DATA.skillInfo(st.id, s.gongfa[st.id] || 1)); o.gf = this.ssGfPer(st.per * (R ? R.mul : 1)) * 2; }
+      return o;
     },
     lingPerStone() { return DATA.array.STONE_LING; }, // 固定数值
 
@@ -119,7 +124,7 @@ G.module({
     },
     lzPut(i, ft) {
       const s = this.s; if (s.lzSlot[i] || !this.takeSm("lz", 1, ft)) return;
-      s.lzSlot[i] = { ft, v: CFG.lingzhu.BASE };
+      s.lzSlot[i] = { ft, v: CFG.lingzhu.BASE, n: 0 };   // n = 强化次数（灵珠数值改了时迁移用）
       this.log(`${DATA.smName("lz", ft)}放入聚灵阵，聚灵 +${U.fmt(CFG.lingzhu.BASE)}。`, "good"); this.after(); this.lzOpen(i);
     },
     lzEnh(i, times) {
@@ -131,7 +136,7 @@ G.module({
       if (n <= 0) return this.log(byS < 1 && byJ >= 1 ? "灵石不足。" : `${DATA.smName("lj", z.ft)}不足。`, "sys");
       if (!this.takeSm("lj", n * C.ENH_JING, z.ft)) return this.log(`${DATA.smName("lj", z.ft)}不足。`, "sys");
       this.s.stone -= n * ps;
-      z.v += n * C.ENH;
+      z.v += n * C.ENH; z.n = (z.n || 0) + n;
       this.log(`${DATA.smName("lz", z.ft)}强化 ${n} 次，聚灵 +${U.fmt(n * C.ENH)}。`, "good"); this.after(); this.lzOpen(i);
     },
     toggleRefill() { this.s.array.autoRefill = !this.s.array.autoRefill; this.after(); },

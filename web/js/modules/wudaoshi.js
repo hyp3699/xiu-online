@@ -84,6 +84,7 @@ G.module({
       this.qtyModal(`购买${DATA.smName("wdg")}`, `<p class="desc">每个 ${U.fmt(c)} 功德 · 现有功德 ${U.fmt(this.s.merit || 0)}</p>`, max, n => this.buyWdFruit(n, a), { max: "最多可买", ok: "购买" });
     },
     buyWdFruit(n, a) {
+      if ((DATA.maps[a] || {}).w === "shen") return this.log("愿力祠不出售悟道果。", "sys");
       const s = this.s, c = this.wdFruitCost(a); n = Math.min(Math.floor(+n), Math.floor((s.merit || 0) / c));
       if (!Number.isFinite(n)) return this.log("数量无效。", "sys");
       if (n <= 0) return this.log("功德不足。", "sys");

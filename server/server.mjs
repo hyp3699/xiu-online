@@ -297,12 +297,13 @@ function rateLimited(list, limit, windowMs) {
   list.push(now); return false;
 }
 // 礼包物品校验（建礼包码、传音群发共用）。原来只校验数量：类别写错、必需字段缺失的礼包也能建，兑换时才进“遗失”分支
-const GIFT_CATS = new Set(["stone", "contrib", "merit", "gf", "sp", "mf", "fabao", "eq", "herb", "ore", "lj", "lz", "hx", "bm", "st", "tc", "dan", "bp"]);
+const GIFT_CATS = new Set(["stone", "contrib", "merit", "yl", "gf", "sp", "mf", "fabao", "eq", "herb", "ore", "lj", "lz", "hx", "bm", "st", "tc", "dan", "bp"]);
 function giftItemError(item) {
   if (!item || typeof item !== "object" || Array.isArray(item)) return ("礼包物品格式无效");
   if (!GIFT_CATS.has(item.c)) return (`礼包物品类别无效：${String(item.c)}`);
   const count = Number(item.n || 1);
-  if (!Number.isFinite(count) || count < 1 || count > 1_000_000 || (["eq", "fabao", "bp"].includes(item.c) && count > 100)) return ("礼包物品数量超过限制");
+  const cap = ["stone", "contrib", "merit", "yl"].includes(item.c) ? 10_000_000_000 : ["eq", "fabao", "bp"].includes(item.c) ? 100 : 1_000_000;   // 灵石 / 贡献 / 功德 / 愿力最多 100 亿（用户定 2026-11-12）
+  if (!Number.isFinite(count) || count < 1 || count > cap) return (`礼包物品数量超过限制（最多 ${cap}）`);
   if ((item.c === "dan" || item.c === "bp") && !String(item.item || "").includes(":")) return ("礼包丹药/图纸缺少 item");
   if (item.c === "eq" && typeof item.slot !== "string") return ("礼包装备缺少 slot");
   if ((item.c === "eq" || item.c === "fabao") && !(Number.isInteger(item.g) && item.g >= 0 && item.g <= 11)) return ("礼包装备/法宝星级需为 0–11（一~十二星）");

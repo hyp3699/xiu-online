@@ -46,12 +46,21 @@ G.module({
     xjOffice(o) {
       if (!o) return "无";
       const m = DATA.maps[o.map].name;
+      if (o.t === "zz") return m + "尊者";
       return o.t === "jz" ? m + "界主" : o.t === "xj" ? m + this.xjSeatName(o.map, o.seat) : m + this.xjTjName(o.map);
     },
     // 每次结算的俸禄范围 { merit, stone: [少, 多], hx: [少, 多] }（已乘本界 PAY_MULT）
     xjRate(o) {
       const X = CFG.xingjun, a = o.map, wi = DATA.maps[a].wi || 0, k = this.xjC(this.xjW(a)).PAY_MULT || 1;
       const pick = (arr, i) => arr[Math.min(i, arr.length - 1)] || 0, r = v => Math.round(v * k);
+      if (this.xjW(a) === "shen") {   // 神界：俸禄改发愿力（功德数 × CFG.shenjie.XJ_YL）
+        const SC = CFG.shenjie || {}, K = SC.XJ_YL || 1, z = { merit: 0, yl: 0, stone: [0, 0], hx: [0, 0] };
+        const M = DATA.worldMapIdx.shen || [], f = M.length > 1 ? Math.max(0, M.indexOf(a)) / (M.length - 1) : 0, lerp = R => Math.round(R[0] + (R[1] - R[0]) * f);
+                if (o.t === "jz") { const st = r(pick(X.JZ_STONE, wi)), hx = r(pick(X.JZ_HX, wi)); z.yl = SC.XJ_JZ_YL ? lerp(SC.XJ_JZ_YL) : r(pick(X.JZ_MERIT, wi)) * K; z.stone = [st, st]; z.hx = [hx, hx]; }
+        else if (o.t === "tj" && SC.XJ_TJ_YL) z.yl = lerp(SC.XJ_TJ_YL);
+        else z.yl = r(pick(pick(X.MERIT, wi) || [], this.xjPos(a, o.t, o.seat) - 1)) * K;
+        return z;
+      }
       if (o.t === "jz") { const st = r(pick(X.JZ_STONE, wi)), hx = r(pick(X.JZ_HX, wi)); return { merit: r(pick(X.JZ_MERIT, wi)), stone: [st, st], hx: [hx, hx] }; }
       const row = pick(X.MERIT, wi) || [];
       return { merit: r(pick(row, this.xjPos(a, o.t, o.seat) - 1)), stone: [0, 0], hx: [0, 0] };
@@ -59,11 +68,12 @@ G.module({
     // n 次结算的实际俸禄
     xjRoll(o, n) {
       const R = this.xjRate(o), sum = ([lo, hi]) => { if (hi <= 0) return 0; if (n > 1000) return Math.round(n * (lo + hi) / 2); let t = 0; for (let i = 0; i < n; i++) t += U.rand(lo, hi); return t; };
-      return { merit: R.merit * n, stone: sum(R.stone), hx: sum(R.hx) };
+      return { merit: R.merit * n, yl: (R.yl || 0) * n, stone: sum(R.stone), hx: sum(R.hx) };
     },
-    xjRangeText(r) { const f = ([lo, hi]) => lo === hi ? U.fmt(lo) : `${U.fmt(lo)}~${U.fmt(hi)}`; return [r.merit ? `功德 ${U.fmt(r.merit)}` : "", r.stone[1] ? `灵石 ${f(r.stone)}` : "", r.hx[1] ? `${DATA.HX} ${f(r.hx)}` : ""].filter(x => x).join("、") || "无"; },
-    xjRateText(r) { return [r.merit ? `功德 ${U.fmt(r.merit)}` : "", r.stone ? `灵石 ${U.fmt(r.stone)}` : "", r.hx ? `${DATA.HX} ${U.fmt(r.hx)}` : ""].filter(x => x).join("、") || "无"; },
-    xjValid(o) { return o && DATA.maps[o.map] && (o.t !== "xj" || this.xjSeats(o.map)[o.seat] !== undefined); },
+    xjRangeText(r) { const f = ([lo, hi]) => lo === hi ? U.fmt(lo) : `${U.fmt(lo)}~${U.fmt(hi)}`; return [r.merit ? `功德 ${U.fmt(r.merit)}` : "", r.yl ? `愿力 ${U.fmt(r.yl)}` : "", r.stone[1] ? `灵石 ${f(r.stone)}` : "", r.hx[1] ? `${DATA.HX} ${f(r.hx)}` : ""].filter(x => x).join("、") || "无"; },
+    xjRateText(r) { return [r.merit ? `功德 ${U.fmt(r.merit)}` : "", r.yl ? `愿力 ${U.fmt(r.yl)}` : "", r.stone ? `灵石 ${U.fmt(r.stone)}` : "", r.hx ? `${DATA.HX} ${U.fmt(r.hx)}` : ""].filter(x => x).join("、") || "无"; },
+    xjValid(o) { if (o && o.t === "zz") return false;   // 神界尊者已去掉（2026-11-12），旧存档的尊者官位作废
+      return o && DATA.maps[o.map] && (o.t !== "xj" || this.xjSeats(o.map)[o.seat] !== undefined); },
     // 结算俸禄（每 HOUR 秒一次）
     xjSettle() {
       const s = this.s, H = (CFG.xingjun.HOUR || 3600) * 1000;
@@ -74,7 +84,7 @@ G.module({
         if (!o.T) o.T = this.now();
         const n = Math.floor((this.now() - o.T) / H); if (n <= 0) continue;
         const r = this.xjRoll(o, n); o.T += n * H;
-        s.merit = (s.merit || 0) + r.merit; s.stone += r.stone;
+        s.merit = (s.merit || 0) + r.merit; s.stone += r.stone; if (r.yl) s.yuanli = (s.yuanli || 0) + r.yl;
         if (r.hx) this.addFire(r.hx);
         this.log(`${this.xjOffice(o)}俸禄：${this.xjRateText(r)}`, "gold");
         this.dirty();
@@ -83,7 +93,7 @@ G.module({
     // 换官位（同一界）：先结算旧官位，再从现在重新计时
     xjSetOffice(w, o) {
       this.xjSettle();
-      if (o) { o.T = this.now(); this.s.offices[w] = o; if (o.t !== "jz") this.xjMarkHeld(o.map, this.xjPos(o.map, o.t, o.seat)); }
+      if (o) { o.T = this.now(); this.s.offices[w] = o; if (o.t !== "jz" && o.t !== "zz") this.xjMarkHeld(o.map, this.xjPos(o.map, o.t, o.seat)); }
       else delete this.s.offices[w];
     },
     // NPC：属性按 config/mobs.js 的一行怪物数据（tu）生成；ck = 暴击分类（天将 / 星君 / 界主）

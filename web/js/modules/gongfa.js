@@ -278,7 +278,7 @@ G.module({
       const left = st.stalled ? (st.total - done) / mul : Math.max(0, st.at + Math.ceil((st.total - st.done) / (DATA.STUDY_STEP * 1000 * mul)) * DATA.STUDY_STEP * 1000 - API.now());
       return { done, left, mul };
     },
-    // 修炼中卡片：放在滚动区之外、功法页顶部，倒计时常驻可见（无修炼返回空）
+    // 修炼中卡片：只在「修炼队列」页显示（用户定），放在滚动区之外固定不滑，倒计时常驻可见（无修炼返回空）
     // 倒计时与进度条不在 HTML 里写死数值（每秒变会让整页每秒重建、列表滑动被打断），只留空位由 bars() 实时直写
     gfStudyCard() {
       const s = this.s, st = s.gfStudy; if (!st) return "";
@@ -360,7 +360,7 @@ G.module({
     const tabs = `<div class="room-grid">${cats.map(([k, n]) => `<button class="${filter === k ? "active" : ""}" ${k === "queue" ? `style="grid-column:span 3"` : ""} onclick="G.setGfFilter('${k}')">${n}</button>`).join("")}</div>`;
 
     if (filter === "queue") return tabs + this.gfStudyCard() + `<div class="gf-scroll" id="gf-scroll">${this.gfQueueView()}</div>`;
-    if (filter === "forget") return tabs + this.gfStudyCard() + `<div class="gf-scroll" id="gf-scroll">${this.forgetView()}</div>`;
+    if (filter === "forget") return tabs + `<div class="gf-scroll" id="gf-scroll">${this.forgetView()}</div>`;
 
     // 排序 / 隐藏满级
     const P = this.gfPref(), hide = P.hide;
@@ -384,6 +384,6 @@ G.module({
       gr.items.sort(sortFn);
       return `<div class="card"><h3>${gr.title}<small>${gr.total} 部</small></h3>${gr.items.map(g => this.skillLine(g)).join("")}</div>`;
     }).join("");
-    return tabs + tools + this.gfStudyCard() + `<div class="gf-scroll" id="gf-scroll">${body || `<div class="card"><p class="desc">没有可显示的功法。</p></div>`}</div>`;
+    return tabs + tools + `<div class="gf-scroll" id="gf-scroll">${body || `<div class="card"><p class="desc">没有可显示的功法。</p></div>`}</div>`;
   },
 });

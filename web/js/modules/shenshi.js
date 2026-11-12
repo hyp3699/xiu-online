@@ -21,7 +21,7 @@ G.module({
       this._ysFx = Date.now();
       this.log(`养神成功，神识强度提升至 ${s.ssPow}${s.cqLearn ? `，每天可元婴出窍 ${s.ssPow} 次` : ""}。`, "good"); this.dirty(); this.after();
     },
-    lsCap() { const C = CFG.shenshi, B = C.BUY || []; return B.length ? Math.max(C.INIT, B[B.length - 1][1]) : C.INIT; },   // 神识上限
+    lsCap() { const C = CFG.shenshi; return +C.BUY_MAX > 0 ? Math.max(C.INIT || 0, +C.BUY_MAX) : Infinity; },   // BUY_MAX 0 / 不写 = 不限   // 神识上限
     // 这本功法 / 秘法占用多少神识（不占用 = 0）
     ssCost(id) {
       const C = CFG.shenshi, g = DATA.skillInfo(id, 1); if (!g || !g.star) return 0;
@@ -41,7 +41,12 @@ G.module({
     lsTotal() { return (this.s.lsMax || 0) + ((this.s.wd || {}).ls || 0) + (this.oriSum ? this.oriSum("ls") : 0) + this.ssGfSum("ls"); },   // + 神识功法《灵台开识篇》   // + 出身「残魂附体」   // 总灵识点 = 买的 + 神魂之道得的
     lsLeft() { return this.lsTotal() - this.lsUsed(); },
     // 第 k 点神识要多少灵石（表里没有 = null，买不了）
-    lsPrice(k) { for (const [a, b, p] of CFG.shenshi.BUY || []) if (k >= a && k <= b) return p; return null; },
+    lsPrice(k) {   // BUY = [每阶段点数, 每阶段递增灵石]：第 n 阶段每点 n × 递增（兼容旧的 [[从, 到, 灵石], …] 写法）
+      const C = CFG.shenshi, B = C.BUY || [], init = C.INIT || 0;
+      if (Array.isArray(B[0])) { for (const [a, b, p] of B) if (k >= a && k <= b) return p; return null; }
+      const n = +B[0] || 0, add = +B[1] || 0; if (!n || k <= init || k > this.lsCap()) return null;
+      return (Math.floor((k - init - 1) / n) + 1) * add;
+    },
     lsBuyCost(n) {
       let c = 0;
       for (let i = 1; i <= n; i++) { const p = this.lsPrice(this.s.lsMax + i); if (p === null) return null; c += p; }
@@ -80,7 +85,9 @@ G.module({
     ssGfDef(id) { return (CFG.shenshi.GONGFA || []).find(g => g.id === id); },
     ssGfLv(id) { const v = ((this.s.ssGf || {})[id]) | 0, g = this.ssGfDef(id); return Math.max(0, g ? Math.min(v, g.MAX || 0) : v); },   // 配置把 MAX 改小时按新上限算
     // 修到 lv 层的合计效果：STEPS 每段 [层数, 每层值]，超出部分按最后一段
-    ssGfVal(g, lv) { const S = g.STEPS || [[g.MAX || 0, g.PER || 0]]; let n = 0, left = lv;
+    //   写了 FIRST / TOTAL（不写 STEPS）：第 1 层 FIRST，每层平均递增，MAX 层合计 TOTAL；合计按层取整
+    ssGfVal(g, lv) { if (!g.STEPS && g.FIRST !== undefined && g.TOTAL !== undefined) { const M = g.MAX || 1, a = +g.FIRST || 0, d = M > 1 ? 2 * ((+g.TOTAL || 0) - M * a) / (M * (M - 1)) : 0, k = Math.max(0, Math.min(lv, M)); return Math.round(k * a + d * k * (k - 1) / 2); }
+      const S = g.STEPS || [[g.MAX || 0, g.PER || 0]]; let n = 0, left = lv;
       for (let i = 0; i < S.length && left > 0; i++) { const k = i === S.length - 1 ? left : Math.min(left, S[i][0] || 0); n += k * (S[i][1] || 0); left -= k; } return n; },
     ssGfSum(key) { let n = 0; for (const g of CFG.shenshi.GONGFA || []) if (g.key === key) n += this.ssGfVal(g, this.ssGfLv(g.id)); return n; },   // 某种效果合计
     // 《敛息归元诀》：每 10 秒合计只减一次（用户定）——功法修炼（含秘法、法术）先用，剩下的给修为修炼，再剩下给肉身修炼

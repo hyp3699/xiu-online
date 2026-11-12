@@ -1044,7 +1044,9 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .gpage{height:calc(100% + 20px)}
 .gpage>.mgwrap{flex:1 1 0;min-height:0}
 .mgwrap{--gcw:60px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-x;margin:6px -12px 8px;overscroll-behavior:contain;background:#050505}
-.mgrid{display:grid;gap:0;width:max-content;margin:0 auto;background-position:center;background-size:cover;background-repeat:no-repeat}
+.mgrid .sjsx{position:absolute;width:calc(var(--gcw) * 2);z-index:3;display:flex;flex-direction:column;align-items:center;cursor:pointer;filter:drop-shadow(0 0 8px rgba(255,210,120,.7))}
+.mgrid .sjsx img{width:100%;height:auto}.mgrid .sjsx small{color:#ffe7a8;text-shadow:0 1px 2px #000;font-size:11px}
+.mgrid{position:relative;display:grid;gap:0;width:max-content;margin:0 auto;background-position:center;background-size:cover;background-repeat:no-repeat}
 .mgrid .gc{width:var(--gcw);height:var(--gcw);border-radius:0;background:rgba(6,6,6,.97);border:0;outline:1px solid rgba(232,200,120,.1);padding:0;min-width:0;min-height:0;cursor:pointer;transition:background .35s}
 .mgrid .gc:active{background:rgba(40,34,22,.95)}
 .mgrid .gc.on{background:transparent;outline:1px solid rgba(255,245,210,.28)}
@@ -1277,3 +1279,73 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 @keyframes zfz{0%,49%{z-index:0}50%,100%{z-index:3}}
 @keyframes zffl{from{transform:scale(.9,1)}to{transform:scale(1.05,1.18)}}
 .zf-jin{--c:rgb(255,230,110)}.zf-mu{--c:rgb(130,255,110)}.zf-shui{--c:rgb(110,205,255)}.zf-huo{--c:rgb(255,140,50)}.zf-tu{--c:rgb(240,190,110)}.zf-lei{--c:rgb(195,165,255)}
+/* 神界小界格盘（shenjie.js）：4×4，外圈 12 尊者格，中间天地道场、天府域 */
+
+/* 神界一张地图：上北下南左西右东，中间小界格盘 */
+
+/* 神界两层整图：图上标名字（不用格子） */
+.sjmap{position:relative;width:100%;border-radius:12px;overflow:hidden;border:1px solid rgba(232,200,120,.45);box-shadow:0 4px 14px rgba(0,0,0,.5);margin-top:4px}
+.sjmap>img{display:block;width:100%;height:auto}
+.sjmk{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:0;padding:2px 8px;min-width:0;border-radius:999px;border:1px solid rgba(255,220,140,.85);background:rgba(40,24,8,.72);color:#ffe9b0;font-size:13px;line-height:1.25;white-space:nowrap;text-shadow:0 1px 2px #000;box-shadow:0 2px 6px rgba(0,0,0,.5);cursor:pointer}
+.sjmk small{font-size:10px;color:#e9d7a8;opacity:.9}
+.sjmk i{position:absolute;right:-6px;top:-7px;font-style:normal;font-size:11px;color:#8ff09a}
+.sjmk.cur{border-color:#ffd56a;box-shadow:0 0 10px rgba(255,213,106,.8)}
+.sjmk.done{background:rgba(26,60,36,.78)}
+.sjmk.lock{opacity:.5;filter:grayscale(.9)}
+.sjmk.mine{border-color:#7fe08a;box-shadow:0 0 10px rgba(127,224,138,.8)}
+.sjmk-rg{font-size:15px;padding:3px 12px;background:rgba(60,30,80,.78)}
+.sjrgm .rgt{border:0;background:none}
+
+.sjfit{padding:0}
+.sjfit>.pghead{position:absolute;left:12px;top:8px;margin:0;z-index:3;color:#ffe7a6;text-shadow:0 1px 3px #000,0 0 6px rgba(0,0,0,.8)}
+.sjfit .sjmap{flex:1 1 auto;min-height:0;margin:0;border:0;border-radius:0;box-shadow:none}
+.sjfit .sjmap>img{width:100%;height:100%;object-fit:fill}
+.sjfit>.fback{bottom:12px;right:12px}
+.sjmk-v{writing-mode:vertical-rl;letter-spacing:4px;padding:10px 3px}
+.sjhxm{aspect-ratio:768/1376}.sjfit .sjhxm{aspect-ratio:auto}
+.sjhxm .sjmk-rg{z-index:2}
+
+.sjhall{position:absolute;transform:translate(-50%,-50%);width:24%;padding:0;margin:0;border:0;background:none;box-shadow:none;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;z-index:2}
+.sjhxm .sjmk-rg{z-index:3}
+.sjhall img{width:100%;height:auto;filter:drop-shadow(0 3px 5px rgba(0,0,0,.55))}
+.sjhall span{font-size:14px;color:#ffe7a6;padding:1px 10px;border-radius:999px;background:rgba(40,24,10,.72);border:1px solid rgba(255,220,140,.6);white-space:nowrap}
+.sjgx{position:absolute;right:10px;top:10px;z-index:3;font-size:12px;color:#ffe7a6;padding:2px 8px;border-radius:8px;background:rgba(40,24,10,.6);text-shadow:0 1px 2px #000}
+/* 神界四域：一整张图分三块（上本域，下两界） */
+.sjrgw{position:relative;margin:-6px -6px 6px;border-radius:10px;overflow:hidden}
+.sjrgw>img{display:block;width:100%;height:auto}
+.sjrgw .sjyu{position:absolute;left:50%;top:20%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 12px;border-radius:10px;background:rgba(10,14,24,.55);color:#fff;text-shadow:0 1px 2px #000;white-space:nowrap}
+.sjrgw .sjyu small{opacity:.85}
+.sjrgw .sjyu .btns{margin:4px 0 0;gap:6px}
+.sjrgw .sjz{position:absolute;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.sjrgw .sjz0{left:0;top:0;width:100%;height:42%}.sjrgw .sjz1{left:0;top:46%;width:50%;height:54%}.sjrgw .sjz2{left:50%;top:46%;width:50%;height:54%}
+.sjrgw .sjz.off{cursor:default}
+.sjrgw .sjz0 .sjyu{position:static;transform:none}
+.sjrgw .sjjie{display:flex;flex-direction:column;align-items:center;padding:6px 14px;border-radius:10px;border:1px solid rgba(255,220,140,.7);background:rgba(10,14,24,.55);color:#ffe7a8;text-shadow:0 1px 2px #000}
+.sjrgw .sjjie small{color:#fff;opacity:.8}
+.sjrgw .sjz.off .sjjie,.sjrgw .sjz0.off .sjyu{opacity:.75}
+
+/* 神界道场感悟：小人物 + 3 秒感悟动画（shenjie.js sjDcView / sjGwStart） */
+.sjgw{position:relative;width:96px;height:120px;margin:4px auto 8px;overflow:visible}
+.sjgw img{position:absolute;left:50%;bottom:0;height:110px;transform:translateX(-50%);filter:drop-shadow(0 0 3px rgba(255,230,160,.35));transition:filter .4s}
+.sjgw-ring{position:absolute;left:50%;bottom:-4px;width:90px;height:22px;margin-left:-45px;border-radius:50%;border:2px solid rgba(255,214,120,.25);opacity:.4}
+.sjgw.on img{animation:sjgwHero 1s ease-in-out infinite alternate}
+.sjgw.on .sjgw-ring{animation:sjgwRing 1.2s ease-out infinite;opacity:1}
+.sjgw.on .sjgw-ring.r2{animation-delay:.6s}
+.sjgw i{position:absolute;bottom:6px;width:4px;height:4px;border-radius:50%;background:#ffe9a8;box-shadow:0 0 6px 2px rgba(255,210,110,.8);opacity:0;animation:sjgwDot 1.6s ease-in infinite}
+@keyframes sjgwHero{from{filter:drop-shadow(0 0 4px rgba(255,220,140,.5)) brightness(1)}to{filter:drop-shadow(0 0 16px rgba(255,220,140,.95)) brightness(1.25)}}
+@keyframes sjgwRing{from{transform:scale(.4);opacity:.9;border-color:rgba(255,220,130,.9)}to{transform:scale(1.6);opacity:0;border-color:rgba(255,220,130,0)}}
+@keyframes sjgwDot{0%{transform:translateY(0);opacity:0}20%{opacity:1}100%{transform:translateY(-110px);opacity:0}}
+/* 神像弹窗大图：保持原比例（不压成正方形） */
+.sx-big{display:block;height:180px;width:auto;max-width:100%;margin:0 auto 8px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(255,210,120,.6))}
+/* 神界界：走过但怪还活着的格子 */
+.mgrid .gc.mob{position:relative;box-shadow:inset 0 0 0 2px #ff5b4a}
+.mgrid .gc.mob span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;text-shadow:0 0 3px #000,0 0 6px #ff3b2a}
+/* 神功：大图 + 神纹点亮图 */
+.sg-big{display:block;width:96px;height:96px;margin:0 auto 4px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(255,210,120,.55))}
+.swg{display:grid;gap:5px;max-width:340px;margin:8px auto}
+.swg .sw{aspect-ratio:1;min-width:0;padding:0;border-radius:50%;font-size:12px;line-height:1;border:1px solid #5a5070;background:#221d2e;color:#8a809c}
+.swg .sw.main{border-radius:10px;border-color:#8a63d2;color:#c9b2ff}
+.swg .sw.can{border:1px dashed #e8c070;color:#e8c070}
+.swg .sw.on{background:radial-gradient(circle,#ffe8a0,#d49a2a);border-color:#ffe1a0;color:#3a2600;box-shadow:0 0 8px rgba(255,200,90,.7)}
+.swg .sw.main.on{background:radial-gradient(circle,#f0dcff,#8a4fe0);color:#22104a;box-shadow:0 0 10px rgba(170,110,255,.8)}
+.swg .sw.sel{outline:2px solid #fff;outline-offset:1px}

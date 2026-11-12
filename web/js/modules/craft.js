@@ -868,6 +868,7 @@ G.module({
       const ysd = this.ysDanBonus ? this.ysDanBonus() : {}; for (const k in ysd) if (k in b) b[k] += ysd[k]; else if (k.startsWith("res_")) b.resEl[k.slice(4)] = (b.resEl[k.slice(4)] || 0) + ysd[k];   // 隐世宗门炼丹房丹药（world.js）
       const lg = this.lgBonus ? this.lgBonus() : null; if (lg) { for (const k of ["atk", "def", "hp", "mana"]) b[k] += lg[k] || 0; }   // 灵果（garden.js）
       const jm = this.jmBonus ? this.jmBonus() : {}; for (const k in jm) if (k in b) b[k] += jm[k]; else if (k.startsWith("res_")) b.resEl[k.slice(4)] = (b.resEl[k.slice(4)] || 0) + jm[k];   // 经脉（jingmai.js）
+      const sj = this.sjBonus ? this.sjBonus() : {}; for (const k in sj) if (k in b) b[k] += sj[k]; else if (k.startsWith("res_")) b.resEl[k.slice(4)] = (b.resEl[k.slice(4)] || 0) + sj[k];   // 神界天地道场、真意（shenjie.js）
       const zf = this.zfBonus ? this.zfBonus() : {}; for (const k in zf) if (k in b) b[k] += zf[k];   // 洞府属性阵法（formation.js）
       return b;
     },

@@ -11,6 +11,7 @@
 window.CFG = window.CFG || {};
 
 CFG.battle = {
+  TEST_DMG_PCT: 30,   // 测试模式（管理员测试号）：人物无敌不掉血，每次出手固定打掉对方最大生命的这个 %
   MIN_BASE: 1,       // 保底伤害：练气一层的值
   MIN_STEP: 3,       // 保底伤害：每多一层 +
   MIN_HIGH: 9,       // 保底伤害：出手方比对方每高一层 +

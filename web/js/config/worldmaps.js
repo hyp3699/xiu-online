@@ -313,7 +313,7 @@ CFG.worldMaps.mo = {
 /* ---------- 神界 shen ---------- */
 CFG.worldMaps.shen = {
   open: { realm: 17 },   // 开放条件（大罗金仙）
-  halls: { tg: "{map}神殿", xj: "神君殿", gd: "功德司", shop: "神市", lilian: "历练", wudao: "悟道碑", lingdi: "灵地" },   // 地点名
+  halls: { tg: "{map}大帝殿", xj: "天尊殿", gd: "愿力祠", shop: "神市", lilian: "历练", wudao: "悟道碑", lingdi: "灵地" },   // 地点名
   maps: [
     { name: "钧天", boss: "钧天神主·中央天帝",
       monsters: ["钧天神卫", "神兵", "天官", "神鹤", "镇天神将", "神光灵", "金甲神人", "中天神龙"] },
