@@ -303,7 +303,7 @@ G.module({
     /* ---------- 神功（大帝殿，每重天 9 本）：s.sj.sg = { "重天_本": { n 已学次数, d 最后学习日, lit [已点亮神纹格] } } ---------- */
     sjSgId(a, j) { return this.sjWi(a) + "_" + j; },
     sjSgName(a, j) { return ((this.sjC().SG_LIST || [])[this.sjWi(a)] || [])[j] || "神功"; },
-    sjSgImg(a, j) { return `img/icons/sg_${this.sjWi(a)}_${j}.png?v=1`; },
+    sjSgImg(a, j) { return `img/icons/sg_${this.sjWi(a)}_${j}.png?v=2`; },
     sjSgSt(a, j) { const J = this.sjS(); if (!J.sg || typeof J.sg !== "object" || Array.isArray(J.sg)) J.sg = {}; const id = this.sjSgId(a, j); const o = J.sg[id] && typeof J.sg[id] === "object" ? J.sg[id] : (J.sg[id] = { n: 0, d: "", lit: [] }); if (!Array.isArray(o.lit)) o.lit = []; o.n = Math.max(0, Math.floor(+o.n) || 0); return o; },
     sjSgDone(a, j) { return this.sjSgSt(a, j).n >= (this.sjC().SG_LEARN_N || 12); },
     // 每本固定 2 种神像物品：90 本依次取 8 选 2 组合里用得最少的（固定种子打乱），每种物品用的次数尽量一样
