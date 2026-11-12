@@ -45,7 +45,7 @@ CFG.mijing = {
     sys:  { name: "神源石",   sell: 12 },
     tdsp: { name: "天道碎片", sell: 12 },
     hdly: { name: "混沌灵液", sell: 12 },
-    xcs:  { name: "星辰砂",   sell: 12 },
+    xcs:  { name: "星辰神砂", sell: 12 },   // 原名「星辰砂」和矿石重名，改名（2026-11-13）
     shy:  { name: "神凰羽",   sell: 12 },
     lhl:  { name: "龙皇鳞",   sell: 12 },
     jtxl: { name: "九天玄露", sell: 12 },

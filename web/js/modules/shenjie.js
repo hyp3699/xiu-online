@@ -382,7 +382,7 @@ G.module({
       a = +a; j = +j; if (!this.sjSgDone(a, j)) return this.openSjSg(a, j);
       const C = this.sjC(), g = this.sjSwGraph(), lv = this.sjSwLv(a, j), on = i => i < 0 || (+lv[i] || 0) > 0, adj = i => g[i].links.some(on);
       const s0 = sel !== undefined && sel !== null && Number.isInteger(+sel) && +sel >= 0 && +sel < g.length ? +sel : -1;
-      const W = 720, H = 1880, core = { x: 360, y: 100 }, pt = i => i < 0 ? core : g[i], mx = nd => nd.main ? (C.SG_W_MAIN_LV || 10) : (C.SG_W_SUB_LV || 5);
+      const W = 720, H = 1880, core = { x: 360, y: 100 }, pt = i => i < 0 ? core : g[i], mx = nd => nd.main ? (C.SG_W_MAIN_LV || 12) : (C.SG_W_SUB_LV || 6);
       const lines = g.map((nd, i) => nd.links.map(l => { const q = pt(l); return `<line x1="${q.x}" y1="${q.y}" x2="${nd.x}" y2="${nd.y}"${on(i) && on(l) ? ' class="on"' : ""}/>`; }).join("")).join("");
       const nodes = g.map((nd, i) => { const lt = on(i), can = !lt && adj(i);
         return `<button class="swn${nd.main ? " main" : ""}${lt ? " on" : can ? " can" : ""}${i === s0 ? " sel" : ""}" style="left:${nd.x}px;top:${nd.y}px" onclick="G.openSjSw(${a},${j},${i})"><i><img src="img/icons/${nd.ic}.png?v=1" alt=""></i><b>${+lv[i] || 0}/${mx(nd)}</b></button>`; }).join("");
