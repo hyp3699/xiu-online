@@ -1350,15 +1350,28 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .sg-book small{color:var(--t-dim);font-size:12px}
 @keyframes sgFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
 @media (prefers-reduced-motion:reduce){.sg-book{animation:none}}
-.swmap{position:relative;width:100%;max-width:340px;aspect-ratio:1;margin:8px auto;border-radius:50%;background:radial-gradient(circle,#2a2340 0%,#16121f 70%)}
-.swmap svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
-.swmap line{stroke:#4a4260;stroke-width:.012}
-.swmap line.on{stroke:#f0c060;stroke-width:.016}
-.swmap .sw,.swmap .sw-core{position:absolute;transform:translate(-50%,-50%);width:24px;height:24px;min-width:0;padding:0;border-radius:50%;font-size:11px;line-height:1;border:1px solid #5a5070;background:#221d2e;color:#8a809c}
-.swmap .sw-core{width:44px;height:44px;border:2px solid #ffe1a0;background:radial-gradient(circle,#5a4520,#221a10);box-shadow:0 0 12px rgba(255,200,90,.7);display:flex;align-items:center;justify-content:center}
-.swmap .sw-core img{width:34px;height:34px;object-fit:contain}
-.swmap .sw.main{width:36px;height:36px;border-radius:10px;border-color:#8a63d2;color:#c9b2ff;font-size:13px}
-.swmap .sw.can{border:1px dashed #e8c070;color:#e8c070}
-.swmap .sw.on{background:radial-gradient(circle,#ffe8a0,#d49a2a);border-color:#ffe1a0;color:#3a2600;box-shadow:0 0 8px rgba(255,200,90,.7)}
-.swmap .sw.main.on{background:radial-gradient(circle,#f0dcff,#8a4fe0);color:#22104a;box-shadow:0 0 10px rgba(170,110,255,.8)}
-.swmap .sw.sel{outline:2px solid #fff;outline-offset:1px}
+/* 神纹点亮图：全屏、可滑动、星空背景 */
+.modal.fs{padding:0;background:#07060d}
+.modal-box.fs{max-width:none;max-height:none;width:100vw;height:100vh;height:100dvh;border:0;border-radius:0;padding:0;overflow:hidden;position:relative;background:#0d0b18;box-shadow:none}
+.swfs-scroll{position:absolute;inset:0;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.swfs-map{position:relative;margin:0 auto;background-size:cover;background-position:center}
+.swfs-map svg{position:absolute;left:0;top:0}
+.swfs-map line{stroke:#15121d;stroke-width:3}
+.swfs-map line.on{stroke:#e8bf6a;stroke-width:3}
+.swn{position:absolute;transform:translate(-50%,-50%);background:none;border:0;padding:0;margin:0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;color:#efe3c6;font:inherit}
+.swn>i{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#2a2532,#0d0b12 75%);border:2px solid #3b3426;box-shadow:0 0 0 3px rgba(0,0,0,.35),0 4px 10px rgba(0,0,0,.6)}
+.swn img{width:40px;height:40px;object-fit:contain;opacity:.55}
+.swn b{font-size:15px;font-weight:500;text-shadow:0 1px 3px #000,0 0 6px #000;line-height:1}
+.swn.main>i{width:118px;height:118px;border-width:3px;border-color:#4a3f2a;box-shadow:0 0 0 4px rgba(0,0,0,.35),0 0 18px rgba(255,220,150,.25)}
+.swn.main img{width:74px;height:74px}
+.swn.core>i{width:84px;height:84px;border-color:#e8bf6a;box-shadow:0 0 18px rgba(255,200,90,.7)}
+.swn.core img{width:62px;height:62px;opacity:1}
+.swn.can>i{border:2px dashed #e8bf6a}
+.swn.on>i{border-color:#e8bf6a;box-shadow:0 0 12px rgba(255,200,90,.65)}
+.swn.on img{opacity:1}
+.swn.sel>i{outline:2px solid #fff;outline-offset:3px}
+.swfs-top{position:absolute;left:0;right:0;top:0;height:64px;display:flex;align-items:center;justify-content:center;pointer-events:none;background:linear-gradient(#07060dcc,#07060d00)}
+.swfs-title{pointer-events:auto;padding:6px 34px;font-size:20px;letter-spacing:2px;color:#5a3418;background:linear-gradient(#f3e3c0,#d9bf8c);border:2px solid #a8865a;border-radius:6px;box-shadow:0 2px 8px #000a}
+.swfs-back{pointer-events:auto;position:absolute;right:10px;top:12px;padding:6px 12px;font-size:15px;color:#f3e3c0;background:#2a2230cc;border:1px solid #a8865a;border-radius:8px}
+.swfs-info{position:absolute;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));background:#1a1624ee;border:1px solid #a8865a;border-radius:10px;padding:6px 10px}
+.swfs-info .line{border:0}

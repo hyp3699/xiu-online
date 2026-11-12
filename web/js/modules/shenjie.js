@@ -356,43 +356,45 @@ G.module({
         <div class="card"><h3>学习一次需要</h3>${ln(DATA.iconImg("yuanli"), "愿力", this.s.yuanli || 0, c.yl)}${c.items.map(x => ln(DATA.smIcon(x.k), DATA.smName(x.k), this.smCount(x.k), x.n)).join("")}</div>
         <div class="btns"><button class="primary" onclick="G.sjSgLearn(${a},${j})" ${left <= 0 && ok ? "" : "disabled"}>${left > 0 ? this.sjSgCdTxt(left) : "学习"}</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
-    // 神纹点亮图：中间核心（学会就亮）→ 3 条支脉，每条主干 2 个辅神纹，分两叉各 5 个（叶子形），末端主神纹（两叉任一端亮了就能点）
-    //   节点序号 = 支脉 × 13 + 本支序号（0~1 主干、2~6 左叉、7~11 右叉、12 主神纹）；links 里 -1 = 核心
+    // 神纹点亮图：全屏星空背景（img/sw_bg.webp），画布 720 × 1880，可上下左右滑动
+    //   顶部核心 -1（学会就亮）→ 3 段，每段 12 个辅神纹（菱形网格）+ 1 个主神纹；节点序号 0~38，links 里 -1 = 核心
+    //   SW_LAYOUT 每项 [x, y, 主?, 相连的节点…]；o.lv = { 节点序号: 已点等级 }，等级 > 0 = 已点亮（点亮消耗、数值待定）
     sjSwGraph() {
-      const C = this.sjC(), A = C.SG_W_ARM || 12, M = C.SG_W_MAIN || [], S = C.SG_W_SUB || ["攻击"], key = A + "|" + M.join() + "|" + S.join();
-      if (this._swG && this._swG.key === key) return this._swG.g;
-      const g = [], P = (r, deg) => [r * Math.cos(deg * Math.PI / 180), r * Math.sin(deg * Math.PI / 180)];
-      // 主干 nT 个（从核心往外），再分左右两叉各 nB 个，沿叶子形弧线等距排开，两叉末端汇到主神纹
-      const nB = Math.max(1, Math.floor((A - 2) / 2)), nT = A - 2 * nB, R0 = 0.42, R1 = 0.88, AMP = 50;
-      for (let k = 0; k < 3; k++) {
-        const th = -90 + 120 * k, base = g.length, sub = l => S[l % S.length];
-        for (let t = 0; t < nT; t++) g.push({ p: P(0.25 + (R0 - 0.25) * (nT > 1 ? t / (nT - 1) : 1), th), main: 0, n: sub(g.length - base), links: [t ? g.length - 1 : -1] });
-        const fork = g.length - 1, tips = [];
-        for (const sd of [-1, 1]) {
-          const pts = []; for (let u = 0; u <= 200; u++) { const f = u / 200; pts.push(P(R0 + (R1 - R0) * f, th + sd * AMP * Math.sin(Math.PI * f))); }
-          const cum = [0]; for (let u = 1; u < pts.length; u++) cum.push(cum[u - 1] + Math.hypot(pts[u][0] - pts[u - 1][0], pts[u][1] - pts[u - 1][1]));
-          for (let q = 1; q <= nB; q++) { const want = cum[cum.length - 1] * q / (nB + 1); let u = 0; while (u < cum.length - 1 && cum[u] < want) u++;
-            g.push({ p: pts[u], main: 0, n: sub(g.length - base), links: [q > 1 ? g.length - 1 : fork] }); }
-          tips.push(g.length - 1);
-        }
-        g.push({ p: P(R1, th), main: 1, n: M[k] || "主神纹", links: tips });
-      }
-      this._swG = { key, g }; return g;
+      if (this._swG) return this._swG;
+      const L = [
+        // 第一段（主神纹在左）
+        [360, 230, 0, -1], [240, 320, 0, 0], [480, 320, 0, 0], [360, 410, 0, 1, 2], [600, 410, 0, 2], [240, 500, 0, 3], [480, 500, 0, 3, 4],
+        [120, 410, 0, 1], [360, 590, 0, 5, 6], [600, 590, 0, 6], [240, 680, 0, 8], [480, 680, 0, 8, 9], [110, 580, 1, 7, 5, 10],
+        // 第二段（主神纹在右）
+        [480, 780, 0, 11], [240, 780, 0, 10], [360, 870, 0, 13, 14], [600, 870, 0, 13], [240, 960, 0, 15], [480, 960, 0, 15, 16],
+        [120, 870, 0, 14], [360, 1050, 0, 17, 18], [120, 1050, 0, 17, 19], [240, 1140, 0, 20, 21], [480, 1140, 0, 20], [360, 1230, 0, 22, 23], [610, 1060, 1, 18, 23, 16],
+        // 第三段（主神纹在下）
+        [360, 1330, 0, 24], [240, 1420, 0, 26], [480, 1420, 0, 26], [120, 1510, 0, 27], [360, 1510, 0, 27, 28], [600, 1510, 0, 28],
+        [240, 1600, 0, 29, 30], [480, 1600, 0, 30, 31], [120, 1700, 0, 32], [600, 1700, 0, 33], [120, 1800, 0, 34], [600, 1800, 0, 35], [360, 1730, 1, 32, 33],
+      ];
+      const C = this.sjC(), Mn = C.SG_W_MAIN || [], S = C.SG_W_SUB || ["攻击"], IC = { 攻击: "sw_atk", 防御: "sw_def", 生命: "sw_hp" };
+      let mi = 0, si = 0;
+      this._swG = L.map(([x, y, main, ...links]) => main ? { x, y, main: 1, n: Mn[mi] || "主神纹", ic: "sw_m" + (mi++ % 3), links } : (n => ({ x, y, main: 0, n, ic: IC[n] || "sw_atk", links }))(S[si++ % S.length]));
+      return this._swG;
     },
-    sjSwLit(a, j) { const n = this.sjSwGraph().length; return new Set(this.sjSgSt(a, j).lit.map(Number).filter(i => Number.isInteger(i) && i >= 0 && i < n)); },
+    sjSwLv(a, j) { const o = this.sjSgSt(a, j); if (!o.lv || typeof o.lv !== "object" || Array.isArray(o.lv)) o.lv = {}; return o.lv; },
     openSjSw(a, j, sel) {
       a = +a; j = +j; if (!this.sjSgDone(a, j)) return this.openSjSg(a, j);
-      const g = this.sjSwGraph(), lit = this.sjSwLit(a, j), adj = i => g[i].links.some(l => l < 0 || lit.has(l));
+      const C = this.sjC(), g = this.sjSwGraph(), lv = this.sjSwLv(a, j), on = i => i < 0 || (+lv[i] || 0) > 0, adj = i => g[i].links.some(on);
       const s0 = sel !== undefined && sel !== null && Number.isInteger(+sel) && +sel >= 0 && +sel < g.length ? +sel : -1;
-      const xy = p => `left:${((p[0] + 1) * 50).toFixed(2)}%;top:${((p[1] + 1) * 50).toFixed(2)}%`, pt = i => i < 0 ? [0, 0] : g[i].p;
-      const lines = g.map((nd, i) => nd.links.map(l => { const q = pt(l), on = lit.has(i) && (l < 0 || lit.has(l)); return `<line x1="${q[0]}" y1="${q[1]}" x2="${nd.p[0]}" y2="${nd.p[1]}" class="${on ? "on" : ""}"/>`; }).join("")).join("");
-      const nodes = g.map((nd, i) => { const on = lit.has(i), can = !on && adj(i);
-        return `<button class="sw${nd.main ? " main" : ""}${on ? " on" : can ? " can" : ""}${i === s0 ? " sel" : ""}" style="${xy(nd.p)}" onclick="G.openSjSw(${a},${j},${i})">${nd.main ? "主" : nd.n[0]}</button>`; }).join("");
-      const nMain = g.filter(x => x.main).length;
-      let info = `<p class="desc">${nMain} 个主神纹（百分比）+ ${g.length - nMain} 个辅神纹（固定数值）。从中间核心开始，只能点亮和已亮神纹相连的。</p>`;
-      if (s0 >= 0) { const t = g[s0], on = lit.has(s0);
-        info = `<div class="card"><h3>${t.main ? "主神纹" : "辅神纹"}<small>${on ? "已点亮" : adj(s0) ? "可点亮" : "需先点亮相连的神纹"}</small></h3><div class="line"><div>${t.n}<small>数值待定</small></div>${on ? `<button class="sm" disabled>已点亮</button>` : `<button class="sm" disabled>点亮消耗待定</button>`}</div></div>`; }
-      this.modal(`<h2>${this.sjSgName(a, j)}<small> 神纹 ${lit.size} / ${g.length}</small></h2><div class="swmap"><svg viewBox="-1 -1 2 2" preserveAspectRatio="none">${lines}</svg><i class="sw-core" style="${xy([0, 0])}"><img src="${this.sjSgImg(a, j)}" alt=""></i>${nodes}</div>${info}<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+      const W = 720, H = 1880, core = { x: 360, y: 100 }, pt = i => i < 0 ? core : g[i], mx = nd => nd.main ? (C.SG_W_MAIN_LV || 10) : (C.SG_W_SUB_LV || 5);
+      const lines = g.map((nd, i) => nd.links.map(l => { const q = pt(l); return `<line x1="${q.x}" y1="${q.y}" x2="${nd.x}" y2="${nd.y}"${on(i) && on(l) ? ' class="on"' : ""}/>`; }).join("")).join("");
+      const nodes = g.map((nd, i) => { const lt = on(i), can = !lt && adj(i);
+        return `<button class="swn${nd.main ? " main" : ""}${lt ? " on" : can ? " can" : ""}${i === s0 ? " sel" : ""}" style="left:${nd.x}px;top:${nd.y}px" onclick="G.openSjSw(${a},${j},${i})"><i><img src="img/icons/${nd.ic}.png?v=1" alt=""></i><b>${+lv[i] || 0}/${mx(nd)}</b></button>`; }).join("");
+      let info = "";
+      if (s0 >= 0) { const t = g[s0], lt = on(s0);
+        info = `<div class="swfs-info"><div class="line"><div>${DATA.li("img/icons/" + t.ic + ".png?v=1")}${t.main ? "主神纹" : "辅神纹"} · ${t.n}<small>${+lv[s0] || 0} / ${mx(t)} 级 · 数值待定</small></div><button class="sm" disabled>${lt || adj(s0) ? "点亮消耗待定" : "需先点亮相连的"}</button></div></div>`; }
+      const doc = typeof document !== "undefined" ? document : null, old = doc && doc.querySelector(".swfs-scroll"), keep = old && this._swAt === a + "_" + j ? [old.scrollLeft, old.scrollTop] : null;
+      this.modal(`<div class="swfs-scroll"><div class="swfs-map" style="width:${W}px;height:${H}px;background-image:url(img/sw_bg.webp?v=1)"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${lines}</svg>
+        <i class="swn core on" style="left:${core.x}px;top:${core.y}px"><i><img src="${this.sjSgImg(a, j)}" alt=""></i></i>${nodes}</div></div>
+        <div class="swfs-top"><span class="swfs-title">${this.sjSgName(a, j)}</span><button class="swfs-back" onclick="G.closeModal()">返回</button></div>${info}`, "fs");
+      this._swAt = a + "_" + j;
+      const sc = doc && doc.querySelector(".swfs-scroll"); if (sc) { if (keep) { sc.scrollLeft = keep[0]; sc.scrollTop = keep[1]; } else sc.scrollLeft = Math.max(0, (W - sc.clientWidth) / 2); }
     },
     // 修炼真意弹窗：需要的物品（带图片）+ 升级后效果
     openSjZy(i) {
