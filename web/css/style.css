@@ -1343,7 +1343,7 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 /* 神功：大图 + 神纹点亮图 */
 .sg-big{display:block;width:96px;height:96px;margin:0 auto 4px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(255,210,120,.55))}
 /* 神功：三本书悬浮在下面（大图 + 上下浮动，错开时间） */
-.sg-books{display:flex;justify-content:space-around;margin-top:20px;padding-bottom:8px}
+.sg-books{display:flex;flex-wrap:wrap;justify-content:space-around;gap:14px 6px;margin-top:20px;padding-bottom:8px}
 .sg-book{display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:0;padding:0;color:inherit;font:inherit;cursor:pointer;animation:sgFloat 3.2s ease-in-out infinite}
 .sg-book img{width:84px;height:84px;object-fit:contain;filter:drop-shadow(0 6px 8px rgba(0,0,0,.5)) drop-shadow(0 0 10px rgba(255,210,120,.4))}
 .sg-book b{font-size:14px}

@@ -300,13 +300,13 @@ G.module({
       // 等服务器结算回来再恢复按钮，避免先闪一下旧消耗
       setTimeout(async () => { try { await this.sjWudao(a); } finally { this._gwAnim = 0; this.render(); } }, 3000);
     },
-    /* ---------- 神功（大帝殿，每重天 3 本）：s.sj.sg = { "重天_本": { n 已学次数, d 最后学习日, lit [已点亮神纹格] } } ---------- */
+    /* ---------- 神功（大帝殿，每重天 9 本）：s.sj.sg = { "重天_本": { n 已学次数, d 最后学习日, lit [已点亮神纹格] } } ---------- */
     sjSgId(a, j) { return this.sjWi(a) + "_" + j; },
     sjSgName(a, j) { return ((this.sjC().SG_LIST || [])[this.sjWi(a)] || [])[j] || "神功"; },
     sjSgImg(a, j) { return `img/icons/sg_${this.sjWi(a)}_${j}.png?v=1`; },
     sjSgSt(a, j) { const J = this.sjS(); if (!J.sg || typeof J.sg !== "object" || Array.isArray(J.sg)) J.sg = {}; const id = this.sjSgId(a, j); const o = J.sg[id] && typeof J.sg[id] === "object" ? J.sg[id] : (J.sg[id] = { n: 0, d: "", lit: [] }); if (!Array.isArray(o.lit)) o.lit = []; o.n = Math.max(0, Math.floor(+o.n) || 0); return o; },
     sjSgDone(a, j) { return this.sjSgSt(a, j).n >= (this.sjC().SG_LEARN_N || 12); },
-    // 每本固定 2 种神像物品：30 本依次取 8 选 2 组合里用得最少的（固定种子打乱），每种物品用的次数尽量一样
+    // 每本固定 2 种神像物品：90 本依次取 8 选 2 组合里用得最少的（固定种子打乱），每种物品用的次数尽量一样
     sjSgItems(a, j) {
       const L = this.sjC().SX_ITEM || [], nM = (DATA.worldMapIdx.shen || []).length || 10;
       if (L.length < 2) return L.slice();
@@ -315,16 +315,16 @@ G.module({
         const pairs = []; for (let x = 0; x < L.length; x++) for (let y = x + 1; y < L.length; y++) pairs.push([x, y]);
         for (let x = pairs.length - 1; x > 0; x--) { const y = Math.floor(rnd() * (x + 1)); [pairs[x], pairs[y]] = [pairs[y], pairs[x]]; }
         const cnt = new Array(L.length).fill(0), used = new Map(), out = [];
-        for (let n = 0; n < nM * 3; n++) { let best = null, bv = Infinity;
+        for (let n = 0; n < nM * 9; n++) { let best = null, bv = Infinity;
           for (const p of pairs) { const v = (cnt[p[0]] + cnt[p[1]]) * 1000 + (used.get(p) || 0) * 10 + rnd(); if (v < bv) { bv = v; best = p; } }
           cnt[best[0]]++; cnt[best[1]]++; used.set(best, (used.get(best) || 0) + 1); out.push(best); }
         this._sgItem = { key: L.join() + "|" + nM, out };
       }
-      return this._sgItem.out[(this.sjWi(a) * 3 + j) % this._sgItem.out.length].map(i => L[i]);
+      return this._sgItem.out[(this.sjWi(a) * 9 + j) % this._sgItem.out.length].map(i => L[i]);
     },
     sjSgCost(a, j) { const C = this.sjC(); return { yl: C.SG_LEARN_YL || 2400, items: this.sjSgItems(a, j).map(k => ({ k, n: C.SG_LEARN_ITEM || 120 })) }; },
     sjSgLearn(a, j) {
-      a = +a; j = +j; if (!this.isShen(a) || ![0, 1, 2].includes(j)) return;
+      a = +a; j = +j; if (!this.isShen(a) || !(j >= 0 && j <= 8)) return;
       if (!this.mapOpen(a)) return this.log("还不能进入这重天。", "sys");
       const o = this.sjSgSt(a, j), C = this.sjC(), N = C.SG_LEARN_N || 12, d = this.bjDay(), nm = this.sjSgName(a, j);
       if (o.n >= N) return this.log(`《${nm}》已学会。`, "sys");
@@ -336,8 +336,8 @@ G.module({
     },
     sjSgCard(a) {
       const C = this.sjC(), N = C.SG_LEARN_N || 12, d = this.bjDay();
-      const books = [0, 1, 2].map(j => { const o = this.sjSgSt(a, j), done = o.n >= N;
-        return `<button class="sg-book" style="animation-delay:${(j * 0.7).toFixed(1)}s" onclick="G.${done ? "openSjSw" : "openSjSg"}(${a},${j})"><img src="${this.sjSgImg(a, j)}" alt=""><b>${this.sjSgName(a, j)}</b><span class="tag">${done ? "已学会" : `学习 ${o.n} / ${N}`}</span>${!done && o.d === d ? "<small>今日已学习</small>" : ""}</button>`; }).join("");
+      const books = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(j => { const o = this.sjSgSt(a, j), done = o.n >= N;
+        return `<button class="sg-book" style="animation-delay:${(j * 0.7).toFixed(1)}s" onclick="G.${done ? "openSjSw" : "openSjSg"}(${a},${j})"><img src="${this.sjSgImg(a, j)}" alt=""><b>${this.sjSgName(a, j)}</b>${done ? `<span class="tag">已学会</span>` : ""}${!done && o.d === d ? "<small>今日已学习</small>" : ""}</button>`; }).join("");
       return `<div class="card"><h3>神功<small>每本每天学习一次，学满 ${N} 次解锁神纹</small></h3><div class="sg-books">${books}</div></div>`;
     },
     openSjSg(a, j) {

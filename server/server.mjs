@@ -297,7 +297,7 @@ function rateLimited(list, limit, windowMs) {
   list.push(now); return false;
 }
 // 礼包物品校验（建礼包码、传音群发共用）。原来只校验数量：类别写错、必需字段缺失的礼包也能建，兑换时才进“遗失”分支
-const GIFT_CATS = new Set(["stone", "contrib", "merit", "yl", "gf", "sp", "mf", "fabao", "eq", "herb", "ore", "lj", "lz", "hx", "bm", "st", "tc", "dan", "bp"]);
+const GIFT_CATS = new Set(["stone", "contrib", "merit", "yl", "gf", "sp", "mf", "fabao", "eq", "herb", "ore", "lj", "lz", "hx", "bm", "st", "tc", "dan", "bp", "sm"]);
 function giftItemError(item) {
   if (!item || typeof item !== "object" || Array.isArray(item)) return ("礼包物品格式无效");
   if (!GIFT_CATS.has(item.c)) return (`礼包物品类别无效：${String(item.c)}`);
@@ -312,6 +312,7 @@ function giftItemError(item) {
   if (item.c === "mf" && (typeof item.star !== "number" || typeof item.kind !== "string")) return ("礼包秘法缺少 star/kind");
   if ((item.c === "herb" || item.c === "ore") && (!Number.isInteger(item.g) || item.g < 0)) return ("礼包材料缺少合法 g");
   if ((item.c === "lj" || item.c === "lz") && !Number.isFinite(item.ft)) return ("礼包灵晶/灵珠缺少 ft");
+  if (item.c === "sm" && (typeof item.k !== "string" || !item.k || item.k.length > 32 || /[<>&"'`]/.test(item.k))) return ("礼包特殊材料缺少 k");
   if (item.c === "tc" && (typeof item.name !== "string" || !item.name || item.name.length > 32 || /[<>&"'`]/.test(item.name))) return ("礼包特产名称无效（不能含 < > & 引号）");
   if (item.c === "st" && typeof item.id !== "string") return ("礼包神通缺少 id");
   return null;
