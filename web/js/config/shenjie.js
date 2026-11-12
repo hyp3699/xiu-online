@@ -45,7 +45,7 @@ CFG.shenjie = {
   SX_ITEM: ["sys", "tdsp", "hdly", "xcs", "shy", "lhl", "jtxl", "tcsm"],   // 每张神界图第 1~8 界的神像各产一种物品（config/mijing.js items，用户定 2026-11-12）
   SX_ITEM_N: 10,                 // 每天产出 = 神像等级 × 10（1 级 10 个，每级 +10）
 
-  // 神功：每重天大帝殿 9 本（图标 img/icons/sg_重天序号_本序号.png，用户定 2026-11-12）
+  // 神功：每重天大帝殿 9 本（图标 img/icons/sg_重天序号_本序号.png，用户定 2026-11-12；第 4~9 本复用本重天前 3 本的图）
   //   每本学一次后隔 SG_LEARN_CD（24 小时）才能再学，学满 SG_LEARN_N 次解锁，解锁后打开神纹点亮图（点亮消耗、神纹数值待定）
   //   测试模式（DATA.isTest()：调试号，或 TEST=1 时的管理员号）冷却只要 SG_LEARN_CD_TEST（1 秒）
   //   学习一次：愿力 SG_LEARN_YL + 2 种神像物品各 SG_LEARN_ITEM 个（每本固定 2 种，90 本平均分配）

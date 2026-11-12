@@ -303,7 +303,7 @@ G.module({
     /* ---------- 神功（大帝殿，每重天 9 本）：s.sj.sg = { "重天_本": { n 已学次数, t 上次学习时间戳（毫秒）, lit [已点亮神纹格] } } ---------- */
     sjSgId(a, j) { return this.sjWi(a) + "_" + j; },
     sjSgName(a, j) { return ((this.sjC().SG_LIST || [])[this.sjWi(a)] || [])[j] || "神功"; },
-    sjSgImg(a, j) { return `img/icons/sg_${this.sjWi(a)}_${j}.png?v=2`; },
+    sjSgImg(a, j) { return `img/icons/sg_${this.sjWi(a)}_${j % 3}.png?v=1`; },   // 第 4~9 本复用本重天前 3 本的图
     sjSgSt(a, j) { const J = this.sjS(); if (!J.sg || typeof J.sg !== "object" || Array.isArray(J.sg)) J.sg = {}; const id = this.sjSgId(a, j); const o = J.sg[id] && typeof J.sg[id] === "object" ? J.sg[id] : (J.sg[id] = { n: 0, t: 0, lit: [] }); if (!Array.isArray(o.lit)) o.lit = []; o.n = Math.max(0, Math.floor(+o.n) || 0);
       // 旧存档 d 是最后学习日（"2026-11-12"）：按当天 0 点（北京时间）转成时间戳，之后只用 t
       if (typeof o.d === "string" && o.d) { const t = Date.parse(o.d + "T00:00:00+08:00"); if (Number.isFinite(t)) o.t = t; delete o.d; }
@@ -355,7 +355,7 @@ G.module({
       this.modal(`<img class="sg-big" src="${this.sjSgImg(a, j)}" alt=""><h2 style="text-align:center">${nm}<small> 学习 ${o.n} / ${N}</small></h2>
         <div class="card"><h3>学习一次需要</h3>${ln(DATA.iconImg("yuanli"), "愿力", this.s.yuanli || 0, c.yl)}${c.items.map(x => ln(DATA.smIcon(x.k), DATA.smName(x.k), this.smCount(x.k), x.n)).join("")}</div>
         ${left > 0 ? `<p class="desc">冷却中：还需 ${this.sjSgCdTxt(left)} 才能再次学习。</p>` : ""}
-        <div class="btns"><button class="primary" onclick="G.sjSgLearn(${a},${j})" ${left <= 0 && ok ? "" : "disabled"}>${left > 0 ? `${this.sjSgCdTxt(left)}后可学习` : "学习"}</button><button onclick="G.closeModal()">关闭</button></div>`);
+        <div class="btns"><button class="primary" onclick="G.sjSgLearn(${a},${j})" ${left <= 0 && ok ? "" : "disabled"}>学习</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
     // 神纹点亮图：N × N，四角主神纹，其余辅神纹；中间格学会就亮，只能点和已亮格相邻的（点亮消耗待定）
     sjSwType(i) { const C = this.sjC(), N = C.SG_W_N || 7, x = i % N, y = Math.floor(i / N), M = C.SG_W_MAIN || [], S = C.SG_W_SUB || ["攻击"];
