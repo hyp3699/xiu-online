@@ -300,12 +300,18 @@ G.module({
       // 等服务器结算回来再恢复按钮，避免先闪一下旧消耗
       setTimeout(async () => { try { await this.sjWudao(a); } finally { this._gwAnim = 0; this.render(); } }, 3000);
     },
-    /* ---------- 神功（大帝殿，每重天 9 本）：s.sj.sg = { "重天_本": { n 已学次数, d 最后学习日, lit [已点亮神纹格] } } ---------- */
+    /* ---------- 神功（大帝殿，每重天 9 本）：s.sj.sg = { "重天_本": { n 已学次数, t 上次学习时间戳（毫秒）, lit [已点亮神纹格] } } ---------- */
     sjSgId(a, j) { return this.sjWi(a) + "_" + j; },
     sjSgName(a, j) { return ((this.sjC().SG_LIST || [])[this.sjWi(a)] || [])[j] || "神功"; },
     sjSgImg(a, j) { return `img/icons/sg_${this.sjWi(a)}_${j}.png?v=2`; },
-    sjSgSt(a, j) { const J = this.sjS(); if (!J.sg || typeof J.sg !== "object" || Array.isArray(J.sg)) J.sg = {}; const id = this.sjSgId(a, j); const o = J.sg[id] && typeof J.sg[id] === "object" ? J.sg[id] : (J.sg[id] = { n: 0, d: "", lit: [] }); if (!Array.isArray(o.lit)) o.lit = []; o.n = Math.max(0, Math.floor(+o.n) || 0); return o; },
+    sjSgSt(a, j) { const J = this.sjS(); if (!J.sg || typeof J.sg !== "object" || Array.isArray(J.sg)) J.sg = {}; const id = this.sjSgId(a, j); const o = J.sg[id] && typeof J.sg[id] === "object" ? J.sg[id] : (J.sg[id] = { n: 0, t: 0, lit: [] }); if (!Array.isArray(o.lit)) o.lit = []; o.n = Math.max(0, Math.floor(+o.n) || 0);
+      // 旧存档 d 是最后学习日（"2026-11-12"）：按当天 0 点（北京时间）转成时间戳，之后只用 t
+      if (typeof o.d === "string" && o.d) { const t = Date.parse(o.d + "T00:00:00+08:00"); if (Number.isFinite(t)) o.t = t; delete o.d; }
+      o.t = Math.max(0, Math.floor(+o.t) || 0); return o; },
     sjSgDone(a, j) { return this.sjSgSt(a, j).n >= (this.sjC().SG_LEARN_N || 12); },
+    // 学习冷却：正常 24 小时，测试模式（DATA.isTest()）1 秒；返回还剩几毫秒（0 = 可学）
+    sjSgCd(a, j) { const C = this.sjC(), cd = (typeof DATA !== "undefined" && DATA.isTest && DATA.isTest()) ? (C.SG_LEARN_CD_TEST || 1000) : (C.SG_LEARN_CD || 86400000); return Math.max(0, this.sjSgSt(a, j).t + cd - this.now()); },
+    sjSgCdTxt(ms) { ms = Math.max(0, Math.floor(ms || 0)); const s = Math.ceil(ms / 1000); if (s < 60) return `${s} 秒`; const m = Math.floor(s / 60); if (m < 60) return `${m} 分 ${s % 60} 秒`; const h = Math.floor(m / 60); return `${h} 小时 ${m % 60} 分`; },
     // 每本固定 2 种神像物品：90 本依次取 8 选 2 组合里用得最少的（固定种子打乱），每种物品用的次数尽量一样
     sjSgItems(a, j) {
       const L = this.sjC().SX_ITEM || [], nM = (DATA.worldMapIdx.shen || []).length || 10;
@@ -326,28 +332,30 @@ G.module({
     sjSgLearn(a, j) {
       a = +a; j = +j; if (!this.isShen(a) || !(j >= 0 && j <= 8)) return;
       if (!this.mapOpen(a)) return this.log("还不能进入这重天。", "sys");
-      const o = this.sjSgSt(a, j), C = this.sjC(), N = C.SG_LEARN_N || 12, d = this.bjDay(), nm = this.sjSgName(a, j);
+      const o = this.sjSgSt(a, j), C = this.sjC(), N = C.SG_LEARN_N || 12, nm = this.sjSgName(a, j);
       if (o.n >= N) return this.log(`《${nm}》已学会。`, "sys");
-      if (o.d === d) return this.log(`《${nm}》今天已经学习过了，明天再来。`, "sys");
+      const left = this.sjSgCd(a, j);
+      if (left > 0) return this.log(`《${nm}》还需 ${this.sjSgCdTxt(left)} 才能再次学习。`, "sys");
       const c = this.sjSgCost(a, j);
       if ((this.s.yuanli || 0) < c.yl || c.items.some(x => this.smCount(x.k) < x.n)) return this.log(`学习《${nm}》需要愿力 ${U.fmt(c.yl)}${c.items.map(x => `、${DATA.smName(x.k)} ${U.fmt(x.n)}`).join("")}。`, "sys");
-      this.s.yuanli -= c.yl; c.items.forEach(x => this.takeSm(x.k, x.n)); o.n++; o.d = d;
+      this.s.yuanli -= c.yl; c.items.forEach(x => this.takeSm(x.k, x.n)); o.n++; o.t = this.now();
       this.log(o.n >= N ? `《${nm}》学习圆满（${N} / ${N}），神纹点亮图已开启！` : `学习《${nm}》（${o.n} / ${N}）。`, o.n >= N ? "gold" : "good"); this.after();
     },
     sjSgCard(a) {
-      const C = this.sjC(), N = C.SG_LEARN_N || 12, d = this.bjDay();
+      const C = this.sjC(), N = C.SG_LEARN_N || 12;
       const books = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(j => { const o = this.sjSgSt(a, j), done = o.n >= N;
-        return `<button class="sg-book" style="animation-delay:${(j * 0.7).toFixed(1)}s" onclick="G.${done ? "openSjSw" : "openSjSg"}(${a},${j})"><img src="${this.sjSgImg(a, j)}" alt=""><b>${this.sjSgName(a, j)}</b>${done ? `<span class="tag">已学会</span>` : ""}${!done && o.d === d ? "<small>今日已学习</small>" : ""}</button>`; }).join("");
-      return `<div class="card"><h3>神功<small>每本每天学习一次，学满 ${N} 次解锁神纹</small></h3><div class="sg-books">${books}</div></div>`;
+        return `<button class="sg-book" style="animation-delay:${(j * 0.7).toFixed(1)}s" onclick="G.${done ? "openSjSw" : "openSjSg"}(${a},${j})"><img src="${this.sjSgImg(a, j)}" alt=""><b>${this.sjSgName(a, j)}</b>${done ? `<span class="tag">已学会</span>` : ""}</button>`; }).join("");
+      return `<div class="card"><h3>神功<small>每本每 24 小时学习一次，学满 ${N} 次解锁神纹</small></h3><div class="sg-books">${books}</div></div>`;
     },
     openSjSg(a, j) {
       a = +a; j = +j; const o = this.sjSgSt(a, j), N = this.sjC().SG_LEARN_N || 12, nm = this.sjSgName(a, j);
       if (o.n >= N) return this.openSjSw(a, j);
-      const c = this.sjSgCost(a, j), today = o.d === this.bjDay(), ln = (img, n, h, need) => `<div class="line"><div>${DATA.li(img)}${n}</div><b class="${h >= need ? "" : "c-red"}">${U.fmt(h)} / ${U.fmt(need)}</b></div>`;
+      const c = this.sjSgCost(a, j), left = this.sjSgCd(a, j), ln = (img, n, h, need) => `<div class="line"><div>${DATA.li(img)}${n}</div><b class="${h >= need ? "" : "c-red"}">${U.fmt(h)} / ${U.fmt(need)}</b></div>`;
       const ok = (this.s.yuanli || 0) >= c.yl && c.items.every(x => this.smCount(x.k) >= x.n);
       this.modal(`<img class="sg-big" src="${this.sjSgImg(a, j)}" alt=""><h2 style="text-align:center">${nm}<small> 学习 ${o.n} / ${N}</small></h2>
         <div class="card"><h3>学习一次需要</h3>${ln(DATA.iconImg("yuanli"), "愿力", this.s.yuanli || 0, c.yl)}${c.items.map(x => ln(DATA.smIcon(x.k), DATA.smName(x.k), this.smCount(x.k), x.n)).join("")}</div>
-        <div class="btns"><button class="primary" onclick="G.sjSgLearn(${a},${j})" ${!today && ok ? "" : "disabled"}>${today ? "今日已学习" : "学习"}</button><button onclick="G.closeModal()">关闭</button></div>`);
+        ${left > 0 ? `<p class="desc">冷却中：还需 ${this.sjSgCdTxt(left)} 才能再次学习。</p>` : ""}
+        <div class="btns"><button class="primary" onclick="G.sjSgLearn(${a},${j})" ${left <= 0 && ok ? "" : "disabled"}>${left > 0 ? `${this.sjSgCdTxt(left)}后可学习` : "学习"}</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
     // 神纹点亮图：N × N，四角主神纹，其余辅神纹；中间格学会就亮，只能点和已亮格相邻的（点亮消耗待定）
     sjSwType(i) { const C = this.sjC(), N = C.SG_W_N || 7, x = i % N, y = Math.floor(i / N), M = C.SG_W_MAIN || [], S = C.SG_W_SUB || ["攻击"];
