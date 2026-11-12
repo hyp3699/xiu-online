@@ -354,8 +354,7 @@ G.module({
       const ok = (this.s.yuanli || 0) >= c.yl && c.items.every(x => this.smCount(x.k) >= x.n);
       this.modal(`<img class="sg-big" src="${this.sjSgImg(a, j)}" alt=""><h2 style="text-align:center">${nm}<small> 学习 ${o.n} / ${N}</small></h2>
         <div class="card"><h3>学习一次需要</h3>${ln(DATA.iconImg("yuanli"), "愿力", this.s.yuanli || 0, c.yl)}${c.items.map(x => ln(DATA.smIcon(x.k), DATA.smName(x.k), this.smCount(x.k), x.n)).join("")}</div>
-        ${left > 0 ? `<p class="desc">冷却中：还需 ${this.sjSgCdTxt(left)} 才能再次学习。</p>` : ""}
-        <div class="btns"><button class="primary" onclick="G.sjSgLearn(${a},${j})" ${left <= 0 && ok ? "" : "disabled"}>学习</button><button onclick="G.closeModal()">关闭</button></div>`);
+        <div class="btns"><button class="primary" onclick="G.sjSgLearn(${a},${j})" ${left <= 0 && ok ? "" : "disabled"}>${left > 0 ? this.sjSgCdTxt(left) : "学习"}</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
     // 神纹点亮图：N × N，四角主神纹，其余辅神纹；中间格学会就亮，只能点和已亮格相邻的（点亮消耗待定）
     sjSwType(i) { const C = this.sjC(), N = C.SG_W_N || 7, x = i % N, y = Math.floor(i / N), M = C.SG_W_MAIN || [], S = C.SG_W_SUB || ["攻击"];
