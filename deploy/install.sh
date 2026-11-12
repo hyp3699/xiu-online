@@ -4,7 +4,7 @@
 # 不停止、不覆盖原版 xiu-server、/opt/xiu、/var/lib/xiu 或 /xiuxian/。
 set -euo pipefail
 [ "$(id -u)" = 0 ] || exec sudo -E bash "$0" "$@"
-REPO="${XIU_REPO:-https://gitlab.com/hepicpde-group/xiu.git}"
+REPO="${XIU_REPO:-https://github.com/hyp3699/xiu-online.git}"
 DIR=/opt/xiu-online
 DATA_DIR=/var/lib/xiu-online
 SERVICE=xiu-online-test

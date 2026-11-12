@@ -10,9 +10,9 @@ if [[ ! "$PUBLIC_IP" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
   echo ">>> 无法探测公网 IPv4（api.ipify.org 不通），IP 直连的 nginx 配置保持不变，其余照常更新。" >&2
   PUBLIC_IP=""
 fi
-REPO="${XIU_REPO:-https://gitlab.com/hepicpde-group/xiu.git}"
+REPO="${XIU_REPO:-https://github.com/hyp3699/xiu-online.git}"
 printf '>>> 从 %s 拉取 main 分支（强制覆盖服务器上的代码）\n' "$REPO"
-# 远程地址统一指向 GitLab（旧服务器的 origin 还是 GitHub，这里自动改过来）
+# 远程地址统一指向 GitHub（旧服务器的 origin 还是 GitLab，这里自动改过来）
 git -C "$DIR" remote set-url origin "$REPO" 2>/dev/null || git -C "$DIR" remote add origin "$REPO"
 OLD_HEAD="${XIU_OLD_HEAD:-$(git -C "$DIR" rev-parse HEAD 2>/dev/null || true)}"   # 重新执行新版脚本时沿用第一次记下的旧版本
 git -C "$DIR" fetch --depth 1 --force origin main
