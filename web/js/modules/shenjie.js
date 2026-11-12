@@ -372,23 +372,41 @@ G.module({
         [360, 1330, 0, 24], [240, 1420, 0, 26], [480, 1420, 0, 26], [120, 1510, 0, 27], [360, 1510, 0, 27, 28], [600, 1510, 0, 28],
         [240, 1600, 0, 29, 30], [480, 1600, 0, 30, 31], [120, 1700, 0, 32], [600, 1700, 0, 33], [120, 1800, 0, 34], [600, 1800, 0, 35], [360, 1730, 1, 32, 33],
       ];
-      const C = this.sjC(), Mn = C.SG_W_MAIN || [], S = C.SG_W_SUB || ["攻击"], IC = { 攻击: "sw_atk", 防御: "sw_def", 生命: "sw_hp" };
-      let mi = 0, si = 0;
-      this._swG = L.map(([x, y, main, ...links]) => main ? { x, y, main: 1, n: Mn[mi] || "主神纹", ic: "sw_m" + (mi++ % 3), links } : (n => ({ x, y, main: 0, n, ic: IC[n] || "sw_atk", links }))(S[si++ % S.length]));
+      const K = 0.52;   // 整张图缩小（用户 2026-11-13：太大了）
+      this._swG = L.map(([x, y, main, ...links]) => ({ x: Math.round(x * K), y: Math.round(y * K), main, links }));
       return this._swG;
+    },
+    sjSwIc(n) {   // 神纹图标
+      const E = { 金: "sw_jin", 木: "sw_mu", 水: "sw_shui", 火: "sw_huo", 土: "sw_tu", 雷: "sw_lei" }, M = { 攻击: "sw_atk", 防御: "sw_def", 生命: "sw_hp", 法力: "sw_mana", 闪避: "sw_eva", 命中: "sw_hit", 速度: "sw_spd", 减少灵气消耗: "sw_ling" };
+      if (n.startsWith("功法提供的")) { const t = n.slice(5); return { 攻击: "sw_m0", 防御: "sw_m1" }[t] || M[t] || E[t[0]] || "sw_m0"; }
+      if (n.startsWith("受到的")) return "sw_dmg";
+      if (n === "功法修炼时间") return "sw_m2";
+      if (n.startsWith("法术")) return "sw_spell";
+      return M[n] || E[n[0]] || "sw_atk";
+    },
+    sjSwNames(a, j) {   // 本书 39 个神纹的名字（按 sjSwGraph 顺序）
+      const C = this.sjC(), MN = C.SG_W_MAIN || ["主神纹"], S = C.SG_W_SUB || ["攻击"], nM = (DATA.worldMapIdx.shen || []).length || 10, per = C.SG_PER || 9;
+      if (!this._swMain || this._swMain.key !== MN.join() + "|" + nM + "|" + per) {   // 每种主神纹用的次数尽量一样，同一本 3 个不重复
+        let seed = 1113; const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+        const cnt = MN.map(() => 0), out = [];
+        for (let b = 0; b < nM * per; b++) { const pick = []; for (let k = 0; k < 3; k++) { const ok = MN.map((_, i) => i).filter(i => !pick.includes(i)), m = Math.min(...ok.map(i => cnt[i])), c = ok.filter(i => cnt[i] === m), x = c[Math.floor(rnd() * c.length)]; pick.push(x); cnt[x]++; } out.push(pick); }
+        this._swMain = { key: MN.join() + "|" + nM + "|" + per, out };
+      }
+      const bi = this.sjWi(a) * per + j, pk = this._swMain.out[bi] || [0, 1, 2]; let mi = 0, si = bi * 5;
+      return this.sjSwGraph().map(nd => nd.main ? MN[pk[mi++ % 3] % MN.length] : S[si++ % S.length]);
     },
     sjSwLv(a, j) { const o = this.sjSgSt(a, j); if (!o.lv || typeof o.lv !== "object" || Array.isArray(o.lv)) o.lv = {}; return o.lv; },
     openSjSw(a, j, sel) {
       a = +a; j = +j; if (!this.sjSgDone(a, j)) return this.openSjSg(a, j);
-      const C = this.sjC(), g = this.sjSwGraph(), lv = this.sjSwLv(a, j), on = i => i < 0 || (+lv[i] || 0) > 0, adj = i => g[i].links.some(on);
+      const C = this.sjC(), g = this.sjSwGraph(), nm = this.sjSwNames(a, j), lv = this.sjSwLv(a, j), on = i => i < 0 || (+lv[i] || 0) > 0, adj = i => g[i].links.some(on);
       const s0 = sel !== undefined && sel !== null && Number.isInteger(+sel) && +sel >= 0 && +sel < g.length ? +sel : -1;
-      const W = 720, H = 1880, core = { x: 360, y: 100 }, pt = i => i < 0 ? core : g[i], mx = nd => nd.main ? (C.SG_W_MAIN_LV || 12) : (C.SG_W_SUB_LV || 6);
+      const W = 374, H = 978, core = { x: 187, y: 52 }, pt = i => i < 0 ? core : g[i], mx = nd => nd.main ? (C.SG_W_MAIN_LV || 12) : (C.SG_W_SUB_LV || 6);
       const lines = g.map((nd, i) => nd.links.map(l => { const q = pt(l); return `<line x1="${q.x}" y1="${q.y}" x2="${nd.x}" y2="${nd.y}"${on(i) && on(l) ? ' class="on"' : ""}/>`; }).join("")).join("");
       const nodes = g.map((nd, i) => { const lt = on(i), can = !lt && adj(i);
-        return `<button class="swn${nd.main ? " main" : ""}${lt ? " on" : can ? " can" : ""}${i === s0 ? " sel" : ""}" style="left:${nd.x}px;top:${nd.y}px" onclick="G.openSjSw(${a},${j},${i})"><i><img src="img/icons/${nd.ic}.png?v=1" alt=""></i><b>${+lv[i] || 0}/${mx(nd)}</b></button>`; }).join("");
+        return `<button class="swn${nd.main ? " main" : ""}${lt ? " on" : can ? " can" : ""}${i === s0 ? " sel" : ""}" style="left:${nd.x}px;top:${nd.y}px" onclick="G.openSjSw(${a},${j},${i})"><i><img src="img/icons/${this.sjSwIc(nm[i])}.png?v=2" alt=""></i><b>${+lv[i] || 0}/${mx(nd)}</b></button>`; }).join("");
       let info = "";
       if (s0 >= 0) { const t = g[s0], lt = on(s0);
-        info = `<div class="swfs-info"><div class="line"><div>${DATA.li("img/icons/" + t.ic + ".png?v=1")}${t.main ? "主神纹" : "辅神纹"} · ${t.n}<small>${+lv[s0] || 0} / ${mx(t)} 级 · 数值待定</small></div><button class="sm" disabled>${lt || adj(s0) ? "点亮消耗待定" : "需先点亮相连的"}</button></div></div>`; }
+        info = `<div class="swfs-info"><div class="line"><div>${DATA.li("img/icons/" + this.sjSwIc(nm[s0]) + ".png?v=2")}${nm[s0]}<small>${t.main ? "主神纹 · 加百分比" : "辅神纹 · 加数值"} · ${+lv[s0] || 0} / ${mx(t)} 级 · 数值待定</small></div><button class="sm" disabled>${lt || adj(s0) ? "点亮消耗待定" : "需先点亮相连的"}</button></div></div>`; }
       const doc = typeof document !== "undefined" ? document : null, old = doc && doc.querySelector(".swfs-scroll"), keep = old && this._swAt === a + "_" + j ? [old.scrollLeft, old.scrollTop] : null;
       this.modal(`<div class="swfs-scroll"><div class="swfs-map" style="width:${W}px;height:${H}px;background-image:url(img/sw_bg.webp?v=1)"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${lines}</svg>
         <i class="swn core on" style="left:${core.x}px;top:${core.y}px"><i><img src="${this.sjSgImg(a, j)}" alt=""></i></i>${nodes}</div></div>
