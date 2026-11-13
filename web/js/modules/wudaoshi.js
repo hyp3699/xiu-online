@@ -70,7 +70,7 @@ G.module({
     // 神魂之道减掉的每次修炼灵气消耗（kind: exp 修为 / body 肉身）
     wdRedRaw(kind) { return ((this.s.wd || {}).red || {})[kind] || 0; },   // 神魂之道减的灵气（点 / 10 秒）
     // 修炼灵气减少量（点 / 10 秒）= 神魂之道 + 神识功法《敛息归元诀》分到的那份；kind exp 修为 / body 肉身
-    wdRed(kind) { return this.wdRedRaw(kind) + (this.lxShare ? this.lxShare()[kind] || 0 : 0) + (this.sjSwBonus && (kind === "exp" || kind === "body") ? this.sjSwBonus().ling || 0 : 0); },   // + 神纹「减少灵气消耗」   // 敛息：和功法修炼共用一份（lxShare）
+    wdRed(kind) { return this.wdRedRaw(kind) + (this.lxShare ? this.lxShare()[kind] || 0 : 0); },   // 敛息：和功法修炼共用一份（lxShare）
     // 战斗之道随机属性累计（player.js computeStats 里加进属性）
     wdBat() { const b = ((this.s.wd || {}).bat || {}); return { atk: b.atk || 0, def: b.def || 0, hp: b.hp || 0, res: Object.assign({}, b.res || {}) }; },
     wdLeft(dao) { const w = this.s.wd || {}; return (w.day || {})[dao] === this.today() ? 0 : 1; },   // 每条道每天 1 次

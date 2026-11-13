@@ -33,26 +33,9 @@ G.module({
     if (s.hp < st.hp) s.hp = Math.min(st.hp, s.hp + st.hp * R.hp / 100);
     if (s.mana < st.mana) s.mana = Math.min(st.mana, s.mana + st.mana * R.mana / 100);
     if (Array.isArray(s.mailbox) && s.mailbox.length && this.mailboxPrune) this.mailboxPrune();   // 传音 10 天到期清理
-    this.realmRwCheck();   // 境界奖励（含以前没发的补发）
   },
 
   api: {
-    // 境界奖励：大境界 r 的某一项数量（config/realm.js REWARD，练气 → 圣人平均递增）
-    realmRwVal(r, k) { const R = ((CFG.realm || {}).REWARD || {})[k]; if (!R) return 0; const n = Math.max(1, DATA.realms.length - 1); return Math.round(R[0] + (R[1] - R[0]) * Math.min(1, Math.max(0, r) / n)); },
-    // 每到一个新的大境界发一次奖励到传音；s.rrw = 已发到第几个大境界（旧存档没有 = -1，上线后把已到达的境界全部补发）
-    realmRwCheck() {
-      const s = this.s; if (!s || s.mortal || !this.mailboxAdd) return;
-      const r = this.r(), done = Number.isInteger(s.rrw) ? s.rrw : -1; if (done >= r) return;
-      for (let i = done + 1; i <= r; i++) {
-        const src = `${DATA.realmLabel(i)}境界奖励`, v = k => this.realmRwVal(i, k);
-        if (v("stone") > 0) this.mailboxAdd({ t: "cur", k: "stone", n: v("stone") }, true, src);
-        if (v("wuzhen") > 0) this.mailboxAdd({ t: "dan", type: "wuzhen", g: 0, n: v("wuzhen") }, true, src);
-        if (v("fire") > 0) this.mailboxAdd({ t: "hx", n: v("fire") }, true, src);
-        if (v("merit") > 0) this.mailboxAdd({ t: "cur", k: "merit", n: v("merit") }, true, src);
-      }
-      s.rrw = r;
-      if (!this.silent) this.log(r - done > 1 ? `境界奖励已补发到传音（${DATA.realmLabel(done + 1)} ~ ${DATA.realmLabel(r)}），10 天内领取。` : `到达${DATA.realmLabel(r)}，境界奖励已发到传音，10 天内领取。`, "gold");
-    },
     r() { return Math.floor(this.s.L / DATA.LAYERS); },          // 当前大境界序号
     layer() { return this.s.L % DATA.LAYERS; },
     // 境界够不够：req = -1 凡人即可，否则需要（非凡人且）大境界 ≥ req

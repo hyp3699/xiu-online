@@ -911,7 +911,6 @@ G.module({
       // 出一招：a = acts[j]；res = true 可以动用保留的法力；放不出返回 null
       const usedN = {};   // v152 这场战斗每招已用几次
       let res2 = false;
-      const swSp = 1 + (this.sjSwBonus ? this.sjSwBonus().spDmg || 0 : 0) / 100;   // 主神纹：法术伤害 +%
       const jmUp = el => 1 + (this.jmElDmg ? this.jmElDmg(el) : 0) / 100, jmDn = el => 1 - (this.jmElCut ? this.jmElCut(el) : 0) / 100;   // 经脉：手部 +% / 腿部 −%（config/jingmai.js elDmg / elCut）
       const cast = (j, res) => {
         const a = acts[j]; if (!a) return null;
@@ -922,7 +921,7 @@ G.module({
         usedN[j] = (usedN[j] || 0) + 1;
         s.mana -= cost;
         if (a.k === 1) { const sp = a.sp, F = sp.stn && sp.stn.fx || {}, up = sp.stn ? (F.t === "pshield" && mShield ? 1 + F.p / 100 : F.t === "hp50" && mhp > m.hp * 0.5 ? 1 + F.p / 100 : 1) : 1;   // 神通：破盾 / 对手生命高于一半 增伤
-          let d = roll(st, mE(), X => Math.max(MIN(st), EL((sp.stn ? st.atk : sp.atk * atkK()) * (sp.pct + (sp.fuPct || 0)) / 100 * sp.mul + (sp.jyDmg || 0), X, sp.el.id, myL)) * jmUp(sp.el.id) * (sp.stn ? 1 : swSp) * up, 1, j, !!sp.stn);   // 融合：+% 加进法术% 里；法术不吃灵根；经脉该系属性伤害 +%（神通固定 99% 命中）
+          let d = roll(st, mE(), X => Math.max(MIN(st), EL((sp.stn ? st.atk : sp.atk * atkK()) * (sp.pct + (sp.fuPct || 0)) / 100 * sp.mul + (sp.jyDmg || 0), X, sp.el.id, myL)) * jmUp(sp.el.id) * up, 1, j, !!sp.stn);   // 融合：+% 加进法术% 里；法术不吃灵根；经脉该系属性伤害 +%（神通固定 99% 命中）
           if (d > 0) d += lgD(sp.el.id);   // 灵果属性伤害：最后直接加，不吃任何加成
           if (sp.stn) { if (act.f !== 1) stFx(sp.stn, d, up > 1); return d; }   // 神通附加效果（没闪避才触发）
           if (!opt.test) { const xd = CFG.gongfa.XD_GAIN === undefined ? 1 : CFG.gongfa.XD_GAIN; if (xd > 0) { const X = this.s.spXd = this.s.spXd || {}; X[sp.el.id] = (X[sp.el.id] || 0) + xd; act.x = (act.x || 0) | 256; } }   // v239 法术心得
@@ -960,7 +959,7 @@ G.module({
         else if (F.t === "drain") { const v = (m.mana || 0) * F.p / 100; if (v > 0) { m.mana -= v; act.st = `{T}法力减少 ${U.fmt(v)}`; } }
         else if (boosted) act.st = F.t === "pshield" ? `对护盾额外造成 ${F.p}% 伤害` : `对手生命高于一半，伤害提升 ${F.p}%`;
       };
-      const est = a => a.k === 1 ? Math.max(MIN(st), EL((a.sp.stn ? st.atk : a.sp.atk * atkK()) * (a.sp.pct + (a.sp.fuPct || 0)) / 100 * a.sp.mul + (a.sp.jyDmg || 0), m, a.sp.el.id, myL)) * jmUp(a.sp.el.id) * (a.sp.stn ? 1 : swSp) + lgD(a.sp.el.id) : a.fb.shield ? -1 : fabaoDmg(a.fb) * jmUp(a.fb.el) + lgD(a.fb.el);
+      const est = a => a.k === 1 ? Math.max(MIN(st), EL((a.sp.stn ? st.atk : a.sp.atk * atkK()) * (a.sp.pct + (a.sp.fuPct || 0)) / 100 * a.sp.mul + (a.sp.jyDmg || 0), m, a.sp.el.id, myL)) * jmUp(a.sp.el.id) + lgD(a.sp.el.id) : a.fb.shield ? -1 : fabaoDmg(a.fb) * jmUp(a.fb.el) + lgD(a.fb.el);
       const costOf = a => a.k === 1 ? a.sp.mana : a.fb.mana;
       const jOf = key => acts.findIndex(a => a.key === key);
       const ordIdx = key => { const i = (BS.order || []).indexOf(key); return i < 0 ? 999 + jOf(key) : i; };

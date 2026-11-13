@@ -182,7 +182,6 @@ G.module({
         else b[info.type.stat] += v;
         if (info.type.stat2) b[info.type.stat2] += info.value2 * this.lingenSpd(info.type.stat2, info.el.id);
       }
-      if (this.sjSwBonus) { const w = this.sjSwBonus(); for (const k in w.gf) if (k in b) b[k] *= 1 + w.gf[k] / 100; for (const e in w.gfRes) if (b.res[e]) b.res[e] *= 1 + w.gfRes[e] / 100; }   // 主神纹：功法提供的属性 +%
       return b;
     },
     hasGongfa(id) { return !!this.s.gongfa[id]; },
@@ -190,7 +189,7 @@ G.module({
     //   功法：悟道秘法 + 经脉光点冲满（jingmai.js jmGfCut）；法术：悟法秘法（经脉不减法术）；减少% 可以超过 100%
     studySec(g) {
       if (g.noEl) return Math.max(1, ((g.studyMin || [])[g.lv - 1] || 1) * 60);   // 开局功法书：config/start.js 的 STUDY_MIN
-      const sw = this.sjSwBonus ? this.sjSwBonus() : {}, m = this.mifaBonus(), red = g.kind === "sp" ? m.spStudy + this.ssGfSum("sp") + (sw.spStudy || 0) : (sw.gfStudy || 0) + m.gfStudy + (this.jmGfCut ? this.jmGfCut() : 0) + (this.arrayGfCut ? this.arrayGfCut() : 0) + this.ssGfSum("gf");   // + 神识功法
+      const m = this.mifaBonus(), red = g.kind === "sp" ? m.spStudy + this.ssGfSum("sp") : m.gfStudy + (this.jmGfCut ? this.jmGfCut() : 0) + (this.arrayGfCut ? this.arrayGfCut() : 0) + this.ssGfSum("gf");   // + 神识功法
       const base = DATA.studyMin[g.lv - 1] * 60;
       return Math.max(Math.min(CFG.wudao.STUDY_MIN_SEC || 10, base), base / (1 + Math.max(0, red) / 100));
     },

@@ -167,8 +167,8 @@ G.module({
     sjZyName(k) { return `${(this.sjC().ZY_NAME || {})[k] || this.sjAttrName(k)}真意`; },
     // 重天倍率：第一重天 1 倍 → 最后一重天 ZY_LAST 倍
     sjZyK(z) { const n = Math.max(1, (DATA.worldMapIdx.shen || []).length - 1); return 1 + Math.min(1, this.sjWi(z.a) / n) * ((this.sjC().ZY_LAST || 3) - 1); },
-    // 每级 %：按重天倍率分（第一重天 1 份、最后一重天 ZY_LAST 份），10 重天同一种全满合计 ZY_PCT[种类]%
-    sjZyStep(z) { const C = this.sjC(), M = DATA.worldMapIdx.shen || [], sum = M.reduce((t, a) => t + this.sjZyK({ a }), 0) || 1; return (((C.ZY_PCT || {})[z.k]) ?? (C.ZY_PCT_MAX || 27)) * this.sjZyK(z) / (sum * (C.ZY_MAX || 36)); },
+    // 每级 %：按重天倍率分（第一重天 1 份、最后一重天 ZY_LAST 份），10 重天同一种全满合计 ZY_PCT_MAX%
+    sjZyStep(z) { const C = this.sjC(), M = DATA.worldMapIdx.shen || [], sum = M.reduce((t, a) => t + this.sjZyK({ a }), 0) || 1; return (C.ZY_PCT_MAX || 52) * this.sjZyK(z) / (sum * (C.ZY_MAX || 36)); },
     sjZyVal(z, lv) { return Math.round(this.sjZyStep(z) * (lv == null ? z.lv : lv) * 1000) / 1000; },   // 这条真意加的 %
     // 每条真意（第几重天 × 哪种）固定用 2 种神像物品：全部 10 重天 × 10 种依次取 8 选 2 的组合，挑用得最少的，打乱顺序（固定种子），每种物品用的次数一样多
     sjZyItems(z) {
@@ -202,7 +202,6 @@ G.module({
     sjBonus() {
       const J = (this.s && this.s.sj) || {}, b = {};
       for (const k in J.attr || {}) b[k] = (b[k] || 0) + (+J.attr[k] || 0);
-      const w = this.sjSwBonus(); for (const k in w) if (typeof w[k] === "number" && w[k] && !["ling", "gfStudy", "spStudy", "spDmg"].includes(k)) b[k] = (b[k] || 0) + w[k];   // 辅神纹固定属性
       return b;
     },
     // 真意百分比 { atk: %, res_jin: % … }：只乘修为突破、肉身突破给的属性（player.js computeStats）
@@ -301,19 +300,13 @@ G.module({
       // 等服务器结算回来再恢复按钮，避免先闪一下旧消耗
       setTimeout(async () => { try { await this.sjWudao(a); } finally { this._gwAnim = 0; this.render(); } }, 3000);
     },
-    /* ---------- 神功（大帝殿，每重天 9 本）：s.sj.sg = { "重天_本": { n 已学次数, t 上次学习时间戳（毫秒）, lit [已点亮神纹格] } } ---------- */
+    /* ---------- 神功（大帝殿，每重天 3 本）：s.sj.sg = { "重天_本": { n 已学次数, d 最后学习日, lit [已点亮神纹格] } } ---------- */
     sjSgId(a, j) { return this.sjWi(a) + "_" + j; },
     sjSgName(a, j) { return ((this.sjC().SG_LIST || [])[this.sjWi(a)] || [])[j] || "神功"; },
-    sjSgImg(a, j) { return `img/icons/sg_${this.sjWi(a)}_${j % 3}.png?v=2`; },   // 第 4~9 本复用本重天前 3 本的图
-    sjSgSt(a, j) { const J = this.sjS(); if (!J.sg || typeof J.sg !== "object" || Array.isArray(J.sg)) J.sg = {}; const id = this.sjSgId(a, j); const o = J.sg[id] && typeof J.sg[id] === "object" ? J.sg[id] : (J.sg[id] = { n: 0, t: 0, lit: [] }); if (!Array.isArray(o.lit)) o.lit = []; o.n = Math.max(0, Math.floor(+o.n) || 0);
-      // 旧存档 d 是最后学习日（"2026-11-12"）：按当天 0 点（北京时间）转成时间戳，之后只用 t
-      if (typeof o.d === "string" && o.d) { const t = Date.parse(o.d + "T00:00:00+08:00"); if (Number.isFinite(t)) o.t = t; delete o.d; }
-      o.t = Math.max(0, Math.floor(+o.t) || 0); return o; },
+    sjSgImg(a, j) { return `img/icons/sg_${this.sjWi(a)}_${j}.png?v=1`; },
+    sjSgSt(a, j) { const J = this.sjS(); if (!J.sg || typeof J.sg !== "object" || Array.isArray(J.sg)) J.sg = {}; const id = this.sjSgId(a, j); const o = J.sg[id] && typeof J.sg[id] === "object" ? J.sg[id] : (J.sg[id] = { n: 0, d: "", lit: [] }); if (!Array.isArray(o.lit)) o.lit = []; o.n = Math.max(0, Math.floor(+o.n) || 0); return o; },
     sjSgDone(a, j) { return this.sjSgSt(a, j).n >= (this.sjC().SG_LEARN_N || 12); },
-    // 学习冷却：正常 24 小时，测试模式（DATA.isTest()）1 秒；返回还剩几毫秒（0 = 可学）
-    sjSgCd(a, j) { const C = this.sjC(), cd = (typeof DATA !== "undefined" && DATA.isTest && DATA.isTest()) ? (C.SG_LEARN_CD_TEST || 1000) : (C.SG_LEARN_CD || 86400000); return Math.max(0, this.sjSgSt(a, j).t + cd - this.now()); },
-    sjSgCdTxt(ms) { ms = Math.max(0, Math.floor(ms || 0)); const s = Math.ceil(ms / 1000); if (s < 60) return `${s} 秒`; const m = Math.floor(s / 60); if (m < 60) return `${m} 分 ${s % 60} 秒`; const h = Math.floor(m / 60); return `${h} 小时 ${m % 60} 分`; },
-    // 每本固定 2 种神像物品：90 本依次取 8 选 2 组合里用得最少的（固定种子打乱），每种物品用的次数尽量一样
+    // 每本固定 2 种神像物品：30 本依次取 8 选 2 组合里用得最少的（固定种子打乱），每种物品用的次数尽量一样
     sjSgItems(a, j) {
       const L = this.sjC().SX_ITEM || [], nM = (DATA.worldMapIdx.shen || []).length || 10;
       if (L.length < 2) return L.slice();
@@ -322,173 +315,55 @@ G.module({
         const pairs = []; for (let x = 0; x < L.length; x++) for (let y = x + 1; y < L.length; y++) pairs.push([x, y]);
         for (let x = pairs.length - 1; x > 0; x--) { const y = Math.floor(rnd() * (x + 1)); [pairs[x], pairs[y]] = [pairs[y], pairs[x]]; }
         const cnt = new Array(L.length).fill(0), used = new Map(), out = [];
-        for (let n = 0; n < nM * 9; n++) { let best = null, bv = Infinity;
+        for (let n = 0; n < nM * 3; n++) { let best = null, bv = Infinity;
           for (const p of pairs) { const v = (cnt[p[0]] + cnt[p[1]]) * 1000 + (used.get(p) || 0) * 10 + rnd(); if (v < bv) { bv = v; best = p; } }
           cnt[best[0]]++; cnt[best[1]]++; used.set(best, (used.get(best) || 0) + 1); out.push(best); }
         this._sgItem = { key: L.join() + "|" + nM, out };
       }
-      return this._sgItem.out[(this.sjWi(a) * 9 + j) % this._sgItem.out.length].map(i => L[i]);
+      return this._sgItem.out[(this.sjWi(a) * 3 + j) % this._sgItem.out.length].map(i => L[i]);
     },
     sjSgCost(a, j) { const C = this.sjC(); return { yl: C.SG_LEARN_YL || 2400, items: this.sjSgItems(a, j).map(k => ({ k, n: C.SG_LEARN_ITEM || 120 })) }; },
     sjSgLearn(a, j) {
-      a = +a; j = +j; if (!this.isShen(a) || !(j >= 0 && j <= 8)) return;
+      a = +a; j = +j; if (!this.isShen(a) || ![0, 1, 2].includes(j)) return;
       if (!this.mapOpen(a)) return this.log("还不能进入这重天。", "sys");
-      const o = this.sjSgSt(a, j), C = this.sjC(), N = C.SG_LEARN_N || 12, nm = this.sjSgName(a, j);
+      const o = this.sjSgSt(a, j), C = this.sjC(), N = C.SG_LEARN_N || 12, d = this.bjDay(), nm = this.sjSgName(a, j);
       if (o.n >= N) return this.log(`《${nm}》已学会。`, "sys");
-      const left = this.sjSgCd(a, j);
-      if (left > 0) return this.log(`《${nm}》还需 ${this.sjSgCdTxt(left)} 才能再次学习。`, "sys");
+      if (o.d === d) return this.log(`《${nm}》今天已经学习过了，明天再来。`, "sys");
       const c = this.sjSgCost(a, j);
       if ((this.s.yuanli || 0) < c.yl || c.items.some(x => this.smCount(x.k) < x.n)) return this.log(`学习《${nm}》需要愿力 ${U.fmt(c.yl)}${c.items.map(x => `、${DATA.smName(x.k)} ${U.fmt(x.n)}`).join("")}。`, "sys");
-      this.s.yuanli -= c.yl; c.items.forEach(x => this.takeSm(x.k, x.n)); o.n++; o.t = this.now();
-      this.log(o.n >= N ? `《${nm}》学习圆满（${N} / ${N}），可以修炼神纹了！` : `学习《${nm}》（${o.n} / ${N}）。`, o.n >= N ? "gold" : "good"); this.after();
+      this.s.yuanli -= c.yl; c.items.forEach(x => this.takeSm(x.k, x.n)); o.n++; o.d = d;
+      this.log(o.n >= N ? `《${nm}》学习圆满（${N} / ${N}），神纹点亮图已开启！` : `学习《${nm}》（${o.n} / ${N}）。`, o.n >= N ? "gold" : "good"); this.after();
     },
     sjSgCard(a) {
-      const C = this.sjC(), N = C.SG_LEARN_N || 12;
-      const books = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(j => { const o = this.sjSgSt(a, j), done = o.n >= N;
-        return `<button class="sg-book" style="animation-delay:${(j * 0.7).toFixed(1)}s" onclick="G.${done ? "openSjSw" : "openSjSg"}(${a},${j})"><img src="${this.sjSgImg(a, j)}" alt=""><b>${this.sjSgName(a, j)}</b>${done ? `<span class="tag">修炼进度 ${this.sjSwPct(a, j)}%</span>` : ""}</button>`; }).join("");
-      return `<div class="card"><h3>神功<small>每本每 24 小时学习一次，学满 ${N} 次解锁神纹</small></h3><div class="sg-books">${books}</div></div>`;
+      const C = this.sjC(), N = C.SG_LEARN_N || 12, d = this.bjDay();
+      const rows = [0, 1, 2].map(j => { const o = this.sjSgSt(a, j), done = o.n >= N;
+        return `<div class="line"><div>${DATA.li(this.sjSgImg(a, j))}${this.sjSgName(a, j)}<span class="tag">${done ? "已学会" : `学习 ${o.n} / ${N}`}</span>${!done && o.d === d ? "<small>今日已学习</small>" : ""}</div><button class="sm" onclick="G.${done ? "openSjSw" : "openSjSg"}(${a},${j})">${done ? "神纹" : "学习"}</button></div>`; }).join("");
+      return `<div class="card"><h3>神功<small>每本每天学习一次，学满 ${N} 次解锁神纹</small></h3>${rows}</div>`;
     },
     openSjSg(a, j) {
       a = +a; j = +j; const o = this.sjSgSt(a, j), N = this.sjC().SG_LEARN_N || 12, nm = this.sjSgName(a, j);
       if (o.n >= N) return this.openSjSw(a, j);
-      const c = this.sjSgCost(a, j), left = this.sjSgCd(a, j), ln = (img, n, h, need) => `<div class="line"><div>${DATA.li(img)}${n}</div><b class="${h >= need ? "" : "c-red"}">${U.fmt(h)} / ${U.fmt(need)}</b></div>`;
+      const c = this.sjSgCost(a, j), today = o.d === this.bjDay(), ln = (img, n, h, need) => `<div class="line"><div>${DATA.li(img)}${n}</div><b class="${h >= need ? "" : "c-red"}">${U.fmt(h)} / ${U.fmt(need)}</b></div>`;
       const ok = (this.s.yuanli || 0) >= c.yl && c.items.every(x => this.smCount(x.k) >= x.n);
       this.modal(`<img class="sg-big" src="${this.sjSgImg(a, j)}" alt=""><h2 style="text-align:center">${nm}<small> 学习 ${o.n} / ${N}</small></h2>
         <div class="card"><h3>学习一次需要</h3>${ln(DATA.iconImg("yuanli"), "愿力", this.s.yuanli || 0, c.yl)}${c.items.map(x => ln(DATA.smIcon(x.k), DATA.smName(x.k), this.smCount(x.k), x.n)).join("")}</div>
-        <div class="btns"><button class="primary" onclick="G.sjSgLearn(${a},${j})" ${left <= 0 && ok ? "" : "disabled"}>${left > 0 ? this.sjSgCdTxt(left) : "学习"}</button><button onclick="G.closeModal()">关闭</button></div>`);
+        <div class="btns"><button class="primary" onclick="G.sjSgLearn(${a},${j})" ${!today && ok ? "" : "disabled"}>${today ? "今日已学习" : "学习"}</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
-    // 神纹点亮图：全屏星空背景（img/sw_bg.webp），画布 720 × 1880，可上下左右滑动
-    //   顶部核心 -1（学会就亮）→ 3 段，每段 12 个辅神纹（菱形网格）+ 1 个主神纹；节点序号 0~38，links 里 -1 = 核心
-    //   SW_LAYOUT 每项 [x, y, 主?, 相连的节点…]；o.lv = { 节点序号: 已点等级 }，等级 > 0 = 已点亮（点亮消耗、数值待定）
-    sjSwGraph() {
-      if (this._swG) return this._swG;
-      const L = [
-        // 第一段（主神纹在左）
-        [360, 230, 0, -1], [240, 320, 0, 0], [480, 320, 0, 0], [360, 410, 0, 1, 2], [600, 410, 0, 2], [240, 500, 0, 3], [480, 500, 0, 3, 4],
-        [120, 410, 0, 1], [360, 590, 0, 5, 6], [600, 590, 0, 6], [240, 680, 0, 8], [480, 680, 0, 8, 9], [110, 580, 1, 7, 5, 10],
-        // 第二段（主神纹在右）
-        [480, 780, 0, 11], [240, 780, 0, 10], [360, 870, 0, 13, 14], [600, 870, 0, 13], [240, 960, 0, 15], [480, 960, 0, 15, 16],
-        [120, 870, 0, 14], [360, 1050, 0, 17, 18], [120, 1050, 0, 17, 19], [240, 1140, 0, 20, 21], [480, 1140, 0, 20], [360, 1230, 0, 22, 23], [610, 1060, 1, 18, 23, 16],
-        // 第三段（主神纹在下）
-        [360, 1330, 0, 24], [240, 1420, 0, 26], [480, 1420, 0, 26], [120, 1510, 0, 27], [360, 1510, 0, 27, 28], [600, 1510, 0, 28],
-        [240, 1600, 0, 29, 30], [480, 1600, 0, 30, 31], [120, 1700, 0, 32], [600, 1700, 0, 33], [120, 1800, 0, 34], [600, 1800, 0, 35], [360, 1730, 1, 32, 33],
-      ];
-      const K = 0.52;   // 整张图缩小（用户 2026-11-13：太大了）
-      this._swG = L.map(([x, y, main, ...links]) => ({ x: Math.round(x * K), y: Math.round(y * K), main, links }));
-      return this._swG;
-    },
-    sjSwIc(n) {   // 神纹图标
-      const E = { 金: "sw_jin", 木: "sw_mu", 水: "sw_shui", 火: "sw_huo", 土: "sw_tu", 雷: "sw_lei" }, M = { 攻击: "sw_atk", 防御: "sw_def", 生命: "sw_hp", 法力: "sw_mana", 闪避: "sw_eva", 命中: "sw_hit", 速度: "sw_spd", 减少灵气消耗: "sw_ling" };
-      if (n.startsWith("功法提供的")) { const t = n.slice(5); return { 攻击: "sw_m0", 防御: "sw_m1" }[t] || M[t] || E[t[0]] || "sw_m0"; }
-      if (n.startsWith("受到的")) return "sw_dmg";
-      if (n === "功法修炼时间") return "sw_m2";
-      if (n.startsWith("法术")) return "sw_spell";
-      return M[n] || E[n[0]] || "sw_atk";
-    },
-    sjSwNames(a, j) {   // 本书 39 个神纹的名字（按 sjSwGraph 顺序）
-      const C = this.sjC(), MN = C.SG_W_MAIN || ["主神纹"], S = C.SG_W_SUB || ["攻击"], nM = (DATA.worldMapIdx.shen || []).length || 10, per = C.SG_PER || 9;
-      if (!this._swMain || this._swMain.key !== MN.join() + "|" + nM + "|" + per) {   // 每种主神纹用的次数尽量一样，同一本 3 个不重复
-        let seed = 1113; const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
-        const cnt = MN.map(() => 0), out = [];
-        for (let b = 0; b < nM * per; b++) { const pick = []; for (let k = 0; k < 3; k++) { const ok = MN.map((_, i) => i).filter(i => !pick.includes(i)), m = Math.min(...ok.map(i => cnt[i])), c = ok.filter(i => cnt[i] === m), x = c[Math.floor(rnd() * c.length)]; pick.push(x); cnt[x]++; } out.push(pick); }
-        this._swMain = { key: MN.join() + "|" + nM + "|" + per, out };
-      }
-      if (!this._swMain.cnt) { const cnt = {}; this._swMain.out.forEach(p => p.forEach(x => cnt[MN[x]] = (cnt[MN[x]] || 0) + 1)); this._swMain.cnt = cnt; }
-      const bi = this.sjWi(a) * per + j, pk = this._swMain.out[bi] || [0, 1, 2]; let mi = 0, si = bi * 5;
-      return this.sjSwGraph().map(nd => nd.main ? MN[pk[mi++ % 3] % MN.length] : S[si++ % S.length]);
-    },
-    sjSwLv(a, j) { const o = this.sjSgSt(a, j); if (!o.lv || typeof o.lv !== "object" || Array.isArray(o.lv)) o.lv = {}; return o.lv; },
-    sjSwMul(a) { const n = (DATA.worldMapIdx.shen || []).length || 10, top = this.sjC().SG_W_COST_TOP || 3; return n > 1 ? 1 + (top - 1) * this.sjWi(a) / (n - 1) : 1; },
-    sjSwCost(a, j, i) {   // 神纹升 1 级的消耗
-      const C = this.sjC(), mn = (this.sjSwGraph()[i] || {}).main, m = this.sjSwMul(a);
-      return { yl: Math.round((mn ? C.SG_W_MAIN_YL || 12000 : C.SG_W_SUB_YL || 3000) * m), items: this.sjSgItems(a, j).map(k => ({ k, n: Math.round((mn ? C.SG_W_MAIN_ITEM || 888 : C.SG_W_SUB_ITEM || 296) * m) })) };
-    },
-    sjSwMax(i) { const C = this.sjC(); return (this.sjSwGraph()[i] || {}).main ? (C.SG_W_MAIN_LV || 12) : (C.SG_W_SUB_LV || 6); },
-    sjSwVal(a, j, i, second) {   // 神纹每级加多少（辅：数值，主：%；second = 法术伤害那一项）
-      const C = this.sjC(), n = this.sjSwNames(a, j)[i];
-      if ((this.sjSwGraph()[i] || {}).main) { const T = (C.SG_W_MAIN_TOTAL || {})[n], t = Array.isArray(T) ? +T[second ? 1 : 0] || 0 : second ? 0 : +T || 0, c = (this._swMain.cnt || {})[n] || 1, v = t / (c * this.sjSwMax(i)); return t > 0 ? Math.max(+C.SG_W_MAIN_MIN || 0, v) : 0; }
-      const T = C.SG_W_SUB_TOTAL || {}, W = this.sjSwSubW(); return (+T[n] || 0) * this.sjSwMul(a) / ((W[n] || 1) * this.sjSwMax(i));
-    },
-    sjSwSubW() {   // 每种辅神纹在全部神功里的重天倍数之和
-      const ws = DATA.worldMapIdx.shen || [], per = this.sjC().SG_PER || 9, key = ws.join() + "|" + per + "|" + (this.sjC().SG_W_SUB || []).join();
-      if (this._swSubW && this._swSubW.key === key) return this._swSubW.W;
-      const W = {}, g = this.sjSwGraph();
-      ws.forEach(a => { const m = this.sjSwMul(a); for (let j = 0; j < per; j++) this.sjSwNames(a, j).forEach((n, i) => { if (!g[i].main) W[n] = (W[n] || 0) + m; }); });
-      this._swSubW = { key, W }; return W;
-    },
-    sjSwEff(a, j, i, L) {   // 神纹第 L 级的效果文字
-      const n = this.sjSwNames(a, j)[i], v = this.sjSwVal(a, j, i) * L, mn = (this.sjSwGraph()[i] || {}).main;
-      if (!mn) return n === "减少灵气消耗" ? `修炼灵气消耗 −${U.fmt(v)} / 10秒` : `${n} +${U.fmt(v)}`;
-      if (n.startsWith("受到的")) return `${n} −${U.dec(v)}%`;
-      if (n.startsWith("法术修炼")) return `法术修炼时间 −${U.dec(v)}%、法术伤害 +${U.dec(this.sjSwVal(a, j, i, 1) * L)}%`;
-      if (n === "功法修炼时间") return `功法修炼时间 −${U.dec(v)}%`;
-      return `${n} +${U.dec(v)}%`;
-    },
-    sjSwPct(a, j) {   // 神纹修炼进度 % = 已修等级 ÷ 全部满级（神功书下方显示）
-      const g = this.sjSwGraph(), lv = this.sjSwLv(a, j); let n = 0, m = 0;
-      g.forEach((nd, i) => { const x = this.sjSwMax(i); m += x; n += Math.min(x, +lv[i] || 0); });
-      return m ? Math.floor(n * 100 / m) : 0;
-    },
-    sjSwSubDone(a, j) { const g = this.sjSwGraph(), lv = this.sjSwLv(a, j); return g.every((nd, i) => nd.main || (+lv[i] || 0) >= this.sjSwMax(i)); },
-    // 神纹加成合计：{ atk, def, …, res_jin…（固定数值）, ling（减灵气消耗）, gf: { def: %, atk, hp, mana }, gfRes: { jin: % }, gfStudy, spStudy, spDmg, elCut: { jin: % } }
-    sjSwBonus() {
-      const J = (this.s && this.s.sj) || {}, sg = J.sg || {}, b = { gf: {}, gfRes: {}, gfStudy: 0, spStudy: 0, spDmg: 0, elCut: {} };
-      const E = { 金: "jin", 木: "mu", 水: "shui", 火: "huo", 土: "tu", 雷: "lei" }, F = { 攻击: "atk", 防御: "def", 生命: "hp", 法力: "mana", 闪避: "dodge", 命中: "hit", 速度: "speed", 减少灵气消耗: "ling" };
-      const sh = DATA.worldMapIdx.shen || [];
-      for (const id in sg) { const o = sg[id]; if (!o || !o.lv || typeof o.lv !== "object") continue;
-        const [wi, j] = id.split("_").map(Number), a = sh[wi]; if (a === undefined || !(j >= 0)) continue;
-        const nm = this.sjSwNames(a, j), g = this.sjSwGraph();
-        for (const k in o.lv) { const i = +k, L = Math.floor(+o.lv[k]) || 0; if (!g[i] || L <= 0) continue;
-          const n = nm[i], v = this.sjSwVal(a, j, i) * Math.min(L, this.sjSwMax(i));
-          if (!g[i].main) { const key = F[n] || (E[n[0]] ? "res_" + E[n[0]] : ""); if (key) b[key] = (b[key] || 0) + v; continue; }
-          if (n.startsWith("功法提供的")) { const t = n.slice(5); if (F[t]) b.gf[F[t]] = (b.gf[F[t]] || 0) + v; else if (E[t[0]]) b.gfRes[E[t[0]]] = (b.gfRes[E[t[0]]] || 0) + v; }
-          else if (n === "功法修炼时间") b.gfStudy += v;
-          else if (n.startsWith("法术修炼")) { b.spStudy += v; b.spDmg += this.sjSwVal(a, j, i, 1) * Math.min(L, this.sjSwMax(i)); }
-          else if (n.startsWith("受到的") && E[n[3]]) b.elCut[E[n[3]]] = (b.elCut[E[n[3]]] || 0) + v; } }
-      return b;
-    },
-    sjSwOk(a, j, i) { const g = this.sjSwGraph(), lv = this.sjSwLv(a, j), on = x => x < 0 || (+lv[x] || 0) > 0; return on(i) || g[i].links.some(on); },
-    sjSwUp(a, j, i) {
-      a = +a; j = +j; i = +i; const g = this.sjSwGraph(); if (!this.isShen(a) || !(j >= 0 && j <= 8) || !Number.isInteger(i) || i < 0 || i >= g.length) return;
-      if (!this.sjSgDone(a, j)) return this.log("先学会这本神功。", "sys");
-      const lv = this.sjSwLv(a, j), cur = +lv[i] || 0, nm = this.sjSwNames(a, j)[i];
-      if (cur >= this.sjSwMax(i)) return this.log(`${nm}已满级。`, "sys");
-      if (!this.sjSwOk(a, j, i)) return this.log("只能修炼和已修炼神纹相连的。", "sys");
-      if (g[i].main && !this.sjSwSubDone(a, j)) return this.log("36 个辅神纹全部修满后才能修炼主神纹。", "sys");
-      const c = this.sjSwCost(a, j, i);
-      if ((this.s.yuanli || 0) < c.yl || c.items.some(x => this.smCount(x.k) < x.n)) return this.log(`修炼${nm}需要愿力 ${U.fmt(c.yl)}${c.items.map(x => `、${DATA.smName(x.k)} ${U.fmt(x.n)}`).join("")}。`, "sys");
-      this.s.yuanli -= c.yl; c.items.forEach(x => this.takeSm(x.k, x.n)); lv[i] = cur + 1;
-      this.log(`《${this.sjSgName(a, j)}》${nm}升到 ${cur + 1} 级。`, "good"); this.after();
-      if (typeof document !== "undefined" && document.querySelector(".swfs-scroll")) this.openSjSw(a, j, i);
-    },
+    // 神纹点亮图：N × N，四角主神纹，其余辅神纹；中间格学会就亮，只能点和已亮格相邻的（点亮消耗待定）
+    sjSwType(i) { const C = this.sjC(), N = C.SG_W_N || 7, x = i % N, y = Math.floor(i / N), M = C.SG_W_MAIN || [], S = C.SG_W_SUB || ["攻击"];
+      const ci = [0, N - 1, N * (N - 1), N * N - 1].indexOf(i); return ci >= 0 ? { main: 1, n: M[ci] || "主神纹" } : { main: 0, n: S[(x + y) % S.length] }; },
+    sjSwLit(a, j) { const N = this.sjC().SG_W_N || 7, c = Math.floor(N * N / 2), o = this.sjSgSt(a, j); return new Set([c].concat(o.lit)); },
     openSjSw(a, j, sel) {
       a = +a; j = +j; if (!this.sjSgDone(a, j)) return this.openSjSg(a, j);
-      const g = this.sjSwGraph(), nm = this.sjSwNames(a, j), lv = this.sjSwLv(a, j), on = i => i < 0 || (+lv[i] || 0) > 0, adj = i => g[i].links.some(on);
-      const s0 = sel !== undefined && sel !== null && Number.isInteger(+sel) && +sel >= 0 && +sel < g.length ? +sel : -1;
-      const W = 374, H = 978, core = { x: 187, y: 64 }, pt = i => i < 0 ? core : g[i];
-      const lines = g.map((nd, i) => nd.links.map(l => { const q = pt(l); return `<line x1="${q.x}" y1="${q.y}" x2="${nd.x}" y2="${nd.y + 12}"${on(i) && on(l) ? ' class="on"' : ""}/>`; }).join("")).join("");
-      const nodes = g.map((nd, i) => { const lt = on(i), can = !lt && adj(i);
-        return `<button class="swn${nd.main ? " main" : ""}${lt ? " on" : can ? " can" : ""}${i === s0 ? " sel" : ""}" style="left:${nd.x}px;top:${nd.y + 12}px" onclick="G.openSjSw(${a},${j},${i})"><i><img src="img/icons/${this.sjSwIc(nm[i])}.png?v=2" alt=""></i><b>${+lv[i] || 0}/${this.sjSwMax(i)}</b></button>`; }).join("");
-      let pop = "";
-      if (s0 >= 0) {   // 点开神纹：新弹窗，显示效果和修炼材料
-        const t = g[s0], L = +lv[s0] || 0, mx = this.sjSwMax(s0), full = L >= mx, ok = this.sjSwOk(a, j, s0), subOk = !t.main || this.sjSwSubDone(a, j), c = this.sjSwCost(a, j, s0);
-        const enough = (this.s.yuanli || 0) >= c.yl && c.items.every(x => this.smCount(x.k) >= x.n);
-        const need = full ? "" : `<div class="swp-h">修炼材料</div>` + `<div class="line"><div>${DATA.li(DATA.iconImg("yuanli"))}愿力<small>现有 ${U.fmt(this.s.yuanli || 0)}</small></div><b class="${(this.s.yuanli || 0) >= c.yl ? "" : "bad"}">${U.fmt(c.yl)}</b></div>`
-          + c.items.map(x => `<div class="line"><div>${DATA.li(DATA.smIcon(x.k))}${DATA.smName(x.k)}<small>现有 ${U.fmt(this.smCount(x.k))}</small></div><b class="${this.smCount(x.k) >= x.n ? "" : "bad"}">${U.fmt(x.n)}</b></div>`).join("");
-        pop = `<div class="swp-mask" onclick="G.openSjSw(${a},${j})"></div><div class="swp">
-          <div class="swp-t"><i class="swn${t.main ? " main" : ""}${L ? " on" : ""}"><i><img src="img/icons/${this.sjSwIc(nm[s0])}.png?v=2" alt=""></i></i><div><b>${nm[s0]}</b><small>${t.main ? "主神纹" : "辅神纹"} · ${L} / ${mx} 级</small></div></div>
-          <div class="swp-h">效果</div><div class="line"><div>当前</div><b>${L ? this.sjSwEff(a, j, s0, L) : "未修炼"}</b></div>${full ? "" : `<div class="line"><div>下一级</div><b>${this.sjSwEff(a, j, s0, L + 1)}</b></div>`}
-          ${need}
-          <div class="btns"><button onclick="G.openSjSw(${a},${j})">关闭</button><button class="primary" onclick="G.sjSwUp(${a},${j},${s0})" ${!full && ok && subOk && enough ? "" : "disabled"}>${full ? "已满级" : !subOk ? "辅神纹全部修满后开启" : !ok ? "需先修炼相连神纹" : L ? "升级" : "修炼"}</button></div></div>`;
-      }
-      const doc = typeof document !== "undefined" ? document : null, old = doc && doc.querySelector(".swfs-scroll"), keep = old && this._swAt === a + "_" + j ? [old.scrollLeft, old.scrollTop] : null;
-      this.modal(`<div class="swfs-scroll"><div class="swfs-map" style="width:${W}px;height:${H + 12}px;background-image:url(img/sw_bg.webp?v=1)"><svg viewBox="0 0 ${W} ${H + 12}" width="${W}" height="${H + 12}">${lines}</svg>
-        <i class="swn core on" style="left:${core.x}px;top:${core.y}px"><i><img src="${this.sjSgImg(a, j)}" alt=""></i></i>${nodes}</div></div>
-        <div class="swfs-top"><span class="swfs-title">${this.sjSgName(a, j)}</span><button class="swfs-back" onclick="G.closeModal()">返回</button></div>${pop}`, "fs");
-      this._swAt = a + "_" + j;
-      const sc = doc && doc.querySelector(".swfs-scroll"); if (sc) { if (keep) { sc.scrollLeft = keep[0]; sc.scrollTop = keep[1]; } else sc.scrollLeft = Math.max(0, (W - sc.clientWidth) / 2); }
+      const N = this.sjC().SG_W_N || 7, lit = this.sjSwLit(a, j), adj = i => { const x = i % N, y = Math.floor(i / N); return [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]].some(([p, q]) => p >= 0 && q >= 0 && p < N && q < N && lit.has(q * N + p)); };
+      const s0 = Number.isInteger(+sel) && sel !== undefined && sel !== null ? +sel : -1;
+      const cells = Array.from({ length: N * N }, (_, i) => { const t = this.sjSwType(i), on = lit.has(i), can = !on && adj(i);
+        return `<button class="sw${t.main ? " main" : ""}${on ? " on" : can ? " can" : ""}${i === s0 ? " sel" : ""}" onclick="G.openSjSw(${a},${j},${i})">${t.main ? "主" : t.n[0]}</button>`; }).join("");
+      let info = `<p class="desc">共 ${N * N} 个神纹：四角是主神纹（百分比），其余是辅神纹（固定数值）。从中间开始，只能点亮和已亮神纹相邻的。</p>`;
+      if (s0 >= 0) { const t = this.sjSwType(s0), on = lit.has(s0);
+        info = `<div class="card"><h3>${t.main ? "主神纹" : "辅神纹"}<small>${on ? "已点亮" : adj(s0) ? "可点亮" : "需先点亮相邻的神纹"}</small></h3><div class="line"><div>${t.n}<small>数值待定</small></div>${on ? `<button class="sm" disabled>已点亮</button>` : `<button class="sm" disabled>点亮消耗待定</button>`}</div></div>`; }
+      this.modal(`<h2>${this.sjSgName(a, j)}<small> 神纹 ${lit.size} / ${N * N}</small></h2><div class="swg" style="grid-template-columns:repeat(${N},1fr)">${cells}</div>${info}<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
-
     // 修炼真意弹窗：需要的物品（带图片）+ 升级后效果
     openSjZy(i) {
       const J = this.sjS(), C = this.sjC(), M = C.ZY_MAX || 36, z = J.zy[+i]; if (!z) return;

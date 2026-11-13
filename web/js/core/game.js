@@ -348,7 +348,7 @@ const G = {
   renderLog() { $("#log").innerHTML = this.s.log.map(l => `<p class="${this.logCls(l.c)}">${this.safeLog(l.m)}</p>`).join(""); },
   // 进度条（叠在“学习中 / 剩余时间”文字下面）：left 剩余毫秒，total 总毫秒；外层元素加 class="pg"
   pgFill(left, total) { const p = total > 0 ? Math.min(100, Math.max(0, (1 - left / total) * 100)) : 0; return `<i class="pgf" style="width:${p.toFixed(1)}%"></i>`; },
-  modal(html, cls) { const b = $("#modal-box"), m = $("#modal"); b.className = "modal-box" + (cls ? " " + cls : ""); m.classList.toggle("fs", cls === "fs"); b.innerHTML = html; m.classList.remove("hidden"); },   // cls = "fs"：全屏弹窗（神纹点亮图）
+  modal(html) { $("#modal-box").innerHTML = html; $("#modal").classList.remove("hidden"); },
   // 游戏风格确认框（代替浏览器 confirm，不显示「网址为…的网页显示」）：返回 Promise<true/false>；叠在其它弹窗上面
   ask(text, title = "确认", okText = "确定") {
     if (typeof document === "undefined" || !document.body || !document.createElement) return Promise.resolve(true);

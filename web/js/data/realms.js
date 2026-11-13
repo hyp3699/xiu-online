@@ -75,7 +75,7 @@ DATA.autoRows = body => {
   const keys = Object.keys(g(0));
   for (const k of keys) {
     if (k === "cultivate" || (body && k === "mana") || FP[k] === undefined || !TOT[k]) { for (let r = 0; r < N; r++) if (g(r)[k] !== undefined && !(body && k === "mana")) out[r][1][k] = g(r)[k]; continue; }
-    const v0 = DATA.gfUnit(k) * (SS[0] || 1) * (1 + (+FP[k] || 0) / 100), g0 = +g(0)[k] || 1, target = TOT[k] * tpOf(k) / 100 / (k === "res" ? (DATA.elements || []).length || 6 : 1);   // res：宗门 TOTAL 是六系真经合计，突破抗性每系都加，所以按每系对标（用户定 2026-11-13）
+    const v0 = DATA.gfUnit(k) * (SS[0] || 1) * (1 + (+FP[k] || 0) / 100), g0 = +g(0)[k] || 1, target = TOT[k] * tpOf(k) / 100;
     const ratio = []; for (let r = 0; r < N; r++) ratio.push(Math.max(1e-9, (+g(r)[k] || g0) / g0));
     const sum = p => { let t = 0; for (let r = 0; r < N; r++) t += v0 * Math.pow(ratio[r], p) * (LY - 1 + fmOf(r)); return t; };
     let lo = 0, hi = 1; while (sum(hi) < target && hi < 64) hi *= 2;

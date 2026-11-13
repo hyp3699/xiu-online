@@ -102,7 +102,6 @@ G.module({
         s.exp -= this.needExp(); for (let t = s.L + 1; t <= x.L; t++) this.brRoll("xw", t); s.L = x.L; this.dirty();
         const st = this.stats(); s.hp = st.hp; s.mana = st.mana;
         x.result = `渡劫成功！踏入【${this.realmName()}】。`;
-        if (this.realmRwCheck) this.realmRwCheck();   // 境界奖励
         this.log(x.result, "gold");
       } else {
         s.hp = 1;

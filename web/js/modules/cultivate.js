@@ -346,7 +346,6 @@ G.module({
         s.exp -= this.needExp(); s.mortal = false; this.brRoll("xw", s.L); this.dirty();
         const st = this.stats(); s.hp = st.hp; s.mana = st.mana;
         this.log("引气入体，你正式踏入仙途——【练气一层】！", "gold");
-        if (this.realmRwCheck) this.realmRwCheck();   // 境界奖励
         return this.after();
       }
       // 不需要渡劫的突破：修为够了直接成功
@@ -354,7 +353,6 @@ G.module({
       this.dirty();
       const st = this.stats(); s.hp = st.hp; s.mana = st.mana;
       this.log(major ? `天地异象！你成功踏入【${this.realmName()}】！` : `突破至【${this.realmName()}】。`, major ? "gold" : "good");
-      if (this.realmRwCheck) this.realmRwCheck();   // 境界奖励
       this.after();
     },
 

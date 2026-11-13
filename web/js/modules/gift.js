@@ -15,7 +15,6 @@
  *   dan {item: "p:类型" 修炼丹 | "d:丹方", g, n} / {item: "s:cmd", n} 冲脉丹
  *   bp {item: "f:炉子" | "r:戒指序号", g, n}   图纸
  *   lj / lz {ft, n}                     灵晶 / 灵珠（ft = 金木水火土 0~4）
- *   sm {k, n}                           特殊材料（神界神像物品：神源石、天道碎片、混沌灵液、周天星髓、神凰羽、龙皇鳞、九天玄露、太初神木）
  *   hx {n}                              火髓
  *   st {id}                             神通（直接学会 = 宗门大殿修满，进背包「神通秘术」）
  *   bm {}                               本命法宝炼制图纸（放进背包，学习后打开本命法宝页面）
@@ -27,7 +26,7 @@ G.module({
     giftCats() {
       return [["stone", "灵石"], ["contrib", "贡献"], ["merit", "功德"], ["yl", "愿力"], ["gf", "功法"], ["sp", "法术"], ["mf", "秘法"], ["fabao", "法宝"], ["eq", "装备"],
         ["herb", DATA.matKinds.herb], ["ore", DATA.matKinds.ore], ["tc", "特产"], ["dan", "丹药"], ["bp", "图纸"],
-        ["lj", DATA.smName("lj")], ["lz", DATA.smName("lz")], ["hx", DATA.HX], ["sm", "特殊材料"], ["st", "神通"], ["bm", "本命法宝图纸"]];
+        ["lj", DATA.smName("lj")], ["lz", DATA.smName("lz")], ["hx", DATA.HX], ["st", "神通"], ["bm", "本命法宝图纸"]];
     },
     giftSpecial() { return CFG.matsOther.SPECIAL; },
     giftJie() { return DATA.JIE.map((n, i) => [i, n]); },
@@ -37,7 +36,6 @@ G.module({
       const srcName = o => `${o.star}星·${o.name}${o.book ? `·第${o.book}卷` : ""}`;
       if (c === "stone" || c === "contrib" || c === "merit" || c === "yl" || c === "hx") return [N];
       if (c === "lj" || c === "lz") return [{ k: "ft", label: "名称", opts: CFG.mijing.items[c].names.map((n, i) => [i, n]) }, N];
-      if (c === "sm") return [{ k: "k", label: "名称", opts: ((CFG.shenjie || {}).SX_ITEM || []).map(k => [k, DATA.smName(k)]) }, N];   // 神功修炼的 8 种神像物品
       if (c === "gf") {
         const srcs = [...DATA.sects, ...DATA.shopSources, ...DATA.jieGf.jshop.filter(x => !x.old), ...DATA.jieGf.gd.filter(x => !x.old), ...DATA.towerBooks, ...DATA.twSources].sort((x, y) => x.star - y.star);
         const o = DATA.gfSrcById[a.src] || srcs[0];
@@ -107,7 +105,6 @@ G.module({
           case "herb": case "ore": return (it.c === "ore" && it.g >= 1000 ? DATA.smName("ys", it.g - 1000) : DATA.matName(it.c, it.g)) + n;
           case "tc": return it.name + n;
           case "lj": case "lz": return DATA.smName(it.c, it.ft) + n;
-          case "sm": return DATA.smName(it.k) + n;
           case "hx": return DATA.HX + n;
           case "st": return `神通「${this.stName(it.id)}」`;
           case "bm": return this.bmCfg().MIFA;
@@ -137,7 +134,6 @@ G.module({
         case "herb": case "ore": if (it.c === "ore" && it.g >= 1000) return this.addSm("ys", n, it.g - 1000);
           return this.addMat(it.c, DATA.matName(it.c, it.g), it.g, n);
         case "lj": case "lz": return this.addSm(it.c, n, it.ft);
-        case "sm": return this.addSm(it.k, n);
         case "hx": return this.addFire(n);
         case "bm": if (this.bmBpHave()) return true; this.bagPutOrMail({ t: "bmbp" }); return true;   // 本命法宝炼制图纸：已有就不再给，背包满时进传音
         case "st": {   // 神通：直接修满（领悟），出战位有空就自动出战
