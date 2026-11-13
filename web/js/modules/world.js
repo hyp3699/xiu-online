@@ -122,12 +122,19 @@ G.module({
     // 界里已发现（格子亮着）但还没打败的怪
     gridJieKnown(a, r, i) { const g = (this.s.grids || {})[a + "_" + r]; return !!(g && Array.isArray(g.v) && g.v.includes(i) && Array.isArray(g.m) && g.m.includes(i) && !(g.k || []).includes(i)); },
     // 界里的怪：所属域首领属性 × sjJieMobMul（90% ~ 126%），名字用本图普通怪名
-    makeJieMob(a, R0, r, i) {   // 不用首领的 elKey：每只怪属性 / 秘法 / 天赋各自随机
-      const SC = CFG.shenjie || {}, kind = SC.JIE_MOB_KIND || "boss", f = this.sjJieMobMul ? this.sjJieMobMul(a, r, i) : 1;
-      const R = DATA.region(a, R0), b = DATA.mobMeet(R, kind), v = (x, k) => x * DATA.mobRnd(k) * f, r0 = b.resEl || b.res;
-      const res = typeof r0 === "number" ? r0 * f : r0 && typeof r0 === "object" ? Object.fromEntries(Object.entries(r0).map(([e, x]) => [e, x * f])) : r0;
+    makeJieMob(a, R0, r, i) {   // 第一次进入时随机一次、以后固定（用户定 2026-11-13）：属性按平均值 × 存档种子定死的浮动，属性 / 秘法 / 天赋 / 加的神通读存档 o.fx
+      const SC = CFG.shenjie || {}, kind = SC.JIE_MOB_KIND || "boss", f = this.sjJieMobMul ? this.sjJieMobMul(a, r, i) : 1, fx = ((this.sjJieG(a, r).fx || {})[i]) || {};
+      let x = (fx.sd || (a * 977 + r * 131 + i * 7 + 1)) >>> 0;
+      const sr = () => { x = (x + 0x6D2B79F5) >>> 0; let t = x; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+      const rk = k => { const R = DATA.mobRandOf(k); return R[0] + sr() * (R[1] - R[0]); };
+      const R = DATA.region(a, R0), t = R && R._t && R._t[kind], b = t ? DATA.mobStats(t, DATA.mobCrit(DATA.MOB_KIND[kind])) : DATA.mobMeet(R, kind), v = (y, k) => y * rk(k) * f;
+      const r0 = b.resEl || b.res, res = {};
+      for (const e of DATA.elements) res[e.id] = (r0 && typeof r0 === "object" ? +r0[e.id] || 0 : +r0 || 0) * f * rk("res_" + e.id);
+      const stl = (b.stl || []).map(z => z.slice()); if (Array.isArray(fx.st) && fx.st[0] && !stl.some(z => z[0] === fx.st[0])) stl.push(fx.st.slice());   // 首领原有神通 + 再加一种
       const m = this.addMagic({ name: this.gridJieMobName(a, r, i), mapA: a, Lm: R.L, kind, boss: kind === "boss", elite: kind === "elite", elKey: "",
-        hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res, manaBr: b.manaBr, L: b.L, crit: b.crit, stl: b.stl }, kind);
+        hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res, manaBr: b.manaBr, L: b.L, crit: b.crit, stl }, kind, { el: fx.el || undefined, res });
+      if (Array.isArray(fx.mf)) m.mf = fx.mf.slice();
+      if (Array.isArray(fx.tf)) m.tfFix = fx.tf.slice();
       m.a = a; return m;
     },
     // 快速游历：一次用完今日剩余次数，优先点亮还黑着的格子（都亮了就随机）

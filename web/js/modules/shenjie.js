@@ -60,6 +60,12 @@ G.module({
       }
       if (!Array.isArray(o.m) || o.m.length !== M) { const all = Array.from({ length: N * N }, (_, i) => i).filter(i => i !== C0); for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; } o.m = all.slice(0, M).sort((x, y) => x - y); o.k = []; }
       if (!Array.isArray(o.k)) o.k = [];
+      // 每只怪第一次进入时随机一次、以后固定（用户定 2026-11-13）：o.fx[格] = { sd 属性种子, el 属性, mf 秘法, tf 天赋 }
+      if (!o.fx || typeof o.fx !== "object") o.fx = {};
+      const STL = (this.ysStCfg ? this.ysStCfg().LIST : []) || [], SP = this.sjC().JIE_MOB_ST || [12, 36], UPM = (this.ysStCfg ? this.ysStCfg().UP_MAX : 100) || 100;
+      const stRoll = () => { const d = U.pick(STL); if (!d) return null; const mx = (d.up && d.up.max) || UPM; return [d.id, Math.max(1, Math.round(mx * (SP[0] + Math.random() * (SP[1] - SP[0])) / 100))]; };   // 再加一种神通：等级 = 满级 × 12% ~ 36%
+      for (const i of o.m) if (o.fx[i] && !o.fx[i].st) o.fx[i].st = stRoll();
+      for (const i of o.m) if (!o.fx[i]) { const R = this.mobRandCfg ? this.mobRandCfg("首领") : {}; o.fx[i] = { sd: Math.floor(Math.random() * 2147483647) + 1, el: (U.pick(DATA.elements) || {}).id, mf: this.rollMf ? this.rollMf(R) : [], tf: this.rollTf ? this.rollTf(R) : [], st: stRoll() }; }
       if (o.m.includes(C0)) {   // 老存档：中间格是怪物的，挪到别的空格（打败过的一起挪）
         const vs = new Set(o.v || []), free0 = [], seen0 = []; for (let i = 0; i < N * N; i++) if (i !== C0 && !o.m.includes(i)) (vs.has(i) ? seen0 : free0).push(i);
         const free = free0.length ? free0 : seen0, to = free.length ? free[Math.floor(Math.random() * free.length)] : -1;
