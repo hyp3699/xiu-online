@@ -2527,17 +2527,22 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
     exOverlay() {
       if (!this.exploreOpen) return "";
       const s = this.s, tab = this.exInfoTab(), x = tab === "cq" ? s.cq : s.explore, last = tab === "cq" ? s.lastCq : s.lastRun, run = x && !x.rest && x.ev;
-      const list = run ? x.ev : last ? last.ev : [], src = run ? (tab === "cq" ? "cqcur" : "cur") : (tab === "cq" ? "cqlast" : "last");
+      // 匀速显示（2026-11-13）：第 n 步到 start + n×ms + EX_SHOW_LAG 才显示，网络推送早晚不一也按自己的时钟一步一步出；到点就重绘一次
+      let list = run ? x.ev : last ? last.ev : [], src = run ? (tab === "cq" ? "cqcur" : "cur") : (tab === "cq" ? "cqlast" : "last"), shownStep = x ? x.step : 0, skip = 0;   // ev 最新在前：跳过前 skip 条还没到点的，详情按原下标
+      if (run && x.ms > 0 && x._pz == null && !x.lostWait && this.dispNow) {
+        const LAG = 600, t = this.dispNow() - x.start - LAG, k = Math.max(0, Math.floor(t / x.ms));
+        if (k < x.step) { shownStep = k; skip = list.findIndex(e => !(e.n > k)); if (skip < 0) skip = list.length; clearTimeout(this._exShowT); this._exShowT = setTimeout(() => { this._exShowT = 0; if (this.exploreOpen) this.render(); }, Math.max(30, (k + 1) * x.ms - t + 10)); }
+      }
       const title = x ? `${tab === "cq" ? "出窍中" : x.once ? "历练中" : "探索中"} · ${this.exName(x)}` : last ? last.title : tab === "cq" ? "出窍信息" : "探索信息";
       const T = x ? this.exCfg(x).TIME : 0, left = x && !x.rest ? Math.max(0, Math.ceil((x.start + T * (x.ms || 1000) - (x._pz != null ? x._pz : this.now())) / 1000 + (CFG.explore.END_WAIT || 0))) : 0;
-      const sub = x ? [x.rest ? "休养中" : `第 ${U.fix(Math.min(x.step, T))} / ${T} 步 · 剩余 ${U.cd(left, 1)}`, x.cq ? `已完成 ${x.count} / ${x.cq} 次` : x.count !== undefined && !x.once ? `已完成 ${x.count} 次` : ""].filter(Boolean).join(" · ") : "";
+      const sub = x ? [x.rest ? "休养中" : `第 ${U.fix(Math.min(shownStep, T))} / ${T} 步 · 剩余 ${U.cd(left, 1)}`, x.cq ? `已完成 ${x.count} / ${x.cq} 次` : x.count !== undefined && !x.once ? `已完成 ${x.count} 次` : ""].filter(Boolean).join(" · ") : "";
       const st = this.stats(), H = this.regenStep(), hpR = st.hp * H.hp / 100 + (H.hpFlat || 0), mpR = st.mana * H.mana / 100 + (H.manaFlat || 0);
       const vit = `<div class="exov-st"><span>生命 ${U.fmt(s.hp)} / ${U.fmt(st.hp)}</span><span>法力 ${U.fmt(s.mana)} / ${U.fmt(st.mana)}</span><span>每步恢复 生命 ${U.fmt(Math.floor(hpR))} · 法力 ${U.fmt(Math.floor(mpR))}</span></div>`;
       const btn = (k, n) => `<button class="${tab === k ? "on" : ""}" onclick="G.setExInfo('${k}',1)">${n}</button>`;
       return `<div class="exov"><div class="exov-head"><div><b class="${!x && last && last.bad ? "q5" : ""}">${title}</b>${sub ? `<small>${sub}</small>` : ""}${vit}</div>
         <div class="exov-r"><button class="sm${this.exFollow === false ? "" : " on"}" onclick="G.setExFollow()">${this.exFollow === false ? "☐" : "☑"} 跟随最新</button>
         ${x ? `<button class="sm" onclick="${tab === "cq" ? "G.stopCqNow()" : "G.stopNow()"}">${tab === "cq" ? "停止出窍" : x.once ? "放弃历练" : "停止探索"}</button>` : ""}</div></div>
-        <div class="exov-log explore-log" id="exov-log">${list.map((e, i) => this.evLine(e, src, i)).join("") || `<p>${x ? "出发……" : tab === "cq" ? "还没有出窍结果。" : "还没有探索结果。"}</p>`}</div>
+        <div class="exov-log explore-log" id="exov-log">${list.slice(skip).map((e, i) => this.evLine(e, src, i + skip)).join("") || `<p>${x ? "出发……" : tab === "cq" ? "还没有出窍结果。" : "还没有探索结果。"}</p>`}</div>
         <div class="exov-tabs">${btn("cq", "出窍信息")}${btn("ex", "探索信息")}<button onclick="G.openExHist()">全部信息</button><button onclick="G.setExploreOpen(false)">关闭</button></div></div>`;
     },
     setExInfo(k, keep) { if (!keep && this.exploreOpen && this.exInfoTab() === k) this.exploreOpen = false; else { this.exploreOpen = true; this.exInfo = k; } this.render(); },
