@@ -169,8 +169,8 @@ G.module({
       // 每次只随机得一种（按 config/youli.js 的 W 几率）：灵石 / 本图药材 / 本图矿石 / 火髓 / 宝物 / 游历功法
       const W = C.W || {}, w = (k, d) => Math.max(0, W[k] === undefined ? d : +W[k] || 0);
       const gfIds = DATA.ylGfIds(a, r >= DATA.regionCount ? (r - DATA.regionCount) >> 1 : r).filter(id => !this.ylGfOwned(id)), grades = DATA.ybGradesOf(a);
-      const opts = [["stone", w("stone", 47)], ["herb", pool.herb && pool.herb.length ? w("herb", 16) : 0], ["ore", pool.ore && pool.ore.length ? w("ore", 16) : 0],
-        ["hx", w("hx", 10)], ["yb", DATA.YB.length && grades.length ? w("yb", 8) : 0], ["gf", gfIds.length ? w("gf", 3) : 0]];
+      const opts = [["stone", w("stone", 53)], ["herb", pool.herb && pool.herb.length ? w("herb", 16) : 0], ["ore", pool.ore && pool.ore.length ? w("ore", 16) : 0],
+        ["hx", w("hx", 10)], ["yb", DATA.YB.length && grades.length ? w("yb", 0) : 0], ["gf", gfIds.length ? w("gf", 5) : 0]];
       let roll = Math.random() * opts.reduce((t, o) => t + o[1], 0), k = "stone";
       for (const [kk, ww] of opts) { if (ww <= 0) continue; if (roll < ww) { k = kk; break; } roll -= ww; }
       let txt, rec = null;
@@ -186,7 +186,26 @@ G.module({
         txt = this.giveLoot(loot);
       }
       if (rec && !this.gridJie(r)) this.ylGotAdd(Object.assign(rec, { a, w: this.gridName(a, r) }));   // 已获机缘：只记宝物、功法（永久）
+      if (!this.gridJie(r) && this.gridYbHit()) { const t2 = this.gridYbGive(a, r, grades); if (t2) txt = txt ? txt + "、" + t2 : t2; }   // 宝物单独算（用户定 2026-11-13）
       return txt;
+    },
+    // 今天第几次游历出宝物：当天第一次用到时定好（YB_DAY），s.gridDay.yb = [第几次, …]
+    gridYbHit() {
+      const d = this.gridToday(), D = this.gridDaily();
+      if (!Array.isArray(d.yb)) {
+        const T = this.gridCfg().YB_DAY || [[2, 100], [3, 70], [4, 50], [5, 25]], x = Math.random() * 100;
+        let k = 0; for (const [n, p] of T) if (x < p) k = Math.max(k, n);
+        const slots = []; for (let n = (d.n || 1); n <= D; n++) slots.push(n);   // 本次（d.n 已加过）到最后一次
+        for (let j = slots.length - 1; j > 0; j--) { const t = Math.floor(Math.random() * (j + 1)); [slots[j], slots[t]] = [slots[t], slots[j]]; }
+        d.yb = slots.slice(0, k).sort((p, q) => p - q);
+      }
+      return d.yb.includes(d.n);
+    },
+    gridYbGive(a, r, grades) {
+      if (!DATA.YB.length || !grades.length) return "";
+      const kind = U.rand(0, DATA.YB.length - 1), g = U.pick(grades), nm = DATA.ybName(kind, g);
+      if (!this.bagAdd(x => x.t === "ylb" && x.k === kind && x.g === g, n => ({ t: "ylb", k: kind, g, n }), 1, `背包已满，${nm}遗失了。`)) return `${nm}（背包已满，遗失）`;
+      this.ylGotAdd({ t: "yb", k: kind, g, a, w: this.gridName(a, r) }); return nm;
     },
     // 游历功法得到过一次（已获机缘里有）/ 已学会 / 正在学 / 排队 / 背包里有：以后游历不再掉
     ylGfOwned(id) { return !!(this.ylGfGot(id) || this.s.gongfa[id] || (this.lqHas && this.lqHas("gf", id)) || this.s.bag.some(x => x && x.t === "gfb" && x.id === id)); },
