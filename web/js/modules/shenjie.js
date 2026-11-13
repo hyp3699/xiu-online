@@ -407,7 +407,14 @@ G.module({
     sjSwVal(a, j, i, second) {   // 神纹每级加多少（辅：数值，主：%；second = 法术伤害那一项）
       const C = this.sjC(), n = this.sjSwNames(a, j)[i];
       if ((this.sjSwGraph()[i] || {}).main) { const T = (C.SG_W_MAIN_TOTAL || {})[n], t = Array.isArray(T) ? +T[second ? 1 : 0] || 0 : second ? 0 : +T || 0, c = (this._swMain.cnt || {})[n] || 1; return t / (c * this.sjSwMax(i)); }
-      return Math.round((+(C.SG_W_SUB_VAL || {})[n] || 0) * this.sjSwMul(a));
+      const T = C.SG_W_SUB_TOTAL || {}, W = this.sjSwSubW(); return (+T[n] || 0) * this.sjSwMul(a) / ((W[n] || 1) * this.sjSwMax(i));
+    },
+    sjSwSubW() {   // 每种辅神纹在全部神功里的重天倍数之和
+      const ws = DATA.worldMapIdx.shen || [], per = this.sjC().SG_PER || 9, key = ws.join() + "|" + per + "|" + (this.sjC().SG_W_SUB || []).join();
+      if (this._swSubW && this._swSubW.key === key) return this._swSubW.W;
+      const W = {}, g = this.sjSwGraph();
+      ws.forEach(a => { const m = this.sjSwMul(a); for (let j = 0; j < per; j++) this.sjSwNames(a, j).forEach((n, i) => { if (!g[i].main) W[n] = (W[n] || 0) + m; }); });
+      this._swSubW = { key, W }; return W;
     },
     sjSwEff(a, j, i, L) {   // 神纹第 L 级的效果文字
       const n = this.sjSwNames(a, j)[i], v = this.sjSwVal(a, j, i) * L, mn = (this.sjSwGraph()[i] || {}).main;
