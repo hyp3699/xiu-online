@@ -29,8 +29,8 @@ CFG.realm = {
     XW_FIRST_PCT:   { hp: 12, atk: 12, def: 12, mana: 12, speed: 12, hit: 12, dodge: 10, res: -55 },   // 修为
     BODY_FIRST_PCT: { hp: 18, atk: 18, def: 18, speed: 18, hit: 18, dodge: 16, res: -47 },             // 肉身（不加法力）
     // 全部境界合计 = 宗门功法合计的 %（写一个数 = 全部属性一样；也可写 { hp: 55, atk: 50 } 分别设）
-    XW_TOTAL_PCT: 55,      // 修为
-    BODY_TOTAL_PCT: 75,    // 肉身
+    XW_TOTAL_PCT: 39,      // 修为（用户定 2026-11-13，原 55）
+    BODY_TOTAL_PCT: 49,    // 肉身（用户定 2026-11-13，原 75）
     RAND_PCT: 2,           // 随机：每突破一层，每项属性在上面百分比基础上随机 ±2%（例 12% → 10%~14%）；0 = 不随机
   },
   GAIN: [
