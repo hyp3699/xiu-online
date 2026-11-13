@@ -401,7 +401,7 @@ G.module({
     sjSwMul(a) { const n = (DATA.worldMapIdx.shen || []).length || 10, top = this.sjC().SG_W_COST_TOP || 3; return n > 1 ? 1 + (top - 1) * this.sjWi(a) / (n - 1) : 1; },
     sjSwCost(a, j, i) {   // 神纹升 1 级的消耗
       const C = this.sjC(), mn = (this.sjSwGraph()[i] || {}).main, m = this.sjSwMul(a);
-      return { yl: Math.round((mn ? C.SG_W_MAIN_YL || 12000 : C.SG_W_SUB_YL || 3000) * m), items: this.sjSgItems(a, j).map(k => ({ k, n: Math.round((mn ? C.SG_W_MAIN_ITEM || 90 : C.SG_W_SUB_ITEM || 30) * m) })) };
+      return { yl: Math.round((mn ? C.SG_W_MAIN_YL || 12000 : C.SG_W_SUB_YL || 3000) * m), items: this.sjSgItems(a, j).map(k => ({ k, n: Math.round((mn ? C.SG_W_MAIN_ITEM || 888 : C.SG_W_SUB_ITEM || 296) * m) })) };
     },
     sjSwMax(i) { const C = this.sjC(); return (this.sjSwGraph()[i] || {}).main ? (C.SG_W_MAIN_LV || 12) : (C.SG_W_SUB_LV || 6); },
     sjSwVal(a, j, i, second) {   // 神纹每级加多少（辅：数值，主：%；second = 法术伤害那一项）
