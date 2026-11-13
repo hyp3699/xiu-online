@@ -26,7 +26,7 @@ G.module({
     jmElOf(node, key) { const d = this.jmNodes()[node], a = d && d.m[key], e = Array.isArray(a) ? a[d.j] : null; return Array.isArray(e) && e[0] ? [e[0], +e[1] || 0] : null; },   // [属性, %]
     jmEl(key) { const r = {}, N = this.jmNodes().length; for (let i = 0; i < N; i++) { const e = this.jmElOf(i, key); if (e && this.jmCur(i) >= this.jmXN()) r[e[0]] = (r[e[0]] || 0) + e[1]; } return r; },
     jmElDmg(el) { return el ? this.jmEl("elDmg")[el] || 0 : 0; },   // 自己该系属性伤害 +%
-    jmElCut(el) { return el ? Math.min(100, this.jmEl("elCut")[el] || 0) : 0; },   // 受到该系属性伤害 −%
+    jmElCut(el) { return el ? Math.min(100, (this.jmEl("elCut")[el] || 0) + (this.sjSwBonus ? this.sjSwBonus().elCut[el] || 0 : 0)) : 0; },   // + 主神纹「受到的X属性伤害」   // 受到该系属性伤害 −%
     jmCap() { const C = CFG.jingmai || {}, r = this.s.mortal ? -1 : this.r(), st = +C.UNLOCK_REALM || 0; return r < st ? 0 : (r - st + 1) * (+C.UNLOCK_PER || 0); },   // 当前境界可开几个光点
     // 每种属性 36 个光点合计：STAT_TOTAL 或 宗门功法 TOTAL × STAT_PCT%（六系抗性按 res）
     jmStatTotal(k) { const C = CFG.jingmai || {}, T = C.STAT_TOTAL || {}; if (T[k] !== undefined) return +T[k] || 0;

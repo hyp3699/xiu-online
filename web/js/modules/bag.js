@@ -130,9 +130,9 @@ G.module({
       if (n && !this.silent) this.log(`传音里 ${n} 件物品超过 10 天未领，已自动清除。`, "sys");
       return n;
     },
-    mailboxAdd(it, quiet) {
+    mailboxAdd(it, quiet, src) {   // src：来源说明（如「练气期奖励」），传音里显示
       const list = this.mailboxList(); this.mailboxPrune();
-      list.push({ id: DATA.newUid(), it, at: this.now() });
+      const e = { id: DATA.newUid(), it, at: this.now() }; if (src) e.src = String(src); list.push(e);
       // 上限 MAILBOX_MAX 件，超出丢最早的：原来只增不减，存档超过 4MB 后服务器拒绝保存，账号进不去
       const MAX = this.MAILBOX_MAX; if (list.length > MAX) { const k = list.length - MAX; list.splice(0, k); if (!this.silent) this.log(`传音已满（最多 ${MAX} 件），最早的 ${k} 件已清除。`, "bad"); }
       if (!quiet && !this.silent) this.log("背包已满，已暂存到传音，10 天内领取。", "bad");
@@ -202,6 +202,7 @@ G.module({
       if (!it) return false;
       if (it.t === "eq") return this.addEquipToBag(it.e);
       const n = it.n || 1;
+      if (it.t === "cur") { const k = it.k === "merit" ? "merit" : it.k === "stone" ? "stone" : ""; if (!k || !(n > 0)) return false; this.s[k] = (+this.s[k] || 0) + Math.floor(n); return true; }   // 灵石、功德：直接到账，不占格
       if (it.t === "pill") return this.bagAdd(x => x.t === "pill" && x.type === it.type && x.g === it.g, k => ({ t: "pill", type: it.type, g: it.g, n: k }), n, null, true);
       if (it.t === "dan") return this.bagAdd(x => x.t === "dan" && x.type === it.type && x.g === it.g && !x.sg === !it.sg, k => it.sg ? { t: "dan", type: it.type, g: it.g, n: k, sg: 1 } : { t: "dan", type: it.type, g: it.g, n: k }, n, null, true);
       if (it.t === "mat") return this.bagAdd(x => x.t === "mat" && x.name === it.name && x.g === it.g, k => ({ t: "mat", kind: it.kind, name: it.name, g: it.g, n: k }), n, null, true);
@@ -243,7 +244,7 @@ G.module({
       const list = this.mailboxList().filter(x => x && this.now() < this.mailboxDue(x)), now = this.now();
       const rows = list.map(x => {
         const left = Math.max(0, this.mailboxDue(x) - now), days = Math.floor(left / 86400000), hours = Math.floor(left % 86400000 / 3600000);
-        return `<div class="line"><div>${this.itemName(x.it)}${x.it.n > 1 ? ` ×${x.it.n}` : ""}<small>　剩余 ${days} 天 ${hours} 小时</small></div><button class="sm primary" onclick="G.mailboxClaim('${x.id}')">领取</button></div>`;
+        return `<div class="line"><div>${DATA.li(this.itemIcon(x.it))}${this.itemName(x.it)}${x.it.n > 1 ? ` ×${U.fmt(x.it.n)}` : ""}<small>　${x.src ? x.src + " · " : ""}剩余 ${days} 天 ${hours} 小时</small></div><button class="sm primary" onclick="G.mailboxClaim('${x.id}')">领取</button></div>`;
       }).join("");
       this.modal(`<h2>传音</h2>
         ${rows}
@@ -258,6 +259,7 @@ G.module({
       if (it.n !== undefined && it.n > n) it.n -= n; else this.s.bag[i] = null;
     },
     itemName(it) {
+      if (it.t === "cur") return it.k === "merit" ? "功德" : "灵石";   // 传音里的灵石、功德
       if (it.t === "pill") return `${DATA.realms[it.g]}·${DATA.pills[it.type].name}`;
       if (it.t === "dan") return DATA.danName(it.type, it.g, it.sg);
       if (it.t === "ql") return DATA.qlName(it.sect);   // v213 宗主清灵丹
@@ -622,6 +624,7 @@ G.module({
         case "bp": case "rbp": case "bmbp": case "zfbp": return DATA.iconImg("bp");
         case "dfb": return DATA.danIcon(it.type);
         case "cu": return DATA.cuIcon(this.cuDef(it.name));
+        case "cur": return DATA.iconImg(it.k === "merit" ? "merit" : "stone");
       }
       return "";
     },
