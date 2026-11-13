@@ -57,6 +57,9 @@ G.module({
       return `<p class="zf-cost-t">${title}</p><div class="cpk-mats zf-cost">${c.mats.map(m => cell(DATA.matImg(m.kind, m.g), this.countMat(m.kind, m.g), m.n, DATA.matFull(m.kind, m.g))).join("")}${cell(DATA.iconImg("stone"), this.s.stone, c.stone, "灵石")}</div>`;
     },
     zfCanPay(c) { return DATA.isTest() || (this.s.stone >= c.stone && this.hasMats(c.mats)); },
+    // 运转消耗：开着的主动阵每 10 秒合计扣多少灵气（config/zhenfa.js ACT.KEEP，用户定 2026-11-13）
+    zfKeep() { const K = (this.zfC().ACT || {}).KEEP; if (!K) return 0; let t = 0; for (const f of this.zfC().ACTIVE || []) if (this.zfAOn(f.id)) t += this.zfAVal(K, this.zfALv(f.id)); return t; },
+    zfKeepTick() { const k = this.zfKeep(); if (k > 0) this.s.ling = Math.max(0, (this.s.ling || 0) - k); },
     zfARate() { return +((this.zfC().ACT || {}).RATE ?? 3.6) || 0; },   // 每减 1 点伤害扣多少灵气
     zfAUp(id) {
       const f = this.zfAct(id); if (!f) return;

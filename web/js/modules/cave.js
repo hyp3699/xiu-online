@@ -23,8 +23,9 @@ G.module({
 
   // 每 10 秒聚集灵气
   tick() {
-    if (this.zfTick) this.zfTick();   // 阵法室：属性阵修炼到时结算（formation.js；主动阵改按次收费，不再按时间扣维持费）
+    if (this.zfTick) this.zfTick();   // 阵法室：属性阵修炼到时结算（formation.js；主动阵战斗按次收费，运转另按 10 秒扣 zfKeep）
     const cap = this.lingCap(); if (this.s.ling < cap) this.s.ling = Math.min(cap, this.s.ling + this.speed().gather);   // v207 上限只挡聚灵，上限变低时不删已有灵气
+    if (this.zfKeepTick) this.zfKeepTick();   // 主动阵法运转消耗（每 10 秒，formation.js zfKeep）
   },
 
   api: {
@@ -48,10 +49,11 @@ G.module({
         ${line("道童固定聚灵", "+" + U.num(sf))}
         ${(n => n > 0 ? line("聚灵阵心得", "+" + U.num(n)) : "")(this.xdJlGather ? this.xdJlGather() : 0)}
         ${line("<b>聚灵合计</b>", "+" + U.num(this.gatherAmount()))}
-        <h3 style="margin-top:12px">修炼消耗</h3>
+        <h3 style="margin-top:12px">灵气消耗</h3>
         ${(u => line("修为修炼", U.num(u.exp)) + line("肉身修炼", U.num(u.body)) + line("功法修炼", U.num(u.gf)))(this.lingUseParts())}
         ${(o => o.gf + o.exp + o.body > 0 ? line("神识功法《敛息归元诀》", "减少消耗 " + U.num(o.gf + o.exp + o.body)) : "")(this.lxShare ? this.lxShare() : { gf: 0, exp: 0, body: 0 })}
-        ${line("<b>消耗合计</b>", (u => u ? "−" + U.num(u) : "0")(this.lingUse()))}
+        ${line("主动阵法运转", U.num(this.zfKeep ? this.zfKeep() : 0), "开着的主动阵法每 10 秒消耗")}
+        ${line("<b>消耗合计</b>", (u => u ? "−" + U.num(u) : "0")(this.lingUse() + (this.zfKeep ? this.zfKeep() : 0)))}
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
     gatherLz() { return (this.s.lzSlot || []).reduce((t, z) => t + (z ? z.v : 0), 0); },   // 灵珠格聚灵
@@ -169,7 +171,7 @@ G.module({
     // 聚灵阵
     const cap = this.lingCap(), max = a.lv >= DATA.array.MAX, f = this.arrayFactor();
     return rooms + `<div class="card"><h3>${DATA.caveName("array")} · ${a.lv} / ${DATA.array.MAX} 级</h3>
-      <div class="row small"><span>聚灵中（每 10 秒 +${U.num(this.gatherAmount())} 灵气）${(u => u > 0 ? `　修炼消耗 <b class="c-red">-${U.num(u)}</b>` : "")(this.lingUse())}</span><button class="sm jl-add" onclick="G.openGatherInfo()">聚灵加成</button></div>
+      <div class="row small"><span>聚灵中（每 10 秒 +${U.num(this.gatherAmount())} 灵气）${(u => u > 0 ? `　修炼消耗 <b class="c-red">-${U.num(u)}</b>` : "")(this.lingUse())}${(k => k > 0 ? `　阵法运转 <b class="c-red">-${U.num(k)}</b>` : "")(this.zfKeep ? this.zfKeep() : 0)}</span><button class="sm jl-add" onclick="G.openGatherInfo()">聚灵加成</button></div>
       <div class="bar tick"><div id="gather-bar"></div></div>
       <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
       <div class="bar ling"><div style="width:${Math.min(100, s.ling / cap * 100)}%"></div></div>
