@@ -28,7 +28,7 @@ CFG.zhenfa = {
     { id: "tu",   name: "戊土阵", el: "tu",   ke: "mu", img: "img/zf/zfa_tu.webp" },
     { id: "lei",  name: "雷泽阵", el: "lei",  ke: "tu", img: "img/zf/zfa_lei.webp" },
   ],
-  ACT: { RED: [100, 18000], ADD: [90, 9000], KEEP: [100, 18000], RATE: 3.6, ORE: 1800, BAND: [12, 24, 36] },   // RED/ADD = [1 级, 满级]，中间每级平均增加（四舍五入）；RATE：每减 1 点伤害扣 3.6 点灵气；升级：每种矿石 ORE × 当前级；1~12 级凡界、13~24 仙界、25~36 神界矿石
+  ACT: { RED: [100, 18000], ADD: [90, 9000], KEEP: [360, 81000], RATE: 3.6, ORE: 1800, BAND: [12, 24, 36] },   // RED/ADD = [1 级, 满级]，中间每级平均增加（四舍五入）；RATE：每减 1 点伤害扣 3.6 点灵气；升级：每种矿石 ORE × 当前级；1~12 级凡界、13~24 仙界、25~36 神界矿石
   STAT: [
     { id: "atk",   name: "淬元阵", img: "img/zf/zfi_atk.webp" },
     { id: "def",   name: "聚元阵", img: "img/zf/zfi_def.webp" },

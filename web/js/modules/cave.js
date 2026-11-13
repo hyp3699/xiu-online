@@ -52,7 +52,7 @@ G.module({
         <h3 style="margin-top:12px">灵气消耗</h3>
         ${(u => line("修为修炼", U.num(u.exp)) + line("肉身修炼", U.num(u.body)) + line("功法修炼", U.num(u.gf)))(this.lingUseParts())}
         ${(o => o.gf + o.exp + o.body > 0 ? line("神识功法《敛息归元诀》", "减少消耗 " + U.num(o.gf + o.exp + o.body)) : "")(this.lxShare ? this.lxShare() : { gf: 0, exp: 0, body: 0 })}
-        ${line("主动阵法运转", U.num(this.zfKeep ? this.zfKeep() : 0), "开着的主动阵法每 10 秒消耗")}
+        ${line("阵法运转", U.num(this.zfKeep ? this.zfKeep() : 0))}
         ${line("<b>消耗合计</b>", (u => u ? "−" + U.num(u) : "0")(this.lingUse() + (this.zfKeep ? this.zfKeep() : 0)))}
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
@@ -171,7 +171,7 @@ G.module({
     // 聚灵阵
     const cap = this.lingCap(), max = a.lv >= DATA.array.MAX, f = this.arrayFactor();
     return rooms + `<div class="card"><h3>${DATA.caveName("array")} · ${a.lv} / ${DATA.array.MAX} 级</h3>
-      <div class="row small"><span>聚灵中（每 10 秒 +${U.num(this.gatherAmount())} 灵气）${(u => u > 0 ? `　修炼消耗 <b class="c-red">-${U.num(u)}</b>` : "")(this.lingUse())}${(k => k > 0 ? `　阵法运转 <b class="c-red">-${U.num(k)}</b>` : "")(this.zfKeep ? this.zfKeep() : 0)}</span><button class="sm jl-add" onclick="G.openGatherInfo()">聚灵加成</button></div>
+      <div class="row small"><span>聚灵中（每 10 秒 +${U.num(this.gatherAmount())} 灵气）${(u => u > 0 ? `　修炼消耗 <b class="c-red">-${U.num(u)}</b>` : "")(this.lingUse() + (this.zfKeep ? this.zfKeep() : 0))}</span><button class="sm jl-add" onclick="G.openGatherInfo()">聚灵加成</button></div>
       <div class="bar tick"><div id="gather-bar"></div></div>
       <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
       <div class="bar ling"><div style="width:${Math.min(100, s.ling / cap * 100)}%"></div></div>
