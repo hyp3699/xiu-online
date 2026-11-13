@@ -236,11 +236,11 @@ G.module({
       return Object.values(s.ylGot || {}).filter(x => x && x.a === a && (x.t === "yb" ? DATA.YB[x.k] : x.t === "gf" && DATA.gongfaInfo(x.id, 1)))
         .sort((a, b) => a.t === b.t ? (a.t === "yb" ? a.g - b.g || a.k - b.k : 0) : a.t === "yb" ? -1 : 1);
     },
-    // 本图机缘收集进度（%）：已得过的不同宝物（种类 × 本图品阶）+ 游历功法（本图 4 域合计）÷ 本图全部（用户定 2026-11-13）
+    // 本图机缘收集进度（%，一位小数）：宝物按个数算，每种每阶最多算 YB_MAX 个（种类 × 本图品阶 × YB_MAX）+ 游历功法每本 1 个（本图 4 域 12 本）（用户定 2026-11-13）
     ylGotPct(a) {
-      a = Number(a); const grades = DATA.ybGradesOf(a) || [], gf = [0, 1, 2, 3].flatMap(r => DATA.ylGfIds(a, r) || []), all = DATA.YB.length * grades.length + gf.length; if (!all) return 0;
-      const L = this.gridRecList(a), yb = new Set(L.filter(x => x.t === "yb" && grades.includes(x.g)).map(x => x.k + "|" + x.g)).size, g = gf.filter(id => this.ylGfOwned(id)).length;
-      return Math.min(100, Math.floor((yb + g) / all * 100));
+      a = Number(a); const grades = DATA.ybGradesOf(a) || [], gf = [0, 1, 2, 3].flatMap(r => DATA.ylGfIds(a, r) || []), M = DATA.YB_MAX || 100, all = DATA.YB.length * grades.length * M + gf.length; if (!all) return 0;
+      const yb = this.gridRecList(a).filter(x => x.t === "yb" && grades.includes(x.g)).reduce((t, x) => t + Math.min(M, x.n || 1), 0), g = gf.filter(id => this.ylGfOwned(id)).length;
+      return Math.min(100, Math.floor((yb + g) / all * 1000) / 10);
     },
     openGridRec(a, i) {
       const L = this.gridRecList(a), x = i === undefined ? null : L[i];
