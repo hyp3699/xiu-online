@@ -116,6 +116,9 @@ G.module({
       this.log(`游历${this.gridName(a, r)}，获得${d.last}。`, "gold");
       this.dirty(); this.render();
     },
+    // 界里每格怪物固定一种（名字 / 图片）：本图 monsters 里按 (地图, 界, 格) 固定挑
+    gridJieMobIdx(a, r, i) { const L = (DATA.maps[a] || {}).monsters || []; return L.length ? (((a * 7919 + r * 104729 + i * 1299709) >>> 0) % L.length) : -1; },
+    gridJieMobName(a, r, i) { const k = this.gridJieMobIdx(a, r, i); return k >= 0 ? DATA.maps[a].monsters[k] : ""; },
     // 界里已发现（格子亮着）但还没打败的怪
     gridJieKnown(a, r, i) { const g = (this.s.grids || {})[a + "_" + r]; return !!(g && Array.isArray(g.v) && g.v.includes(i) && Array.isArray(g.m) && g.m.includes(i) && !(g.k || []).includes(i)); },
     // 界里的怪：所属域首领属性 × sjJieMobMul（90% ~ 126%），名字用本图普通怪名
@@ -123,7 +126,7 @@ G.module({
       const SC = CFG.shenjie || {}, kind = SC.JIE_MOB_KIND || "boss", f = this.sjJieMobMul ? this.sjJieMobMul(a, r, i) : 1;
       const R = DATA.region(a, R0), b = DATA.mobMeet(R, kind), v = (x, k) => x * DATA.mobRnd(k) * f, r0 = b.resEl || b.res;
       const res = typeof r0 === "number" ? r0 * f : r0 && typeof r0 === "object" ? Object.fromEntries(Object.entries(r0).map(([e, x]) => [e, x * f])) : r0;
-      const m = this.addMagic({ name: U.pick(DATA.maps[a].monsters) || "", mapA: a, Lm: R.L, kind, boss: kind === "boss", elite: kind === "elite", elKey: "",
+      const m = this.addMagic({ name: this.gridJieMobName(a, r, i), mapA: a, Lm: R.L, kind, boss: kind === "boss", elite: kind === "elite", elKey: "",
         hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res, manaBr: b.manaBr, L: b.L, crit: b.crit, stl: b.stl }, kind);
       m.a = a; return m;
     },
@@ -252,7 +255,7 @@ G.module({
         if (jie && i === this.sjSxCell(r) && this.sjSxSeen(a, r)) { const sl = Math.floor(+this.sjJieG(a, r).sx) || 0; cells.push(`<button class="gc on ys sx" onclick="G.openSjSx(${a},${r})"><img src="img/map/sjsx.webp?v=1" alt=""><span>神像 ${sl} 级</span></button>`); continue; }   // 界中间固定神像格（0 级起）
         if (ys && ys.i === i && (ys.fixed || on)) { cells.push(`<button class="gc on ys${g && g.p === i ? " me" : ""}" onclick="G.ysOpen('${ys.id}')"><img src="img/icons/ys_sect.png" alt=""><span>${ys.name}</span></button>`); continue; }
         const mob = jie && on && !run && g && Array.isArray(g.m) && g.m.includes(i) && !(g.k || []).includes(i);   // 走过但怪还在的格子（老存档补怪落在走过的格子上）：标出来，点它打
-        cells.push(`<button class="gc${on ? " on" : ""}${mob ? " mob" : ""}${g && g.p === i ? " me" : ""}${run ? " run" : ""}" onclick="G.gridTap(${a},${r},${i})" ${full ? "disabled" : ""}>${run ? (jie ? "<span>探索中</span>" : "<span>游历中</span>") : mob ? "<span>怪</span>" : ""}</button>`); }
+        cells.push(`<button class="gc${on ? " on" : ""}${mob ? " mob" : ""}${g && g.p === i ? " me" : ""}${run ? " run" : ""}" onclick="G.gridTap(${a},${r},${i})" ${full ? "disabled" : ""}>${run ? (jie ? "<span>探索中</span>" : "<span>游历中</span>") : mob ? `<img src="img/mob/${a}_${this.gridJieMobIdx(a, r, i)}.webp?v=${DATA.IMG_V}" onerror="this.src='img/mob/m${a}.webp?v=${DATA.IMG_V}'" alt="">` : ""}</button>`); }   // 打输的怪：格子里显示怪物图（用户定 2026-11-13）
       return `<div class="gridbar gt"><span>${jie ? `${DATA.smName("sjlp")} ${U.fmt(this.smCount("sjlp"))} 个 · 每步消耗 ${(CFG.shenjie || {}).JIE_LP || 1} 个 · ${this.sjJiePct(a, r)}` : `今日游历 ${d.n} / ${D} 次`}</span></div>
         <div id="mgwrap" class="mgwrap" data-c="${cur}" data-n="${N}"><div class="mgrid${this._glRun ? " busy" : ""}" style="background-image:url(img/map/grid_${wid || "fan"}.webp);grid-template-columns:repeat(${N},var(--gcw));grid-template-rows:repeat(${N},var(--gcw))">${cells.join("")}</div></div>`;
     },

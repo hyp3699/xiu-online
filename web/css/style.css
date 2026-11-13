@@ -1339,6 +1339,7 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .sx-big{display:block;height:180px;width:auto;max-width:100%;margin:0 auto 8px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(255,210,120,.6))}
 /* 神界界：走过但怪还活着的格子 */
 .mgrid .gc.mob{position:relative;box-shadow:inset 0 0 0 2px #ff5b4a}
+.mgrid .gc.mob img{position:absolute;inset:4%;width:92%;height:92%;object-fit:contain;filter:drop-shadow(0 1px 3px rgba(0,0,0,.8));pointer-events:none}
 .mgrid .gc.mob span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;text-shadow:0 0 3px #000,0 0 6px #ff3b2a}
 /* 神功：大图 + 神纹点亮图 */
 .sg-big{display:block;width:96px;height:96px;margin:0 auto 4px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(255,210,120,.55))}
