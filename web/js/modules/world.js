@@ -236,6 +236,12 @@ G.module({
       return Object.values(s.ylGot || {}).filter(x => x && x.a === a && (x.t === "yb" ? DATA.YB[x.k] : x.t === "gf" && DATA.gongfaInfo(x.id, 1)))
         .sort((a, b) => a.t === b.t ? (a.t === "yb" ? a.g - b.g || a.k - b.k : 0) : a.t === "yb" ? -1 : 1);
     },
+    // 本图机缘收集进度（%）：已得过的不同宝物（种类 × 本图品阶）+ 游历功法（本图 4 域合计）÷ 本图全部（用户定 2026-11-13）
+    ylGotPct(a) {
+      a = Number(a); const grades = DATA.ybGradesOf(a) || [], gf = [0, 1, 2, 3].flatMap(r => DATA.ylGfIds(a, r) || []), all = DATA.YB.length * grades.length + gf.length; if (!all) return 0;
+      const L = this.gridRecList(a), yb = new Set(L.filter(x => x.t === "yb" && grades.includes(x.g)).map(x => x.k + "|" + x.g)).size, g = gf.filter(id => this.ylGfOwned(id)).length;
+      return Math.min(100, Math.floor((yb + g) / all * 100));
+    },
     openGridRec(a, i) {
       const L = this.gridRecList(a), x = i === undefined ? null : L[i];
       if (x) {   // 单个：大图 + 效果
@@ -247,7 +253,7 @@ G.module({
       }
       const cells = L.map((x, n) => { const yb = x.t === "yb";
         return `<div class="cell ${yb ? "q" + DATA.ybQ(x.g) : "q3"}" onclick="G.openGridRec(${a},${n})"><img class="mi" src="${yb ? DATA.ybIcon(x.k) : DATA.iconImg("mifa")}" alt="">${yb ? DATA.YB[x.k].name : DATA.gongfaInfo(x.id, 1).name}<span class="nt">${U.fmt(x.n || 1)}</span></div>`; });
-      this.modal(`<h2>已获机缘</h2>${cells.length ? `<div class="grid">${cells.join("")}</div>` : ""}<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+      this.modal(`<h2>已获机缘 ${this.ylGotPct(a)}%</h2>${cells.length ? `<div class="grid">${cells.join("")}</div>` : ""}<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
     // 打开 / 关闭格子页（纯界面）
     openGrid(a, r) { this.ysPick = null; this.gridSel = a === undefined || a === null ? null : { a: Number(a), r: Number(r) }; this.render(); this.viewScroll(0); },
@@ -2779,7 +2785,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       const gs = this.gridSel;   // 地图格子页
       if (gs && gs.a === sel && this.ysPick && this.ysHall === this.ysPick && this.ysById(this.ysPick)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.ysById(this.ysPick).name} · 宗门大殿</div>${this.ysHallView(this.ysPick)}<div class="fback"><div class="fl"></div><button onclick="G.ysHallBack()">返回</button></div></div>`;
       if (gs && gs.a === sel && this.ysPick && this.ysById(this.ysPick)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.ysById(this.ysPick).name}</div>${this.ysView(this.ysPick)}<div class="fback"><div class="fl"></div><button onclick="G.ysOpen()">返回</button></div></div>`;
-      if (gs && gs.a === sel && this.gridOpen(gs.a, gs.r)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.gridName(gs.a, gs.r)}</div>${this.gridView(gs.a, gs.r, wid)}<div class="fback"><div class="fl">${this.gridJie(gs.r) ? "" : `<button class="gq" onclick="G.gridQuick(${gs.a},${gs.r})">快速<br>游历</button><button class="gq" onclick="G.openGridRec(${gs.a})">已获<br>机缘</button>`}</div><button onclick="${wid === "shen" ? `G.openGrid();G.openSjRg(${gs.a},${gs.r >= DATA.regionCount ? (gs.r - DATA.regionCount) >> 1 : gs.r})` : "G.openGrid()"}">返回</button></div></div>`;
+      if (gs && gs.a === sel && this.gridOpen(gs.a, gs.r)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.gridName(gs.a, gs.r)}</div>${this.gridView(gs.a, gs.r, wid)}<div class="fback"><div class="fl">${this.gridJie(gs.r) ? "" : `<button class="gq" onclick="G.gridQuick(${gs.a},${gs.r})">快速<br>游历</button><button class="gq" onclick="G.openGridRec(${gs.a})">已获<br>机缘 ${this.ylGotPct(gs.a)}%</button>`}</div><button onclick="${wid === "shen" ? `G.openGrid();G.openSjRg(${gs.a},${gs.r >= DATA.regionCount ? (gs.r - DATA.regionCount) >> 1 : gs.r})` : "G.openGrid()"}">返回</button></div></div>`;
       if (sel === "shop") return pg(`<div class="pghead">${DATA.nmPick(CFG.names.worldTab, "shop", "坊市")}</div>` + this.shopView());
       const mback = `<div class="pghead">${sel === "mj" ? this.mjLabel("mj") : DATA.maps[sel].name}</div>`;
       if (halls && sel !== "mj") {
