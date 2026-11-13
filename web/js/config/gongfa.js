@@ -88,7 +88,7 @@ CFG.gongfa.sect = {
 /* 凡界坊市功法 & 法术（1~5 星，灵石购买，境界要求同门派 REQ_REALM）
  * 售价 = price × PRICE_TYPE[类别] × PRICE_STAR[星级-1] × EFFECT_PRICE（取整） */
 CFG.gongfa.shop = {
-  PCT: 36,           // 每本效果 = 宗门同星级每本 × %（跟坊市有几本无关）
+  PCT: 72,           // 每本效果 = 宗门同星级每本 × %（跟坊市有几本无关）
   BOOKS: {xinfa: 5, gongjue: 5, zhenjing: 5, fajue: 5, spell: 5, tijue: 5, mijue: 5 },   // 每类几本（没写 1 本，最多同宗门第 5 阶段本数），加了本数每本效果不变
   price: 5000,       // 售价基础值（灵石）
   PRICE_TYPE: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 2, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1 },   // 售价类别倍率
@@ -98,7 +98,7 @@ CFG.gongfa.shop = {
 
 // 天外天功法 & 法术（11、12 星，暂未开放获取，仅礼包码可发放；神界怪物 11、12 星功法也按这里算）
 CFG.gongfa.tianwai = {
-  PCT: 100,          // 每本效果 = 宗门同星级每本 × %（STAT_STAR 11、12 星 = 1 星 × 11、12）
+  PCT: 108,          // 每本效果 = 宗门同星级每本 × %（STAT_STAR 11、12 星 = 1 星 × 11、12）
   REQ: [20, 22],     // 需要境界序号：11 星、12 星
 };
 
@@ -107,7 +107,7 @@ CFG.gongfa.tianwai = {
 //   神界：  学习 = 灵石 SHEN_STONE[星级-11] × TYPE[类别] + 本图贡献 SHEN_GX[星级-11] × TYPE[类别]
 //   真经（抗性）每处 6 本，金木水火土雷各一本（BOOKS 的 zhenjue: 6）
 CFG.gongfa.jshop = {
-  PCT: 72,           // 每本效果 = 宗门同星级每本 × %（跟坊市有几本无关）
+  PCT: 81,           // 每本效果 = 宗门同星级每本 × %（跟坊市有几本无关）
   BOOKS: { xinfa: 5, gongjue: 5, zhenjing: 5, fajue: 5, spell: 5, tijue: 5, mijue: 5 },   // 每类几本（没写 1 本），加了本数每本效果不变；真经 6 本 = 六种抗性各一本
   STONE: [300000, 600000, 1000000, 1500000, 2000000],   // 仙冥魔：6 星 ~ 10 星
   GX: [12000, 16000, 20000, 24000, 30000],                 // 仙冥魔：6 星 ~ 10 星
@@ -118,7 +118,7 @@ CFG.gongfa.jshop = {
 
 // 四界功德司功法（data/jiegf.js；仙冥魔 6~10 星，神界 11、12 星）：学习功德 = 仙冥魔 MERIT[星级-6] / 神界 SHEN_MERIT[星级-11] × TYPE[类别]
 CFG.gongfa.gd = {
-  PCT: 130,          // 每本效果 = 宗门同星级每本 × %（跟功德司有几本无关）
+  PCT: 120,          // 每本效果 = 宗门同星级每本 × %（跟功德司有几本无关）
   BOOKS: { mijue: 2, zhenjue: 6 },   // 每类几本（没写 1 本），加了本数每本效果不变；真经 6 本 = 六种抗性各一本
   SHEN_BOOKS: { xinfa: 2, gongjue: 2, zhenjing: 2, mijue: 3, shenfa: 2, sufa: 2, dunshu: 2, fajue: 2, tijue: 2, zhenjue: 7 },   // 神界愿力祠（11、12 星）每类几本：2026-11-12 用户要求每种多一本（真经 7 本：六种抗性各一本 + 第 7 本与第 1 本同系）
   MERIT: [6000, 7000, 8000, 9000, 10000],   // 仙冥魔：6 星 ~ 10 星
