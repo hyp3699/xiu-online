@@ -1227,7 +1227,7 @@ G.module({
       if (TEST) s.mana = tMp;
       // 战斗说明（显示在探索信息里）
       const why = `你出战时生命 ${U.fmt(hp0)}，共造成 ${U.fmt(dealt)} 伤害（对方剩余生命 ${U.fmt(Math.max(0, mhp))}/${U.fmt(m.hp)}），承受 ${U.fmt(taken)} 伤害；对方攻击 ${U.fmt(m.atk)} 防御 ${U.fmt(m.def)}${m.el ? `，${DATA.elById[m.el].name}属性，施法术 ${mSp} 次、法宝 ${mFb} 次` : ""}`;
-      const detail = { pasN: PAS.map(x => x.name), mPasN: mPas.map(x => x.name), mSt: mStA.map(x => ({ id: x.d.id, el: x.d.el, name: x.d.name })), mStl: mStl.map(x => [x.d.name, x.lv, x.d.type === "pas" ? 1 : 0]), name: m.name, el: m.el || "", a: m.a, img: m.img, glow: m.glow ? 1 : 0, zf: this.zfAOn ? (CFG.zhenfa && CFG.zhenfa.ACTIVE || []).filter(f => this.zfAOn(f.id)).map(f => f.el) : [], sp: spNames, spEl: spells.map(sp => sp.el.name), vfx: [...spells.map(sp => sp.el.id), ...fabaos.map(fb => [fb.el, fb.ft]), ...stns.map(sp => ["st", sp.stn.id, sp.el.id])], stI: spells.length + fabaos.length, first: meFirst ? 0 : 1, log, ps: Object.fromEntries(Object.entries(psG).map(([k, v]) => [k, R(v)])), mf: m.mf.slice(), tf: m.tf.slice(),
+      const detail = { pasN: PAS.map(x => x.name), mPasN: mPas.map(x => x.name), mSt: mStA.map(x => ({ id: x.d.id, el: x.d.el, name: x.d.name })), mStl: mStl.map(x => [x.d.name, x.lv, x.d.type === "pas" ? 1 : 0]), name: m.name, el: m.el || "", a: m.a, img: m.img, glow: m.glow ? 1 : 0, zf: this.zfAOn ? (CFG.zhenfa && CFG.zhenfa.ACTIVE || []).filter(f => this.zfAOn(f.id)).map(f => f.el) : [], sp: spNames, spEl: spells.map(sp => sp.el.name), vfx: [...spells.map(sp => sp.el.id), ...fabaos.map((fb, i) => fbSlots[i] === "bm" ? [fb.el, fb.ft, 1] : [fb.el, fb.ft]), ...stns.map(sp => ["st", sp.stn.id, sp.el.id])], stI: spells.length + fabaos.length, first: meFirst ? 0 : 1, log, ps: Object.fromEntries(Object.entries(psG).map(([k, v]) => [k, R(v)])), mf: m.mf.slice(), tf: m.tf.slice(),
         me: [R(hp0), R(st.hp), R(mana0), R(st.mana)], mob: [R(m.hp), R(m.hp), R(m.maxMana || 0), R(m.maxMana || 0)],
         // v181 这场战斗怪物的准确属性（战斗画面点怪物查看）
         ms: { hp: m.hp, atk: m.atk, def: m.def, speed: m.speed, hit: m.hit, dodge: m.dodge, mana: m.maxMana || 0, crit: m.crit || 0, res: Object.assign({}, m.res || {}),
@@ -1337,7 +1337,7 @@ G.module({
         <div class="btv-log" id="bt-log">${opt.head || ""}<p class="bt-gray"><span class="bt-m">${b.name}</span>上阵${b.el ? `（${DATA.elById[b.el].name}属性）` : ""}，${b.first ? `<span class="bt-m">${b.name}</span>先手` : `<span class="bt-p">你</span>先手`}。</p></div>
         <div class="btns" id="bt-btn"></div></div>`);
       this.btHp();
-      const isSt = x => x && !x[1] && x[2] === 1 && Array.isArray((b.vfx || [])[x[3]]) && b.vfx[x[3]][0] === "st";   // 这一下是神通（动画更长）
+      const isSt = x => x && !x[1] && Array.isArray((b.vfx || [])[x[3]]) && (x[2] === 1 && b.vfx[x[3]][0] === "st" || x[2] === 2 && b.vfx[x[3]][2] === 1);   // 这一下是神通 / 本命法宝（动画更长）   // 这一下是神通（动画更长）
       const step = () => {
         if (this._bp !== bp) return clearInterval(bp.timer);
         let x = null; if (bp.shown < bp.acts.length) this.btAct(x = bp.acts[bp.shown++], true);
@@ -1419,6 +1419,7 @@ G.module({
         const ft = k === 2 ? (w ? Math.floor(Math.random() * 7) : v ? v[1] : 0) : -1;
         if (mSt) { later(this.btStVfx(fxEl, w, mSt.id, mSt.el, SL, mSt.name) * SL); return; }   // 怪物神通：同样的专属释放动画
         if (k === 1 && Array.isArray(v) && v[0] === "st") { later(this.btStVfx(fxEl, w, v[1], v[2], SL, b.sp[sp]) * SL); return; }   // 神通：专属释放动画
+        if (k === 2 && !w && Array.isArray(v) && v[2] === 1) { later(this.btBmVfx(fxEl, w, sEl, ft, SL, tg, b.sp[sp]) * SL); return; }   // 本命法宝：专属华丽特效
         later(this.btVfx(fxEl, w, k, sEl, ft, SL, tg) * SL); }
       else if (k === 3) { this.btRing(w, true); H(); }
       else if (k === 4) { add("btv-pop gray", "眩晕", w); H(); }
@@ -1565,6 +1566,65 @@ G.module({
     },
     // 画布特效引擎：每个战斗画面一块 canvas，粒子 + 定时绘制对象，没东西时停帧
     // 神通释放动画（和法术分开）：先天色一暗、神通名大字浮现、脚下法阵，再按 config/yinshi.js 的 anim 播放各自的特效；返回命中时间（毫秒）
+    // 本命法宝释放特效（用户定 2026-11-13：比普通法宝更猛更华丽）：天色转暗 + 金色「本命·名字」大字和放射光芒 + 身后立起旋转法轮、脚下法阵、冲天光柱、灵光汇聚
+    //   → 法宝本体连发三次（同普通法宝形状特效）→ 目标处天光贯落、三重冲击环、金光迸散、连震；返回命中时间（毫秒，未乘放慢倍数）
+    btBmVfx(fxEl, w, el, ft, SL, tg, name) {
+      const E = this.btFx(fxEl); if (!E) return this.btVfx(fxEl, w, 2, el, ft, SL, tg);
+      const C = { jin: [255, 210, 90], mu: [110, 230, 90], shui: [90, 180, 255], huo: [255, 120, 40], tu: [210, 160, 90], lei: [170, 140, 255] }[el] || [255, 200, 120], G = [255, 215, 120], WH = [255, 250, 230];
+      const W = E.W, H = E.H, S = H / 225, X0 = (w ? 0.76 : 0.24) * W, X1 = (w ? 0.24 : 0.76) * W, Y = 0.56 * H;
+      const R = (a, b) => a + Math.random() * (b - a), at = (ms, f) => setTimeout(f, ms * SL), T = ms => ms * SL, rgba = (c, a) => `rgba(${c.join(",")},${Math.max(0, a)})`;
+      const P = o => E.parts.push(Object.assign({ x: 0, y: 0, vx: 0, vy: 0, g: 0, drag: 1, age: 0, life: 600, sz: 4, grow: 1, col: C, a: 1, kind: "glow" }, o, { life: T(o.life || 600) })) && E.kick();
+      const O = (dur, draw, o) => { E.objs.push(Object.assign({ t0: performance.now(), dur: T(dur), draw }, o || {})); E.kick(); };
+      const later0 = (ms, dur, draw) => O(dur, draw, { t0: performance.now() + T(ms) });
+      const spark = (x, y, n, col, sp) => { for (let i = 0; i < n; i++) { const a = R(0, 6.283), v = R(.3, 1) * sp * S; P({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, drag: .94, life: R(400, 900), sz: R(1.2, 3) * S, col: col || C, kind: "streak" }); } };
+      const flash = (a, col, dur) => O(dur || 300, (c, p) => { c.globalCompositeOperation = "lighter"; c.fillStyle = rgba(col || C, a * (1 - p)); c.fillRect(0, 0, W, H); });
+      const ring = (x, y, r1, col, flat, dur, lw) => O(dur || 620, (c, p) => { const r = r1 * S * (.15 + p); c.globalCompositeOperation = "lighter"; c.strokeStyle = rgba(col || C, (1 - p) * .8); c.lineWidth = ((lw || 5) * (1 - p) + 1) * S;
+        c.shadowColor = rgba(col || C, 1); c.shadowBlur = 16 * S; c.beginPath(); c.ellipse(x, y, r, r * (flat || 1), 0, 0, 6.283); c.stroke(); c.shadowBlur = 0; });
+      const rays = (c, x, y, n, len, col, a, rot) => { c.save(); c.globalCompositeOperation = "lighter"; c.translate(x, y); c.rotate(rot || 0);
+        for (let i = 0; i < n; i++) { c.rotate(6.283 / n); const g = c.createLinearGradient(0, 0, len, 0); g.addColorStop(0, rgba(col, a)); g.addColorStop(1, rgba(col, 0)); c.fillStyle = g; c.beginPath(); c.moveTo(0, 0); c.lineTo(len, -len * .06); c.lineTo(len, len * .06); c.closePath(); c.fill(); } c.restore(); };
+      const shake = ms => at(ms, () => { const st = fxEl.parentNode; st.classList.remove("vx-shake"); void st.offsetWidth; st.classList.add("vx-shake"); });
+      const PRE = 1000, HMAX = 660;
+      // ① 天色转暗（带一点金色）
+      O(PRE + HMAX + 1300, (c, p) => { const a = Math.sin(Math.min(1, p * 1.15) * Math.PI); c.globalCompositeOperation = "source-over"; c.fillStyle = `rgba(10,6,2,${.62 * a})`; c.fillRect(0, 0, W, H);
+        c.globalCompositeOperation = "lighter"; const g = c.createRadialGradient(X0, Y, 0, X0, Y, W * .6); g.addColorStop(0, rgba(G, .18 * a)); g.addColorStop(1, rgba(G, 0)); c.fillStyle = g; c.fillRect(0, 0, W, H); });
+      // ② 「本命·名字」金字 + 背后放射光芒
+      O(PRE + 500, (c, p) => { const a = p < .15 ? p / .15 : p > .8 ? (1 - p) / .2 : 1, sc = 1.4 - .4 * Math.min(1, p / .15), fs = Math.round(34 * S * sc), tx = name || "本命法宝";
+        rays(c, W / 2, H * .28, 16, 120 * S, G, .35 * a, p * 1.5);
+        c.save(); c.globalCompositeOperation = "source-over"; c.textAlign = "center"; c.textBaseline = "middle"; c.font = `bold ${fs}px "STKaiti","KaiTi","Kaiti SC",serif`;
+        const g = c.createLinearGradient(0, H * .28 - fs / 2, 0, H * .28 + fs / 2); g.addColorStop(0, rgba([255, 252, 230], a)); g.addColorStop(.5, rgba([255, 214, 100], a)); g.addColorStop(1, rgba([220, 140, 30], a));
+        c.shadowColor = rgba(C, 1); c.shadowBlur = 24 * S; c.fillStyle = g; c.fillText(tx, W / 2, H * .28); c.shadowBlur = 0; c.lineWidth = 1.4 * S; c.strokeStyle = rgba([120, 60, 0], a * .8); c.strokeText(tx, W / 2, H * .28); c.restore(); });
+      // ③ 身后立起的旋转法轮（双环 + 十二道符纹 + 内六芒）
+      O(PRE + 700, (c, p) => { const a = Math.min(1, p * 4) * (p > .8 ? (1 - p) / .2 : 1), r = 58 * S * (.6 + .4 * Math.min(1, p * 3)); c.save(); c.globalCompositeOperation = "lighter"; c.translate(X0, Y - 18 * S);
+        c.shadowColor = rgba(G, 1); c.shadowBlur = 14 * S; c.strokeStyle = rgba(G, a * .9); c.lineWidth = 2.2 * S;
+        c.save(); c.rotate(p * 5); c.beginPath(); c.arc(0, 0, r, 0, 6.283); c.stroke(); c.beginPath(); c.arc(0, 0, r * .86, 0, 6.283); c.stroke();
+        for (let i = 0; i < 12; i++) { c.rotate(6.283 / 12); c.beginPath(); c.moveTo(r * .86, 0); c.lineTo(r, 0); c.stroke(); c.fillStyle = rgba(C, a); c.fillRect(r * .91 - 1.5 * S, -1.5 * S, 3 * S, 3 * S); } c.restore();
+        c.save(); c.rotate(-p * 7); c.strokeStyle = rgba(C, a * .85); c.lineWidth = 1.6 * S;
+        for (let k = 0; k < 2; k++) { c.beginPath(); for (let i = 0; i <= 3; i++) { const q = i * 2.094 + k * 1.047; i ? c.lineTo(Math.cos(q) * r * .7, Math.sin(q) * r * .7) : c.moveTo(Math.cos(q) * r * .7, Math.sin(q) * r * .7); } c.stroke(); }
+        c.beginPath(); c.arc(0, 0, r * .3, 0, 6.283); c.stroke(); c.restore(); c.shadowBlur = 0; c.restore(); E.glow(c, X0, Y - 18 * S, r * 1.2, G, a * .25); });
+      // ④ 脚下法阵 + 冲天光柱
+      O(PRE + 500, (c, p) => { const a = Math.sin(Math.min(1, p) * Math.PI), r = 46 * S, y = Y + 26 * S; c.save(); c.globalCompositeOperation = "lighter"; c.translate(X0, y); c.scale(1, .3); c.rotate(-p * 5);
+        c.strokeStyle = rgba(G, a); c.lineWidth = 2.4 * S; c.beginPath(); c.arc(0, 0, r, 0, 6.283); c.stroke(); c.beginPath(); c.arc(0, 0, r * .66, 0, 6.283); c.stroke();
+        for (let i = 0; i < 8; i++) { const q = i * .785; c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(q) * r, Math.sin(q) * r); c.stroke(); } c.restore();
+        const pw = 26 * S * (.6 + .4 * Math.sin(p * 20)), g = c.createLinearGradient(X0 - pw, 0, X0 + pw, 0); g.addColorStop(0, rgba(G, 0)); g.addColorStop(.5, rgba(WH, a * .55)); g.addColorStop(1, rgba(G, 0));
+        c.globalCompositeOperation = "lighter"; c.fillStyle = g; c.fillRect(X0 - pw, 0, pw * 2, y); });
+      // ⑤ 四面八方的灵光向本体汇聚
+      for (let i = 0; i < 36; i++) at(R(0, PRE - 250), () => { const a = R(0, 6.283), d0 = R(80, 130) * S, x = X0 + Math.cos(a) * d0, y = Y - 18 * S + Math.sin(a) * d0 * .7, life = R(380, 520);
+        P({ x, y, vx: (X0 - x) / (T(life) / 16.7), vy: (Y - 18 * S - y) / (T(life) / 16.7), life, sz: R(1.6, 3.2) * S, col: i % 3 ? G : C }); });
+      at(PRE - 120, () => { flash(.35, G, 260); ring(X0, Y - 18 * S, 70, G, 1, 420, 4); spark(X0, Y - 18 * S, 30, WH, 6); });
+      // ⑥ 法宝本体连发三次
+      for (let i = 0; i < 3; i++) at(PRE + i * 160, () => this.btVfx(fxEl, w, 2, el, ft, SL, tg));
+      // ⑦ 终结：天光贯落 + 三重冲击环 + 放射金光 + 迸散 + 连震
+      const t = PRE + 320 + HMAX;
+      later0(t - 180, 520, (c, p) => { const a = p < .35 ? p / .35 : (1 - p) / .65, pw = 34 * S * (1 + p), g = c.createLinearGradient(X1 - pw, 0, X1 + pw, 0);
+        g.addColorStop(0, rgba(G, 0)); g.addColorStop(.5, rgba(WH, a * .9)); g.addColorStop(1, rgba(G, 0)); c.globalCompositeOperation = "lighter"; c.fillStyle = g; c.fillRect(X1 - pw, 0, pw * 2, Y + 30 * S); });
+      at(t, () => { flash(.75, WH, 220); setTimeout(() => flash(.45, C, 420), T(120));
+        [[110, G, .45, 0], [80, C, .45, 90], [150, WH, .4, 180]].forEach(([r, col, fl, dl]) => setTimeout(() => ring(X1, Y, r, col, fl, 700, 6), T(dl)));
+        O(700, (c, p) => { rays(c, X1, Y, 20, 150 * S * (.5 + p), G, .6 * (1 - p), p); E.glow(c, X1, Y, 110 * S * (.4 + p), C, .9 * (1 - p)); E.glow(c, X1, Y, 40 * S, WH, 1 - p); });
+        spark(X1, Y, 70, WH, 11); spark(X1, Y, 50, G, 9); spark(X1, Y, 40, C, 7);
+        for (let i = 0; i < 24; i++) P({ x: X1 + R(-20, 20) * S, y: Y, vx: R(-1.5, 1.5) * S, vy: -R(1, 3) * S, g: .02 * S, life: R(700, 1200), sz: R(1.5, 3) * S, col: G }); });
+      shake(t); shake(t + 200); shake(t + 420);
+      return t;
+    },
     btStVfx(fxEl, w, id, el, SL, name) {
       const E = this.btFx(fxEl); if (!E) return 500;
       const D = this.stDef ? this.stDef(id) || {} : {}, A = D.anim || "rain";
