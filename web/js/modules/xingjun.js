@@ -47,7 +47,7 @@ G.module({
       if (!o) return "无";
       const m = DATA.maps[o.map].name;
       if (o.t === "zz") return m + "尊者";
-      return o.t === "jz" ? m + "界主" : o.t === "xj" ? m + this.xjSeatName(o.map, o.seat) : m + this.xjTjName(o.map);
+      return o.t === "jz" ? m + "大帝" : o.t === "xj" ? m + this.xjSeatName(o.map, o.seat) : m + this.xjTjName(o.map);
     },
     // 每次结算的俸禄范围 { merit, stone: [少, 多], hx: [少, 多] }（已乘本界 PAY_MULT）
     xjRate(o) {
@@ -138,7 +138,7 @@ G.module({
     // 界主：连战全部星君（从低到高），最后打界主
     xjChallengeJz(a) {
       const w = this.xjW(a), o = this.xjOfficeOf(w); if (o && o.t === "jz" && o.map === a) return;
-      if (!this.xjJzReady(a)) return this.log(`需要先在${DATA.maps[a].name}担任过${this.xjTjName(a)}和全部星君，才能挑战界主。`, "sys");
+      if (!this.xjJzReady(a)) return this.log(`需要先在${DATA.maps[a].name}担任过${this.xjTjName(a)}和全部星君，才能挑战大帝。`, "sys");
       if (!this.mapOpen(a) || !this.xjPay(a, "jz")) return this.after();   // 先扣贡献，失败不退
       const list = this.xjSeats(a).map((n, i) => ({ name: this.xjSeatName(a, i), tu: DATA.mobXj(a, i), ck: "星君", seat: i }));
       list.push({ name: this.xjDadi(a), tu: DATA.mobJz(a), ck: "界主" });
@@ -172,7 +172,7 @@ G.module({
       const w = this.xjW(a), o = this.xjOfficeOf(w), mine = o && o.t === "jz" && o.map === a, ready = this.xjJzReady(a), cost = this.xjCost(a, "jz");
       const n = this.xjSeats(a).length, held = this.xjHeldOf(a).filter(p => p <= n + 1).length;
       return `<div class="card"><h3>${this.xjHallName(a, "tg")}</h3>${this.xjHead(a)}
-        <div class="line"><div>界主<small>${mine ? "在任" : `${this.xjDadi(a)} · 需 ${U.fmt(cost)} 贡献 · ${ready ? "可挑战（连战全部星君后挑战界主）" : `担任过 ${held} / ${n + 1} 个职位`}`}</small></div>
+        <div class="line"><div>大帝<small>${mine ? "在任" : `${this.xjDadi(a)} · 需 ${U.fmt(cost)} 贡献 · ${ready ? "可挑战（连战全部星君后挑战大帝）" : `担任过 ${held} / ${n + 1} 个职位`}`}</small></div>
           ${mine ? `<button class="sm on" disabled>在任</button>` : `<button class="sm" onclick="G.xjChallengeJz(${a})" ${!this.mapOpen(a) || !ready || this.xjGxOf(a) < cost ? "disabled" : ""}>挑战</button>`}</div></div>`;
     },
     // 星君殿（星君 + 天将）
