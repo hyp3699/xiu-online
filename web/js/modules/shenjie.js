@@ -202,6 +202,7 @@ G.module({
     sjBonus() {
       const J = (this.s && this.s.sj) || {}, b = {};
       for (const k in J.attr || {}) b[k] = (b[k] || 0) + (+J.attr[k] || 0);
+      const w = this.sjSwBonus(); for (const k in w) if (typeof w[k] === "number" && w[k] && !["ling", "gfStudy", "spStudy", "spDmg"].includes(k)) b[k] = (b[k] || 0) + w[k];   // 辅神纹固定属性
       return b;
     },
     // 真意百分比 { atk: %, res_jin: % … }：只乘修为突破、肉身突破给的属性（player.js computeStats）
@@ -396,24 +397,85 @@ G.module({
       return this.sjSwGraph().map(nd => nd.main ? MN[pk[mi++ % 3] % MN.length] : S[si++ % S.length]);
     },
     sjSwLv(a, j) { const o = this.sjSgSt(a, j); if (!o.lv || typeof o.lv !== "object" || Array.isArray(o.lv)) o.lv = {}; return o.lv; },
+    sjSwMul(a) { const n = (DATA.worldMapIdx.shen || []).length || 10, top = this.sjC().SG_W_COST_TOP || 3; return n > 1 ? 1 + (top - 1) * this.sjWi(a) / (n - 1) : 1; },
+    sjSwCost(a, j, i) {   // 神纹升 1 级的消耗
+      const C = this.sjC(), mn = (this.sjSwGraph()[i] || {}).main, m = this.sjSwMul(a);
+      return { yl: Math.round((mn ? C.SG_W_MAIN_YL || 12000 : C.SG_W_SUB_YL || 3000) * m), items: this.sjSgItems(a, j).map(k => ({ k, n: Math.round((mn ? C.SG_W_MAIN_ITEM || 90 : C.SG_W_SUB_ITEM || 30) * m) })) };
+    },
+    sjSwMax(i) { const C = this.sjC(); return (this.sjSwGraph()[i] || {}).main ? (C.SG_W_MAIN_LV || 12) : (C.SG_W_SUB_LV || 6); },
+    sjSwVal(a, j, i) {   // 神纹每级加多少（辅：数值，主：%）
+      const C = this.sjC(), n = this.sjSwNames(a, j)[i];
+      if ((this.sjSwGraph()[i] || {}).main) return +C.SG_W_MAIN_PCT || 0;
+      return Math.round((+(C.SG_W_SUB_VAL || {})[n] || 0) * this.sjSwMul(a));
+    },
+    sjSwEff(a, j, i, L) {   // 神纹第 L 级的效果文字
+      const n = this.sjSwNames(a, j)[i], v = this.sjSwVal(a, j, i) * L, mn = (this.sjSwGraph()[i] || {}).main;
+      if (!mn) return n === "减少灵气消耗" ? `修炼灵气消耗 −${U.fmt(v)} / 10秒` : `${n} +${U.fmt(v)}`;
+      if (n.startsWith("受到的")) return `${n} −${U.dec(v)}%`;
+      if (n.startsWith("法术修炼")) return `法术修炼时间 −${U.dec(v)}%、法术伤害 +${U.dec(v)}%`;
+      if (n === "功法修炼时间") return `功法修炼时间 −${U.dec(v)}%`;
+      return `${n} +${U.dec(v)}%`;
+    },
+    sjSwSubDone(a, j) { const g = this.sjSwGraph(), lv = this.sjSwLv(a, j); return g.every((nd, i) => nd.main || (+lv[i] || 0) >= this.sjSwMax(i)); },
+    // 神纹加成合计：{ atk, def, …, res_jin…（固定数值）, ling（减灵气消耗）, gf: { def: %, atk, hp, mana }, gfRes: { jin: % }, gfStudy, spStudy, spDmg, elCut: { jin: % } }
+    sjSwBonus() {
+      const J = (this.s && this.s.sj) || {}, sg = J.sg || {}, b = { gf: {}, gfRes: {}, gfStudy: 0, spStudy: 0, spDmg: 0, elCut: {} };
+      const E = { 金: "jin", 木: "mu", 水: "shui", 火: "huo", 土: "tu", 雷: "lei" }, F = { 攻击: "atk", 防御: "def", 生命: "hp", 法力: "mana", 闪避: "dodge", 命中: "hit", 速度: "speed", 减少灵气消耗: "ling" };
+      const sh = DATA.worldMapIdx.shen || [];
+      for (const id in sg) { const o = sg[id]; if (!o || !o.lv || typeof o.lv !== "object") continue;
+        const [wi, j] = id.split("_").map(Number), a = sh[wi]; if (a === undefined || !(j >= 0)) continue;
+        const nm = this.sjSwNames(a, j), g = this.sjSwGraph();
+        for (const k in o.lv) { const i = +k, L = Math.floor(+o.lv[k]) || 0; if (!g[i] || L <= 0) continue;
+          const n = nm[i], v = this.sjSwVal(a, j, i) * Math.min(L, this.sjSwMax(i));
+          if (!g[i].main) { const key = F[n] || (E[n[0]] ? "res_" + E[n[0]] : ""); if (key) b[key] = (b[key] || 0) + v; continue; }
+          if (n.startsWith("功法提供的")) { const t = n.slice(5); if (F[t]) b.gf[F[t]] = (b.gf[F[t]] || 0) + v; else if (E[t[0]]) b.gfRes[E[t[0]]] = (b.gfRes[E[t[0]]] || 0) + v; }
+          else if (n === "功法修炼时间") b.gfStudy += v;
+          else if (n.startsWith("法术修炼")) { b.spStudy += v; b.spDmg += v; }
+          else if (n.startsWith("受到的") && E[n[3]]) b.elCut[E[n[3]]] = (b.elCut[E[n[3]]] || 0) + v; } }
+      return b;
+    },
+    sjSwOk(a, j, i) { const g = this.sjSwGraph(), lv = this.sjSwLv(a, j), on = x => x < 0 || (+lv[x] || 0) > 0; return on(i) || g[i].links.some(on); },
+    sjSwUp(a, j, i) {
+      a = +a; j = +j; i = +i; const g = this.sjSwGraph(); if (!this.isShen(a) || !(j >= 0 && j <= 8) || !Number.isInteger(i) || i < 0 || i >= g.length) return;
+      if (!this.sjSgDone(a, j)) return this.log("先学会这本神功。", "sys");
+      const lv = this.sjSwLv(a, j), cur = +lv[i] || 0, nm = this.sjSwNames(a, j)[i];
+      if (cur >= this.sjSwMax(i)) return this.log(`${nm}已满级。`, "sys");
+      if (!this.sjSwOk(a, j, i)) return this.log("只能点亮和已点亮神纹相连的。", "sys");
+      if (g[i].main && !this.sjSwSubDone(a, j)) return this.log("36 个辅神纹全部修满后才能修炼主神纹。", "sys");
+      const c = this.sjSwCost(a, j, i);
+      if ((this.s.yuanli || 0) < c.yl || c.items.some(x => this.smCount(x.k) < x.n)) return this.log(`点亮${nm}需要愿力 ${U.fmt(c.yl)}${c.items.map(x => `、${DATA.smName(x.k)} ${U.fmt(x.n)}`).join("")}。`, "sys");
+      this.s.yuanli -= c.yl; c.items.forEach(x => this.takeSm(x.k, x.n)); lv[i] = cur + 1;
+      this.log(`《${this.sjSgName(a, j)}》${nm}升到 ${cur + 1} 级。`, "good"); this.after();
+      if (typeof document !== "undefined" && document.querySelector(".swfs-scroll")) this.openSjSw(a, j, i);
+    },
     openSjSw(a, j, sel) {
       a = +a; j = +j; if (!this.sjSgDone(a, j)) return this.openSjSg(a, j);
-      const C = this.sjC(), g = this.sjSwGraph(), nm = this.sjSwNames(a, j), lv = this.sjSwLv(a, j), on = i => i < 0 || (+lv[i] || 0) > 0, adj = i => g[i].links.some(on);
+      const g = this.sjSwGraph(), nm = this.sjSwNames(a, j), lv = this.sjSwLv(a, j), on = i => i < 0 || (+lv[i] || 0) > 0, adj = i => g[i].links.some(on);
       const s0 = sel !== undefined && sel !== null && Number.isInteger(+sel) && +sel >= 0 && +sel < g.length ? +sel : -1;
-      const W = 374, H = 978, core = { x: 187, y: 52 }, pt = i => i < 0 ? core : g[i], mx = nd => nd.main ? (C.SG_W_MAIN_LV || 12) : (C.SG_W_SUB_LV || 6);
-      const lines = g.map((nd, i) => nd.links.map(l => { const q = pt(l); return `<line x1="${q.x}" y1="${q.y}" x2="${nd.x}" y2="${nd.y}"${on(i) && on(l) ? ' class="on"' : ""}/>`; }).join("")).join("");
+      const W = 374, H = 978, core = { x: 187, y: 64 }, pt = i => i < 0 ? core : g[i];
+      const lines = g.map((nd, i) => nd.links.map(l => { const q = pt(l); return `<line x1="${q.x}" y1="${q.y}" x2="${nd.x}" y2="${nd.y + 12}"${on(i) && on(l) ? ' class="on"' : ""}/>`; }).join("")).join("");
       const nodes = g.map((nd, i) => { const lt = on(i), can = !lt && adj(i);
-        return `<button class="swn${nd.main ? " main" : ""}${lt ? " on" : can ? " can" : ""}${i === s0 ? " sel" : ""}" style="left:${nd.x}px;top:${nd.y}px" onclick="G.openSjSw(${a},${j},${i})"><i><img src="img/icons/${this.sjSwIc(nm[i])}.png?v=2" alt=""></i><b>${+lv[i] || 0}/${mx(nd)}</b></button>`; }).join("");
-      let info = "";
-      if (s0 >= 0) { const t = g[s0], lt = on(s0);
-        info = `<div class="swfs-info"><div class="line"><div>${DATA.li("img/icons/" + this.sjSwIc(nm[s0]) + ".png?v=2")}${nm[s0]}<small>${t.main ? "主神纹 · 加百分比" : "辅神纹 · 加数值"} · ${+lv[s0] || 0} / ${mx(t)} 级 · 数值待定</small></div><button class="sm" disabled>${lt || adj(s0) ? "点亮消耗待定" : "需先点亮相连的"}</button></div></div>`; }
+        return `<button class="swn${nd.main ? " main" : ""}${lt ? " on" : can ? " can" : ""}${i === s0 ? " sel" : ""}" style="left:${nd.x}px;top:${nd.y + 12}px" onclick="G.openSjSw(${a},${j},${i})"><i><img src="img/icons/${this.sjSwIc(nm[i])}.png?v=2" alt=""></i><b>${+lv[i] || 0}/${this.sjSwMax(i)}</b></button>`; }).join("");
+      let pop = "";
+      if (s0 >= 0) {   // 点开神纹：新弹窗，显示效果和点亮材料
+        const t = g[s0], L = +lv[s0] || 0, mx = this.sjSwMax(s0), full = L >= mx, ok = this.sjSwOk(a, j, s0), subOk = !t.main || this.sjSwSubDone(a, j), c = this.sjSwCost(a, j, s0);
+        const enough = (this.s.yuanli || 0) >= c.yl && c.items.every(x => this.smCount(x.k) >= x.n);
+        const need = full ? "" : `<div class="swp-h">点亮材料</div>` + `<div class="line"><div>${DATA.li(DATA.iconImg("yuanli"))}愿力<small>现有 ${U.fmt(this.s.yuanli || 0)}</small></div><b class="${(this.s.yuanli || 0) >= c.yl ? "" : "bad"}">${U.fmt(c.yl)}</b></div>`
+          + c.items.map(x => `<div class="line"><div>${DATA.li(DATA.smIcon(x.k))}${DATA.smName(x.k)}<small>现有 ${U.fmt(this.smCount(x.k))}</small></div><b class="${this.smCount(x.k) >= x.n ? "" : "bad"}">${U.fmt(x.n)}</b></div>`).join("");
+        pop = `<div class="swp-mask" onclick="G.openSjSw(${a},${j})"></div><div class="swp">
+          <div class="swp-t"><i class="swn${t.main ? " main" : ""}${L ? " on" : ""}"><i><img src="img/icons/${this.sjSwIc(nm[s0])}.png?v=2" alt=""></i></i><div><b>${nm[s0]}</b><small>${t.main ? "主神纹 · 加百分比" : "辅神纹 · 加数值"} · ${L} / ${mx} 级</small></div></div>
+          <div class="swp-h">效果</div><div class="line"><div>当前</div><b>${L ? this.sjSwEff(a, j, s0, L) : "未点亮"}</b></div>${full ? "" : `<div class="line"><div>下一级</div><b>${this.sjSwEff(a, j, s0, L + 1)}</b></div>`}
+          ${need}
+          <div class="btns"><button onclick="G.openSjSw(${a},${j})">关闭</button><button class="primary" onclick="G.sjSwUp(${a},${j},${s0})" ${!full && ok && subOk && enough ? "" : "disabled"}>${full ? "已满级" : !subOk ? "辅神纹全部修满后开启" : !ok ? "需先点亮相连的" : L ? "升级" : "点亮"}</button></div></div>`;
+      }
       const doc = typeof document !== "undefined" ? document : null, old = doc && doc.querySelector(".swfs-scroll"), keep = old && this._swAt === a + "_" + j ? [old.scrollLeft, old.scrollTop] : null;
-      this.modal(`<div class="swfs-scroll"><div class="swfs-map" style="width:${W}px;height:${H}px;background-image:url(img/sw_bg.webp?v=1)"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${lines}</svg>
+      this.modal(`<div class="swfs-scroll"><div class="swfs-map" style="width:${W}px;height:${H + 12}px;background-image:url(img/sw_bg.webp?v=1)"><svg viewBox="0 0 ${W} ${H + 12}" width="${W}" height="${H + 12}">${lines}</svg>
         <i class="swn core on" style="left:${core.x}px;top:${core.y}px"><i><img src="${this.sjSgImg(a, j)}" alt=""></i></i>${nodes}</div></div>
-        <div class="swfs-top"><span class="swfs-title">${this.sjSgName(a, j)}</span><button class="swfs-back" onclick="G.closeModal()">返回</button></div>${info}`, "fs");
+        <div class="swfs-top"><span class="swfs-title">${this.sjSgName(a, j)}</span><button class="swfs-back" onclick="G.closeModal()">返回</button></div>${pop}`, "fs");
       this._swAt = a + "_" + j;
       const sc = doc && doc.querySelector(".swfs-scroll"); if (sc) { if (keep) { sc.scrollLeft = keep[0]; sc.scrollTop = keep[1]; } else sc.scrollLeft = Math.max(0, (W - sc.clientWidth) / 2); }
     },
+
     // 修炼真意弹窗：需要的物品（带图片）+ 升级后效果
     openSjZy(i) {
       const J = this.sjS(), C = this.sjC(), M = C.ZY_MAX || 36, z = J.zy[+i]; if (!z) return;

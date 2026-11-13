@@ -1370,8 +1370,17 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .swn.on>i{border-color:#e8bf6a;box-shadow:0 0 12px rgba(255,200,90,.65)}
 .swn.on img{opacity:1}
 .swn.sel>i{outline:2px solid #fff;outline-offset:3px}
-.swfs-top{position:absolute;left:0;right:0;top:0;height:64px;display:flex;align-items:center;justify-content:center;pointer-events:none;background:linear-gradient(#07060dcc,#07060d00)}
-.swfs-title{pointer-events:auto;padding:6px 34px;font-size:20px;letter-spacing:2px;color:#5a3418;background:linear-gradient(#f3e3c0,#d9bf8c);border:2px solid #a8865a;border-radius:6px;box-shadow:0 2px 8px #000a}
-.swfs-back{pointer-events:auto;position:absolute;right:10px;top:12px;padding:6px 12px;font-size:15px;color:#f3e3c0;background:#2a2230cc;border:1px solid #a8865a;border-radius:8px}
-.swfs-info{position:absolute;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));background:#1a1624ee;border:1px solid #a8865a;border-radius:10px;padding:6px 10px}
-.swfs-info .line{border:0}
+.swn,.swn:active,.swn:focus{background:none;outline:none;-webkit-tap-highlight-color:transparent}
+.swfs-top{position:absolute;left:0;right:0;top:0;height:48px;pointer-events:none}
+.swfs-title{pointer-events:auto;position:absolute;left:8px;top:8px;padding:4px 12px;font-size:15px;letter-spacing:1px;color:#5a3418;background:linear-gradient(#f3e3c0,#d9bf8c);border:1.5px solid #a8865a;border-radius:5px;box-shadow:0 2px 6px #000a}
+.swfs-back{pointer-events:auto;position:absolute;right:8px;top:8px;padding:4px 12px;font-size:14px;color:#f3e3c0;background:#2a2230cc;border:1px solid #a8865a;border-radius:6px}
+.swp-mask{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+.swp{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:calc(100% - 32px);max-width:420px;max-height:80%;overflow-y:auto;background:#1a1624f5;border:1px solid #a8865a;border-radius:12px;padding:14px;box-shadow:0 8px 30px #000c}
+.swp-t{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.swp-t .swn{position:static;transform:none}
+.swp-t b{display:block;color:#f0d08a;font-size:17px}
+.swp-t small{color:var(--t-sub2)}
+.swp-h{color:#e8bf6a;font-size:13px;margin:10px 0 2px}
+.swp .line b.bad{color:#e66}
+.swp .btns{display:flex;gap:8px;margin-top:12px}
+.swp .btns button{flex:1}
