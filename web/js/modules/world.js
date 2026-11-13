@@ -247,8 +247,8 @@ G.module({
       if (x) {   // 单个：大图 + 效果
         const yb = x.t === "yb", g = yb ? null : DATA.gongfaInfo(x.id, 1);
         const img = yb ? DATA.ybIcon(x.k) : DATA.iconImg("mifa"), nm = yb ? DATA.ybName(x.k, x.g) : `《${g.name}》`;
-        const eff = yb ? `游历宝物，服用后永久 ${DATA.ybLabel(x.k)} +${U.num(DATA.ybVal(x.k, x.g))}（每阶最多服用 ${DATA.YB_MAX} 个，已服 ${this.ybUsed(x.k, x.g)} 个）`
-          : `游历功法 · ${g.star}星${g.label ? ` · ${g.label}每层 +${this.gfValue(g, g.perLv)}` : ""}`;
+        const eff = yb ? `服用后永久 ${DATA.ybLabel(x.k)} +${U.num(DATA.ybVal(x.k, x.g))}（每阶最多服用 ${DATA.YB_MAX} 个，已服 ${this.ybUsed(x.k, x.g)} 个）`
+          : `${g.star}星${g.label ? ` · ${g.label}每层 +${this.gfValue(g, g.perLv)}` : ""}`;
         return this.modal(`<img class="item-img" src="${img}" alt=""><h2 class="${yb ? "q" + DATA.ybQ(x.g) : "q3"}">${nm}</h2><p>${eff}</p><div class="btns"><button onclick="G.openGridRec(${a})">返回</button><button onclick="G.closeModal()">关闭</button></div>`);
       }
       const cells = L.map((x, n) => { const yb = x.t === "yb";
@@ -2785,7 +2785,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       const gs = this.gridSel;   // 地图格子页
       if (gs && gs.a === sel && this.ysPick && this.ysHall === this.ysPick && this.ysById(this.ysPick)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.ysById(this.ysPick).name} · 宗门大殿</div>${this.ysHallView(this.ysPick)}<div class="fback"><div class="fl"></div><button onclick="G.ysHallBack()">返回</button></div></div>`;
       if (gs && gs.a === sel && this.ysPick && this.ysById(this.ysPick)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.ysById(this.ysPick).name}</div>${this.ysView(this.ysPick)}<div class="fback"><div class="fl"></div><button onclick="G.ysOpen()">返回</button></div></div>`;
-      if (gs && gs.a === sel && this.gridOpen(gs.a, gs.r)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.gridName(gs.a, gs.r)}</div>${this.gridView(gs.a, gs.r, wid)}<div class="fback"><div class="fl">${this.gridJie(gs.r) ? "" : `<button class="gq" onclick="G.gridQuick(${gs.a},${gs.r})">快速<br>游历</button><button class="gq" onclick="G.openGridRec(${gs.a})">已获<br>机缘 ${this.ylGotPct(gs.a)}%</button>`}</div><button onclick="${wid === "shen" ? `G.openGrid();G.openSjRg(${gs.a},${gs.r >= DATA.regionCount ? (gs.r - DATA.regionCount) >> 1 : gs.r})` : "G.openGrid()"}">返回</button></div></div>`;
+      if (gs && gs.a === sel && this.gridOpen(gs.a, gs.r)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.gridName(gs.a, gs.r)}</div>${this.gridView(gs.a, gs.r, wid)}<div class="fback"><div class="fl">${this.gridJie(gs.r) ? "" : `<button class="gq" onclick="G.gridQuick(${gs.a},${gs.r})">快速<br>游历</button><button class="gq" onclick="G.openGridRec(${gs.a})">已获<br>机缘</button>`}</div><button onclick="${wid === "shen" ? `G.openGrid();G.openSjRg(${gs.a},${gs.r >= DATA.regionCount ? (gs.r - DATA.regionCount) >> 1 : gs.r})` : "G.openGrid()"}">返回</button></div></div>`;
       if (sel === "shop") return pg(`<div class="pghead">${DATA.nmPick(CFG.names.worldTab, "shop", "坊市")}</div>` + this.shopView());
       const mback = `<div class="pghead">${sel === "mj" ? this.mjLabel("mj") : DATA.maps[sel].name}</div>`;
       if (halls && sel !== "mj") {
