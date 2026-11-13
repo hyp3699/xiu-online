@@ -471,10 +471,10 @@ G.module({
         const need = full ? "" : `<div class="swp-h">修炼材料</div>` + `<div class="line"><div>${DATA.li(DATA.iconImg("yuanli"))}愿力<small>现有 ${U.fmt(this.s.yuanli || 0)}</small></div><b class="${(this.s.yuanli || 0) >= c.yl ? "" : "bad"}">${U.fmt(c.yl)}</b></div>`
           + c.items.map(x => `<div class="line"><div>${DATA.li(DATA.smIcon(x.k))}${DATA.smName(x.k)}<small>现有 ${U.fmt(this.smCount(x.k))}</small></div><b class="${this.smCount(x.k) >= x.n ? "" : "bad"}">${U.fmt(x.n)}</b></div>`).join("");
         pop = `<div class="swp-mask" onclick="G.openSjSw(${a},${j})"></div><div class="swp">
-          <div class="swp-t"><i class="swn${t.main ? " main" : ""}${L ? " on" : ""}"><i><img src="img/icons/${this.sjSwIc(nm[s0])}.png?v=2" alt=""></i></i><div><b>${nm[s0]}</b><small>${t.main ? "主神纹 · 加百分比" : "辅神纹 · 加数值"} · ${L} / ${mx} 级</small></div></div>
+          <div class="swp-t"><i class="swn${t.main ? " main" : ""}${L ? " on" : ""}"><i><img src="img/icons/${this.sjSwIc(nm[s0])}.png?v=2" alt=""></i></i><div><b>${nm[s0]}</b><small>${t.main ? "主神纹" : "辅神纹"} · ${L} / ${mx} 级</small></div></div>
           <div class="swp-h">效果</div><div class="line"><div>当前</div><b>${L ? this.sjSwEff(a, j, s0, L) : "未修炼"}</b></div>${full ? "" : `<div class="line"><div>下一级</div><b>${this.sjSwEff(a, j, s0, L + 1)}</b></div>`}
           ${need}
-          <div class="btns"><button onclick="G.openSjSw(${a},${j})">关闭</button><button class="primary" onclick="G.sjSwUp(${a},${j},${s0})" ${!full && ok && subOk && enough ? "" : "disabled"}>${full ? "已满级" : !subOk ? "辅神纹全部修满后开启" : !ok ? "需先修炼相连的" : L ? "升级" : "修炼"}</button></div></div>`;
+          <div class="btns"><button onclick="G.openSjSw(${a},${j})">关闭</button><button class="primary" onclick="G.sjSwUp(${a},${j},${s0})" ${!full && ok && subOk && enough ? "" : "disabled"}>${full ? "已满级" : !subOk ? "辅神纹全部修满后开启" : !ok ? "需先修炼相连神纹" : L ? "升级" : "修炼"}</button></div></div>`;
       }
       const doc = typeof document !== "undefined" ? document : null, old = doc && doc.querySelector(".swfs-scroll"), keep = old && this._swAt === a + "_" + j ? [old.scrollLeft, old.scrollTop] : null;
       this.modal(`<div class="swfs-scroll"><div class="swfs-map" style="width:${W}px;height:${H + 12}px;background-image:url(img/sw_bg.webp?v=1)"><svg viewBox="0 0 ${W} ${H + 12}" width="${W}" height="${H + 12}">${lines}</svg>
