@@ -345,7 +345,7 @@ G.module({
     sjSgCard(a) {
       const C = this.sjC(), N = C.SG_LEARN_N || 12;
       const books = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(j => { const o = this.sjSgSt(a, j), done = o.n >= N;
-        return `<button class="sg-book" style="animation-delay:${(j * 0.7).toFixed(1)}s" onclick="G.${done ? "openSjSw" : "openSjSg"}(${a},${j})"><img src="${this.sjSgImg(a, j)}" alt=""><b>${this.sjSgName(a, j)}</b>${done ? `<span class="tag">已学会</span>` : ""}</button>`; }).join("");
+        return `<button class="sg-book" style="animation-delay:${(j * 0.7).toFixed(1)}s" onclick="G.${done ? "openSjSw" : "openSjSg"}(${a},${j})"><img src="${this.sjSgImg(a, j)}" alt=""><b>${this.sjSgName(a, j)}</b>${done ? `<span class="tag">修炼进度 ${this.sjSwPct(a, j)}%</span>` : ""}</button>`; }).join("");
       return `<div class="card"><h3>神功<small>每本每 24 小时学习一次，学满 ${N} 次解锁神纹</small></h3><div class="sg-books">${books}</div></div>`;
     },
     openSjSg(a, j) {
@@ -423,6 +423,11 @@ G.module({
       if (n.startsWith("法术修炼")) return `法术修炼时间 −${U.dec(v)}%、法术伤害 +${U.dec(this.sjSwVal(a, j, i, 1) * L)}%`;
       if (n === "功法修炼时间") return `功法修炼时间 −${U.dec(v)}%`;
       return `${n} +${U.dec(v)}%`;
+    },
+    sjSwPct(a, j) {   // 神纹修炼进度 % = 已修等级 ÷ 全部满级（神功书下方显示）
+      const g = this.sjSwGraph(), lv = this.sjSwLv(a, j); let n = 0, m = 0;
+      g.forEach((nd, i) => { const x = this.sjSwMax(i); m += x; n += Math.min(x, +lv[i] || 0); });
+      return m ? Math.floor(n * 100 / m) : 0;
     },
     sjSwSubDone(a, j) { const g = this.sjSwGraph(), lv = this.sjSwLv(a, j); return g.every((nd, i) => nd.main || (+lv[i] || 0) >= this.sjSwMax(i)); },
     // 神纹加成合计：{ atk, def, …, res_jin…（固定数值）, ling（减灵气消耗）, gf: { def: %, atk, hp, mana }, gfRes: { jin: % }, gfStudy, spStudy, spDmg, elCut: { jin: % } }
