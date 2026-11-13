@@ -406,7 +406,7 @@ G.module({
     sjSwMax(i) { const C = this.sjC(); return (this.sjSwGraph()[i] || {}).main ? (C.SG_W_MAIN_LV || 12) : (C.SG_W_SUB_LV || 6); },
     sjSwVal(a, j, i, second) {   // 神纹每级加多少（辅：数值，主：%；second = 法术伤害那一项）
       const C = this.sjC(), n = this.sjSwNames(a, j)[i];
-      if ((this.sjSwGraph()[i] || {}).main) { const T = (C.SG_W_MAIN_TOTAL || {})[n], t = Array.isArray(T) ? +T[second ? 1 : 0] || 0 : second ? 0 : +T || 0, c = (this._swMain.cnt || {})[n] || 1; return t / (c * this.sjSwMax(i)); }
+      if ((this.sjSwGraph()[i] || {}).main) { const T = (C.SG_W_MAIN_TOTAL || {})[n], t = Array.isArray(T) ? +T[second ? 1 : 0] || 0 : second ? 0 : +T || 0, c = (this._swMain.cnt || {})[n] || 1, v = t / (c * this.sjSwMax(i)); return t > 0 ? Math.max(+C.SG_W_MAIN_MIN || 0, v) : 0; }
       const T = C.SG_W_SUB_TOTAL || {}, W = this.sjSwSubW(); return (+T[n] || 0) * this.sjSwMul(a) / ((W[n] || 1) * this.sjSwMax(i));
     },
     sjSwSubW() {   // 每种辅神纹在全部神功里的重天倍数之和
