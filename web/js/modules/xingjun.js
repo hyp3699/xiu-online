@@ -100,9 +100,23 @@ G.module({
     xjNpc(a, name, tu, ck, seat) {
       const elKey = ck === "天将" ? `tj:${a}` : ck === "界主" ? `jz:${a}` : seat !== undefined ? `xj:${a}:${seat}` : "", b = DATA.mobRoll(tu, DATA.mobCrit(ck)), v = (x, k) => x * DATA.mobRnd(k);   // v168 功法随机
       const m = this.addMagic({ name, a, mapA: a, img: this.npcImg(`${ck}${a}_${name}`, ck === "天将" ? "rn" : "rx"), glow: ck !== "天将", elKey, Lm: DATA.region(a, 3).L, kind: "boss", boss: true,
-        hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.resEl || b.res, manaBr: b.manaBr, L: b.L, crit: b.crit, stl: b.stl }, ck);
+        hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.resEl || b.res, manaBr: b.manaBr, L: b.L, crit: b.crit, stl: this.xjStl(a, b.stl, ck, seat) }, ck);
       if (!m.mf) m.mf = this.rollMf(this.mobRandCfg(ck));   // 秘法：一般已按存档定死（mobElInit），没有键时按 config/battle.js MOB_RAND 随机
       return m;
+    },
+    // 神界天尊 / 大帝的神通种数按本重天在神界的序号线性增加（config/shenjie.js XJ_ST_N / JZ_ST_N，用户定 2026-11-13）
+    //   配置里写的神通保留，不够的按 地图 + 位子 固定种子从神通池补，等级在已有神通的最低 ~ 最高级之间
+    xjStl(a, stl, ck, seat) {
+      const l = (stl || []).map(z => z.slice()), mp = DATA.maps[a] || {};
+      if (mp.w !== "shen" || (ck !== "星君" && ck !== "界主")) return l;
+      const C = CFG.shenjie || {}, N = ck === "界主" ? C.JZ_ST_N || [5, 8] : C.XJ_ST_N || [2, 4];
+      const sm = DATA.maps.map((m, i) => m.w === "shen" ? i : -1).filter(i => i >= 0), k = Math.max(0, sm.indexOf(a)), K = Math.max(1, sm.length - 1);
+      const want = Math.round(N[0] + (N[1] - N[0]) * k / K);
+      const pool = (this.ysStCfg().LIST || []).map(d => d.id).filter(id => !l.some(z => z[0] === id));
+      let x = (a * 7919 + (ck === "界主" ? 99 : (seat || 0) + 1) * 104729) >>> 0; const r = () => (x = (x * 1103515245 + 12345) >>> 0) / 4294967296;
+      const lvs = l.map(z => z[1]), lo = lvs.length ? Math.min(...lvs) : 1, hi = lvs.length ? Math.max(...lvs) : 1;
+      while (l.length < want && pool.length) { const id = pool.splice(Math.floor(r() * pool.length), 1)[0]; l.push([id, Math.round(lo + r() * (hi - lo))]); }
+      return l;
     },
     // 依次挑战 list（[{name, k}]），满血满法力开打，中间不回复；结束恢复原来的生命法力
     xjFight(a, list, title, onWin) {

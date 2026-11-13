@@ -808,6 +808,10 @@ G.module({
       m.manaK = DATA.manaRealmK(m.L);   // 法术、法宝法力消耗的境界倍率（config/mobs.js magic.MANA_REALM）
       const MR = +((CFG.rates || {}).MOB ?? 1);   // config/rates.js 怪物属性总倍率（暴击%不乘；雷劫不走这里）
       if (MR !== 1 && MR >= 0) { for (const k of ["hp", "atk", "def", "speed", "hit", "dodge"]) if (typeof m[k] === "number") m[k] *= MR; m.mana = m.maxMana = m.mana * MR; for (const e in m.res) m.res[e] *= MR; }
+      // 怪物的神通也加上神通领悟的属性（每种 = config/yinshi.js SHENTONG.MAX，同玩家修满；用户定 2026-11-13）
+      const SM = this.ysStCfg().MAX || {};
+      for (const [id] of m.stl || []) { if (!this.stDef(id)) continue;
+        for (const k in SM) { if (k === "res") { for (const e in m.res) m.res[e] += SM.res; } else if (k === "mana") { m.mana += SM.mana; m.maxMana = m.mana; } else if (typeof m[k] === "number") m[k] += SM[k]; } }
       const S = M.盾; m.shield = S ? { chance: S.几率 || 0, max: S.次数 || 0, hp: S.护盾值, def: S.盾防御, mana: S.消耗 || [0, 1], red: MG.SHIELD_RED || 0 } : null;
       return m;
     },
