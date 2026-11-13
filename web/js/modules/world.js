@@ -86,16 +86,19 @@ G.module({
       if (!Number.isInteger(a) || !Number.isInteger(r) || !Number.isInteger(i) || i < 0 || i >= N * N) throw new Error("格子不存在");
       if (!this.gridOpen(a, r)) throw new Error("该区域尚未开启");
       if (this.gridJie(r)) {   // 神界界：每走一格耗小世界令牌
-        if (i === this.sjSxCell(r)) return this.log("中间是神像，点神像查看 / 升级。", "sys");   // 神像格：不走、不耗令牌
-        const c = (CFG.shenjie || {}).JIE_LP || 1;
-        if (this.smCount("sjlp") < c) { this.log(`${DATA.smName("sjlp")}不足（每步消耗 ${c} 个），去愿力祠兑换。`, "sys"); return; }
-        this.takeSm("sjlp", c);
-        const o = this.sjJieG(a, r);
+        if (i === this.sjSxCell(r) && this.sjSxSeen(a, r)) return this.log("中间是神像，点神像查看 / 升级。", "sys");   // 神像格：发现后不走、不耗令牌
+        const c = (CFG.shenjie || {}).JIE_LP || 1, o = this.sjJieG(a, r), known = this.gridJieKnown(a, r, i);   // 已发现的怪（打输过）：直接打，不耗令牌（用户定 2026-11-13）
+        if (!known) {
+          if (this.smCount("sjlp") < c) { this.log(`${DATA.smName("sjlp")}不足（每步消耗 ${c} 个），去愿力祠兑换。`, "sys"); return; }
+          this.takeSm("sjlp", c);
+        }
         if (o.m.includes(i) && !o.k.includes(i)) {   // 怪物格：打赢才算走到、计入征服度
-          const R0 = (r - DATA.regionCount) >> 1, m = this.makeMob(a, R0, (CFG.shenjie || {}).JIE_MOB_KIND || "elite"); m.a = a;
+          const R0 = (r - DATA.regionCount) >> 1, m = this.makeJieMob(a, R0, r, i);
           const res = this.battle(m, { foe: m.boss ? "boss" : m.elite ? "elite" : "mob", useSet: true }), nm = String(m.name).replace(/^精英·/, "");
           this.playBattle(res.detail, `${this.gridName(a, r)} · ${nm}`, res.win ? "胜利" : "失败", !!res.win, []);
-          if (!res.win) { this.log(`在${this.gridName(a, r)}遭遇${nm}，${res.timeout ? `${res.rounds} 回合未能击败` : "不敌退走"}。`, "bad"); this.dirty(); this.render(); return; }
+          if (!res.win) {   // 打输：这格怪物标在地图上（点亮格子，不发奖励），以后点它直接打
+            const g0 = this.s.grids[a + "_" + r]; if (!Array.isArray(g0.v)) g0.v = []; if (!g0.v.includes(i)) g0.v.push(i);
+            this.log(`在${this.gridName(a, r)}遭遇${nm}，${res.timeout ? `${res.rounds} 回合未能击败` : "不敌退走"}。怪物已标在地图上，之后点它可直接挑战。`, "bad"); this.dirty(); this.render(); return; }
           o.k.push(i); this.s.kills = (this.s.kills || 0) + 1;
           const SC = CFG.shenjie || {}, YL = SC.JIE_YL || [300, 500], ys = (SC.JIE_YL_STEP || 0) * (this.sjWi ? this.sjWi(a) : DATA.maps[a].wi || 0);
           const yl = U.rand(YL[0] + ys, YL[1] + ys); this.s.yuanli = (this.s.yuanli || 0) + yl;   // 界里打怪给愿力
@@ -103,6 +106,7 @@ G.module({
           this.log(`击败${nm}（${this.sjJiePct(a, r)}），获得${txt}。${done ? `${this.gridName(a, r)}已占领，可以升级神像。` : ""}`, "gold"); this.dirty(); this.render(); return;
         }
         const txt = this.gridOnce(a, r, i);
+        if (i === this.sjSxCell(r)) { this.log(`探索${this.gridName(a, r)}，发现了神像！获得${txt}。`, "gold"); this.dirty(); this.render(); return; }   // 神像要探索一次才显示（用户定 2026-11-13）
         this.log(`探索${this.gridName(a, r)}，获得${txt}。`, "gold"); this.dirty(); this.render(); return;
       }
       const d = this.gridToday();
@@ -111,6 +115,17 @@ G.module({
       d.last = this.gridOnce(a, r, i);
       this.log(`游历${this.gridName(a, r)}，获得${d.last}。`, "gold");
       this.dirty(); this.render();
+    },
+    // 界里已发现（格子亮着）但还没打败的怪
+    gridJieKnown(a, r, i) { const g = (this.s.grids || {})[a + "_" + r]; return !!(g && Array.isArray(g.v) && g.v.includes(i) && Array.isArray(g.m) && g.m.includes(i) && !(g.k || []).includes(i)); },
+    // 界里的怪：所属域首领属性 × sjJieMobMul（90% ~ 126%），名字用本图普通怪名
+    makeJieMob(a, R0, r, i) {   // 不用首领的 elKey：每只怪属性 / 秘法 / 天赋各自随机
+      const SC = CFG.shenjie || {}, kind = SC.JIE_MOB_KIND || "boss", f = this.sjJieMobMul ? this.sjJieMobMul(a, r, i) : 1;
+      const R = DATA.region(a, R0), b = DATA.mobMeet(R, kind), v = (x, k) => x * DATA.mobRnd(k) * f, r0 = b.resEl || b.res;
+      const res = typeof r0 === "number" ? r0 * f : r0 && typeof r0 === "object" ? Object.fromEntries(Object.entries(r0).map(([e, x]) => [e, x * f])) : r0;
+      const m = this.addMagic({ name: U.pick(DATA.maps[a].monsters) || "", mapA: a, Lm: R.L, kind, boss: kind === "boss", elite: kind === "elite", elKey: "",
+        hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res, manaBr: b.manaBr, L: b.L, crit: b.crit, stl: b.stl }, kind);
+      m.a = a; return m;
     },
     // 快速游历：一次用完今日剩余次数，优先点亮还黑着的格子（都亮了就随机）
     gridQuick(a, r) {
@@ -188,6 +203,7 @@ G.module({
     gridTap(a, r, i) {
       if (this._glRun) return;
       const d = this.s.gridDay;
+      if (this.gridJie(r) && this.gridJieKnown(a, r, i)) return this.gridYouli(a, r, i);   // 已发现的怪：直接开打
       if (this.gridJie(r) ? this.smCount("sjlp") < ((CFG.shenjie || {}).JIE_LP || 1) : d && d.day === this.bjDay() && d.n >= this.gridDaily()) return this.gridYouli(a, r, i);
       this._glRun = { a, r, i }; this.render();
       setTimeout(() => { this._glRun = null; try { this.gridYouli(a, r, i); } finally { this.render(); } }, 1500);
@@ -233,7 +249,7 @@ G.module({
       const ys = this.ysAt(a, r);   // 隐世宗门：发现后格子上显示宗门模型，点进去
       for (let i = 0; i < N * N; i++) { const on = lit.has(i);
         const run = this._glRun && this._glRun.a === a && this._glRun.r === r && this._glRun.i === i;
-        if (jie && i === this.sjSxCell(r)) { const sl = Math.floor(+this.sjJieG(a, r).sx) || 0; cells.push(`<button class="gc on ys sx" onclick="G.openSjSx(${a},${r})"><img src="img/map/sjsx.webp?v=1" alt=""><span>神像 ${sl} 级</span></button>`); continue; }   // 界中间固定神像格（0 级起）
+        if (jie && i === this.sjSxCell(r) && this.sjSxSeen(a, r)) { const sl = Math.floor(+this.sjJieG(a, r).sx) || 0; cells.push(`<button class="gc on ys sx" onclick="G.openSjSx(${a},${r})"><img src="img/map/sjsx.webp?v=1" alt=""><span>神像 ${sl} 级</span></button>`); continue; }   // 界中间固定神像格（0 级起）
         if (ys && ys.i === i && (ys.fixed || on)) { cells.push(`<button class="gc on ys${g && g.p === i ? " me" : ""}" onclick="G.ysOpen('${ys.id}')"><img src="img/icons/ys_sect.png" alt=""><span>${ys.name}</span></button>`); continue; }
         const mob = jie && on && !run && g && Array.isArray(g.m) && g.m.includes(i) && !(g.k || []).includes(i);   // 走过但怪还在的格子（老存档补怪落在走过的格子上）：标出来，点它打
         cells.push(`<button class="gc${on ? " on" : ""}${mob ? " mob" : ""}${g && g.p === i ? " me" : ""}${run ? " run" : ""}" onclick="G.gridTap(${a},${r},${i})" ${full ? "disabled" : ""}>${run ? (jie ? "<span>探索中</span>" : "<span>游历中</span>") : mob ? "<span>怪</span>" : ""}</button>`); }

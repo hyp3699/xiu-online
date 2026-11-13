@@ -43,6 +43,7 @@ G.module({
     sjJieOf(a, r, j) { const N = (this.sjC().JIE_NAMES || [])[this.sjWi(a)] || []; return N[r * 2 + (j ? 1 : 0)] ? N[r * 2 + (j ? 1 : 0)] + "界" : ""; },
     // 界的征服：s.grids["a_g"].m = 怪物格子（第一次进入时随机 JIE_MOB 个，不含中间神像格），.k = 已打败，.sx = 神像等级（0 级没有效果）
     //   神像固定在界地图正中间那格（sjSxCell），一开始 0 级；全部怪物打败（已占领）后才能升级（用户定 2026-11-12）
+    sjSxSeen(a, g) { const o = (this.s.grids || {})[a + "_" + g]; return !!(o && ((Array.isArray(o.v) && o.v.includes(this.sjSxCell(g))) || (+o.sx || 0) > 0)); },   // 神像要探索到那格才显示（老存档已升级过的算发现）
     sjSxCell(g) { const N = this.gridN(g); return Math.floor(N * N / 2); },
     sjJieG(a, g) {
       const s = this.s, N = this.gridN(g), M = Math.min(N * N - 1, this.sjC().JIE_MOB || 33), C0 = this.sjSxCell(g);
@@ -65,6 +66,13 @@ G.module({
         if (to >= 0) { o.m = o.m.map(i => i === C0 ? to : i).sort((x, y) => x - y); o.k = o.k.map(i => i === C0 ? to : i); }
       }
       return o;
+    },
+    // 界里第 i 格怪物的属性倍率：JIE_MOB_PCT 从低到高平均分给 o.m 的怪（固定种子打乱，同一格永远一样）
+    sjJieMobMul(a, g, i) {
+      const o = this.sjJieG(a, g), P = this.sjC().JIE_MOB_PCT || [100, 100], n = o.m.length, ord = o.m.slice();
+      let x = (a * 977 + g * 131 + 7) >>> 0; const rnd = () => (x = (x * 1103515245 + 12345) >>> 0) / 4294967296;
+      for (let j = ord.length - 1; j > 0; j--) { const k = Math.floor(rnd() * (j + 1)); [ord[j], ord[k]] = [ord[k], ord[j]]; }
+      const r = Math.max(0, ord.indexOf(i)); return (P[0] + (n > 1 ? (P[1] - P[0]) * r / (n - 1) : 0)) / 100;
     },
     sjJieDone(a, g) { const o = this.sjJieG(a, g); return o.k.length >= o.m.length; },
     sjSxList() { const G0 = this.s.grids || {}; return Object.keys(G0).filter(k => G0[k] && G0[k].sx > 0 && +k.split("_")[1] >= DATA.regionCount).map(k => Math.min(this.sjC().SX_MAX || 12, Math.floor(+G0[k].sx) || 0)); },
@@ -97,6 +105,7 @@ G.module({
     sjBuildSx(a, g) {
       a = +a; g = +g; if (!Number.isInteger(a) || !Number.isInteger(g) || g < DATA.regionCount || !this.gridOpen(a, g)) return;
       const o = this.sjJieG(a, g), C = this.sjC(), lv = Math.floor(+o.sx) || 0, to = lv + 1;
+      if (!this.sjSxSeen(a, g)) return this.log("还没发现这个界的神像，先探索到中间那格。", "sys");
       if (!this.sjJieDone(a, g)) return this.log(`击败${this.sjGrName(a, g)}全部 ${this.sjJieG(a, g).m.length} 只怪物后才能升级神像。`, "sys");
       if (lv >= (C.SX_MAX || 12)) return this.log("神像已是最高级。", "sys");
       const need = this.sjSxNeed(a, g, to), lack = need.filter(x => this.countMat("ore", x.g) < x.c);
@@ -235,7 +244,7 @@ G.module({
       const jie = [0, 1].map(j => { const g = this.sjGr(r, j), ok2 = this.gridOpen(a, g);
         const o = ok2 ? this.sjJieG(a, g) : null, done = o && o.k.length >= o.m.length;
         const info = !ok2 ? "未开启" : this.sjJiePct(a, g) + ` · 神像 ${Math.floor(+o.sx) || 0} 级`;
-        const sx = ok2 && done && (Math.floor(+o.sx) || 0) < (this.sjC().SX_MAX || 12) ? `<button class="sm" onclick="event.stopPropagation();G.openSjSx(${a},${g})">升级神像</button>` : "";
+        const sx = ok2 && done && this.sjSxSeen(a, g) && (Math.floor(+o.sx) || 0) < (this.sjC().SX_MAX || 12) ? `<button class="sm" onclick="event.stopPropagation();G.openSjSx(${a},${g})">升级神像</button>` : "";
         return `<div class="sjz sjz${j + 1}${ok2 ? "" : " off"}" ${ok2 ? `onclick="G.closeModal();G.openGrid(${a},${g})"` : ""}><div class="sjjie"><b>${this.sjJieOf(a, r, j)}</b><small>${info}</small>${sx}</div></div>`; }).join("");
       // 图分三块：上半本域（点图进本域格子，按钮历练 / 探索），下面左右两个界（点图进界，用小世界令牌开格子）
       this.modal(`<div class="sjrgw"><img src="img/map/sjrg_${RG[r]}.webp?v=1" alt=""><div class="sjz sjz0${go ? "" : " off"}" ${go ? `onclick="G.closeModal();G.openGrid(${a},${r})"` : ""}><div class="sjyu"><b>${this.sjJieName(a)} · ${d}</b><small>${ok ? "已通过历练" : "未历练"}${q ? " · 出窍中" : ""}</small><div class="btns">${btns}</div></div></div>${jie}</div><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
