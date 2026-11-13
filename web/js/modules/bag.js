@@ -771,7 +771,7 @@ G.module({
       } else if (it.t === "gfb") {
         const g = DATA.skillInfo(it.id, 1), has = this.hasGongfa(it.id), need = this.ssCost(it.id), left = Math.max(0, this.lsLeft());
         const yl = g && (g.src === "yl" || g.src === "ys");   // 游历功法、隐世宗门功法（隐世的功诀/心法/秘诀/炼体秘诀占灵识点，按 need 显示）
-        h += `<p>${yl ? `${g.src === "ys" ? "隐世宗门功法" : "游历功法"} · ${g.star}星` : "试炼塔秘诀"}${g && g.label ? ` · ${g.label}每层 +${this.gfValue(g, g.perLv)}` : ""}<br>${need > 0 ? `学习占用灵识点 ${need}（剩余 ${left}）` : "学习不占灵识点"}${has ? "<br><span class='q5'>已学会。</span>" : need > 0 && left < need ? "<br><span class='q5'>灵识点不足，可在「修炼 → 神识」增加或遗忘功法。</span>" : ""}</p>
+        h += `<p>${yl ? `${g.src === "ys" ? "隐世宗门功法" : "游历功法"} · ${g.star}星` : "试炼塔秘诀"}${g && g.label ? ` · ${g.label}每层 +${this.gfValue(g, g.perLv)}` : ""}${need > 0 ? `<br>学习占用灵识点 ${need}（剩余 ${left}）` : ""}${has ? "<br><span class='q5'>已学会。</span>" : need > 0 && left < need ? "<br><span class='q5'>灵识点不足，可在「修炼 → 神识」增加或遗忘功法。</span>" : ""}</p>
           <div class="btns">${this.bagLearnBtn(it, "gf", it.id, `G.learnGfBook(${i})`, has, g ? DATA.gfLearnMin(g.star) * 60000 : 0)}</div>`;
       } else if (it.t === "dfb") {
         const key = it.type + "|" + it.g, has = this.s.recipes.includes(key);
