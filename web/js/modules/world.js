@@ -1611,10 +1611,59 @@ G.module({
       for (let i = 0; i < 36; i++) at(R(0, PRE - 250), () => { const a = R(0, 6.283), d0 = R(80, 130) * S, x = X0 + Math.cos(a) * d0, y = Y - 18 * S + Math.sin(a) * d0 * .7, life = R(380, 520);
         P({ x, y, vx: (X0 - x) / (T(life) / 16.7), vy: (Y - 18 * S - y) / (T(life) / 16.7), life, sz: R(1.6, 3.2) * S, col: i % 3 ? G : C }); });
       at(PRE - 120, () => { flash(.35, G, 260); ring(X0, Y - 18 * S, 70, G, 1, 420, 4); spark(X0, Y - 18 * S, 30, WH, 6); });
-      // ⑥ 法宝本体连发三次
-      for (let i = 0; i < 3; i++) at(PRE + i * 160, () => this.btVfx(fxEl, w, 2, el, ft, SL, tg));
-      // ⑦ 终结：天光贯落 + 三重冲击环 + 放射金光 + 迸散 + 连震
-      const t = PRE + 320 + HMAX;
+      // ⑥ 各形状专属的中段（用户定 2026-11-13：每种本命法宝效果不一样）；返回命中时刻（相对 PRE）
+      const blade = (c, x, y, ang, len, col, a) => { c.save(); c.translate(x, y); c.rotate(ang); c.globalCompositeOperation = "lighter"; const g = c.createLinearGradient(-len, 0, len * .3, 0); g.addColorStop(0, rgba(col, 0)); g.addColorStop(1, rgba(col, a));
+        c.fillStyle = g; c.beginPath(); c.moveTo(len * .3, 0); c.lineTo(-len, -2.4 * S); c.lineTo(-len, 2.4 * S); c.closePath(); c.fill(); c.fillStyle = rgba(WH, a); c.fillRect(-len * .2, -.9 * S, len * .5, 1.8 * S); c.restore(); };
+      const fly = (ms, dur, x0, y0, x1, y1, f) => later0(ms, dur, (c, p) => f(c, x0 + (x1 - x0) * p, y0 + (y1 - y0) * p, p));
+      const bolt = (ms, x0, y0, x1, y1, col) => later0(ms, 260, (c, p) => this.btBolt(c, x0, y0, x1, y1, S * 1.2, col || C, p < .5 ? 1 : (1 - p) * 2, 2));
+      const MID = {
+        0: () => {   // 剑：万剑归一 —— 本体飞出后，目标四周显出两圈共 28 把金剑，分两波收拢刺入
+          at(PRE, () => this.btVfx(fxEl, w, 2, el, ft, SL, tg));
+          const sw = []; for (let i = 0; i < 28; i++) { const a = i / 28 * 6.283, r = (i % 2 ? 105 : 80) * S; sw.push([X1 + Math.cos(a) * r, Y + Math.sin(a) * r * .55, a]); }
+          later0(PRE + 300, 420, (c, p) => sw.forEach(([x, y, a]) => blade(c, x, y, a + Math.PI, 28 * S, G, p)));
+          sw.forEach(([x, y, a], i) => fly(PRE + 720 + (i % 2) * 140 + i * 6, 180, x, y, X1, Y, (c, xx, yy) => blade(c, xx, yy, a + Math.PI, 28 * S, i % 2 ? C : G, 1)));
+          for (let k = 0; k < 2; k++) at(PRE + 900 + k * 140, () => { spark(X1, Y, 24, WH, 7); ring(X1, Y, 50, G, .45, 360, 3); });
+          return 1060; },
+        1: () => {   // 刀：天刀三斩 —— 三道巨型弧形刀光交叉斩落，最后一道横贯全屏
+          at(PRE, () => this.btVfx(fxEl, w, 2, el, ft, SL, tg));
+          const arc = (ms, rot, r, wide) => later0(ms, 340, (c, p) => { c.save(); c.globalCompositeOperation = "lighter"; c.translate(X1, Y); c.rotate(rot); const a0 = -1.4, a1 = a0 + 2.8 * Math.min(1, p * 1.7);
+            for (let k = 0; k < 3; k++) { c.strokeStyle = rgba(k ? (k === 1 ? G : C) : WH, (1 - p) * (k ? .6 : 1)); c.lineWidth = (k ? (wide ? 22 : 16) - k * 5 : 5) * S; c.shadowColor = rgba(G, 1); c.shadowBlur = 18 * S; c.beginPath(); c.arc(0, 0, r * S, a0, a1); c.stroke(); } c.restore(); });
+          arc(PRE + 500, -.6, 85); arc(PRE + 680, .6, 85); arc(PRE + 880, Math.PI / 2, 150, true);
+          [500, 680, 880].forEach((ms, i) => at(PRE + ms + 120, () => { spark(X1, Y, i === 2 ? 50 : 26, i === 2 ? WH : G, i === 2 ? 10 : 7); flash(i === 2 ? .3 : .15, G, 200); }));
+          return 1000; },
+        2: () => {   // 锤：天崩 —— 巨锤落地后大地龟裂，裂缝里喷出金光，碎石翻飞，连砸三下
+          for (let i = 0; i < 3; i++) at(PRE + i * 260, () => this.btVfx(fxEl, w, 2, el, ft, SL, tg));
+          const cracks = []; for (let i = 0; i < 9; i++) { const a = R(-.2, 3.34), pts = [[X1, Y + 26 * S]]; let x = X1, y = Y + 26 * S; for (let k = 0; k < 5; k++) { x += Math.cos(a + R(-.4, .4)) * 16 * S; y += Math.abs(Math.sin(a)) * 3 * S; pts.push([x, y]); } cracks.push(pts); }
+          later0(PRE + 640, 1100, (c, p) => { const a = p < .2 ? p / .2 : 1 - (p - .2) / .8, n = Math.min(1, p * 3); c.globalCompositeOperation = "lighter"; c.lineCap = "round";
+            cracks.forEach(pts => { const m = Math.max(1, Math.round(pts.length * n)); for (let k = 0; k < 2; k++) { c.strokeStyle = rgba(k ? G : WH, a * (k ? .7 : 1)); c.lineWidth = (k ? 5 : 1.6) * S; c.beginPath(); pts.slice(0, m).forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.stroke(); } }); });
+          at(PRE + 700, () => { for (let i = 0; i < 30; i++) P({ x: X1 + R(-40, 40) * S, y: Y + 20 * S, vx: R(-3, 3) * S, vy: R(-6, -2) * S, g: .25 * S, life: R(600, 1000), sz: R(2, 5) * S, col: [120, 95, 70], kind: "rock", rot: R(0, 6), vr: R(-.3, .3), a: 1 }); });
+          shake(PRE + 640); shake(PRE + 900); return 1160; },
+        3: () => {   // 环：九天锁 —— 三道金环层层套住目标、旋转收紧，环间电光游走
+          at(PRE, () => this.btVfx(fxEl, w, 2, el, ft, SL, tg));
+          later0(PRE + 520, 760, (c, p) => { c.save(); c.globalCompositeOperation = "lighter"; c.translate(X1, Y);
+            for (let k = 0; k < 3; k++) { const r = (90 - k * 18) * S * (1 - .55 * Math.min(1, p * 1.3)), tilt = [.35, .6, .9][k]; c.save(); c.rotate(p * (k % 2 ? -6 : 6)); c.scale(1, tilt);
+              c.strokeStyle = rgba(k === 1 ? C : G, .95); c.lineWidth = 4 * S; c.shadowColor = rgba(G, 1); c.shadowBlur = 16 * S; c.beginPath(); c.arc(0, 0, r, 0, 6.283); c.stroke();
+              for (let i = 0; i < 6; i++) { const q = i * 1.047; c.fillStyle = rgba(WH, 1); c.fillRect(Math.cos(q) * r - 2 * S, Math.sin(q) * r - 2 * S, 4 * S, 4 * S); } c.restore(); } c.restore(); });
+          for (let i = 0; i < 8; i++) { const a = R(0, 6.283), b2 = a + R(1, 2.5); bolt(PRE + 560 + i * 80, X1 + Math.cos(a) * 50 * S, Y + Math.sin(a) * 30 * S, X1 + Math.cos(b2) * 40 * S, Y + Math.sin(b2) * 26 * S, i % 2 ? C : WH); }
+          return 1240; },
+        5: () => {   // 鼎：炼天鼎 —— 巨鼎镇下，目标脚下升起旋转火焰漩涡，火柱冲天
+          at(PRE, () => this.btVfx(fxEl, w, 2, el, ft, SL, tg));
+          later0(PRE + 600, 900, (c, p) => { const a = Math.sin(Math.min(1, p) * Math.PI); c.save(); c.globalCompositeOperation = "lighter";
+            for (let i = 0; i < 26; i++) { const q = i / 26 * 6.283 + p * 9, h = (i / 26) * 110 * S * Math.min(1, p * 2), r = (50 - i * 1.3) * S; E.glow(c, X1 + Math.cos(q) * r, Y + 20 * S - h, 14 * S, i % 3 ? [255, 140, 40] : G, a * .8); } c.restore();
+            E.glow(c, X1, Y, 70 * S, [255, 120, 30], a * .5); });
+          for (let i = 0; i < 40; i++) at(PRE + 620 + R(0, 700), () => P({ x: X1 + R(-30, 30) * S, y: Y + 20 * S, vx: R(-.4, .4) * S, vy: -R(1.5, 3.5) * S, life: R(500, 800), sz: R(4, 9) * S, grow: .3, col: [[255, 250, 220], [255, 190, 70], [255, 110, 30]][i % 3] }));
+          shake(PRE + 640); return 1300; },
+        6: () => {   // 印：镇天印 —— 天上压下一方巨大的金色方印（印纹旋转），盖下后方形冲击波层层扩开
+          at(PRE, () => this.btVfx(fxEl, w, 2, el, ft, SL, tg));
+          later0(PRE + 300, 600, (c, p) => { const q = p * p, y = -40 * S + (Y - 10 * S + 40 * S) * q, sz = 70 * S * (1.6 - .6 * q); c.save(); c.globalCompositeOperation = "lighter"; c.translate(X1, y); c.rotate(.2 * (1 - q));
+            c.shadowColor = rgba(G, 1); c.shadowBlur = 22 * S; c.strokeStyle = rgba(G, 1); c.lineWidth = 4 * S; c.strokeRect(-sz / 2, -sz / 2, sz, sz); c.strokeStyle = rgba(C, .9); c.lineWidth = 2 * S; c.strokeRect(-sz * .38, -sz * .38, sz * .76, sz * .76);
+            c.fillStyle = rgba(G, .18); c.fillRect(-sz / 2, -sz / 2, sz, sz); c.font = `bold ${Math.round(sz * .42)}px "STKaiti","KaiTi",serif`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = rgba(WH, .95); c.fillText("镇", 0, 0); c.restore(); });
+          for (let k = 0; k < 3; k++) later0(PRE + 900 + k * 120, 600, (c, p) => { const r = (40 + p * 120) * S; c.save(); c.globalCompositeOperation = "lighter"; c.translate(X1, Y + 22 * S); c.scale(1, .32); c.rotate(.785);
+            c.strokeStyle = rgba(k === 1 ? C : G, (1 - p) * .9); c.lineWidth = (6 * (1 - p) + 1) * S; c.strokeRect(-r, -r, r * 2, r * 2); c.restore(); });
+          shake(PRE + 900); return 940; },
+      };
+      const mid = (MID[ft] || MID[0])();
+      const t = PRE + mid;
       later0(t - 180, 520, (c, p) => { const a = p < .35 ? p / .35 : (1 - p) / .65, pw = 34 * S * (1 + p), g = c.createLinearGradient(X1 - pw, 0, X1 + pw, 0);
         g.addColorStop(0, rgba(G, 0)); g.addColorStop(.5, rgba(WH, a * .9)); g.addColorStop(1, rgba(G, 0)); c.globalCompositeOperation = "lighter"; c.fillStyle = g; c.fillRect(X1 - pw, 0, pw * 2, Y + 30 * S); });
       at(t, () => { flash(.75, WH, 220); setTimeout(() => flash(.45, C, 420), T(120));
