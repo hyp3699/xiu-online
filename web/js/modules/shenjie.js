@@ -168,7 +168,7 @@ G.module({
     // 重天倍率：第一重天 1 倍 → 最后一重天 ZY_LAST 倍
     sjZyK(z) { const n = Math.max(1, (DATA.worldMapIdx.shen || []).length - 1); return 1 + Math.min(1, this.sjWi(z.a) / n) * ((this.sjC().ZY_LAST || 3) - 1); },
     // 每级 %：按重天倍率分（第一重天 1 份、最后一重天 ZY_LAST 份），10 重天同一种全满合计 ZY_PCT_MAX%
-    sjZyStep(z) { const C = this.sjC(), M = DATA.worldMapIdx.shen || [], sum = M.reduce((t, a) => t + this.sjZyK({ a }), 0) || 1; return (C.ZY_PCT_MAX || 39) * this.sjZyK(z) / (sum * (C.ZY_MAX || 36)); },
+    sjZyStep(z) { const C = this.sjC(), M = DATA.worldMapIdx.shen || [], sum = M.reduce((t, a) => t + this.sjZyK({ a }), 0) || 1; return (C.ZY_PCT_MAX || 27) * this.sjZyK(z) / (sum * (C.ZY_MAX || 36)); },
     sjZyVal(z, lv) { return Math.round(this.sjZyStep(z) * (lv == null ? z.lv : lv) * 1000) / 1000; },   // 这条真意加的 %
     // 每条真意（第几重天 × 哪种）固定用 2 种神像物品：全部 10 重天 × 10 种依次取 8 选 2 的组合，挑用得最少的，打乱顺序（固定种子），每种物品用的次数一样多
     sjZyItems(z) {
