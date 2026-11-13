@@ -248,8 +248,8 @@ G.module({
         const yb = x.t === "yb", g = yb ? null : DATA.gongfaInfo(x.id, 1);
         const img = yb ? DATA.ybIcon(x.k) : DATA.iconImg("mifa"), nm = yb ? DATA.ybName(x.k, x.g) : `《${g.name}》`;
         const eff = yb ? `游历宝物，服用后永久 ${DATA.ybLabel(x.k)} +${U.num(DATA.ybVal(x.k, x.g))}（每阶最多服用 ${DATA.YB_MAX} 个，已服 ${this.ybUsed(x.k, x.g)} 个）`
-          : `游历功法 · ${g.star}星${g.label ? ` · ${g.label}每层 +${this.gfValue(g, g.perLv)}` : ""}，学习不占灵识点`;
-        return this.modal(`<img class="item-img" src="${img}" alt=""><h2 class="${yb ? "q" + DATA.ybQ(x.g) : "q3"}">${nm}</h2><p>${eff}<br><small style="opacity:.7">首次得自 ${x.w}，本图共得 ${x.n} 个</small></p><div class="btns"><button onclick="G.openGridRec(${a})">返回</button><button onclick="G.closeModal()">关闭</button></div>`);
+          : `游历功法 · ${g.star}星${g.label ? ` · ${g.label}每层 +${this.gfValue(g, g.perLv)}` : ""}`;
+        return this.modal(`<img class="item-img" src="${img}" alt=""><h2 class="${yb ? "q" + DATA.ybQ(x.g) : "q3"}">${nm}</h2><p>${eff}</p><div class="btns"><button onclick="G.openGridRec(${a})">返回</button><button onclick="G.closeModal()">关闭</button></div>`);
       }
       const cells = L.map((x, n) => { const yb = x.t === "yb";
         return `<div class="cell ${yb ? "q" + DATA.ybQ(x.g) : "q3"}" onclick="G.openGridRec(${a},${n})"><img class="mi" src="${yb ? DATA.ybIcon(x.k) : DATA.iconImg("mifa")}" alt="">${yb ? DATA.YB[x.k].name : DATA.gongfaInfo(x.id, 1).name}<span class="nt">${U.fmt(x.n || 1)}</span></div>`; });
