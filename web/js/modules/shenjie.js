@@ -393,6 +393,7 @@ G.module({
         for (let b = 0; b < nM * per; b++) { const pick = []; for (let k = 0; k < 3; k++) { const ok = MN.map((_, i) => i).filter(i => !pick.includes(i)), m = Math.min(...ok.map(i => cnt[i])), c = ok.filter(i => cnt[i] === m), x = c[Math.floor(rnd() * c.length)]; pick.push(x); cnt[x]++; } out.push(pick); }
         this._swMain = { key: MN.join() + "|" + nM + "|" + per, out };
       }
+      if (!this._swMain.cnt) { const cnt = {}; this._swMain.out.forEach(p => p.forEach(x => cnt[MN[x]] = (cnt[MN[x]] || 0) + 1)); this._swMain.cnt = cnt; }
       const bi = this.sjWi(a) * per + j, pk = this._swMain.out[bi] || [0, 1, 2]; let mi = 0, si = bi * 5;
       return this.sjSwGraph().map(nd => nd.main ? MN[pk[mi++ % 3] % MN.length] : S[si++ % S.length]);
     },
@@ -403,16 +404,16 @@ G.module({
       return { yl: Math.round((mn ? C.SG_W_MAIN_YL || 12000 : C.SG_W_SUB_YL || 3000) * m), items: this.sjSgItems(a, j).map(k => ({ k, n: Math.round((mn ? C.SG_W_MAIN_ITEM || 90 : C.SG_W_SUB_ITEM || 30) * m) })) };
     },
     sjSwMax(i) { const C = this.sjC(); return (this.sjSwGraph()[i] || {}).main ? (C.SG_W_MAIN_LV || 12) : (C.SG_W_SUB_LV || 6); },
-    sjSwVal(a, j, i) {   // 神纹每级加多少（辅：数值，主：%）
+    sjSwVal(a, j, i, second) {   // 神纹每级加多少（辅：数值，主：%；second = 法术伤害那一项）
       const C = this.sjC(), n = this.sjSwNames(a, j)[i];
-      if ((this.sjSwGraph()[i] || {}).main) return +C.SG_W_MAIN_PCT || 0;
+      if ((this.sjSwGraph()[i] || {}).main) { const T = (C.SG_W_MAIN_TOTAL || {})[n], t = Array.isArray(T) ? +T[second ? 1 : 0] || 0 : second ? 0 : +T || 0, c = (this._swMain.cnt || {})[n] || 1; return t / (c * this.sjSwMax(i)); }
       return Math.round((+(C.SG_W_SUB_VAL || {})[n] || 0) * this.sjSwMul(a));
     },
     sjSwEff(a, j, i, L) {   // 神纹第 L 级的效果文字
       const n = this.sjSwNames(a, j)[i], v = this.sjSwVal(a, j, i) * L, mn = (this.sjSwGraph()[i] || {}).main;
       if (!mn) return n === "减少灵气消耗" ? `修炼灵气消耗 −${U.fmt(v)} / 10秒` : `${n} +${U.fmt(v)}`;
       if (n.startsWith("受到的")) return `${n} −${U.dec(v)}%`;
-      if (n.startsWith("法术修炼")) return `法术修炼时间 −${U.dec(v)}%、法术伤害 +${U.dec(v)}%`;
+      if (n.startsWith("法术修炼")) return `法术修炼时间 −${U.dec(v)}%、法术伤害 +${U.dec(this.sjSwVal(a, j, i, 1) * L)}%`;
       if (n === "功法修炼时间") return `功法修炼时间 −${U.dec(v)}%`;
       return `${n} +${U.dec(v)}%`;
     },
@@ -430,7 +431,7 @@ G.module({
           if (!g[i].main) { const key = F[n] || (E[n[0]] ? "res_" + E[n[0]] : ""); if (key) b[key] = (b[key] || 0) + v; continue; }
           if (n.startsWith("功法提供的")) { const t = n.slice(5); if (F[t]) b.gf[F[t]] = (b.gf[F[t]] || 0) + v; else if (E[t[0]]) b.gfRes[E[t[0]]] = (b.gfRes[E[t[0]]] || 0) + v; }
           else if (n === "功法修炼时间") b.gfStudy += v;
-          else if (n.startsWith("法术修炼")) { b.spStudy += v; b.spDmg += v; }
+          else if (n.startsWith("法术修炼")) { b.spStudy += v; b.spDmg += this.sjSwVal(a, j, i, 1) * Math.min(L, this.sjSwMax(i)); }
           else if (n.startsWith("受到的") && E[n[3]]) b.elCut[E[n[3]]] = (b.elCut[E[n[3]]] || 0) + v; } }
       return b;
     },
