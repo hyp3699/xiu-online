@@ -949,12 +949,13 @@ G.module({
       const btn = g => this.gfLearnBtn(g, `G.learnGongfa('${g.id}')`, s.contrib < g.cost);
       const sects = DATA.sects.filter(o => o.star <= x.star && (el === "all" || o.el === el)).sort((p, q) => q.star - p.star);
       const cards = sects.map(o => ({ o, gs: DATA.gfTypesOf("sect", o.star).map(t => [DATA.gongfaInfo(DATA.gongfaId(o.id, t.id)), t]).concat([[DATA.spellInfo(DATA.spellId(o.id, o.el)), null]]) }));
+      this.gfSideFix(cards.flatMap(c => c.gs.map(x => x[0])));
       const row = (g, t) => [this.hasGongfa(g.id), t ? `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${t.name}</span><small>每层${g.label} +${this.gfValue(g, g.perLv)}${g.label2 ? ` · ${g.label2} +${this.gfValue(g, g.perLv2)}` : ""} · ${U.fmt(g.cost)} 贡献 · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>${btn(g)}</div>`
         : `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">法术</span><small>${this.spellDmgTxt(g)} · 耗法力 ${U.fmt(g.mana)} · ${U.fmt(g.cost)} 贡献 · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>${btn(g)}</div>`];
       h += this.lqCard("gf") + `<div class="room-grid six">${DATA.elements.map(e => [e.id, e.name]).map(([k, n]) =>
           `<button class="${el === k ? "active" : ""}" onclick="G.setLibEl('${k}')">${n}</button>`).join("")}</div>` +
         this.gfSideWrap(cards.flatMap(c => c.gs.map(x => x[0])), U.doneCards(cards.map(({ o, gs }) => ({ head: `<h3>${o.name}<span class="tag">${o.star}星</span><span class="tag">${DATA.elById[o.el].name}</span></h3>`,
-          rows: gs.filter(([g]) => this.gfSideOk(g)).map(([g, t]) => row(g, t)) }))));
+          rows: gs.filter(([g]) => this.gfSideOk(g)).map(([g, t]) => row(g, t)) }))) || `<div class="card"><p class="desc">${this.gfSide === "done" ? "还没有学会的功法" : "这一类都学会了"}。</p></div>`);
     } else if (tab === "affair") {
       const at = this.affairTab || "normal", fresh = s.affairDay === this.bjDay() && s.affairSect === s.sect;
       h += `<div class="room-grid three">${[["normal", "普通任务"], ["item", "物品任务"], ["fight", "特殊任务"]].map(([k, n]) => `<button class="${at === k ? "active" : ""}" onclick="G.setAffairTab('${k}')">${n}</button>`).join("")}</div>`;
