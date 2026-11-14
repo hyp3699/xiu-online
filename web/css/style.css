@@ -1391,3 +1391,10 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .swp .btns button:disabled{opacity:.5}
 .swp .btns{display:flex;gap:8px;margin-top:12px}
 .swp .btns button{flex:1}
+
+/* 功法殿 / 坊市 / 功德司 左侧功法类型（字竖排，用户定 2026-11-14） */
+.gf-side-wrap{display:flex;gap:6px;align-items:flex-start}
+.gf-side{position:sticky;top:0;flex:0 0 38px;display:flex;flex-direction:column;gap:5px;z-index:2}
+.gf-side button{padding:7px 0;width:38px;min-width:0;line-height:1.15;font-size:14px}
+.gf-side-main{flex:1 1 auto;min-width:0}
+.gf-side button.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}

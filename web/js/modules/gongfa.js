@@ -70,6 +70,18 @@ G.module({
       const g = DATA.skillInfo(id); if (!g) return;
       this.lqAdd("gf", { id, k: "gf", ms: DATA.gfLearnMin(g.star) * 60000 });
     },
+    // 功法殿 / 坊市 / 功德司左边一列「功法类型」按钮（字竖排，用户定 2026-11-14）：this.gfSide = all / 类别 id（base）/ spell
+    gfSideKey(g) { return g.kind === "sp" ? "spell" : g.type ? (g.type.base || g.type.id) : ""; },
+    gfSideOk(g) { const k = this.gfSide || "all"; return k === "all" || this.gfSideKey(g) === k; },
+    // gs = 这一页全部功法（决定显示哪些按钮），html = 右边内容
+    gfSideWrap(gs, html) {
+      const have = new Set(gs.map(g => this.gfSideKey(g)));
+      const keys = [["all", "全部"], ...DATA.gongfaTypes.filter(t => !t.base && have.has(t.id)).map(t => [t.id, t.name]), ...(have.has("spell") ? [["spell", "法术"]] : [])];
+      if (!keys.some(([k]) => k === (this.gfSide || "all"))) this.gfSide = "all";
+      const cur = this.gfSide || "all", v = n => [...n].join("<br>");
+      return `<div class="gf-side-wrap"><div class="gf-side">${keys.map(([k, n]) => `<button class="${cur === k ? "active" : ""}" onclick="G.setGfSide('${k}')">${v(n)}</button>`).join("")}</div><div class="gf-side-main">${html}</div></div>`;
+    },
+    setGfSide(k) { this.gfSide = k; this.render(); },
     // 功法殿 / 坊市 / 功德司的学习按钮
     gfLearnBtn(g, on, poor) {
       if (this.hasGongfa(g.id)) return `<button class="sm" disabled>已学会</button>`;

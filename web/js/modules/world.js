@@ -2670,7 +2670,8 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
     jieGfView(kind, a) {
       const s = this.s, o = DATA.jieGfOf(kind, a); if (!o) return "";
       const lock = !this.realmOK(o.reqRealm), gd = kind === "gd", ck = this.jieCur(a), cn = this.jieCurName(a), cur = s[ck] || 0;
-      const gfl = DATA.gfTypesOf(o.src, o.star).map(ty => { const g = DATA.gongfaInfo(DATA.gongfaId(o.id, ty.id)), has = this.hasGongfa(g.id);
+      const gAll = DATA.gfTypesOf(o.src, o.star).map(ty => [DATA.gongfaInfo(DATA.gongfaId(o.id, ty.id)), ty]);
+      const gfl = gAll.filter(([g]) => this.gfSideOk(g)).map(([g, ty]) => { const has = this.hasGongfa(g.id);
         const poor = gd ? cur < g.cost : s.stone < g.cost || this.xjGxOf(a) < g.gx;
         return [has, `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.el.name}</span><span class="tag">${ty.name}</span><small>每层${g.label} +${U.num(g.perLv)}${g.label2 ? ` · ${g.label2} +${U.num(g.perLv2)}` : ""} · ${gd ? `${U.fmt(g.cost)} ${cn}` : `${U.fmt(g.cost)} 灵石 · ${U.fmt(g.gx)} 贡献`} · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>
           ${lock && !has ? `<button class="sm" disabled>境界不足</button>` : this.gfLearnBtn(g, `G.learnJieGf('${g.id}')`, poor)}</div>`]; });
@@ -2684,7 +2685,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
           ${has ? `<button class="sm" disabled>已学会</button>` : s.bag.some(x => x && x.t === "dfb" && x.type === d.type && x.g === d.g) ? `<button class="sm" disabled>已在背包</button>` : lock ? `<button class="sm" disabled>境界不足</button>` : `<button class="sm" onclick="G.learnGdRecipe(${a},'${d.type}')" ${cur < d.cost ? "disabled" : ""}>兑换</button>`}</div>`]; }) : [];
       const fruit = gd && (DATA.maps[a] || {}).w !== "shen" ? (c => `<div class="card"><h3>${DATA.smName("wdg")}</h3><div class="line"><div>${DATA.li(DATA.smIcon("wdg"))}${DATA.smName("wdg")}<small>洞府悟道室悟道用 · ${c} 功德/个 · 已有 ${U.fmt(this.smCount("wdg"))}</small></div>
         <button class="sm" onclick="G.openWdFruit(${a})" ${(s.merit || 0) < c ? "disabled" : ""}>购买</button></div></div>`)(this.wdFruitCost(a)) : "";
-      return this.lqCard("gf") + fruit + (gd ? this.bmMifaCard(a) : "") + `<div class="card"><h3>${o.name}<small>${gd ? `${cn} ${U.fmt(cur)}` : `灵石 ${U.fmt(s.stone)} · 本图贡献 ${U.fmt(this.xjGxOf(a))}`}</small></h3>${rows}</div>${recs.length ? this.lqCard("dan") + (todo(recs) ? `<div class="card"><h3>丹方</h3>${todo(recs)}</div>` : "") : ""}${dans ? `<div class="card"><h3>上古丹</h3>${dans}</div>` : ""}${gd ? "" : `<div class="card">${this.xdRows("js", a, "dan")}</div><div class="card">${this.xdRows("js", a, "qi")}</div><div class="card">${this.xdRows("js", a, "jl")}</div>`}` + U.doneCard([...gfl, ...recs, ...(gd ? [this.bmMifaRow(a)] : [])]);   // 已学会的功法、丹方、图纸合并成一张，放最后
+      return this.lqCard("gf") + fruit + (gd ? this.bmMifaCard(a) : "") + this.gfSideWrap(gAll.map(x => x[0]), `<div class="card"><h3>${o.name}<small>${gd ? `${cn} ${U.fmt(cur)}` : `灵石 ${U.fmt(s.stone)} · 本图贡献 ${U.fmt(this.xjGxOf(a))}`}</small></h3>${rows || `<p class="desc">这一类都学会了。</p>`}</div>` + U.doneCard(gfl)) + `${recs.length ? this.lqCard("dan") + (todo(recs) ? `<div class="card"><h3>丹方</h3>${todo(recs)}</div>` : "") : ""}${dans ? `<div class="card"><h3>上古丹</h3>${dans}</div>` : ""}${gd ? "" : `<div class="card">${this.xdRows("js", a, "dan")}</div><div class="card">${this.xdRows("js", a, "qi")}</div><div class="card">${this.xdRows("js", a, "jl")}</div>`}` + U.doneCard([...recs, ...(gd ? [this.bmMifaRow(a)] : [])]);   // 已学会的丹方、图纸放最后；已学会的功法在左侧类型栏右边（用户定 2026-11-14）
     },
     // 管理员：网页里更新游戏（服务器拉取 GitHub 最新代码，完成后刷新页面）
     async webUpdate() {
@@ -2725,9 +2726,8 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
           return [has, `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.kind === "sp" ? "法术" : g.type.name}</span><small>${desc} · ${U.fmt(g.cost)} 灵石 · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>
             ${lock && !has ? `<button class="sm" disabled>境界不足</button>` : this.gfLearnBtn(g, `G.buyGongfa('${g.id}')`, s.stone < g.cost)}</div>`]; };
         return tabs + this.lqCard("gf") + `<div class="room-grid">${Array.from({ length: N }, (_, i) => `<button class="${star === i + 1 ? "active" : ""}" onclick="G.setShopStar(${i + 1})">${i + 1}星</button>`).join("")}</div>` +
-          U.doneCards(srcs.map(o => ({ head: `<h3>${o.name}<span class="tag">${DATA.elById[o.el].name}</span></h3>`,
-            rows: DATA.gfTypesOf("shop", o.star).filter(ty => !ty.sectOnly).map(ty => line(DATA.gongfaInfo(DATA.gongfaId(o.id, ty.id))))
-              .concat([line(DATA.spellInfo(DATA.spellId(o.id, o.el)))]) })));
+          (cards => this.gfSideWrap(cards.flatMap(c => c.gs), U.doneCards(cards.map(({ o, gs }) => ({ head: `<h3>${o.name}<span class="tag">${DATA.elById[o.el].name}</span></h3>`, rows: gs.filter(g => this.gfSideOk(g)).map(line) })))))(
+            srcs.map(o => ({ o, gs: DATA.gfTypesOf("shop", o.star).filter(ty => !ty.sectOnly).map(ty => DATA.gongfaInfo(DATA.gongfaId(o.id, ty.id))).concat([DATA.spellInfo(DATA.spellId(o.id, o.el))]) })));
       }
       const names = t === "herb" ? DATA.herbs : DATA.ores, fan = DATA.fanMats();
       return tabs + `<div class="card"><h3>${DATA.matKinds[t]}<small>凡界地图产出 · 灵石 ${U.fmt(s.stone)}</small></h3>
