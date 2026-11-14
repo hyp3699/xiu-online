@@ -709,18 +709,18 @@ G.module({
         const left = this.danLeft(it.type, it.g), d = DATA.dans[it.type];
         h += `<p>服用后永久 ${d.label} +${U.num(DATA.danVal(it.type, it.g))}。<br>此阶已服 ${DATA.danLimit(it.type, it.g) - left} / ${DATA.danLimit(it.type, it.g)} 枚。</p>
           <div class="btns"><button class="primary" onclick="G.eatDan(${i},1)" ${left > 0 ? "" : "disabled"}>服用</button>
-          <button onclick="G.eatDan(${i},${it.n})" ${left > 0 && it.n > 1 ? "" : "disabled"}>全部服用</button>${sell}</div>`;
+          <button onclick="G.eatDan(${i},${it.n})" ${left > 0 && it.n >= 1 ? "" : "disabled"}>全部服用</button>${sell}</div>`;
         }
       } else if (it.t === "ql") {
         const o = DATA.sectById[it.sect], lim = DATA.qlLimit(it.sect), used = (this.s.qlEaten || {})[it.sect] || 0, left = Math.max(0, lim - used);
         h += `<p>${o ? o.name : ""}宗主专属丹药，服用后永久 ${DATA.qlTxt(it.sect)}。<br>已服 ${used} / ${lim} 颗。</p>
           <div class="btns"><button class="primary" onclick="G.eatQl(${i},1)" ${left > 0 ? "" : "disabled"}>服用</button>
-          <button onclick="G.eatQl(${i},${it.n})" ${left > 0 && it.n > 1 ? "" : "disabled"}>全部服用</button>${sell}</div>`;
+          <button onclick="G.eatQl(${i},${it.n})" ${left > 0 && it.n >= 1 ? "" : "disabled"}>全部服用</button>${sell}</div>`;
       } else if (it.t === "ysd") {
         const D = this.ysDanCfg(), used = this.ysDanEatN(it.ys, it.k), left = Math.max(0, D.MAX - used);
         h += `<p>隐世宗门丹药，服用后永久 ${this.ysDanLab(it.k)} +${U.fmt(D.VAL)}。<br>本宗此丹已服 ${used} / ${D.MAX} 颗。</p>
           <div class="btns"><button class="primary" onclick="G.eatYsDan(${i},1)" ${left > 0 ? "" : "disabled"}>服用</button>
-          <button onclick="G.eatYsDan(${i},${it.n})" ${left > 0 && it.n > 1 ? "" : "disabled"}>全部服用</button></div>`;
+          <button onclick="G.eatYsDan(${i},${it.n})" ${left > 0 && it.n >= 1 ? "" : "disabled"}>全部服用</button></div>`;
       } else if (it.t === "xd") {
         const x = this.xdItem(it), ch = this.xdCh(x.k), key = this.xdKey(x), sp = (CFG.xinde || {}).SPD ?? 1;
         h += `<p>${x.src === "js" ? "四界坊市" : "隐世宗门"}心得，学习 ${(CFG.xinde || {}).MIN ?? 30} 分钟，${x.k === "jl" ? `学完每 10 秒聚灵永久 +${U.fmt(this.xdJl().GATHER)}` : `学完获得 ${U.fmt(this.xdExp(x.k, x.src, x.id, x.v))} 点${CFG.craftsman[x.k].name}经验，${this.xdLab(x.k)}速度永久 +${sp}%`}。</p>
@@ -736,7 +736,7 @@ G.module({
         const left = this.ybLeft(it.k, it.g);
         h += `<p>游历宝物，服用后永久 ${DATA.ybLabel(it.k)} +${U.num(DATA.ybVal(it.k, it.g))}。<br>此阶已服 ${this.ybUsed(it.k, it.g)} / ${DATA.YB_MAX} 个。</p>
           <div class="btns"><button class="primary" onclick="G.eatYb(${i},1)" ${left > 0 ? "" : "disabled"}>服用</button>
-          <button onclick="G.eatYb(${i},${it.n})" ${left > 0 && it.n > 1 ? "" : "disabled"}>全部服用</button></div>`;
+          <button onclick="G.eatYb(${i},${it.n})" ${left > 0 && it.n >= 1 ? "" : "disabled"}>全部服用</button></div>`;
       } else if (it.t === "fu") {
         const own = this.s.furnaces[it.kind].includes(it.g);
         h += `<p>${this.furnaceDesc(it.kind, it.g)}。<br>使用后装进洞府${DATA.isDanFu(it.kind) ? "炼丹房" : "炼器室"}，可随时更换。${own ? "<br><span class='q5'>洞府里已有同阶炉子。</span>" : ""}</p>
@@ -759,7 +759,7 @@ G.module({
       } else if (it.t === "lg") {
         const d = DATA.lgDef(it.k) || { k: "", v: 0 }, eat = this.lgEatN(it.k);
         h += `<p>服用后永久 ${DATA.lgLab(d.k)} +${U.fmt(d.v)}，没有上限。已服用 ${U.fmt(eat)} 颗，累计 +${U.fmt(d.v * eat)}。</p>
-          <div class="btns"><button class="primary" onclick="G.eatLg(${i},1)">服用</button><button onclick="G.eatLg(${i},${it.n})" ${it.n > 1 ? "" : "disabled"}>全部服用</button>${sell}</div>`;
+          <div class="btns"><button class="primary" onclick="G.eatLg(${i},1)">服用</button><button onclick="G.eatLg(${i},${it.n})" ${it.n >= 1 ? "" : "disabled"}>全部服用</button>${sell}</div>`;
       } else if (it.t === "seed") {
         h += `<p>${DATA.cropName(it.g)}的种子。洞府灵药园每种一季（含自动续种）消耗 ${this.plantSeedN ? this.plantSeedN() : 1} 颗。</p><div class="btns">${sell}</div>`;
       } else if (it.t === "sm") {
