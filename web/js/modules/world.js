@@ -951,7 +951,8 @@ G.module({
       const acts = [...spells.map((sp, i) => ({ k: 1, sp, key: "sp:" + sp.id })), ...fabaos.map((fb, i) => ({ k: 2, fb, key: "fb:" + fbSlots[i] })), ...stns.map(sp => ({ k: 1, sp, key: sp.id }))];
       const spNames = [...spells.map(sp => sp.name), ...fabaos.map(fb => fb.name), ...stns.map(sp => sp.name)];
       // 法宝伤害：攻击 × 伤害%，按「防御×RES_RATE + 该系抗性 − 无视抗性」减免；再加附加伤害 = 主伤害 × %
-      const lgBB = this.lgBonus ? this.lgBonus() : { dmg: {}, dr: {} }, lgB = lgBB.dmg || {}, lgDr = lgBB.dr || {}, lgD = el => lgB[el && el.id || el] || 0, lgR = (el, D) => (lgDr[el && el.id || el] || 0) + (this.zfDmg ? this.zfDmg(el, D, TEST) : 0);   // 灵果：lgD 该系属性伤害直接加；lgR 受到该系属性伤害直接减   // 灵果：该系属性伤害直接加   // 阵法室按次收费：D = 本次伤害（已算完其他倍率），实力测试（TEST）不扣灵气
+      const lgBB = this.lgBonus ? this.lgBonus() : { dmg: {}, dr: {} }, lgB = lgBB.dmg || {}, lgDr = lgBB.dr || {}, lgD = el => lgB[el && el.id || el] || 0, lgR = (el, D) => { zfEl = el; return lgDr[el && el.id || el] || 0; };   // 主动阵法不在这里减：记下属性，等保底伤害、境界伤害都加完后在 him() 里减，最低 1 点（用户定 2026-11-14）
+      let zfEl = null;   // 灵果：lgD 该系属性伤害直接加；lgR 受到该系属性伤害直接减   // 灵果：该系属性伤害直接加   // 阵法室按次收费：D = 本次伤害（已算完其他倍率），实力测试（TEST）不扣灵气
       const fabaoDmg = (fb, D = m) => {
         let d = Math.max(MIN(st), EL(fb.atk * atkK() * fb.pct / 100, D, fb.el, myL, fb.ign));   // 神通加的攻击也生效
         let ex = 0; for (const x of fb.extra) ex += d * x.pct / 100;   // 附加伤害：主伤害 × %
@@ -1178,6 +1179,7 @@ G.module({
         const pj = ch(pMob.pj), def0 = st.def; if (shield) st.def = shield.def;   // 有护盾：按盾防御算（代替人物本身防御）
         if (pj) st.def = st.def * (1 - pMob.pjI / 100);
         altD = shield ? Object.assign({}, st, { def: def0 * (pj ? 1 - pMob.pjI / 100 : 1) }) : null;
+        zfEl = null;
         let d = mobSeal || lj ? hit(mE(), st) : mobSt(); st.def = def0; altD = null;   // 被镇魂 / 连击：只能普通攻击
         if (mG.eld && (act.k === 1 || act.k === 2) && d > 0) d += mG.eld;   // 怪物被动神通：属性伤害 +点
         if (lx) act.x = (act.x || 0) | 8;
@@ -1186,6 +1188,7 @@ G.module({
         if (pj && act.f !== 1 && !(act.x & 128)) act.x = (act.x || 0) | 32;   // 破军标记：金蝉挡下时不显示（和镇魂的 128 检查一致）
         // 境界伤害：两项相加——层数项（每比人物高 1 层 + REALM_DMG）+ 大境界项（每比人物高 1 个大境界 + REALM_BIG_DMG）；不吃加成，无视防御、抗性；之后和正常伤害一样过护盾；人物打怪物没有
         if (act.f !== 1 && !((act.x || 0) & 128) && mL > myL && (BT.REALM_DMG || BT.REALM_BIG_DMG)) { const rd = Math.floor(mL / DATA.LAYERS) - Math.floor(myL / DATA.LAYERS); d += (mL - myL) * (BT.REALM_DMG || 0) + (rd > 0 ? rd * (BT.REALM_BIG_DMG || 0) : 0); }
+        if (zfEl && this.zfDmg && act.f !== 1 && !((act.x || 0) & 128) && d > 0) { const r = this.zfDmg(zfEl, Math.max(0, d - 1), TEST); d = r > 0 ? Math.max(1, d - r) : d - r; }   // 主动阵法：无视保底伤害和境界伤害，最低减到 1 点（用户定 2026-11-14）
         if (act.f !== 1 && !(act.x & 128) && !meSeal && cnt.mob.zh < pMob.zhT && ch(pMob.zh)) { meSeal = pMob.zhR; sealR.me = rounds; cnt.mob.zh++; act.x = (act.x || 0) | 64; }
         if (shield && act.f !== 1 && d > 0) {   // 人物护盾：伤害按盾防御算（代替本身防御），再减「受到伤害减少%」，剩下先扣护盾值
           const dSo = d;   // 减伤%之前（盾碎后溢出部分不再吃盾的减伤%）
