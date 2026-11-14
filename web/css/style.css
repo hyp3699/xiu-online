@@ -1414,9 +1414,3 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .lq-card .line{padding:2px 0}
 .lq-card .line small{display:inline;margin-left:6px}
 .lq-card .line>div,.lq-card .pg>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-/* 炼丹 / 炼器 / 精炼 / 修炼队列也压缩：图标变小，排队的每个一行，时间跟在名字后面（用户定 2026-11-14） */
-.job-row,.lq-row{padding:3px 0}
-.job-row>div:first-child{padding-left:34px;min-height:30px}
-.job-row .job-ico{width:30px;height:30px}
-.job-row small,.lq-row small{display:inline;margin-left:6px}
-.job-row .pg{margin:2px 0}
