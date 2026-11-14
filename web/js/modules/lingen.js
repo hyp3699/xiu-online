@@ -25,7 +25,9 @@ G.module({
     // lv 级的总加成 %（只走功法加成表）
     lingenPct(lv) { return DATA.segSum(CFG.lingen, "GONGFA", lv); },
     // 加成倍率（1 = 无加成）；灵根只对修炼速度类功法生效：stat 为 cultivate（修为修炼速度）或 body（肉身修炼速度）时才吃灵根，其他功法、法术返回 1
-    lingenSpd(stat, el) { return stat === "cultivate" || stat === "body" ? this.lingenGongfa(el) : 1; },
+    lingenSpd(stat, el) { return stat === "cultivate" || stat === "body" ? this.lingenGongfa(el) : this.lingenOt(el); },   // 修炼速度类走 GONGFA；其他功法走 OTHER（用户定 2026-11-14）
+    lingenOtPct(lv) { return CFG.lingen.OTHER ? DATA.segSum(CFG.lingen, "OTHER", lv) : 0; },
+    lingenOt(el) { return 1 + this.lingenOtPct((this.s.lingen || {})[el] || 0) / 100; },
     lingenGongfa(el) { return 1 + this.lingenPct((this.s.lingen || {})[el] || 0) / 100; },
     // 升级 el 灵根，最多 times 级
     upgradeLingen(el, times) {
@@ -58,18 +60,18 @@ G.openLingenUp = function (el) {
     if (hb) for (const k of ["yhg", "nhz"]) rows.push([DATA.smName(k), this.smCount(k), hb]);
     const ok = rows.every(r => r[1] >= r[2]);
     this.modal(`<h2>${e.name}灵根 ${lv} → ${lv + 1} 级</h2>
-      <p class="desc">修炼速度类功法效果 +${U.dec(this.lingenPct(lv))}% → +${U.dec(this.lingenPct(lv + 1))}%<br>${e.name}系法术伤害 +${U.dec(this.lingenSpPct(lv))}% → +${U.dec(this.lingenSpPct(lv + 1))}%</p>
+      <p class="desc">修炼速度类功法效果 +${U.dec(this.lingenPct(lv))}% → +${U.dec(this.lingenPct(lv + 1))}%<br>其他功法效果 +${U.dec(this.lingenOtPct(lv))}% → +${U.dec(this.lingenOtPct(lv + 1))}%<br>${e.name}系法术伤害 +${U.dec(this.lingenSpPct(lv))}% → +${U.dec(this.lingenSpPct(lv + 1))}%</p>
       ${rows.map(r => `<div class="line"><span>${r[0]}</span><span class="${r[1] >= r[2] ? "" : "q5"}">${U.fmt(r[1])} / ${U.fmt(r[2])}</span></div>`).join("")}
       <div class="btns"><button class="primary" onclick="G.upgradeLingen('${el}',1);G.openLingenUp('${el}')" ${ok ? "" : "disabled"}>升级</button><button onclick="G.closeModal()">关闭</button></div>`);
 };
 G.caveViews.lingen = function () {
     const s = this.s, C = CFG.lingen;
     return `<div class="card"><h3>${DATA.caveName("lingen")}<small>灵石 ${U.fmt(s.stone)}</small></h3>
-      <p class="desc">提升对应属性的修炼速度类功法效果（秘诀、炼体秘诀）和法术伤害。</p></div>` +
+      <p class="desc">提升对应属性的功法效果和法术伤害：修炼类秘诀（秘诀、炼体秘诀）单独计算，其他功法最高 +24%。</p></div>` +
       DATA.elements.map(e => {
         const lv = s.lingen[e.id] || 0, max = lv >= C.MAX;
         return `<div class="card"><div class="line"><div><b>${e.name}灵根</b><span class="tag">${lv} 级</span>
-          <small style="display:block">修炼速度类功法效果 +${U.dec(this.lingenPct(lv))}% · 法术伤害 +${U.dec(this.lingenSpPct(lv))}%</small></div>
+          <small style="display:block">修炼类秘诀 +${U.dec(this.lingenPct(lv))}% · 其他功法 +${U.dec(this.lingenOtPct(lv))}% · 法术伤害 +${U.dec(this.lingenSpPct(lv))}%</small></div>
           ${max ? `<button disabled>已达极限</button>` : `<button onclick="G.openLingenUp('${e.id}')">升级</button>`}</div></div>`;
       }).join("");
 };

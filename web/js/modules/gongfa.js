@@ -177,10 +177,11 @@ G.module({
         if (DATA.isSpell(id)) continue;
         const info = DATA.gongfaInfo(id, this.s.gongfa[id]);
         if (!info) continue;
-        const v = info.value * this.lingenSpd(info.type.stat, info.el.id);  // 灵根加成：只对修炼速度类功法（秘诀、炼体秘诀）生效
+        const lgOn = !(info.kind === "mf" || info.noEl || !info.el), lgK = (st) => lgOn ? this.lingenSpd(st, info.el.id) : 1;
+        const v = info.value * lgK(info.type.stat);  // 灵根加成：修炼速度类走 GONGFA，其他功法走 OTHER（用户定 2026-11-14）
         if (info.type.stat === "res") b.res[info.el.id] = (b.res[info.el.id] || 0) + v;
         else b[info.type.stat] += v;
-        if (info.type.stat2) b[info.type.stat2] += info.value2 * this.lingenSpd(info.type.stat2, info.el.id);
+        if (info.type.stat2) b[info.type.stat2] += info.value2 * lgK(info.type.stat2);
       }
       if (this.sjSwBonus) { const w = this.sjSwBonus(); for (const k in w.gf) if (k in b) b[k] *= 1 + w.gf[k] / 100; for (const e in w.gfRes) if (b.res[e]) b.res[e] *= 1 + w.gfRes[e] / 100; }   // 主神纹：功法提供的属性 +%
       return b;
@@ -328,9 +329,9 @@ G.module({
       const MX = g.max || DATA.GONGFA_MAX, s = this.s, max = g.lv >= MX, plan = this.plannedLv(g.id), full = plan >= MX;
       // 灵根只对修炼速度类功法生效：秘诀（cultivate）、炼体秘诀（body）；其他功法不显示灵根、不吃加成
       const spd = g.type && (g.type.stat === "cultivate" || g.type.stat === "body" || g.type.stat2 === "cultivate" || g.type.stat2 === "body");
-      const lg = g.kind === "mf" || g.noEl || !spd ? 0 : this.s.lingen[g.el.id] || 0, lgTxt = lg ? `（${g.el.name}灵根 +${U.dec(this.lingenPct(lg))}%）` : "";
+      const lg = g.kind === "mf" || g.noEl || g.kind === "sp" ? 0 : this.s.lingen[g.el.id] || 0, lgP = lg ? (spd ? this.lingenPct(lg) : this.lingenOtPct(lg)) : 0, lgTxt = lgP ? `（${g.el.name}灵根 +${U.dec(lgP)}%）` : "";
       // 属性数值颜色：没有灵根加成 = 白色，有加成 = 绿色（数值已含加成）
-      const lgK = lg ? this.lingenGongfa(g.el.id) : 1;
+      const lgK = lg ? (spd ? this.lingenGongfa(g.el.id) : this.lingenOt(g.el.id)) : 1;
       const cv = v => `<b class="${lg ? "gf-up" : "gf-base"}">${v}</b>`;
       const mfv = v => `${g.mk.sign}${U.num2(v)}${g.mk.unit}`;
       const xp = g.kind === "mf" ? DATA.mifaFullPct(g.mk.id, g.star) : 0;   // 聚元 / 炼体 / 斗血 / 斗灵 圆满额外 %
