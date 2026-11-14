@@ -129,7 +129,7 @@ G.module({
       const tabs = `<div class="bag-tabs">${[...Array(pages).keys()].map(k => `<button class="${k === cur ? "active" : ""}" onclick="G.openLandUp(${k})">${DATA.caveName("garden")}${CN[k] || k + 1}</button>`).join("")}</div>`;
       const rows = s.fields.slice(cur * P, cur * P + P).map((f, j) => {
         const i = cur * P + j, lv = Math.floor(+f.lv || 0), lfull = lv >= L.MAX, lc = lfull ? 0 : DATA.landCost(lv + 1);
-        return `<div class="line"><div>第 ${i + 1} 块 · ${f.g >= 0 ? DATA.cropName(f.g) : "空地"}<small>${lv} 级 · 生长速度 +${U.num(DATA.landPct(lv))}%${lfull ? " · 已满级" : ` · 升级需灵液 ${U.fmt(lc)}`}</small></div>${lfull ? "<b>已满级</b>" : `<button class="primary sm" onclick="G.openLandUpOne(${i},${cur})">升级</button>`}</div>`;
+        return `<div class="line"><div>第 ${i + 1} 块 · ${f.g >= 0 ? DATA.cropName(f.g) : "空地"}<small>${lv} 级 · 生长速度 +${U.num(DATA.landPct(lv))}%${lfull ? " · 已满级" : ""}</small></div>${lfull ? "<b>已满级</b>" : `<button class="primary sm" onclick="G.openLandUpOne(${i},${cur})">升级</button>`}</div>`;
       }).join("");
       this.modal(`${tabs}<div class="line"><div>灵液</div><b>${U.fmt(lh)}</b></div><div class="landup-list">${rows || `<p class="desc">这一页还没有灵田。</p>`}</div><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
