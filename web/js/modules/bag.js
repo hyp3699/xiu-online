@@ -752,8 +752,8 @@ G.module({
       } else if (it.t === "ss") {
         const left = this.stoneLeft(it.g);
         h += `<p>使用后储物格 +1。此阶已用 ${CFG.forge.stone.MAX_USE - left} / ${CFG.forge.stone.MAX_USE} 个。</p>
-          <div class="btns">${left > 0 ? `<button class="primary" onclick="G.useStone(${i},1)">使用</button>
-          <button onclick="G.useStone(${i},${it.n})" ${it.n >= 1 ? "" : "disabled"}>全部使用</button>` : `<button class="primary" disabled>已满</button>`}</div>`;   // 用满此阶上限显示已满（用户定 2026-11-14）
+          <div class="btns"><button class="primary" onclick="G.useStone(${i},1)" ${left > 0 ? "" : "disabled"}>使用</button>
+          <button onclick="G.useStone(${i},${it.n})" ${left > 0 && it.n >= 1 ? "" : "disabled"}>全部使用</button></div>`;
       } else if (it.t === "hx") {
         h += `<div class="btns">${sell}</div>`;
       } else if (it.t === "lg") {

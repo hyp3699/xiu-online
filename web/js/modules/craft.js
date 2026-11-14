@@ -1031,7 +1031,8 @@ Object.assign(G, {
         add(`ss:${g}`, `<div>${DATA.li(DATA.iconImg("ss"))}${DATA.stoneName(g)}<span class="tag">储物格+1</span>
           <small>${this.matsText(mats)}${sm.length ? "、" + this.smText(sm) : ""} · ${U.dur(this.forgePer("ss", g) / 1000)} · 成功率 ${rate} · 已用 ${CFG.forge.stone.MAX_USE - this.stoneLeft(g)}/${CFG.forge.stone.MAX_USE}</small></div>`,
           this.hasMats(mats) && this.smHave(sm), `G.openForgeN('ss',${g})`, "",
-          { tag: DATA.JIE[g] || DATA.XING[g], name: DATA.stoneName(g), sub: `已用 ${CFG.forge.stone.MAX_USE - this.stoneLeft(g)}/${CFG.forge.stone.MAX_USE}`, icon: DATA.li(DATA.iconImg("ss")), mats, sm, per: this.forgePer("ss", g), rate: this.craftRate("qi", g), fa: ["ss", g] });
+          { tag: DATA.JIE[g] || DATA.XING[g], name: DATA.stoneName(g), sub: `已用 ${CFG.forge.stone.MAX_USE - this.stoneLeft(g)}/${CFG.forge.stone.MAX_USE}`, icon: DATA.li(DATA.iconImg("ss")), mats, sm, per: this.forgePer("ss", g), rate: this.craftRate("qi", g), fa: ["ss", g],
+            full: this.stoneLeft(g) <= 0 });   // 此阶已用满：格子里标「已满」（同丹药，用户定 2026-11-14）
       }
     }
     // 灵珠（进炼器队列，固定 CFG.lingzhu.TIME 分钟，必定成功）
