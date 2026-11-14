@@ -356,7 +356,7 @@ const G = {
     if (mn && pb > 0 && !mn.querySelector(":scope>.gf-pad")) { const d = document.createElement("div"); d.className = "gf-pad"; d.style.height = pb + "px"; mn.appendChild(d); ref.style.marginBottom = -pb + "px"; }   // 侧栏下面的卡片（丹方、图纸等）也放进右边：滑到底时侧栏不再被外框带着往上跑（用户 2026-11-14）
     const off = ref.getBoundingClientRect().top - v.getBoundingClientRect().top + v.scrollTop, n = sd.children.length || 1;   // 用外框算位置：侧栏是 sticky，滑下去后它自己的位置会变，高度就被算小（2026-11-14 修）
     sd.style.height = Math.max(n * 34, v.clientHeight - off - 2) + "px";
-    if (!this._gfSideRs) { this._gfSideRs = 1; window.addEventListener("resize", () => { const vv = document.getElementById("view"), d = vv && vv.querySelector(".gf-side"); if (d) { d.style.height = ""; this.gfSideFit(d, vv); } }); }
+    if (!this._gfSideRs) { this._gfSideRs = 1; window.addEventListener("resize", () => { const vv = document.getElementById("view"), d = vv && vv.querySelector(".gf-side"); if (d) { d.style.height = ""; this.gfSideFit(d, d.closest(".fxbody") || vv); } }); }
   },
   // 地图格子：竖向 9 格刚好占满可用高度，横向超出就左右拖动
   gridFit(mw) {
@@ -429,7 +429,7 @@ const G = {
           || [...v.querySelectorAll(".fback > button")].pop() || [...v.querySelectorAll("button")].find(x => /^返回/.test(x.textContent.trim())));
         if (bk) { bk.click(); return; }
       }
-      this.tab = b.dataset.tab; $("#view").scrollTop = 0; this.render(); if (this.tab === "world" && this.wsFirst) this.wsFirst();   // 回到四界地图卷轴：定位到第一张图
+      this.tab = b.dataset.tab; $("#view").scrollTop = 0; { const fx = document.getElementById("fx-scroll"); if (fx) fx.scrollTop = 0; } this.render(); if (this.tab === "world" && this.wsFirst) this.wsFirst();   // 回到四界地图卷轴：定位到第一张图
     });
     // 记录是否正在按住屏幕；抬起后再补一次重绘
     const press = on => () => {
