@@ -317,6 +317,7 @@ const G = {
       const bg = document.getElementById("bag-grid"); if (bg && bgTop) bg.scrollTop = bgTop; const gs = document.getElementById("gf-scroll"); if (gs && gsTop) gs.scrollTop = gsTop;
       const mw = document.getElementById("mgwrap");
       if (mw) this.gridFit(mw);
+      const gsd = v.querySelector(".gf-side"); if (gsd) this.gfSideFit(gsd, v);   // 功法类型侧栏：占满下面空着的高度
       if (mw) { if (mwPos) { mw.scrollLeft = mwPos[0]; mw.scrollTop = mwPos[1]; }
         else { const n = +mw.dataset.n || 9, c = +mw.dataset.c || 0, cw = mw.scrollWidth / n;   // 第一次进入：上次游历的格子放在中间
           mw.scrollLeft = (c % n + .5) * cw - mw.clientWidth / 2; mw.scrollTop = (Math.floor(c / n) + .5) * cw - mw.clientHeight / 2; } }
@@ -329,6 +330,12 @@ const G = {
   _btHoldView() {
     if (typeof API === "undefined" || !API._battleQueue) return false;
     return API._battleQueue.length > 0 || !!(this._bp && typeof document !== "undefined" && document.querySelector("#modal-box .btv"));
+  },
+  // 功法殿 / 坊市 / 功德司左侧功法类型按钮：从按钮顶到页面底部（不滑动时）全部占满，按钮平分高度（用户定 2026-11-14）
+  gfSideFit(sd, v) {
+    const off = sd.getBoundingClientRect().top - v.getBoundingClientRect().top + v.scrollTop, n = sd.children.length || 1;
+    sd.style.height = Math.max(n * 34, v.clientHeight - off - 12) + "px";
+    if (!this._gfSideRs) { this._gfSideRs = 1; window.addEventListener("resize", () => { const vv = document.getElementById("view"), d = vv && vv.querySelector(".gf-side"); if (d) { d.style.height = ""; this.gfSideFit(d, vv); } }); }
   },
   // 地图格子：竖向 9 格刚好占满可用高度，横向超出就左右拖动
   gridFit(mw) {
