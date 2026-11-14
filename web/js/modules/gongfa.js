@@ -76,7 +76,7 @@ G.module({
     gfSideOk(g) { const k = this.gfSide; return k === "done" ? this.hasGongfa(g.id) : this.gfSideKey(g) === k && !this.hasGongfa(g.id); },
     // gs = 这一页全部功法（决定显示哪些按钮），html = 右边内容（调用前先 gfSideFix）
     gfSideKeys(gs) { const have = new Set(gs.map(g => this.gfSideKey(g)));
-      return [...DATA.gongfaTypes.filter(t => !t.base && have.has(t.id)).map(t => [t.id, t.name]), ...(have.has("spell") ? [["spell", "法术"]] : []), ["done", "已学会"]]; },
+      return [...DATA.gongfaTypes.filter(t => !t.base && have.has(t.id)).map(t => [t.id, t.id === "tijue" ? "炼体" : t.name]), ...(have.has("spell") ? [["spell", "法术"]] : []), ["done", "已学会"]]; },
     gfSideFix(gs) { const keys = this.gfSideKeys(gs); if (!keys.some(([k]) => k === this.gfSide)) this.gfSide = keys[0][0]; return gs; },
     gfSideWrap(gs, html) {
       const keys = this.gfSideKeys(gs), cur = this.gfSide, v = n => [...n].join("<br>");
