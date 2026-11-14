@@ -321,6 +321,15 @@ G.module({
       });
       return { rows, total: acc };
     },
+    // 修炼队列一行：这一层修完加多少（如「防御 +156」），代替原来的「需 X · 约」（用户定 2026-11-14）
+    gfGainTxt(g) {
+      if (!g) return "";
+      if (g.kind === "sp") return `伤害 +${U.dec(g.next - g.pct)}%`;
+      if (g.kind === "mf") return `${g.label} ${g.mk.sign}${U.num2(g.next - g.value)}${g.mk.unit}`;
+      const spd = g.type && (g.type.stat === "cultivate" || g.type.stat === "body" || g.type.stat2 === "cultivate" || g.type.stat2 === "body");
+      const lg = g.noEl || !g.el ? 0 : this.s.lingen[g.el.id] || 0, k = lg ? (spd ? this.lingenGongfa(g.el.id) : this.lingenOt(g.el.id)) : 1;
+      return `${g.label} +${this.gfValue(g, (g.next - g.value) * k)}${g.label2 ? ` · ${g.label2} +${this.gfValue(g, (g.next2 - g.value2) * k)}` : ""}`;
+    },
     gfQueueView() {
       const s = this.s;
       let html = "";
@@ -329,7 +338,7 @@ G.module({
       html += `<div class="card"><h3>排队中<small>${s.gfQueue.length} / ${DATA.GF_QUEUE}${s.gfQueue.length ? ` · 全部完成约 <span class="cd" id="gf-q-total"></span>` : ""}</small></h3>` +
         (s.gfQueue.length ? s.gfQueue.map((id, i) => {
           const q = DATA.skillInfo(id); if (!q) return "";
-          return `<div class="line"><div>${i + 1}. 《${q.name}》${q.noEl ? "" : `<span class="tag">${q.star}星</span>`}${this.gfLvTo(rows[i].lv)}<small>需 <span class="cd" id="gf-q-${i}-ms"></span> · 约 <span class="cd" id="gf-q-${i}-acc"></span> 后完成</small></div><button class="sm" onclick="G.removeQueue(${i})">移除</button></div>`; }).join("")
+          return `<div class="line"><div>${i + 1}. 《${q.name}》${q.noEl ? "" : `<span class="tag">${q.star}星</span>`}${this.gfLvTo(rows[i].lv)}<small>${this.gfGainTxt(DATA.skillInfo(id, rows[i].lv))} · <span class="cd" id="gf-q-${i}-acc"></span> 后完成</small></div><button class="sm" onclick="G.removeQueue(${i})">移除</button></div>`; }).join("")
           : `<p class="desc">队列为空。</p>`) + `</div>`;
       return html;
     },
