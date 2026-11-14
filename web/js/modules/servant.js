@@ -4,15 +4,17 @@
  *   servants   [{ uid, star 资质, el 五行, lv 等级, job 差事 id 或 null, av 头像, paid 俸禄发到哪天(北京日期) }]
  *   svPick     选拔中 { end } | 选拔完成待处理 { star, el, av } | null
  *   svAuto     自动发放俸禄
+ *   svPity     连续未出天品的选拔次数（天品几率保底）
  * ===================================================================== */
 G.module({
   id: "servant",
-  defaults: () => ({ servants: [], svPick: null, svAuto: false }),
+  defaults: () => ({ servants: [], svPick: null, svAuto: false, svPity: 0 }),
   tick() {
     const s = this.s, C = CFG.servant, p = s.svPick;
     if (p && p.end && this.now() >= p.end) {
       const av = Math.floor(Math.random() * C.AVATARS);
-      const q = U.weighted(C.QUAL_W || [5, 15, 30, 50]);   // 权重全 0 / 为空时 weighted 返 -1，按最低资质黄品（3）算，不静默取天品（0）
+      const q = U.weighted(this.svPickW());   // 权重全 0 / 为空时 weighted 返 -1，按最低资质黄品（3）算，不静默取天品（0）
+      s.svPity = q === 0 ? 0 : (s.svPity || 0) + 1;   // 出天品后几率降回初始
       s.svPick = { q: q < 0 ? 3 : q, el: U.pick(Object.keys(C.EL)), av, name: this.svRandName(av) };
       this.log(`道童选拔结束：选出${this.svName(s.svPick)}。`, "good"); this.dirty();
     }
@@ -21,6 +23,8 @@ G.module({
     if (gone.length) { s.servants = s.servants.filter(d => !gone.includes(d)); gone.forEach(d => this.log(`${this.svName(d)}连续多日未领俸禄，离开了洞府。`, "bad")); this.dirty(); }
   },
   api: {
+    // 选拔几率：未出天品的次数 n，天品 +n×PITY_STEP%、黄品 −同样（黄品最低 0）
+    svPickW() { const C = CFG.servant, w = (C.QUAL_W || [3, 12, 25, 60]).slice(), d = Math.min(w[3], (this.s.svPity || 0) * (C.PITY_STEP ?? 1)); w[0] += d; w[3] -= d; return w; },
     svName(d) { return d.name || `${CFG.servant.EL[d.el] || d.el}·${this.svQName(d)}道童`; },
     // 资质 0 天 1 地 2 玄 3 黄（旧存档 1~10 星：9~10 天、7~8 地、4~6 玄、1~3 黄）
     svQ(d) { return d.q !== undefined ? d.q : d.star >= 9 ? 0 : d.star >= 7 ? 1 : d.star >= 4 ? 2 : 3; },
@@ -130,7 +134,7 @@ G.caveViews.servant = function () {
   const s = this.s, C = CFG.servant, p = s.svPick, n = s.servants.length;
   const rows = s.servants.map((d, i) => { const o = this.svOwed(d);
     return `<div class="sv-row"><img src="${this.svImg(d)}" alt=""><div class="sv-nm">${this.svName(d)}<small>${d.job ? C.JOB[d.job].name : "空闲"}${o ? ` · <span class="q5">欠俸 ${o} 天</span>` : ""}</small></div><b class="sv-el sv-${d.el}">${C.EL[d.el]}</b><span>资质${this.svQName(d)}</span><span>等级${d.lv}级</span><button class="sm" onclick="G.openSv(${i})">管理</button></div>`; }).join("");
-  const pickBtn = !p ? `<button class="primary" onclick="G.svStartPick()" ${s.stone < C.PICK_COST || n >= C.MAX ? "disabled" : ""}>选拔道童<small>${n >= C.MAX ? "道童已满" : U.fmt(C.PICK_COST) + " 灵石"}</small></button>`
+  const pickBtn = !p ? `<button class="primary" onclick="G.svStartPick()" ${s.stone < C.PICK_COST || n >= C.MAX ? "disabled" : ""}>选拔道童<small>${n >= C.MAX ? "道童已满" : U.fmt(C.PICK_COST) + " 灵石 · 天品 " + U.num(this.svPickW()[0]) + "%"}</small></button>`
     : p.end ? `<button disabled>选拔道童<small>${U.cd(Math.max(0, (p.end - this.now()) / 1000))}</small></button>`
     : `<button class="primary" onclick="G.openSvPick()">选拔道童<small>已选出</small></button>`;
   const jobs = Object.keys(C.JOB).map(k => `<button onclick="G.openSvJob('${k}')">${C.JOB[k].name}<small>${this.svJobTotal(k)}</small></button>`).join("");
