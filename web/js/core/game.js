@@ -309,15 +309,16 @@ const G = {
     // 正在输入框里打字时也先不替换页面：否则输入框被换掉，手机输入法会自动收起
     if (this.editing(v)) { this._renderDeferred = true; return; }
     const lg0 = document.getElementById("exov-log"), lgTop = lg0 ? lg0.scrollTop : -1;
-    const bg0 = document.getElementById("bag-grid"), bgTop = bg0 ? bg0.scrollTop : 0, gs0 = document.getElementById("gf-scroll"), gsTop = gs0 ? gs0.scrollTop : 0;   // 背包储物格 / 功法列表：页面固定，只有格子框内滑动，重绘后保持位置
+    const bg0 = document.getElementById("bag-grid"), bgTop = bg0 ? bg0.scrollTop : 0, gs0 = document.getElementById("gf-scroll"), gsTop = gs0 ? gs0.scrollTop : 0; const fx0 = v.querySelector(".fxbody"), fxTop = fx0 ? fx0.scrollTop : 0;   // 背包储物格 / 功法列表：页面固定，只有格子框内滑动，重绘后保持位置
     const mw0 = document.getElementById("mgwrap"), mwPos = mw0 ? [mw0.scrollLeft, mw0.scrollTop] : null;   // 地图格子：重绘后保持拖动位置   // 探索信息浮层：重绘后保持位置，或「跟随最新」滚到底
-    try { const html = this.views[this.tab] ? this.views[this.tab].call(this) : ""; if (html !== this._viewHtml || v.innerHTML === "") { v.innerHTML = html; this._viewHtml = html;
+    try { const html = this.views[this.tab] ? this.views[this.tab].call(this) : ""; if (html !== this._viewHtml || v.innerHTML === "") { v.innerHTML = html; this._viewHtml = html; v.classList.remove("fxview");
       this._gfCdT = 0;   // 功法页倒计时/进度条是空位：重绘后同一帧立刻由 bars() 填上，否则空白最多半秒，看起来一闪一闪
       const lg = document.getElementById("exov-log"); if (lg) lg.scrollTop = this.exFollow === false && lgTop >= 0 ? lgTop : 0;
       const bg = document.getElementById("bag-grid"); if (bg && bgTop) bg.scrollTop = bgTop; const gs = document.getElementById("gf-scroll"); if (gs && gsTop) gs.scrollTop = gsTop;
       const mw = document.getElementById("mgwrap");
       if (mw) this.gridFit(mw);
-      const gsd = v.querySelector(".gf-side"); if (gsd) this.gfSideFit(gsd, v);   // 功法类型侧栏：占满下面空着的高度
+      const fxb = this.fixHead(v); if (fxb && fxTop) fxb.scrollTop = fxTop;   // 上面的按钮固定，只滑下面（用户定 2026-11-14）
+      const gsd = v.querySelector(".gf-side"); if (gsd) this.gfSideFit(gsd, gsd.closest(".fxbody") || v);   // 功法类型侧栏：占满下面空着的高度
       if (mw) { if (mwPos) { mw.scrollLeft = mwPos[0]; mw.scrollTop = mwPos[1]; }
         else { const n = +mw.dataset.n || 9, c = +mw.dataset.c || 0, cw = mw.scrollWidth / n;   // 第一次进入：上次游历的格子放在中间
           mw.scrollLeft = (c % n + .5) * cw - mw.clientWidth / 2; mw.scrollTop = (Math.floor(c / n) + .5) * cw - mw.clientHeight / 2; } }
@@ -330,6 +331,22 @@ const G = {
   _btHoldView() {
     if (typeof API === "undefined" || !API._battleQueue) return false;
     return API._battleQueue.length > 0 || !!(this._bp && typeof document !== "undefined" && document.querySelector("#modal-box .btv"));
+  },
+  // 所有页面：滑动时上面的按钮（标题、页签按钮）固定不动，只有下面的内容滑动（用户定 2026-11-14）
+  //   页面（或 .mpage）前 6 个子元素里最后一个按钮行 / 标题算「头部」，后面的内容移进 .fxbody 单独滑动
+  //   已经自带框内滑动的页面（功法页 gf-scroll、背包格子、地图格子、铺满的地图页）不动
+  fixHead(v) {
+    const c = v.querySelector(":scope > .mpage") || v;
+    if (c.querySelector(".gf-scroll, #bag-grid, #mgwrap") || c.classList.contains("mfit") || c.classList.contains("gpage")) return null;
+    const kids = [...c.children], HEAD = ".room-grid, .sub-tabs, .bag-tabs, .pghead, .tabs";
+    let j = -1; kids.slice(0, 6).forEach((k, i) => { if (k.matches(HEAD)) j = i; });
+    const rest = kids.slice(j + 1).filter(k => !k.matches(".fback, .exov, script, style"));
+    if (j < 0 || !rest.length) return null;
+    if (kids[j].getBoundingClientRect().bottom - v.getBoundingClientRect().top > v.clientHeight * 0.55) return null;   // 头部太高（按钮在很下面）就不固定，免得下面滑动区太小
+    const body = document.createElement("div"); body.className = "fxbody"; body.id = "fx-scroll";
+    c.insertBefore(body, rest[0]); rest.forEach(k => body.appendChild(k));
+    c.classList.add("fxon"); v.classList.add("fxview");
+    return body;
   },
   // 功法殿 / 坊市 / 功德司左侧功法类型按钮：从按钮顶到页面底部（不滑动时）全部占满，按钮平分高度（用户定 2026-11-14）
   gfSideFit(sd, v) {
@@ -415,7 +432,7 @@ const G = {
       this._pressing = on;
       if (!on && this._renderDeferred) { this._renderDeferred = false; setTimeout(() => this.render(), 0); }
     };
-    document.addEventListener("scroll", e => { const t = e.target; if (t && (t.id === "bag-grid" || t.id === "gf-scroll")) this._innerScrollAt = Date.now(); }, true);
+    document.addEventListener("scroll", e => { const t = e.target; if (t && (t.id === "bag-grid" || t.id === "gf-scroll" || t.id === "fx-scroll")) this._innerScrollAt = Date.now(); }, true);
     document.addEventListener("pointerdown", press(true), true);
     ["pointerup", "pointercancel"].forEach(t => document.addEventListener(t, press(false), true));
     // 输入框失去焦点后补一次重绘
