@@ -86,11 +86,14 @@ DATA.GARDEN_MAX = _GA.MAX;
 DATA.fieldCost = i => { const a = _GA.OPEN_COST, b = _GA.OPEN_LAST, n = (_GA.MAX || 1) - 1;   // 第 i+1 块
   return Math.round(b && n > 0 ? a * Math.pow(b / a, Math.min(i, n) / n) : a * Math.pow(_GA.OPEN_RATE || 1, i)); };
 // 土地（config/garden.js LAND）：等级 0~36，每块灵田单独（s.fields[i].lv）
-DATA.LAND = () => Object.assign({ MAX: 36, BAND: [12, 24, 36], PCT: [1, 1, 1], PCT_LV1: 1, PCT_MAX: 72, LY: [100, 5000] }, _GA.LAND || {});   // 默认值与 config/garden.js 一致（1 级 1%，满级 72%）：配置缺失时也不静默变分档
+DATA.LAND = () => Object.assign({ MAX: 36, BAND: [12, 24, 36], PCT: [1, 1, 1], PCT_LV1: 1, PCT_MAX: 72, PCT_STEP1: 1, LY: [100, 5000] }, _GA.LAND || {});   // 默认值与 config/garden.js 一致（1 级 1%，满级 72%）：配置缺失时也不静默变分档
 DATA.landBand = lv => { const B = DATA.LAND().BAND; const i = B.findIndex(v => lv <= v); return i < 0 ? B.length - 1 : i; };
 // 生长速度：1 级 PCT_LV1 %，满级 PCT_MAX %，中间每级平均增加（有 PCT_MAX 时用；否则按旧的 BAND×PCT 累加）
 DATA.landPct = lv => { const L = DATA.LAND(); lv = Math.max(0, Math.min(L.MAX, Math.floor(+lv || 0))); if (!lv) return 0;
-  if (L.PCT_MAX != null) { const a = +L.PCT_LV1 || 0, b = +L.PCT_MAX || 0; return Math.round((L.MAX <= 1 ? b : a + (b - a) * (lv - 1) / (L.MAX - 1)) * 100) / 100; }
+  if (L.PCT_MAX != null) {   // 每级增加量从 PCT_STEP1（1→2 级）起逐级等量变大，正好到满级 PCT_MAX（高级加得多，用户定 2026-11-14）
+    const a = +L.PCT_LV1 || 0, b = +L.PCT_MAX || 0, n = L.MAX - 1; if (n <= 0) return b;
+    const s1 = L.PCT_STEP1 != null ? +L.PCT_STEP1 : (b - a) / n, d = n > 1 ? 2 * ((b - a) - n * s1) / (n * (n - 1)) : 0, k = lv - 1;
+    return Math.round((a + k * s1 + d * k * (k - 1) / 2) * 100) / 100; }
   let t = 0, lo = 0; L.BAND.forEach((hi, b) => { t += Math.max(0, Math.min(lv, hi) - lo) * (+L.PCT[b] || 0); lo = hi; }); return Math.round(t * 100) / 100; };
 // 第 i 块灵田升到第 lv 级的矿石：ORE_N 种各 ORE × lv，按 BAND 取凡 / 仙 / 神界矿石池，从 (i + lv) 种起连续取
 DATA.landMats = (i, lv) => { const L = DATA.LAND(), P = (L.ORES || [])[DATA.landBand(lv)] || [], N = P.length, k = Math.min(N, Math.max(0, +L.ORE_N || 0)), n = Math.round((+L.ORE || 0) * lv), st = (Math.floor(+i) || 0) + lv;
