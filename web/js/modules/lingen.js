@@ -46,10 +46,10 @@ G.module({
 G.caveViews.lingen = function () {
     const s = this.s, C = CFG.lingen;
     return `<div class="card"><h3>${DATA.caveName("lingen")}<small>灵石 ${U.fmt(s.stone)}</small></h3>
-      <p class="desc">只提升对应属性的修炼速度类功法效果（秘诀、炼体秘诀）。最高 ${C.MAX} 级。</p></div>` +
+      <p class="desc">只提升对应属性的修炼速度类功法效果（秘诀、炼体秘诀）。</p></div>` +
       DATA.elements.map(e => {
         const lv = s.lingen[e.id] || 0, max = lv >= C.MAX, c = this.lingenCost(lv), ly = this.lingenLy(e.id, lv), ft = DATA.elIdx(e.id), have = ly ? this.smCount("ly", ft) : 0, ok = s.stone >= c && have >= ly;
-        return `<div class="card"><div class="line"><div><b>${e.name}灵根</b><span class="tag">${lv} / ${C.MAX} 级</span>
+        return `<div class="card"><div class="line"><div><b>${e.name}灵根</b><span class="tag">${lv} 级</span>
           <small>${e.name}系修炼速度类功法效果 +${U.dec(this.lingenPct(lv))}%</small></div></div>
           <div class="btns">${max ? `<button disabled>已达极限</button>` :
             `<button onclick="G.upgradeLingen('${e.id}',1)" ${ok ? "" : "disabled"}>升级（${U.fmt(c)} 灵石${ly ? `、${DATA.smName("ly", ft)} ${U.fmt(ly)}` : ""}）</button>
