@@ -90,6 +90,9 @@ DATA.LAND = () => Object.assign({ MAX: 36, BAND: [12, 24, 36], PCT: [1, 1, 1], L
 DATA.landBand = lv => { const B = DATA.LAND().BAND; const i = B.findIndex(v => lv <= v); return i < 0 ? B.length - 1 : i; };
 DATA.landPct = lv => { lv = Math.max(0, Math.min(DATA.LAND().MAX, Math.floor(+lv || 0))); const L = DATA.LAND(); let t = 0, lo = 0;
   L.BAND.forEach((hi, b) => { t += Math.max(0, Math.min(lv, hi) - lo) * (+L.PCT[b] || 0); lo = hi; }); return Math.round(t * 100) / 100; };
+// 第 i 块灵田升到第 lv 级的矿石：ORE_N 种各 ORE × lv，按 BAND 取凡 / 仙 / 神界矿石池，从 (i + lv) 种起连续取
+DATA.landMats = (i, lv) => { const L = DATA.LAND(), P = (L.ORES || [])[DATA.landBand(lv)] || [], N = P.length, k = Math.min(N, Math.max(0, +L.ORE_N || 0)), n = Math.round((+L.ORE || 0) * lv), st = (Math.floor(+i) || 0) + lv;
+  return N && k && n > 0 ? DATA.parseMats([...Array(k).keys()].map(j => [P[(st + j) % N], n])) : []; };
 DATA.landCost = lv => { const L = DATA.LAND(), a = +L.LY[0] || 0, b = +L.LY[1] || a, n = Math.max(1, L.MAX - 1); return Math.round(a + (b - a) * (Math.max(1, Math.min(L.MAX, lv)) - 1) / n); };   // 升到第 lv 级的灵液
 DATA.landColorName = lv => ["普通", "绿色", "红色"][DATA.landBand(lv)] || "";
 // 土地外观：三张满幅土壤图（0~12 级普通土、13~24 绿、25~36 红），同一样式、只换土色，边缘带一点坡度、不带硬边框，不随等级加深

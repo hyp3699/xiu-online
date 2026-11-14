@@ -52,8 +52,10 @@ G.module({
       const f = this.s.fields[Math.floor(+i)]; if (!f) return;
       const L = DATA.LAND(), lv = Math.floor(+f.lv || 0);
       if (lv >= L.MAX) return this.log("灵田已满级。", "sys");
-      const c = DATA.landCost(lv + 1);
-      if (!DATA.isTest()) { if (this.smCount("lingye") < c) return this.log(`灵液不足，需要 ${U.fmt(c)}。`, "sys"); this.takeSm("lingye", c); }
+      const c = DATA.landCost(lv + 1), mats = DATA.landMats(i, lv + 1);
+      if (!DATA.isTest()) { if (this.smCount("lingye") < c) return this.log(`灵液不足，需要 ${U.fmt(c)}。`, "sys");
+        if (!this.hasMats(mats)) return this.log("矿石不足。", "sys");
+        this.takeSm("lingye", c); mats.forEach(x => this.takeMat(x.kind, x.g, x.n)); }
       f.lv = lv + 1;
       this.log(`第 ${Math.floor(+i) + 1} 块灵田升至 ${f.lv} 级，生长速度 +${U.num(DATA.landPct(f.lv))}%。`, "good"); this.dirty(); this.after();
     },
@@ -127,9 +129,20 @@ G.module({
       const tabs = `<div class="bag-tabs">${[...Array(pages).keys()].map(k => `<button class="${k === cur ? "active" : ""}" onclick="G.openLandUp(${k})">${DATA.caveName("garden")}${CN[k] || k + 1}</button>`).join("")}</div>`;
       const rows = s.fields.slice(cur * P, cur * P + P).map((f, j) => {
         const i = cur * P + j, lv = Math.floor(+f.lv || 0), lfull = lv >= L.MAX, lc = lfull ? 0 : DATA.landCost(lv + 1);
-        return `<div class="line"><div>第 ${i + 1} 块 · ${f.g >= 0 ? DATA.cropName(f.g) : "空地"}<small>${lv} 级 · 生长速度 +${U.num(DATA.landPct(lv))}%${lfull ? " · 已满级" : ` · 升级需灵液 ${U.fmt(lc)}`}</small></div>${lfull ? "<b>已满级</b>" : `<button class="primary sm" onclick="G.fieldLandUp(${i});G.openLandUp(${cur})" ${lh >= lc || DATA.isTest() ? "" : "disabled"}>升级</button>`}</div>`;
+        return `<div class="line"><div>第 ${i + 1} 块 · ${f.g >= 0 ? DATA.cropName(f.g) : "空地"}<small>${lv} 级 · 生长速度 +${U.num(DATA.landPct(lv))}%${lfull ? " · 已满级" : ` · 升级需灵液 ${U.fmt(lc)}`}</small></div>${lfull ? "<b>已满级</b>" : `<button class="primary sm" onclick="G.openLandUpOne(${i},${cur})">升级</button>`}</div>`;
       }).join("");
       this.modal(`${tabs}<div class="line"><div>灵液</div><b>${U.fmt(lh)}</b></div><div class="landup-list">${rows || `<p class="desc">这一页还没有灵田。</p>`}</div><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+    },
+    // 单块灵田升级弹窗：列出灵液、矿石（带图、已有/需要），升级后留在本弹窗看下一级；返回回到列表第 pg 页
+    openLandUpOne(i, pg) {
+      i = Math.floor(+i); const f = this.s.fields[i]; if (!f) return;
+      const L = DATA.LAND(), lv = Math.floor(+f.lv || 0), full = lv >= L.MAX;
+      const cell = (src, have, need, name) => `<div class="cpk-mat${have >= need ? "" : " lack"}"><img src="${src}" alt=""><b>${name}</b><span>${U.fmt(have)}/${U.fmt(need)}</span></div>`;
+      const lc = full ? 0 : DATA.landCost(lv + 1), mats = full ? [] : DATA.landMats(i, lv + 1), ly = this.smCount("lingye");
+      const ok = DATA.isTest() || (ly >= lc && this.hasMats(mats));
+      const cost = full ? `<p class="desc">已满级。</p>` : `<p class="zf-cost-t">升到 ${lv + 1} 级消耗</p><div class="cpk-mats zf-cost">${cell(DATA.smIcon("lingye"), ly, lc, DATA.smName("lingye"))}${mats.map(m => cell(DATA.matImg(m.kind, m.g), this.countMat(m.kind, m.g), m.n, DATA.matFull(m.kind, m.g))).join("")}</div>`;
+      this.modal(`<h2>第 ${i + 1} 块灵田 · ${lv} 级</h2><div class="stats"><div><span>生长速度</span>+${U.num(DATA.landPct(lv))}%${full ? "" : ` → +${U.num(DATA.landPct(lv + 1))}%`}</div></div>${cost}
+        <div class="btns">${full ? "" : `<button class="primary" onclick="G.fieldLandUp(${i});G.openLandUpOne(${i},${+pg || 0})" ${ok ? "" : "disabled"}>升级</button>`}<button onclick="G.openLandUp(${+pg || 0})">返回</button></div>`);
     },
     openFieldMenu(i) {
       const s = this.s, f = s.fields[i];
