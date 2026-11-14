@@ -77,7 +77,7 @@ G.module({
     // gs = 这一页全部功法（决定显示哪些按钮），html = 右边内容（调用前先 gfSideFix）
     gfSideKeys(gs) { const have = new Set(gs.map(g => this.gfSideKey(g)));
       return [...DATA.gongfaTypes.filter(t => !t.base && have.has(t.id)).map(t => [t.id, t.id === "tijue" ? "炼体" : t.name]), ...(have.has("spell") ? [["spell", "法术"]] : []), ["done", "已学会"]]; },
-    gfSideFix(gs) { const keys = this.gfSideKeys(gs); if (this.gfSide !== "" && !keys.some(([k]) => k === this.gfSide)) this.gfSide = keys[0][0]; return gs; },
+    gfSideFix(gs) { const keys = this.gfSideKeys(gs); if (this.gfSide === undefined || (this.gfSide !== "" && !keys.some(([k]) => k === this.gfSide))) this.gfSide = "";  /* 默认不选 = 全部类型（用户定 2026-11-14） */ return gs; },
     gfSideWrap(gs, html) {
       const keys = this.gfSideKeys(gs), cur = this.gfSide, v = n => [...n].join("<br>");
       return `<div class="gf-side-wrap"><div class="gf-side">${keys.map(([k, n]) => `<button class="${cur === k ? "active" : ""}" onclick="G.setGfSide('${k}')">${v(n)}</button>`).join("")}</div><div class="gf-side-main">${html}</div></div>`;
