@@ -958,24 +958,26 @@ G.module({
 
     /* ---------- 法术栏 ---------- */
     autoSlotSpell(id) { const sl = this.s.spellSlots; if (sl.includes(id)) return; const hole = sl.findIndex(x => !x); if (hole >= 0 && hole < this.slotCount()) sl[hole] = id; else if (sl.length < this.slotCount()) sl.push(id); },
-    // 更换列表排序：跟修炼功法列表一样，「按等级」「按星级」一直开着，点击切换方向；
+    // 更换列表排序：跟修炼功法列表一样，「按等级」「按星级」只选一个，再点切换方向；
     //   默认 等级 低层 → 高层、星级 高星 → 低星；存在浏览器本地，刷新网页不变（跟功法列表分开存）
     spPickPref() {
       if (!this._spPref) { let p = {}; try { p = JSON.parse(localStorage.getItem("xiu_sp_pref") || "{}") || {}; } catch (e) {}
-        this._spPref = { lvUp: p.lvUp !== false, starUp: p.starUp === true }; }
+        this._spPref = { lvUp: p.lvUp !== false, starUp: p.starUp === true, by: p.by === "star" ? "star" : "lv" }; }
       return this._spPref;
     },
-    setSpPickSort(k) { const p = this.spPickPref(); if (k === "lv") p.lvUp = !p.lvUp; else p.starUp = !p.starUp; try { localStorage.setItem("xiu_sp_pref", JSON.stringify(p)); } catch (e) {} this.openSpellPick(this._spPickRep); },
+    // 只能选一个：点没选中的改用它，点已选中的切换方向（用户定 2026-11-14）
+    setSpPickSort(k) { const p = this.spPickPref(); k = k === "star" ? "star" : "lv"; if (p.by !== k) p.by = k; else if (k === "lv") p.lvUp = !p.lvUp; else p.starUp = !p.starUp; try { localStorage.setItem("xiu_sp_pref", JSON.stringify(p)); } catch (e) {} this.openSpellPick(this._spPickRep); },
     // rep：更换第几格（不写 = 放入空格）
     openSpellPick(rep) {
       const s = this.s, P = this.spPickPref(), r = rep === undefined ? "" : "," + rep;
       this._spPickRep = rep;
       const infos = Object.keys(s.gongfa).filter(id => DATA.isSpell(id) && !s.spellSlots.includes(id)).map(id => DATA.spellInfo(id, s.gongfa[id])).filter(Boolean);
       if (!infos.length) return this.log(rep === undefined ? "没有可放入的法术，请先去门派功法殿学习。" : "没有可更换的法术。", "sys");
-      infos.sort((a, b) => (P.lvUp ? a.lv - b.lv : b.lv - a.lv) || (P.starUp ? a.star - b.star : b.star - a.star));
+      const byLv = (a, b) => P.lvUp ? a.lv - b.lv : b.lv - a.lv, bySt = (a, b) => P.starUp ? a.star - b.star : b.star - a.star;
+      infos.sort(P.by === "star" ? (a, b) => bySt(a, b) || byLv(a, b) : (a, b) => byLv(a, b) || bySt(a, b));
       this.modal(`<h2>${rep === undefined ? "放入" : "更换"}法术</h2><div class="row small" style="gap:6px;justify-content:flex-start;margin:6px 0">
-      <button class="sm active" onclick="G.setSpPickSort('lv')">按等级 ${P.lvUp ? "低→高" : "高→低"}</button>
-      <button class="sm active" onclick="G.setSpPickSort('star')">按星级 ${P.starUp ? "低→高" : "高→低"}</button></div>` + infos.map(g => {
+      <button class="sm ${P.by === "lv" ? "active" : ""}" onclick="G.setSpPickSort('lv')">按等级 ${P.lvUp ? "低→高" : "高→低"}</button>
+      <button class="sm ${P.by === "star" ? "active" : ""}" onclick="G.setSpPickSort('star')">按星级 ${P.starUp ? "低→高" : "高→低"}</button></div>` + infos.map(g => {
         const fu = g.fuPct ? `<span class="c-green">融合 +${U.dec(g.fuPct)}%（${DATA.fuseTxt(g.fu)}）</span>` : "未融合";
         const jy = g.jy ? `<span class="c-green">精研 ${U.fmt(g.jy)} 次 · 属性伤害 +${U.fmt(g.jyDmg)}</span>` : "未精研";
         const nx = g.lv < this.spMax() ? ` · 下一层攻击×${U.dec(g.next)}%` : "";
