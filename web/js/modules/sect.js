@@ -244,7 +244,7 @@ G.module({
     },
 
     /* ---------- 功法殿 ---------- */
-    setLibEl(e) { const cur = this.libEl === undefined ? (this.sectInfo() || {}).el : this.libEl; this.libEl = cur === e ? "all" : e; this.render(); },   // 再点一次已选的 = 不选 = 全部属性（用户定 2026-11-14）
+    setLibEl(e) { const cur = this.libEl || "all"; this.libEl = cur === e ? "all" : e; this.render(); },   // 再点一次已选的 = 不选 = 全部属性（用户定 2026-11-14）
     learnGongfa(id) {
       const g = DATA.skillInfo(id);
       if (!g || g.src !== "sect" || this.hasGongfa(id) || this.s.contrib < g.cost) return;
@@ -945,7 +945,7 @@ G.module({
         <div class="btns"><button onclick="G.leaveSect()" ${s.contrib < this.leaveCost() ? "disabled" : ""}>叛出门派（贡献 ${U.fmt(this.leaveCost())}）</button></div>`;
     } else if (tab === "lib") {
       // 功法殿：本星级及以下全部门派的功法、法术（高星在前）；按 属性 筛选
-      const el = this.libEl === undefined ? x.el : this.libEl;   // "all" = 一个都不选 = 全部
+      const el = this.libEl || "all";   // "all" = 一个都不选 = 金木水火土雷全部；默认不选（用户定 2026-11-14）
       const btn = g => this.gfLearnBtn(g, `G.learnGongfa('${g.id}')`, s.contrib < g.cost);
       const sects = DATA.sects.filter(o => o.star <= x.star && (el === "all" || o.el === el)).sort((p, q) => q.star - p.star);
       const cards = sects.map(o => ({ o, gs: DATA.gfTypesOf("sect", o.star).map(t => [DATA.gongfaInfo(DATA.gongfaId(o.id, t.id)), t]).concat([[DATA.spellInfo(DATA.spellId(o.id, o.el)), null]]) }));
