@@ -18,6 +18,9 @@ G.module({
   api: {
     // 从 lv 升到 lv+1：灵石 COST_FIRST → COST_LAST、同属性灵元 LY_FIRST → LY_LAST，每次 × 同一倍率
     lingenCost(lv) { const C = CFG.lingen; return C.COST_POW ? DATA.powStep(C.COST_FIRST ?? 1000, C.COST_LAST ?? 300000, lv, C.MAX, +C.COST_POW) : DATA.geoStep(C.COST_FIRST ?? 1000, C.COST_LAST ?? 300000, lv, C.MAX); },
+    lingenHerb(lv) { const C = CFG.lingen; return C.HERB_LAST ? DATA.geoStep(C.HERB_FIRST ?? 1, C.HERB_LAST, lv, C.MAX) : 0; },   // 元魂果、凝魂芝各要几个
+    lingenSpPct(lv) { return CFG.lingen.SPELL ? DATA.segSum(CFG.lingen, "SPELL", lv) : 0; },   // 本系法术伤害 +%
+    lingenSp(el) { return 1 + this.lingenSpPct((this.s.lingen || {})[el] || 0) / 100; },
     lingenLy(el, lv) { const C = CFG.lingen; return DATA.geoStep(C.LY_FIRST ?? 1, C.LY_LAST ?? 1200, lv, C.MAX); },
     // lv 级的总加成 %（只走功法加成表）
     lingenPct(lv) { return DATA.segSum(CFG.lingen, "GONGFA", lv); },
@@ -29,10 +32,13 @@ G.module({
       times = Math.floor(+times);   // 小数向下取整，负数/0 走下面循环 0 次，只提示
       const s = this.s; let n = 0, why = "灵石不足。";
       while (n < times && s.lingen[el] < CFG.lingen.MAX) {
-        const c = this.lingenCost(s.lingen[el]), ly = this.lingenLy(el, s.lingen[el]), ft = DATA.elIdx(el);
+        const c = this.lingenCost(s.lingen[el]), ly = this.lingenLy(el, s.lingen[el]), ft = DATA.elIdx(el), hb = this.lingenHerb(s.lingen[el]);
         if (s.stone < c) { why = "灵石不足。"; break; }
         if (ly && this.smCount("ly", ft) < ly) { why = `${DATA.smName("ly", ft)}不足（要 ${U.fmt(ly)} 个）。`; break; }
+        const hLack = hb ? ["yhg", "nhz"].find(k => this.smCount(k) < hb) : null;
+        if (hLack) { why = `${DATA.smName(hLack)}不足（要 ${U.fmt(hb)} 个）。`; break; }
         if (ly) this.takeSm("ly", ly, ft);
+        if (hb) { this.takeSm("yhg", hb); this.takeSm("nhz", hb); }
         s.stone -= c; s.lingen[el]++; n++;
       }
       if (!n) return this.log(s.lingen[el] >= CFG.lingen.MAX ? "此灵根已达极限。" : why, "sys");
@@ -42,16 +48,28 @@ G.module({
   },
 });
 
-/* 洞府 · 灵根 页面 */
+/* 洞府 · 灵根 页面（用户定 2026-11-14：列表不放图片，点「升级」弹窗显示所需物品） */
+G.openLingenUp = function (el) {
+    const s = this.s, C = CFG.lingen, e = DATA.elById[el], lv = s.lingen[el] || 0;
+    if (lv >= C.MAX) return this.closeModal();
+    const c = this.lingenCost(lv), ly = this.lingenLy(el, lv), ft = DATA.elIdx(el), hb = this.lingenHerb(lv);
+    const rows = [["灵石", s.stone || 0, c]];
+    if (ly) rows.push([DATA.smName("ly", ft), this.smCount("ly", ft), ly]);
+    if (hb) for (const k of ["yhg", "nhz"]) rows.push([DATA.smName(k), this.smCount(k), hb]);
+    const ok = rows.every(r => r[1] >= r[2]);
+    this.modal(`<h2>${e.name}灵根 ${lv} → ${lv + 1} 级</h2>
+      <p class="desc">修炼速度类功法效果 +${U.dec(this.lingenPct(lv))}% → +${U.dec(this.lingenPct(lv + 1))}%<br>${e.name}系法术伤害 +${U.dec(this.lingenSpPct(lv))}% → +${U.dec(this.lingenSpPct(lv + 1))}%</p>
+      ${rows.map(r => `<div class="line"><span>${r[0]}</span><span class="${r[1] >= r[2] ? "" : "q5"}">${U.fmt(r[1])} / ${U.fmt(r[2])}</span></div>`).join("")}
+      <div class="btns"><button class="primary" onclick="G.upgradeLingen('${el}',1);G.openLingenUp('${el}')" ${ok ? "" : "disabled"}>升级</button><button onclick="G.closeModal()">关闭</button></div>`);
+};
 G.caveViews.lingen = function () {
     const s = this.s, C = CFG.lingen;
-    const cell = (src, have, need, name) => `<div class="cpk-mat${have >= need ? "" : " lack"}" style="flex:0 0 58px"><img src="${src}" alt=""><b>${name}</b><span style="white-space:normal;word-break:break-all;text-align:center">${U.fmt(have)}/${U.fmt(need)}</span></div>`;   // 用户定 2026-11-14：等级效果、物品图片、升级按钮放一行；去掉升 10 级
     return `<div class="card"><h3>${DATA.caveName("lingen")}<small>灵石 ${U.fmt(s.stone)}</small></h3>
-      <p class="desc">只提升对应属性的修炼速度类功法效果（秘诀、炼体秘诀）。</p></div>` +
+      <p class="desc">提升对应属性的修炼速度类功法效果（秘诀、炼体秘诀）和法术伤害。</p></div>` +
       DATA.elements.map(e => {
-        const lv = s.lingen[e.id] || 0, max = lv >= C.MAX, c = this.lingenCost(lv), ly = this.lingenLy(e.id, lv), ft = DATA.elIdx(e.id), have = ly ? this.smCount("ly", ft) : 0, ok = s.stone >= c && have >= ly;
-        return `<div class="card"><div style="display:flex;align-items:center;gap:6px"><div style="flex:1 1 auto;min-width:0"><b>${e.name}灵根</b><span class="tag">${lv} 级</span>
-          <small style="display:block">${e.name}系修炼速度类功法效果 +${U.dec(this.lingenPct(lv))}%</small></div>
-          ${max ? `<button disabled>已达极限</button>` : `${cell(DATA.iconImg("stone"), s.stone, c, "灵石")}${ly ? cell(DATA.smIcon("ly", ft), have, ly, DATA.smName("ly", ft)) : ""}<button onclick="G.upgradeLingen('${e.id}',1)" ${ok ? "" : "disabled"}>升级</button>`}</div></div>`;
+        const lv = s.lingen[e.id] || 0, max = lv >= C.MAX;
+        return `<div class="card"><div class="line"><div><b>${e.name}灵根</b><span class="tag">${lv} 级</span>
+          <small style="display:block">修炼速度类功法效果 +${U.dec(this.lingenPct(lv))}% · 法术伤害 +${U.dec(this.lingenSpPct(lv))}%</small></div>
+          ${max ? `<button disabled>已达极限</button>` : `<button onclick="G.openLingenUp('${e.id}')">升级</button>`}</div></div>`;
       }).join("");
 };
