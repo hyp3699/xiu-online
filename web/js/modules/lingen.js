@@ -55,23 +55,22 @@ G.openLingenUp = function (el) {
     const s = this.s, C = CFG.lingen, e = DATA.elById[el], lv = s.lingen[el] || 0;
     if (lv >= C.MAX) return this.closeModal();
     const c = this.lingenCost(lv), ly = this.lingenLy(el, lv), ft = DATA.elIdx(el), hb = this.lingenHerb(lv);
-    const rows = [["灵石", s.stone || 0, c]];
-    if (ly) rows.push([DATA.smName("ly", ft), this.smCount("ly", ft), ly]);
-    if (hb) for (const k of ["yhg", "nhz"]) rows.push([DATA.smName(k), this.smCount(k), hb]);
+    const rows = [["灵石", s.stone || 0, c, DATA.iconImg("stone")]];
+    if (ly) rows.push([DATA.smName("ly", ft), this.smCount("ly", ft), ly, DATA.smIcon("ly", ft)]);
+    if (hb) for (const k of ["yhg", "nhz"]) rows.push([DATA.smName(k), this.smCount(k), hb, DATA.smIcon(k)]);
     const ok = rows.every(r => r[1] >= r[2]);
-    this.modal(`<h2>${e.name}灵根 ${lv} → ${lv + 1} 级</h2>
+    this.modal(`<h2>${DATA.li(DATA.iconImg("lg_" + el))}${e.name}灵根 ${lv} → ${lv + 1} 级</h2>
       <p class="desc">修炼速度类功法效果 +${U.dec(this.lingenPct(lv))}% → +${U.dec(this.lingenPct(lv + 1))}%<br>其他功法效果 +${U.dec(this.lingenOtPct(lv))}% → +${U.dec(this.lingenOtPct(lv + 1))}%<br>${e.name}系法术伤害 +${U.dec(this.lingenSpPct(lv))}% → +${U.dec(this.lingenSpPct(lv + 1))}%</p>
-      ${rows.map(r => `<div class="line"><span>${r[0]}</span><span class="${r[1] >= r[2] ? "" : "q5"}">${U.fmt(r[1])} / ${U.fmt(r[2])}</span></div>`).join("")}
+      ${rows.map(r => `<div class="line"><span>${DATA.li(r[3])}${r[0]}</span><span class="${r[1] >= r[2] ? "" : "q5"}">${U.fmt(r[1])} / ${U.fmt(r[2])}</span></div>`).join("")}
       <div class="btns"><button class="primary" onclick="G.upgradeLingen('${el}',1);G.openLingenUp('${el}')" ${ok ? "" : "disabled"}>升级</button><button onclick="G.closeModal()">关闭</button></div>`);
 };
 G.caveViews.lingen = function () {
     const s = this.s, C = CFG.lingen;
-    return `<div class="card"><h3>${DATA.caveName("lingen")}<small>灵石 ${U.fmt(s.stone)}</small></h3>
-      <p class="desc">提升对应属性的功法效果和法术伤害：修炼类秘诀（秘诀、炼体秘诀）单独计算，其他功法最高 +24%。</p></div>` +
+    return `<div class="card"><h3>${DATA.caveName("lingen")}<small>灵石 ${U.fmt(s.stone)}</small></h3></div>` +
       DATA.elements.map(e => {
         const lv = s.lingen[e.id] || 0, max = lv >= C.MAX;
-        return `<div class="card"><div class="line"><div><b>${e.name}灵根</b><span class="tag">${lv} 级</span>
-          <small style="display:block">修炼类秘诀 +${U.dec(this.lingenPct(lv))}% · 其他功法 +${U.dec(this.lingenOtPct(lv))}% · 法术伤害 +${U.dec(this.lingenSpPct(lv))}%</small></div>
+        return `<div class="card"><div class="line"><div style="display:flex;align-items:center;gap:8px"><img src="${DATA.iconImg("lg_" + e.id)}" alt="" style="width:44px;height:44px;flex:0 0 44px"><div><b>${e.name}灵根</b><span class="tag">${lv} 级</span>
+          <small style="display:block">修炼类秘诀 +${U.dec(this.lingenPct(lv))}% · 其他功法 +${U.dec(this.lingenOtPct(lv))}% · 法术伤害 +${U.dec(this.lingenSpPct(lv))}%</small></div></div>
           ${max ? `<button disabled>已达极限</button>` : `<button onclick="G.openLingenUp('${e.id}')">升级</button>`}</div></div>`;
       }).join("");
 };
