@@ -45,13 +45,13 @@ G.module({
 /* 洞府 · 灵根 页面 */
 G.caveViews.lingen = function () {
     const s = this.s, C = CFG.lingen;
-    const cell = (src, have, need, name) => `<div class="cpk-mat${have >= need ? "" : " lack"}" style="flex:0 0 64px"><img src="${src}" alt=""><b>${name}</b><span>${U.fmt(have)}/${U.fmt(need)}</span></div>`;   // 用户定 2026-11-14：显示物品图片 + 一个升级按钮，去掉升 10 级
+    const cell = (src, have, need, name) => `<div class="cpk-mat${have >= need ? "" : " lack"}" style="flex:0 0 58px"><img src="${src}" alt=""><b>${name}</b><span style="white-space:normal;word-break:break-all;text-align:center">${U.fmt(have)}/${U.fmt(need)}</span></div>`;   // 用户定 2026-11-14：等级效果、物品图片、升级按钮放一行；去掉升 10 级
     return `<div class="card"><h3>${DATA.caveName("lingen")}<small>灵石 ${U.fmt(s.stone)}</small></h3>
       <p class="desc">只提升对应属性的修炼速度类功法效果（秘诀、炼体秘诀）。</p></div>` +
       DATA.elements.map(e => {
         const lv = s.lingen[e.id] || 0, max = lv >= C.MAX, c = this.lingenCost(lv), ly = this.lingenLy(e.id, lv), ft = DATA.elIdx(e.id), have = ly ? this.smCount("ly", ft) : 0, ok = s.stone >= c && have >= ly;
-        return `<div class="card"><div class="line"><div><b>${e.name}灵根</b><span class="tag">${lv} 级</span>
-          <small>${e.name}系修炼速度类功法效果 +${U.dec(this.lingenPct(lv))}%</small></div></div>
-          ${max ? `<div class="btns"><button disabled>已达极限</button></div>` : `<div style="display:flex;align-items:center;gap:6px;margin-top:6px">${cell(DATA.iconImg("stone"), s.stone, c, "灵石")}${ly ? cell(DATA.smIcon("ly", ft), have, ly, DATA.smName("ly", ft)) : ""}<button style="margin-left:auto" onclick="G.upgradeLingen('${e.id}',1)" ${ok ? "" : "disabled"}>升级</button></div>`}</div>`;
+        return `<div class="card"><div style="display:flex;align-items:center;gap:6px"><div style="flex:1 1 auto;min-width:0"><b>${e.name}灵根</b><span class="tag">${lv} 级</span>
+          <small style="display:block">${e.name}系修炼速度类功法效果 +${U.dec(this.lingenPct(lv))}%</small></div>
+          ${max ? `<button disabled>已达极限</button>` : `${cell(DATA.iconImg("stone"), s.stone, c, "灵石")}${ly ? cell(DATA.smIcon("ly", ft), have, ly, DATA.smName("ly", ft)) : ""}<button onclick="G.upgradeLingen('${e.id}',1)" ${ok ? "" : "disabled"}>升级</button>`}</div></div>`;
       }).join("");
 };
