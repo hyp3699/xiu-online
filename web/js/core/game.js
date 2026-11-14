@@ -350,7 +350,9 @@ const G = {
   },
   // 功法殿 / 坊市 / 功德司左侧功法类型按钮：从按钮顶到页面底部（不滑动时）全部占满，按钮平分高度（用户定 2026-11-14）
   gfSideFit(sd, v) {
-    const ref = sd.parentNode || sd, off = ref.getBoundingClientRect().top - v.getBoundingClientRect().top + v.scrollTop, n = sd.children.length || 1;   // 用外框算位置：侧栏是 sticky，滑下去后它自己的位置会变，高度就被算小（2026-11-14 修）
+    const ref = sd.parentNode || sd, mn = ref.querySelector(".gf-side-main");
+    if (mn) { let nx; while ((nx = ref.nextElementSibling) && !nx.matches(".fback,.exov")) mn.appendChild(nx); }   // 侧栏下面的卡片（丹方、图纸等）也放进右边：滑到底时侧栏不再被外框带着往上跑（用户 2026-11-14）
+    const off = ref.getBoundingClientRect().top - v.getBoundingClientRect().top + v.scrollTop, n = sd.children.length || 1;   // 用外框算位置：侧栏是 sticky，滑下去后它自己的位置会变，高度就被算小（2026-11-14 修）
     sd.style.height = Math.max(n * 34, v.clientHeight - off - 2) + "px";
     if (!this._gfSideRs) { this._gfSideRs = 1; window.addEventListener("resize", () => { const vv = document.getElementById("view"), d = vv && vv.querySelector(".gf-side"); if (d) { d.style.height = ""; this.gfSideFit(d, vv); } }); }
   },
