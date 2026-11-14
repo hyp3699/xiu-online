@@ -342,7 +342,7 @@ const G = {
     let j = -1; kids.slice(0, 6).forEach((k, i) => { if (k.matches(HEAD)) j = i; });
     const rest = kids.slice(j + 1).filter(k => !k.matches(".fback, .exov, script, style"));
     if (j < 0 || !rest.length) return null;
-    if (kids[j].getBoundingClientRect().bottom - v.getBoundingClientRect().top > v.clientHeight * 0.55) return null;   // 头部太高（按钮在很下面）就不固定，免得下面滑动区太小
+    if (kids[j].getBoundingClientRect().bottom - kids[0].getBoundingClientRect().top > v.clientHeight * 0.55) return null;   // 从页面顶算头部高度：原来按屏幕位置算，页面滑下去后头部"变矮"，下一次重绘突然固定，滑动位置被清零跳回顶部（2026-11-14 修）   // 头部太高（按钮在很下面）就不固定，免得下面滑动区太小
     const body = document.createElement("div"); body.className = "fxbody"; body.id = "fx-scroll";
     c.insertBefore(body, rest[0]); rest.forEach(k => body.appendChild(k));
     c.classList.add("fxon"); v.classList.add("fxview");

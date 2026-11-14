@@ -175,11 +175,11 @@ G.module({
       if (this.lqFull(ch)) return `<button class="sm" disabled>队列已满</button>`;
       return `<button class="sm" onclick="${on}" ${poor ? "disabled" : ""}>${c ? "排队" : "学习"}</button>`;
     },
-    // 学习队列卡片（没有就空）
+    // 学习队列卡片（没有就空）；每本一行、时间跟在名字后面（.lq-card，用户定 2026-11-14）
     lqCard(ch) {
       const c = this.s[this.lqSlot(ch)], q = this.lqList(ch); if (!c) return "";
       const left = Math.max(0, c.end - this.now());
-      return `<div class="card"><h3>学习队列<small>排队 ${q.length} / ${this.lqMax()}</small></h3>
+      return `<div class="card lq-card"><h3>学习队列<small>排队 ${q.length} / ${this.lqMax()}</small></h3>
         <div class="line"><div class="pg">${this.pgFill(left, this.lqMs(ch, c))}<span>${this.lqName(c)}<small>学习中 · 剩余 ${U.cd(left / 1000)}</small></span></div></div>` +
         q.map((x, i) => `<div class="line"><div>${i + 1}. ${this.lqName(x)}<small>排队中 · 需 ${U.dur(this.lqMs(ch, x) / 1000)}</small></div></div>`).join("") + `</div>`;
     },

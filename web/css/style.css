@@ -1407,3 +1407,10 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .mpage.fxon{position:relative}
 .mpage.fxon>.fback{position:absolute;left:12px;right:12px;bottom:6px;margin:0;height:auto}
 .mpage.fxon>.fxbody{padding-bottom:62px}
+
+/* 学习队列压缩：每本一行，时间跟在功法名字后面（用户定 2026-11-14） */
+.lq-card{padding:6px 10px}
+.lq-card h3{margin-bottom:2px}
+.lq-card .line{padding:2px 0}
+.lq-card .line small{display:inline;margin-left:6px}
+.lq-card .line>div,.lq-card .pg>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
