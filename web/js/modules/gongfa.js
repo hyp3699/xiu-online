@@ -338,7 +338,7 @@ G.module({
       html += `<div class="card"><h3>排队中<small>${s.gfQueue.length} / ${DATA.GF_QUEUE}${s.gfQueue.length ? ` · 全部完成约 <span class="cd" id="gf-q-total"></span>` : ""}</small></h3>` +
         (s.gfQueue.length ? s.gfQueue.map((id, i) => {
           const q = DATA.skillInfo(id); if (!q) return "";
-          return `<div class="line"><div>${i + 1}. 《${q.name}》${q.noEl ? "" : `<span class="tag">${q.star}星</span>`}${this.gfLvTo(rows[i].lv)}<small>${this.gfGainTxt(DATA.skillInfo(id, rows[i].lv))} · <span class="cd" id="gf-q-${i}-acc"></span> 后完成</small></div><button class="sm" onclick="G.removeQueue(${i})">移除</button></div>`; }).join("")
+          return `<div class="line"><div>${i + 1}. 《${q.name}》${q.noEl ? "" : `<span class="tag">${q.star}星</span>`}${this.gfLvTo(rows[i].lv)}<small><span class="c-green">${this.gfGainTxt(DATA.skillInfo(id, rows[i].lv))}</span> · <span class="cd" id="gf-q-${i}-acc"></span> 后完成</small></div><button class="sm" onclick="G.removeQueue(${i})">移除</button></div>`; }).join("")
           : `<p class="desc">队列为空。</p>`) + `</div>`;
       return html;
     },
