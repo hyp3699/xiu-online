@@ -350,7 +350,7 @@ const G = {
   },
   // 功法殿 / 坊市 / 功德司左侧功法类型按钮：从按钮顶到页面底部（不滑动时）全部占满，按钮平分高度（用户定 2026-11-14）
   gfSideFit(sd, v) {
-    const off = sd.getBoundingClientRect().top - v.getBoundingClientRect().top + v.scrollTop, n = sd.children.length || 1;
+    const ref = sd.parentNode || sd, off = ref.getBoundingClientRect().top - v.getBoundingClientRect().top + v.scrollTop, n = sd.children.length || 1;   // 用外框算位置：侧栏是 sticky，滑下去后它自己的位置会变，高度就被算小（2026-11-14 修）
     sd.style.height = Math.max(n * 34, v.clientHeight - off - 12) + "px";
     if (!this._gfSideRs) { this._gfSideRs = 1; window.addEventListener("resize", () => { const vv = document.getElementById("view"), d = vv && vv.querySelector(".gf-side"); if (d) { d.style.height = ""; this.gfSideFit(d, vv); } }); }
   },

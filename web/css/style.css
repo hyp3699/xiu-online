@@ -1395,7 +1395,7 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 /* 功法殿 / 坊市 / 功德司 左侧功法类型（字竖排，用户定 2026-11-14） */
 .gf-side-wrap{display:flex;gap:5px;align-items:flex-start}
 .gf-side{position:sticky;top:0;flex:0 0 34px;display:flex;flex-direction:column;gap:4px;z-index:2}
-.gf-side button{flex:1 1 0;min-height:0;padding:2px 0;width:34px;min-width:0;line-height:1.15;font-size:14px;border-radius:6px;display:flex;align-items:center;justify-content:center}
+.gf-side button{flex:1 0 auto;min-height:0;padding:2px 0;width:34px;min-width:0;line-height:1.15;font-size:14px;border-radius:6px;display:flex;align-items:center;justify-content:center}
 .gf-side-main{flex:1 1 auto;min-width:0}
 .gf-side button.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}
 
