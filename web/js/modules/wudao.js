@@ -66,7 +66,7 @@ G.sectWudaoView = function () {
         ${lv ? `<button class="sm" disabled>已学会</button>` : this.lqBtn("gf", id, `G.learnMifa('${K.id}',${st})`, s.stone < c.stone || s.contrib < c.contrib)}</div>`];
     }) });
   }
-  return this.lqCard("gf") +
+  return this.lqBar("gf") +
     U.doneCards(cards.map(c => ({ head: c.head, rows: c.rows.filter(x => !x[0]) }))) +   // 没学会的
     `<div class="card"><h3>秘法总加成</h3><div class="stats">${DATA.mifaKinds.map(K => `<div><span>${K.label}</span>${fmt(K, tot[K.id])}</div>`).join("")}<div><span>战斗每步回血上限</span>+${U.num(tot.hpBattlePct)}%</div><div><span>战斗每步回法力上限</span>+${U.num(tot.mpBattlePct)}%</div><div><span>破军无视防御</span>${U.num(tot.pojunIgn)}%</div><div><span>金蝉伤害降低</span>${tot.jinchan ? U.num(tot.jinchanCut) + "%" : "-"}</div></div></div>` +
     U.doneCard(cards.flatMap(c => c.rows));   // 已学会放最后

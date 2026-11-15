@@ -1189,7 +1189,7 @@ G.caveViews.forge = function () {
 G.sectForgeView = function () {
   const s = this.s, star = this.sectInfo().star;
   let h = "";
-  h += this.lqCard("forge");   // v173 学习队列
+  h += this.lqBar("forge");   // v173 学习队列
   const cards = [];
   // N 星宗门显示一阶~N 阶图谱（不再分阶按钮）
   for (let g = 0; g < Math.min(star, DATA.DAN_JIE_N); g++) {
@@ -1217,7 +1217,7 @@ G.sectForgeView = function () {
 /* 门派 · 炼丹房：学习凡丹丹方 + 仙冥魔丹的命中/速度/闪避/生命/法力丹方（6~10 星，DATA.danSectX）（sect.js 调用）。1~5 星宗门每星两阶，6~10 星宗门全部凡丹丹方（DATA.danStar）；仙冥魔神丹方在四界功德司 */
 G.sectAlchemyView = function () {
   const s = this.s, star = this.sectInfo().star;
-  let h = this.lqCard("dan");   // v173 学习队列
+  let h = this.lqBar("dan");   // v173 学习队列
   const hall = DATA.nmPick(CFG.names.sectHall, "alchemy", "炼丹房"), types = Object.keys(DATA.recipes).filter(t => DATA.danSect(t));
   const cards = [];
   for (let g = 0; g < DATA.DAN_JIE_N; g++) {

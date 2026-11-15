@@ -1414,3 +1414,5 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .lq-card .line{padding:2px 0}
 .lq-card .line small{display:inline;margin-left:6px}
 .lq-card .line>div,.lq-card .pg>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.room-grid.lq-bar{grid-template-columns:1fr}
