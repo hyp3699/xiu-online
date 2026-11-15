@@ -80,7 +80,6 @@ G.module({
     // 点「购买」：弹窗选数量（纯界面），确定后再买
     openWdFruit(a) {
       const c = this.wdFruitCost(a), max = Math.min(9999, Math.floor((this.s.merit || 0) / c));
-      if (max <= 0) return this.log("功德不足。", "sys");
       this.buyModal({ title: `购买${DATA.smName("wdg")}`, icon: DATA.li(DATA.smIcon("wdg")), name: DATA.smName("wdg"), sub: `${U.fmt(c)} 功德/个 · 已有 ${U.fmt(this.smCount("wdg"))}`, ok: "购买", cost: c, cur: "功德", have: this.s.merit || 0, max, call: n => this.buyWdFruit(n, a) });
     },
     buyWdFruit(n, a) {

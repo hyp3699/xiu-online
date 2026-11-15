@@ -638,11 +638,11 @@ G.module({
       if (!this.takeSm(from, n)) return;
       if (!this.addSm(to, n)) { this.addSm(from, n); return; }
       this.s.contrib -= C.COST * n;
-      this.log(`${DATA.smName(from)} ×${U.fmt(n)} + ${U.fmt(C.COST * n)} 贡献，换得 ${DATA.smName(to)} ×${U.fmt(n)}。`, "good"); this.closeModal(); this.after();
+      this.log(`${DATA.smName(from)} ×${U.fmt(n)} + ${U.fmt(C.COST * n)} 贡献，换得 ${DATA.smName(to)} ×${U.fmt(n)}。`, "good"); this.after();
     },
     openSsSwap(from) {
       const C = this.ssSwapCfg(), to = this.ssSwapTo(from); if (!to) return;
-      const max = this.ssSwapMax(from); if (max < 1) return this.log(`${DATA.smName(from)}或贡献不足。`, "sys");
+      const max = this.ssSwapMax(from);
       this.buyModal({ title: `兑换${DATA.smName(to)}`, icon: DATA.li(DATA.smIcon(to)), name: DATA.smName(to), sub: `每个 1 个${DATA.smName(from)} + ${U.fmt(C.COST)} 贡献 · 已有 ${U.fmt(this.smCount(to))}`, ok: "兑换", max,
         need: k => `需要${DATA.smName(from)} ${U.fmt(k)}（有 ${U.fmt(this.smCount(from))}）+ 贡献 ${U.fmt(C.COST * k)}（有 ${U.fmt(this.s.contrib || 0)}）`, call: k => this.ssSwap(from, k) });
     },
@@ -673,7 +673,6 @@ G.module({
     openExchangeSeed(g) {
       if (!this.seedOK(g)) return;
       const c = DATA.seedCost(g), max = Math.min(9999, Math.floor(this.s.contrib / Math.max(1, c)));
-      if (max < 1) return this.log("贡献不足。", "sys");
       this.buyModal({ title: `兑换${DATA.seedName(g)}`, icon: DATA.li(DATA.seedImg(g)), name: DATA.seedName(g), sub: `${U.fmt(c)} 贡献/颗 · 已有 ${U.fmt(this.seedCount(g))}`, ok: "兑换", cost: c, cur: "贡献", have: this.s.contrib, max, call: k => this.exchangeSeed(g, k) });
     },
     // 兑换种子：不限次数，放进背包（贡献 = 药材出售价 × config/garden.js SEED_COST_MUL）
@@ -683,7 +682,7 @@ G.module({
       n = n === undefined ? 1 : Math.min(9999, Math.floor(+n)); if (!(n >= 1) || n > max) return this.log("贡献不足。", "sys");
       if (!this.addSeed(g, n)) return;
       this.s.contrib -= c * n;
-      this.log(`兑换${DATA.seedName(g)} ×${U.fmt(n)}，贡献 -${U.fmt(c * n)}。`, "gold"); this.closeModal(); this.after();
+      this.log(`兑换${DATA.seedName(g)} ×${U.fmt(n)}，贡献 -${U.fmt(c * n)}。`, "gold"); this.after();
     },
     // 兑换图纸：放进背包，点「学习」才能炼制
     exchangeBlueprint(kind, g) {

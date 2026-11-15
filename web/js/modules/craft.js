@@ -456,7 +456,8 @@ G.module({
     buyModal(o) {
       const ok = o.ok || "购买", max = Math.max(0, Math.floor(o.max || 0));
       const need = o.need || (n => `需要${o.cur} ${U.fmt(o.cost * n)} · 现有 ${U.fmt(o.have)}`);
-      this._qty = { max, call: o.call, n: max ? 1 : 0, title: o.title, need: n => `${need(n)} · 最多 ${U.fmt(max)}` };
+      const p = this._qty && this._qty.title === o.title ? this._qty.n : 1;   // 买完重开（refreshOpenModal）保留上次数量
+      this._qty = { max, call: o.call, n: max ? Math.max(1, Math.min(max, p)) : 0, title: o.title, keep: 1, need: n => `${need(n)} · 最多 ${U.fmt(max)}` };
       this.modal(`<h2>${o.title}</h2>
         <div class="line"><div>${o.icon || ""}${o.name}<small>${o.sub || ""}</small></div></div>
         <div class="line"><div>${ok}数量<small id="qty-need">${this._qty.need(this._qty.n)}</small></div></div>
@@ -468,7 +469,9 @@ G.module({
       const el = document.getElementById("qty-n"); if (el && (!typing || v > q.max)) el.value = q.n;
       const nd = q.need && document.getElementById("qty-need"); if (nd) nd.innerHTML = q.need(q.n); },
     qtyAdd(d) { const q = this._qty; if (q) this.qtySet(q.n + d); },
-    qtyOk() { const q = this._qty; if (!q) return; const n = q.n, call = q.call; this._qty = null; this.closeModal(); call(n); },
+    qtyOk() { const q = this._qty; if (!q || q.n < 1) return; const n = q.n, call = q.call;
+      if (q.keep) return call(n);   // 购买 / 兑换窗口：买完不关（用户定 2026-11-15），服务器回来后 refreshOpenModal 重开刷新数字
+      this._qty = null; this.closeModal(); call(n); },
     // 炼丹数量：最多 = 药材够炼几枚（一炉上限 MAX_BATCH）
     openAlchN(type, g) {
       const rec = DATA.danRecipe(type, g); let max = CFG.alchemy.MAX_BATCH;
@@ -675,7 +678,7 @@ G.module({
     },
     openRingSm(r, ysId) {   // 弹窗输入数量（同宗门宝库，用户定 2026-11-15）
       r = +r; if (!this.ringShopOK(r, ysId || undefined)) return;
-      const S = DATA.ringSp(r), max = Math.min(9999, Math.floor(this.ringPayHave(r) / Math.max(1, S.SM_COST))); if (max <= 0) return this.log(`${this.ringPayName(r)}不足。`, "sys");
+      const S = DATA.ringSp(r), max = Math.min(9999, Math.floor(this.ringPayHave(r) / Math.max(1, S.SM_COST)));
       const pn = this.ringPayName(r);
       this.buyModal({ title: `兑换${DATA.smName(S.sm)}`, icon: DATA.li(DATA.smIcon(S.sm)), name: DATA.smName(S.sm), sub: `${U.fmt(S.SM_COST)} ${pn}/个 · 已有 ${U.fmt(this.smCount(S.sm))}`, ok: "兑换", cost: S.SM_COST, cur: pn, have: this.ringPayHave(r), max, call: n => this.buyRingSm(r, n, ysId) });
     },
