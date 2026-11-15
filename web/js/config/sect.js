@@ -73,8 +73,11 @@ CFG.sect.jiangdao = {
   EXP10: [180, 260], // 10 星炼丹 / 炼器经验随机区间
   STAT1: [15, 35],   // 1 星功法属性随机区间
   STAT10: [70, 110], // 10 星功法属性随机区间（STAT_BY 没写的属性才用）
-  // 按属性：[1 星, 10 星]，中间按星级线性插值，固定值不随机（用户定 2026-11-15）
-  STAT_BY: { res: [12, 61], atk: [27, 120], def: [27, 120], hp: [81, 360], mana: [81, 360], hit: [18, 72], speed: [18, 72], dodge: [18, 72] },
+  // 功法属性随机区间（用户定 2026-11-15）：n 星 = STAT_BASE + STAT_STEP ×(n−1)，1 星 10~16 … 10 星 73~79（抗性、命中、闪避、速度）
+  //   攻击防御 / 生命法力 = 区间 × STAT_MUL
+  STAT_BASE: [10, 16],
+  STAT_STEP: 7,
+  STAT_MUL: { atk: 1.5, def: 1.5, hp: 4, mana: 4 },
   // 防御、攻击、生命、法力、命中、速度、闪避、金木水火土雷六种抗性（每种单独）
   TYPES: ["xinfa", "gongjue", "zhenjing", "fajue", "shenfa", "sufa", "dunshu", "res_jin", "res_mu", "res_shui", "res_huo", "res_tu", "res_lei"],
   LOG: 20,   // 闻道日志保留条数
