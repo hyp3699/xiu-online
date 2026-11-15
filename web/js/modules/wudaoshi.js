@@ -2,7 +2,7 @@
  * 模块：洞府 · 悟道室（数值在 config/wudaoshi.js）
  * ---------------------------------------------------------------------
  * 修炼之道：每天一次，消耗悟道果，得修为（当前境界升级需要的 2%~5%），按阶段给悟道秘诀（进背包）。
- * 神魂之道：每天一次，消耗悟道果，按阶段给神识强度，永久减修炼灵气消耗（wd.red），阶段最后一次给灵识点（wd.ls）。
+ * 神魂之道：每天一次，消耗悟道果，按阶段给神识强度，永久减修炼灵气消耗（wd.red），每次悟道给灵识点 1 点（wd.ls，2026-11-15 用户定）。
  * 战斗之道：每天一次，消耗悟道果，每次在攻击 / 防御 / 生命 / 六系抗性共 9 种里随机加一种（wd.bat，各 1/9）；页面上不显示累计，悟道后弹框里显示这次加的属性和得到的功法；
  *   加多少 = 基础（当前境界修为突破合计 + 肉身突破合计，不含功法 / 丹药 / 装备 / 炼体池）× PCT 区间随机 % × 阶段倍率（每阶段 +25%，最高 +240%）。
  *   每阶段给功法（wz阶段_序号:类别，来源在 DATA.wzSrc 现算，类型、抗性属性由序号哈希定，效果 = 同星级 × 1.5，不占灵识点）：
@@ -155,7 +155,7 @@ G.module({
       if (t % ev === 0 && t / ev <= H.SS) { s.ssPow = (s.ssPow || 0) + H.SS_N; rows.push(["神识强度", "+" + H.SS_N]); msg.push(`神识强度 +${H.SS_N}`); }
       const kind = H.RED_TYPES[st.t % H.RED_TYPES.length], red = H.RED + H.RED_ADD * (k - 1), kn = kind === "body" ? "肉身修炼灵气消耗" : "修为修炼灵气消耗";
       w.red[kind] = (w.red[kind] || 0) + red; rows.push([kn, "−" + red]); msg.push(`${kn} −${red}`);
-      if (t === st.N) { const ls = H.LS + H.LS_ADD * (k - 1); w.ls = (w.ls || 0) + ls; rows.push(["灵识点", "+" + ls]); msg.push(`灵识点 +${ls}`); }
+      { const ls = H.LS || 1; w.ls = (w.ls || 0) + ls; rows.push(["灵识点", "+" + ls]); msg.push(`灵识点 +${ls}`); }   // 每次悟道给灵识点（2026-11-15 用户定，取代阶段最后一次给）
       this._wdFx = Date.now();
       this.log(`${D0.name}悟道一次，${msg.join("，")}。`, "gold"); this.dirty(); this.after();
       this.wdModal(D0, rows.map(([a, b]) => `<div class="line"><div>${a}</div><b class="q4">${b}</b></div>`).join(""));
