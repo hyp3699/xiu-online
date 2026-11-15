@@ -88,7 +88,7 @@ G.module({
     // 有灵气（或开了自动补充且有灵石）才能修炼
     // 探索、历练中不能修炼；元婴出窍探索时可以继续修炼
     exBlocksCult() { return !!(this.s.explore && !this.s.explore.cq); },
-    canCultivate() { return this.hasMijue() && !this.exBlocksCult() && (this.s.ling >= 1 || (this.s.array.autoRefill && this.s.stone >= 1) || this.wdRed("exp") >= this.speed().total); },
+    canCultivate() { return this.hasMijue() && !this.exBlocksCult() && (this.s.ling >= 1 || (this.s.array.autoRefill && this.refillStone() >= 1) || this.wdRed("exp") >= this.speed().total); },
     // 不能修炼的原因（能修炼返回空）
     cultivateBlock() {
       if (!this.hasMijue()) return "未学秘诀，无法修炼（门派功法殿学习）";
