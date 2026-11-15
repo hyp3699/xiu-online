@@ -183,6 +183,9 @@ G.module({
         <div class="line"><div class="pg">${this.pgFill(left, this.lqMs(ch, c))}<span>${this.lqName(c)}<small>学习中 · 剩余 ${U.cd(left / 1000)}</small></span></div></div>` +
         q.map((x, i) => `<div class="line"><div>${i + 1}. ${this.lqName(x)}<small>排队中 · 需 ${U.dur(this.lqMs(ch, x) / 1000)}</small></div></div>`).join("") + `</div>`;
     },
+    // 「队列」按钮：点开弹窗看学习队列（坊市功法、功法殿用，用户定 2026-11-15）
+    lqQBtn(ch) { return `<button onclick="G.openLqQ('${ch}')">队列</button>`; },
+    openLqQ(ch) { this.modal(`${this.lqCard(ch) || `<div class="card lq-card"><h3>学习队列</h3><p class="desc">没有正在学习的功法。</p></div>`}<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`); },
     // 所有已学功法的加成合计（法术不算）
     gongfaBonus() {
       const b = { def: 0, atk: 0, hp: 0, cultivate: 0, speed: 0, hit: 0, dodge: 0, mana: 0, body: 0, res: {} };   // body：炼体秘诀加的肉身修炼速度 // res：真诀加的各系抗性

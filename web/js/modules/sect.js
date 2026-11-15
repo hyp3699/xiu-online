@@ -952,8 +952,8 @@ G.module({
       this.gfSideFix(cards.flatMap(c => c.gs.map(x => x[0])));
       const row = (g, t) => [this.hasGongfa(g.id), t ? `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${t.name}</span><small>每层${g.label} +${this.gfValue(g, g.perLv)}${g.label2 ? ` · ${g.label2} +${this.gfValue(g, g.perLv2)}` : ""} · ${U.fmt(g.cost)} 贡献 · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>${btn(g)}</div>`
         : `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">法术</span><small>${this.spellDmgTxt(g)} · 耗法力 ${U.fmt(g.mana)} · ${U.fmt(g.cost)} 贡献 · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>${btn(g)}</div>`];
-      h += this.lqCard("gf") + `<div class="room-grid six">${DATA.elements.map(e => [e.id, e.name]).map(([k, n]) =>
-          `<button class="${el === k ? "active" : ""}" onclick="G.setLibEl('${k}')">${n}</button>`).join("")}</div>` +
+      h += `<div class="room-grid" style="grid-template-columns:repeat(${DATA.elements.length + 1},1fr)">${DATA.elements.map(e => [e.id, e.name]).map(([k, n]) =>
+          `<button class="${el === k ? "active" : ""}" onclick="G.setLibEl('${k}')">${n}</button>`).join("")}${this.lqQBtn("gf")}</div>` +   // 学习队列放进「队列」按钮（用户定 2026-11-15）
         this.gfSideWrap(cards.flatMap(c => c.gs.map(x => x[0])), U.doneCards(cards.map(({ o, gs }) => ({ head: `<h3>${o.name}<span class="tag">${o.star}星</span><span class="tag">${DATA.elById[o.el].name}</span></h3>`,
           rows: gs.filter(([g]) => this.gfSideOk(g)).map(([g, t]) => row(g, t)) }))) || `<div class="card"><p class="desc">${this.gfSide === "done" ? "还没有学会的功法" : "这一类都学会了"}。</p></div>`);
     } else if (tab === "affair") {
