@@ -29,6 +29,7 @@ G.module({
   // 每 10 秒：生命、法力各恢复上限的 1%
   tick() {
     const st = this.stats(), s = this.s;
+    if (!s.born) s.born = this.now();   // 修炼年数起点（老存档从这次开始算，用户定 2026-11-16）
     const R = this.regen(false);   // 平时恢复：每 10 秒 % 上限
     if (s.hp < st.hp) s.hp = Math.min(st.hp, s.hp + st.hp * R.hp / 100);
     if (s.mana < st.mana) s.mana = Math.min(st.mana, s.mana + st.mana * R.mana / 100);
