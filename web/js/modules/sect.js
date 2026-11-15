@@ -54,6 +54,7 @@ G.module({
     this.freeRoomDaily(); this.poolTick(); this.jdSettle(); this.cqzjTick();
     if (this.s.sect) this.affairGen();
     this.autoTaskCheck();   // v229 每天北京时间 0:05 自动执行任务（修炼设置）；v230 离线补算到 0:05 也执行
+    this.wdAutoSettle();   // 自动任务的悟道读条到时结算（手动记录不动，等客户端读条）
     this.autoRoomChain();   // 免费修炼室 / 练功房用完后，按自动任务里选的付费房接续（每会话只接续一次）
     const s = this.s, a = s.affair, now = this.now();
     const t = s.sect && a && a.task >= 0 ? DATA.affairs[a.task] : null;
@@ -408,7 +409,7 @@ G.module({
         if (A.salary && s.salaryDay !== this.today()) this.claimSalary();   // 自动领取宗门俸禄（每日灵石俸禄；今天已领过的不重复领）
       } else if (A.free || A.gf || A.pool || A.salary) log("未加入宗门，跳过宗门任务。");
       this._autoQuiet = true;
-      try { for (const d of ["xiulian", "shenhun", "zhandou"]) if (A[d] && this.wdCheck(d)) this.wudaoDone(d); } finally { this._autoQuiet = false; }
+      try { for (const d of ["xiulian", "shenhun", "zhandou"]) if (A[d] && this.wdCheck(d)) { this.wudao(d); const m = this.wdStarts(); if (m[d]) m[d].auto = 1; } } finally { this._autoQuiet = false; }   // 自动悟道也走 5 秒读条：先记开始、标 auto，读满后由 tick 的 wdAutoSettle 结算，不直接发奖
       const go = (tgt, cq) => { const p = (tgt || "").split(":").map(Number); if (!tgt) return log("没有选择地图。");
         if (cq) { const r = p[2];
           if (s.cq || (s.explore && s.explore.cq)) return log("正在出窍，跳过自动出窍。");
@@ -589,7 +590,7 @@ G.module({
     seedOK(g) { return DATA.herbGrow(g) && this.seedList().some(x => x.g === g && !x.lock); },
     // 兑换材料（药材、矿石，凡界全部可换）；n 不填就用输入框里的数量
     exchangeMat(kind, g, n) {
-      n = Math.floor(n || +($("#tr-n") && $("#tr-n").value) || 1);
+      n = Math.min(1000, Math.floor(n || +($("#tr-n") && $("#tr-n").value) || 1));
       if (n <= 0 || !this.treasuryMatOK(kind, g)) return;
       const c = DATA.matContrib(kind, g) * n;
       if (this.s.contrib < c) return this.log(`贡献不足，需要 ${U.fmt(c)}。`, "sys");

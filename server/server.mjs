@@ -34,6 +34,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS tokens(token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS saves(user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, data TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL);
   CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS receipts(user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, op_id TEXT NOT NULL, reply TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(user_id, op_id));
   CREATE TABLE IF NOT EXISTS hist(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, at INTEGER NOT NULL, data TEXT NOT NULL);
   CREATE INDEX IF NOT EXISTS hist_user ON hist(user_id, id);
   CREATE TABLE IF NOT EXISTS gifts(code TEXT PRIMARY KEY, payload TEXT NOT NULL, max_uses INTEGER NOT NULL DEFAULT 1, used_count INTEGER NOT NULL DEFAULT 0, expires_at INTEGER, created_at INTEGER NOT NULL);
@@ -55,6 +56,25 @@ const q = {
 const clients = new Map();
 const tickets = new Map();
 const receipts = new Map();   // 按账号记已处理的操作编号（原来按连接，重连后清空）
+// WS 幂等收据持久化：重启 / 内存 256 条溢出后，重发同一操作编号仍返回缓存回复、不重新执行。
+// 存时剥掉 patch/base/state 三项（回放时本来就会剥掉并重发完整状态），内存 + 库里各留最近 256 条。
+// 落盘失败只记日志、不影响本次操作回复。
+function storeReceipt(userId, id, reply) {
+  try {
+    const { patch, base, state, ...cached } = reply || {};
+    db.prepare("INSERT INTO receipts(user_id,op_id,reply,created_at) VALUES(?,?,?,?) ON CONFLICT(user_id,op_id) DO UPDATE SET reply=excluded.reply,created_at=excluded.created_at").run(userId, id, JSON.stringify(cached), Date.now());
+    db.prepare("DELETE FROM receipts WHERE user_id=? AND rowid NOT IN (SELECT rowid FROM receipts WHERE user_id=? ORDER BY created_at DESC, rowid DESC LIMIT 256)").run(userId, userId);
+  } catch (err) { console.error("receipt store failed:", err?.message || err); }
+}
+function loadReceipts(userId) {
+  const map = new Map();
+  try {
+    for (const row of db.prepare("SELECT op_id, reply FROM receipts WHERE user_id=? ORDER BY created_at DESC, rowid DESC LIMIT 256").all(userId)) {
+      try { map.set(row.op_id, JSON.parse(row.reply)); } catch {}
+    }
+  } catch (err) { console.error("receipt load failed:", err?.message || err); }
+  return map;
+}
 const engines = new Map();
 const startedAt = Date.now();
 const REPO_DIR = path.resolve(HERE, "..");
@@ -359,9 +379,9 @@ function validateValue(value, depth = 0, action = "") {
   }
   if (typeof value === "number") {
     if (!Number.isFinite(value) || !Number.isInteger(value) || Math.abs(value) > 1e12) throw new Error("操作参数无效");
-    // 逐件循环类操作的数量参数第二道防线：buy(i,n)/bmFuse(j,n) 的 n 在引擎里还会 clamp（buy ≤1000、bmFuse ≤持有量），
+    // 逐件循环类操作的数量参数第二道防线：buy(i,n)/bmFuse(j,n)/buyMat/exchangeMat/buySgDan/buyWdFruit/sjBuyMat/sjBuyItem 的 n 在引擎里还会 clamp（≤1000、bmFuse ≤持有量），
     // 但这里先拦住超大数，避免单条请求在引擎里逐件循环卡死事件循环；其它操作（如 cultSetSave 的阈值）不受影响。
-    if ((action === "buy" || action === "bmFuse") && value > 1000) throw new Error("操作参数无效");
+    if ((action === "buy" || action === "bmFuse" || action === "buyMat" || action === "exchangeMat" || action === "buySgDan" || action === "buyWdFruit" || action === "sjBuyMat" || action === "sjBuyItem") && value > 1000) throw new Error("操作参数无效");
     if (value < 0 && !(value === -1 && NEGATIVE_ONE_ACTIONS.has(action))) throw new Error("操作参数无效");
     return;
   }
@@ -860,7 +880,7 @@ wss.on("connection", (socket, session) => {
   } catch (err) { console.error("login settle/save failed:", err?.message || err); socket.close(4005, "角色数据异常，无法登录"); return; }
   const saved = q.save.get(user.id);
   const client = { socket, userId: user.id, engine: playerEngine, state: advanced.state, revision: saved?.revision || 1, lastPersist: Date.now(), rateWindow: Date.now(), rateCount: 0, nextCheck: Math.min(Date.now() + CHECK_MS, (advanced.nextDue || 0) + DUE_MARGIN_MS), lastPush: 0, lastSent: null, seq: 0 };
-  clients.set(user.id, client); if (!receipts.has(user.id)) receipts.set(user.id, new Map());
+  clients.set(user.id, client); if (!receipts.has(user.id)) receipts.set(user.id, loadReceipts(user.id));   // 重启后也认旧操作编号：连接建立时从库里把收据装回内存
   pushState(client, Date.now(), advanced.logs, true, true);
 
   socket.on("message", raw => {
@@ -910,7 +930,7 @@ wss.on("connection", (socket, session) => {
       client.revision += 1; client.lastPersist = Date.now();
       const reply = { type: "result", id, ok: true, serverNow: outcome.serverNow, revision: client.revision, logs: outcome.logs, result: outcome.result, battles: outcome.battles || [], ...statePayload(client, false, working) };
       client.lastPush = Date.now(); client.nextCheck = Date.now();
-      seen.set(id, reply); if (seen.size > 256) seen.delete(seen.keys().next().value); send(socket, reply);
+      seen.set(id, reply); storeReceipt(user.id, id, reply); if (seen.size > 256) seen.delete(seen.keys().next().value); send(socket, reply);
       const t3 = performance.now();
       {
         const total = t3 - t0;
@@ -918,7 +938,7 @@ wss.on("connection", (socket, session) => {
       }
     } catch (err) {
       const reply = { type: "result", id, ok: false, error: err.message || "操作失败", serverNow: Date.now(), revision: client.revision, ...statePayload(client) };   // 出错：client.state 没变，补丁为空
-      seen.set(id, reply); if (seen.size > 256) seen.delete(seen.keys().next().value); send(socket, reply);
+      seen.set(id, reply); storeReceipt(user.id, id, reply); if (seen.size > 256) seen.delete(seen.keys().next().value); send(socket, reply);
     }
   });
   socket.on("close", () => {
@@ -1131,12 +1151,12 @@ async function serverInfo() {
 setTimeout(backupDb, 60_000).unref();                       // 启动 1 分钟后先备份一次
 setInterval(backupDb, BACKUP_MS).unref();
 
-// 离线玩家后台结算：间隔读 config/rates.js 的 OFFLINE_SEC（秒，默认 10，0 关闭），管理员改了下一轮就生效。
+// 离线玩家后台结算：间隔读 config/rates.js 的 OFFLINE_SEC（秒，默认 10；后台结算不能关，配成 0 或无效值时按默认 10 秒），管理员改了下一轮就生效。
 // 不在线的角色读出来、结算到现在、落盘，再进游戏时只补最后一小段，不用一次性补算整段离线时间。
 // 每人每次一个 JSON 读写 + 一个周期结算；整轮超过 1 秒会记日志，玩家多了再改成分批。
 const offlineIds = db.prepare("SELECT user_id FROM saves"), offlineBad = new Map();   // 结算出错的角色 30 分钟内不再后台算（免得反复刷错误），之后重试；上线时照常结算
 const OFFLINE_CHUNK = 8640;   // 后台结算每轮每人最多补 1 天（8640 个 10 秒），停服很久后不会一轮卡死，剩下的下一轮接着算
-function offlineSec() { try { const v = Number(poolEngine(false, false).CFG.rates?.OFFLINE_SEC ?? 10); return Number.isFinite(v) && v > 0 ? Math.max(1, v) : 0; } catch { return 10; } }
+function offlineSec() { try { const v = Number(poolEngine(false, false).CFG.rates?.OFFLINE_SEC ?? 10); return Number.isFinite(v) && v > 0 ? Math.max(1, v) : 10; } catch { return 10; } }   // 后台结算不能关：0 / 缺失 / 无效一律按默认 10 秒
 function offlineSettle() {
   const t0 = Date.now(); let n = 0;
   for (const { user_id: id } of offlineIds.all()) {
@@ -1156,6 +1176,13 @@ function offlineSettle() {
 })();
 
 let lastHousekeeping = 0;
+let lastBeat = 0;
+function beat() {   // 服务器心跳（settings.heartbeat）：运行时每 10 秒写一次，供重启时算停机窗口
+  const now = Date.now();
+  if (now - lastBeat < 10_000) return;
+  lastBeat = now;
+  try { setSetting("heartbeat", now); } catch (err) { console.error("heartbeat write failed:", err?.message || err); }
+}
 const timer = setInterval(() => {
   const now = Date.now();
   for (const [userId, client] of clients) {
@@ -1176,6 +1203,7 @@ const timer = setInterval(() => {
   }
   if (now - lastHousekeeping >= 1000) {
     lastHousekeeping = now;
+    beat();   // 运行时心跳：停机窗口的起点，重启时据此跳过停机期
     for (const [key, r] of loginFails) if (now - r.first > 10 * 60_000 && (!r.until || now > r.until)) loginFails.delete(key);
     for (const [key, r] of regHits) if (now - r.first > 60 * 60_000) regHits.delete(key);
     for (const [ticket, item] of tickets) if (item.expiresAt < now) tickets.delete(ticket);
@@ -1194,6 +1222,39 @@ function shutdown(signal) {
 }
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
+// 停机不补算：启动时把所有存档里属于停机窗口 [lastHeartbeat, now] 的时间锚点整体平移，
+// 心跳前的 backlog 不动（后台每天一轮正常补）。整个迁移 + 心跳更新包在一个事务里，
+// 中途崩溃全部回滚，下次启动重新算同一段停机、重新迁移，不会重复平移。
+// 引擎建不起来就不迁移、也不动心跳，下次启动再试；无心跳（首次启动）或时钟拨回时不迁移、只写心跳。
+function migrateDowntime() {
+  let engine;
+  try { engine = poolEngine(false, false); } catch (err) { console.error("downtime migration skipped (engine unavailable):", err?.message || err); return 0; }
+  let hb = 0;
+  try { hb = Number(getSetting("heartbeat") || 0) || 0; } catch { hb = 0; }
+  const now = Date.now();
+  if (!(hb > 0) || now - hb <= 0) {
+    try { setSetting("heartbeat", now); } catch (err) { console.error("heartbeat write failed:", err?.message || err); }
+    return 0;
+  }
+  const rows = db.prepare("SELECT user_id, data FROM saves").all();
+  const upsert = db.prepare("INSERT INTO saves(user_id,data,revision,updated_at) VALUES(?,?,1,?) ON CONFLICT(user_id) DO UPDATE SET data=excluded.data,revision=saves.revision+1,updated_at=excluded.updated_at");
+  let n = 0;
+  const tx = db.transaction(() => {
+    for (const { user_id, data } of rows) {
+      let state;
+      try { state = JSON.parse(data); } catch { continue; }
+      try { engine.bindState(state, now); } catch (err) { console.error(`downtime migration u${user_id} skipped (bind failed):`, err?.message || err); continue; }
+      let changed = false;
+      try { changed = engine.skipDowntime(state, hb, now); } catch (err) { console.error(`skipDowntime u${user_id} failed:`, err?.message || err); continue; }
+      if (changed) { upsert.run(user_id, JSON.stringify(state), now); n++; }
+    }
+    setSetting("heartbeat", now);
+  });
+  try { tx(); } catch (err) { console.error("downtime migration failed:", err?.message || err); return 0; }
+  if (n) console.log(`downtime skip: ${n} saves shifted by ${Math.round((now - hb) / 1000)}s`);
+  return n;
+}
+migrateDowntime();   // 开始服务之前、同步做完再 listen
 server.listen(PORT, HOST, () => {
   console.log(`xiu-online authoritative server listening on http://${HOST}:${PORT}`);
   warmEngines();

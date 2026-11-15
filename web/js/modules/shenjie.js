@@ -263,12 +263,12 @@ G.module({
     },
     openSjBuy(k) {
       const c = (this.sjC().YL_SHOP || {})[k]; if (!c) return;
-      const max = Math.min(99999, Math.floor((this.s.yuanli || 0) / c)); if (max <= 0) return this.log("愿力不足。", "sys");
+      const max = Math.min(1000, Math.floor((this.s.yuanli || 0) / c)); if (max <= 0) return this.log("愿力不足。", "sys");
       this.qtyModal(`兑换${DATA.smName(k)}`, `<p class="desc">每个 ${U.fmt(c)} 愿力 · 现有愿力 ${U.fmt(this.s.yuanli || 0)}</p>`, max, n => this.sjBuyItem(k, n), { max: "最多可换", ok: "兑换" });
     },
     sjBuyItem(k, n) {
       const s = this.s, c = (this.sjC().YL_SHOP || {})[k]; if (!c) return;
-      n = Math.min(Math.floor(+n), Math.floor((s.yuanli || 0) / c));
+      n = Math.min(1000, Math.floor(+n), Math.floor((s.yuanli || 0) / c));
       if (!Number.isFinite(n) || n <= 0) return this.log("愿力不足。", "sys");
       if (!this.addSm(k, n)) return;
       s.yuanli -= c * n; this.log(`兑换${DATA.smName(k)} ×${n}。`, "good"); this.after();
@@ -285,13 +285,13 @@ G.module({
     },
     openSjMat(a, t, i) {
       const n0 = (DATA.mapPool(+a)[t] || [])[+i], c = this.sjC().MAT_GX || 6; if (!n0) return;
-      const max = Math.min(99999, Math.floor(this.xjGxOf(+a) / c)); if (max <= 0) return this.log("贡献不足。", "sys");
+      const max = Math.min(1000, Math.floor(this.xjGxOf(+a) / c)); if (max <= 0) return this.log("贡献不足。", "sys");
       this.qtyModal(`兑换${n0}`, `<p class="desc">每个 ${U.fmt(c)} 点本图贡献 · 现有贡献 ${U.fmt(this.xjGxOf(+a))}</p>`, max, n => this.sjBuyMat(a, t === "herb" ? 0 : 1, i, n), { max: "最多可换", ok: "兑换" });
     },
     sjBuyMat(a, k, i, n) {
       a = +a; const t = +k ? "ore" : "herb", name = (DATA.mapPool(a)[t] || [])[+i], c = this.sjC().MAT_GX || 6;
       if (!name || !DATA.maps[a] || DATA.maps[a].w !== "shen" || !this.mapOpen(a)) return;
-      n = Math.min(Math.floor(+n), Math.floor(this.xjGxOf(a) / c));
+      n = Math.min(1000, Math.floor(+n), Math.floor(this.xjGxOf(a) / c));
       if (!Number.isFinite(n) || n <= 0) return this.log("贡献不足。", "sys");
       const m = DATA.matByName[name]; if (!m) return;
       this.addMat(m.kind, name, m.g, n); this.xjGxAdd(a, -c * n);

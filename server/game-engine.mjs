@@ -153,26 +153,24 @@ export class GameEngine {
       if (engine.logs.length > 100) engine.logs.length = 100;
     };
     // 悟道读条强制（服务端）：wudao 只记录开始时间、不结算；wudaoDone 结算时校验是否读满
-    // CFG.wudaoRoom.TIME 秒（见下面的 wudaoDone 包装）。开始时间存进存档（s._wdStart），
+    // CFG.wudaoRoom.TIME 秒（见下面的 wudaoDone 包装）。开始时间存进存档（s._wdStart，按道分的 map），
     // 断线重连后仍有效；已有未完成的开始时间则保留，重复点「开始」不重置读条。
-    // 注意：正常客户端流程（web/js/core/api.js 的 wudao 拦截）只发 wudaoDone、不发 wudao，
-    // 自动任务（sect.js runAutoTask）也是直接调 wudaoDone——这两路都不带 _wdStart，
-    // 所以 wudaoDone 在无 _wdStart 时不拦（见下）；只有带开始时间却没读满时才拦。
-    // 想彻底堵住“只发 wudaoDone 跳过读条”，需前端在读条开始时先发一次 wudao。
+    // 客户端手动流程（web/js/core/api.js 的 wudao 拦截）先发 wudao 再等读条发 wudaoDone；
+    // 自动任务（sect.js runAutoTask）也先调 wudao 记开始、标 auto，读满后由 tick 的 wdAutoSettle 结算。
+    // 所以 wudaoDone 在无开始记录时直接拒绝——客户端直发 wudaoDone 跳读条的口子就堵住了。
     this.G.wudao = function (dao) {
       if (!this.wdCheck(dao)) return;
-      const cur = this.s._wdStart;
-      if (!cur || cur.dao !== dao) this.s._wdStart = { dao, at: engine.clock.now };
+      const m = this.wdStarts();
+      if (!m[dao]) m[dao] = { at: engine.clock.now };
     };
     const origWudaoDone = this.G.wudaoDone;
     if (typeof origWudaoDone === "function") {
       this.G.wudaoDone = function (dao) {
-        const s = this.s, start = s && s._wdStart;
-        if (start && start.dao === dao) {
-          const needMs = ((engine.CFG.wudaoRoom || {}).TIME || 0) * 1000;
-          if (engine.clock.now - start.at < needMs) throw new Error("悟道尚未完成，请等读条结束");
-          delete s._wdStart;
-        }
+        const s = this.s, m = this.wdStarts(), start = m[dao];
+        if (!start) throw new Error("悟道尚未开始");
+        const needMs = ((engine.CFG.wudaoRoom || {}).TIME || 0) * 1000;
+        if (engine.clock.now - start.at < needMs) throw new Error("悟道尚未完成，请等读条结束");
+        delete m[dao];
         return origWudaoDone.call(this, dao);
       };
     }
@@ -308,13 +306,18 @@ export class GameEngine {
     try {
       const a = s.affair, at = a && a.task >= 0 && this.DATA.affairs && this.DATA.affairs[a.task];
       const affairDue = at && this.clock.now >= a.start + at.time * 60000;   // 事务堂奖励还没结算：留给 10 秒周期按时间先后一起算
-      if (!affairDue && typeof this.G.roomBill === "function" && (s.room >= 0 || s.gfRoom >= 0)) this.G.roomBill(this.clock.now);
+      if (!affairDue && typeof this.G.roomBill === "function" && (s.room >= 0 || s.gfRoom >= 0)) this.G.roomBill(truncated ? s.last : this.clock.now);   // 截断时只扣到已算完的 tick 位置（不把没算的时段也扣了，剩下的以后几轮再扣）；没截断时按现在扣，倒计时到 0 立刻扣、不等下一个 10 秒周期
       if (s.gfStudy && typeof this.G.gfStudyEnd === "function") {
         const end = this.G.gfStudyEnd(), gm = (this.G.modules || []).find(m => m.id === "gongfa");
         if (end != null && this.clock.now >= end && gm && gm.tick) gm.tick.call(this.G, false);
       }
     } catch (err) { console.error("timed settle failed:", err?.stack || err); }
-    if (typeof this.G.advanceExplore === "function" && (s.explore || s.cq)) this.G.advanceExplore();
+    // 探索 / 出窍只结算到 tick 已算完的位置：advanceExplore 本来按 _simNow（= 现在）结算，不受 tick 预算约束，
+    // 后台没跟上时一次 advance 会把几十天的探索全算完；先把 _simNow 临时设为 s.last（已算完的 tick 位置），算完恢复。
+    if (typeof this.G.advanceExplore === "function" && (s.explore || s.cq)) {
+      this.G._simNow = s.last;
+      try { this.G.advanceExplore(); } finally { this.G._simNow = this.clock.now; }
+    }
     if (typeof this.G.advanceTrib === "function" && s.trib) this.G.advanceTrib();
     // Preserve the partial 10-second interval; the server owns this timestamp.
     // 只有没被截断时才能把 s.last 对齐到现在：被截断时上面已把 s.last 设成 last+due*TICK_MS，
@@ -322,6 +325,78 @@ export class GameEngine {
     if (!truncated) s.last = this.clock.now - ((this.clock.now - last) % TICK_MS);
     this.G._simNow = this.clock.now;
     return { state: safeClone(s), logs: safeClone(this.logs), serverNow: this.clock.now, processedTicks: due, truncated, nextDue: this.nextDue(s) };
+  }
+
+  // 停机不补算：把存档里属于停机窗口 [hb, now] 的时间锚点整体平移 shift = now - hb，
+  // 心跳前的 backlog 不动（s.last 早于 hb 的部分照常由后台补算）。
+  // 规则：s.last 无条件平移（在 (hb, now] 内钳到 now，>now 不动）；一次性结束时间、开始/过去锚点一律 +shift；
+  // 日期字符串不动（靠日期比较自然重置，停机那几天每日奖励不补发）；历史记录、本命炼成时间不动。
+  // 调用前需先 bindState（wdStarts 要读 G.s）；返回是否改了存档（改了才由调用方落盘）。
+  skipDowntime(state, hb, now) {
+    const shift = now - hb;
+    if (!(shift > 0)) return false;
+    const s = state;
+    let changed = false;
+    const shiftNum = (o, k) => { const v = o && o[k]; if (typeof v === "number" && v > 0) { o[k] = v + shift; changed = true; } };
+    const shiftEnd = (o) => { if (o && typeof o.end === "number" && o.end > 0) { o.end += shift; changed = true; } };
+    // s.last：早于心跳的 backlog 照常保留（平移后 tick 窗口长度正好等于 backlog）；
+    // 在 (hb, now] 内的钳到 now；已超出现在的不动。
+    if (typeof s.last === "number") {
+      if (s.last <= hb) { s.last += shift; changed = true; }
+      else if (s.last <= now) { s.last = now; changed = true; }
+    }
+    // 一次性结束时间
+    shiftEnd(s.pool);
+    if (s.zf) shiftEnd(s.zf.job);
+    shiftEnd(s.gfLearn);
+    shiftEnd(s.danStudy);
+    shiftEnd(s.forgeStudy);
+    shiftEnd(s.bmJob);
+    shiftEnd(s.forgeJob);
+    if (s.jd) shiftEnd(s.jd.cur);
+    shiftEnd(s.cqzjL);
+    shiftEnd(s.svPick);
+    shiftEnd(s.freeGf);
+    shiftEnd(s.studyBuff);
+    // 开始 / 过去锚点
+    for (const x of [s.explore, s.cq]) {
+      if (!x) continue;
+      shiftNum(x, "start");
+      if (x._pz != null && typeof x._pz === "number" && x._pz > 0) { x._pz += shift; changed = true; }   // 渡劫暂停点也要同量平移，否则恢复时会多算一段停机
+    }
+    if (s.trib) { shiftNum(s.trib, "start"); shiftNum(s.trib, "t0"); }
+    shiftNum(s.gfStudy, "at");
+    if (s.affair && s.affair.task >= 0) shiftNum(s.affair, "start");
+    shiftNum(s, "roomAt"); shiftNum(s, "gfRoomAt");
+    for (const w in s.offices || {}) { const o = s.offices[w]; if (o) shiftNum(o, "T"); }
+    shiftNum(s.alchJob, "next");
+    for (const f of s.fields || []) if (f && f.g >= 0 && !f.wait) shiftNum(f, "start");
+    if (Array.isArray(s.mailbox)) for (const m of s.mailbox) if (m) shiftNum(m, "at");
+    // 神功上次学习时间：旧存档日期串 d 先按 sjSgSt 的规则转成 t
+    if (s.sj && s.sj.sg && typeof s.sj.sg === "object") {
+      for (const k of Object.keys(s.sj.sg)) {
+        const o = s.sj.sg[k]; if (!o || typeof o !== "object") continue;
+        if (typeof o.d === "string" && o.d) { const t = Date.parse(o.d + "T00:00:00+08:00"); if (Number.isFinite(t)) o.t = t; delete o.d; changed = true; }
+        shiftNum(o, "t");
+      }
+    }
+    // 悟道读条开始：先经 wdStarts() 归一成 map，再逐道平移
+    try {
+      const m = this.G.wdStarts();
+      for (const dao of Object.keys(m)) { const r = m[dao]; if (r) shiftNum(r, "at"); }
+    } catch {}
+    // 道童上次领俸日：按停机跨过的北京时间日历天数平移（免得停机几天算成欠薪几天、道童出走）
+    if (Array.isArray(s.servants) && s.servants.length) {
+      const B = 8 * 3600000, D = 86400000;
+      const days = Math.floor((now + B) / D) - Math.floor((hb + B) / D);
+      if (days > 0) for (const d of s.servants) {
+        if (d && typeof d.paid === "string" && d.paid) {
+          const t = Date.parse(d.paid);
+          if (Number.isFinite(t)) { d.paid = new Date(t + days * D).toISOString().slice(0, 10); changed = true; }
+        }
+      }
+    }
+    return changed;
   }
 
   // 下一次会改变状态的时间点（修炼周期、探索下一步、下一道劫雷）；服务器在这一刻立即结算并推送。

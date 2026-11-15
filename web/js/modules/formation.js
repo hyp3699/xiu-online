@@ -78,7 +78,7 @@ G.module({
       else { z.on[f.id] = 1; this.log(`${f.name}开始运转。`, "good"); }
       this.dirty(); this.after();
     },
-    // 每 10 秒：只结算属性阵修炼到时（主动阵不再按时间扣维持费，改成每次受击扣费，见 zfDmg）
+    // 每 10 秒：只结算属性阵修炼到时（主动阵运转另按 10 秒扣 zfKeep，见 cave.tick；受击再按 zfDmg 扣费，两边都收）
     zfTick() {
       this.zfDone(true);
     },

@@ -2645,7 +2645,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
     // 坊市药材、矿石
     shopMatPrice(kind, g) { return DATA.shopPrice(Math.max(1, Math.ceil(DATA.matPrice(kind, g) * (CFG.price.SHOP_MAT || 3)))); },
     buyMat(kind, g, n) {
-      n = Math.floor(n || +($("#shop-n") && $("#shop-n").value) || 1);
+      n = Math.min(1000, Math.floor(n || +($("#shop-n") && $("#shop-n").value) || 1));
       const names = kind === "herb" ? DATA.herbs : DATA.ores;
       if (n <= 0 || !DATA.fanMats().has(names[g])) return;
       const c = this.shopMatPrice(kind, g) * n;
@@ -2706,7 +2706,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
     buySgDan(a, type, n) {
       const s = this.s, o = DATA.jieGfOf("gd", a), d = this.sgDanList(a).find(x => x.type === type); if (!o || !d) return;
       if (!this.realmOK(o.reqRealm)) return this.log(`境界不足，需要${DATA.realmLabel(o.reqRealm)}。`, "sys");
-      const ck = this.jieCur(a); n = Math.min(Math.floor(+n), Math.floor((s[ck] || 0) / d.cost)); if (n <= 0) return this.log(`${this.jieCurName(a)}不足。`, "sys");
+      const ck = this.jieCur(a); n = Math.min(1000, Math.floor(+n), Math.floor((s[ck] || 0) / d.cost)); if (n <= 0) return this.log(`${this.jieCurName(a)}不足。`, "sys");
       if (!this.addDan(type, d.g, n, 1)) return;
       s[ck] -= d.cost * n; this.log(`购得${DATA.danName(type, d.g, 1)} ×${n}。`, "good"); this.after();
     },

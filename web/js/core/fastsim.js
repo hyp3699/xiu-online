@@ -38,6 +38,8 @@
       if (ids.length !== FAST_MODULES.length || ids.some((id, k) => id !== FAST_MODULES[k])) return -Infinity;
       if (s.explore || s.cq || (s.trib && !s.trib.result)) return -Infinity;   // 探索 / 渡劫中：逐个结算；渡劫已出结果（只剩领奖）可以加速
       if (s.zf && s.zf.job) ev.push(s.zf.job.end);   // 属性阵修炼到时结算：快进到 job 结束那一刻再逐个结算（灵气修炼开始时已扣完，修炼中无逐秒消耗；主动阵按次收费不影响加速）
+      // 自动悟道读条到时：快进到读满那一刻再逐个结算（wdAutoSettle 发奖；手动记录不等，客户端读条自己发 wudaoDone）
+      { const _wd = s._wdStart; if (_wd && typeof _wd === "object" && !Array.isArray(_wd)) for (const dao of Object.keys(_wd)) { const r = _wd[dao]; if (r && r.auto === 1 && r.at) ev.push(r.at + (((CFG.wudaoRoom || {}).TIME || 0)) * 1000); } }
       const cs = s.cultSet;                                       // 修炼设置：快要自动去探索时逐个结算
       if (cs && cs.on && cs.tgt && s.stone < cs.low) return -Infinity;
       // 灵气不足时修炼设置挡住不修炼：原来只看灵石，灵气不足也加速会把“不修炼”加速成“修炼”
@@ -107,6 +109,7 @@
       const bodyOn = !!s.bodyAuto && this.hasTijue() && !this.exBlocksCult() && !this.bodyMax(), anyOn = cultOn || bodyOn;   // 只开肉身时修炼室由肉身扣
       const freeOn = anyOn && this.freeCultOn();   // 付费修炼室 / 练功房不在这里扣：下次扣贡献的时刻（roomAt / gfRoomAt）已由 fastNextEvent 算成事件，加速到不了那一刻，到了由逐个结算的 sect.tick → roomBill 扣
       const SP = sp.total, RED = this.wdRed("exp"), BRED = this.wdRed("body"), RATE = this.lingPerStone(), refill = !!s.array.autoRefill, KEEP = Math.max(0, +s.array.keepStone || 0);   // 保留灵石（用户定 2026-11-15）
+      const ZFKEEP = this.zfKeep ? this.zfKeep() : 0;   // 主动阵运转消耗（每 10 秒；开着的阵、等级在加速区间内不变，只算一次）
       const buffs = cultOn ? Object.values(s.buffs).filter(b => b.left > 0) : [];
       // 肉身修炼
       const BSP = bodyOn ? this.bodySpeed().total : 0, BR = Math.max(0.0001, CFG.body.LING_RATE || 1);
@@ -134,6 +137,7 @@
         if (mp < MP) mp = Math.min(MP, mp + MP * R0.mana / 100);
         // 2. cave：聚灵
         if (L < CAP) L = Math.min(CAP, L + GATH);   // v207 上限变低不删已有灵气
+        if (ZFKEEP > 0) L = Math.max(0, L - ZFKEEP);   // 主动阵运转消耗：聚灵先封顶、再扣 KEEP，下限 0（同 cave.tick；原来 fastsim 漏扣）
         // 3. gongfa：功法修炼进度
         if (gs) {
           { const mul0 = GR ? GR.mul : 1, rem0 = Math.ceil((gs.total - d2) / (STEP * mul0));   // 同 gongfa.js 的 fin：最后不足 10 秒的一段到点就结算 → 这层修完是事件，交给逐个结算
