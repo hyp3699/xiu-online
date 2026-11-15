@@ -2089,8 +2089,14 @@ G.module({
       const share = m.boss ? (w ? bs : 1) / Math.max(1, nb) : (nb ? 1 - bs : 1) / Math.max(1, w);
       const stone = Math.floor(tot * share + Math.random());   // 随机取整，平均值不被向下取整吃掉
       loot.stone += stone;
+      // 灵识碎片：只在普通地图（东南西北域）掉，按本次灵石总量 × LSFRAG，与灵石同分摊（2026-11-15 用户定）；直接写 loot.sm，不走 lootAdd，避免 incMul 重复乘
+      let fragTxt = "";
+      if (mj === undefined) {
+        const frag = Math.floor(tot * (E.LSFRAG || 0) * share + Math.random());
+        if (frag > 0) { (loot.sm = loot.sm || {})["lsfrag"] = (loot.sm["lsfrag"] || 0) + frag; fragTxt = `、灵识碎片×${frag}`; }
+      }
       const mats = mj !== undefined ? this.rollMj(loot, ev, mj, mk, x) : this.rollEvent(loot, ev, a);
-      return `灵石${U.fmt(stone)}${mats ? "、" + mats : ""}`; // 怪物不掉丹药、装备
+      return `灵石${U.fmt(stone)}${fragTxt}${mats ? "、" + mats : ""}`; // 怪物不掉丹药、装备
     },
     // 种子掉落：本图药材（不含特色）SEED_DROP% 掉 1 颗；本图特色药材 SEED_DROP_SPECIAL% 掉 1 颗；只掉能种的（config/garden.js herbs）
     rollSeedDrop(x) {
