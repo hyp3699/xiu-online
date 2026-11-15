@@ -115,7 +115,9 @@ G.module({
       for (const dao of Object.keys(m)) {
         const r = m[dao]; if (!r || r.auto !== 1) continue;
         if (now - (r.at || 0) < ms) continue;
+        this._autoQuiet = true;
         try { this.wudaoDone(dao); } catch (e) { this.log(`【自动任务】${dao}悟道结算失败：${e && e.message || e}。`, "sys"); }
+        finally { this._autoQuiet = false; }
         delete m[dao];
       }
     },

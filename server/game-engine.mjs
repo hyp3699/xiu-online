@@ -315,7 +315,7 @@ export class GameEngine {
     // 探索 / 出窍只结算到 tick 已算完的位置：advanceExplore 本来按 _simNow（= 现在）结算，不受 tick 预算约束，
     // 后台没跟上时一次 advance 会把几十天的探索全算完；先把 _simNow 临时设为 s.last（已算完的 tick 位置），算完恢复。
     if (typeof this.G.advanceExplore === "function" && (s.explore || s.cq)) {
-      this.G._simNow = s.last;
+      this.G._simNow = truncated ? s.last : this.clock.now;   // 没截断时按现在结算（否则探索每步晚最多 10 秒，且 nextDue 落在过去会让服务器每 50ms 空转重算）
       try { this.G.advanceExplore(); } finally { this.G._simNow = this.clock.now; }
     }
     if (typeof this.G.advanceTrib === "function" && s.trib) this.G.advanceTrib();

@@ -409,7 +409,7 @@ G.module({
         if (A.salary && s.salaryDay !== this.today()) this.claimSalary();   // 自动领取宗门俸禄（每日灵石俸禄；今天已领过的不重复领）
       } else if (A.free || A.gf || A.pool || A.salary) log("未加入宗门，跳过宗门任务。");
       this._autoQuiet = true;
-      try { for (const d of ["xiulian", "shenhun", "zhandou"]) if (A[d] && this.wdCheck(d)) { this.wudao(d); const m = this.wdStarts(); if (m[d]) m[d].auto = 1; } } finally { this._autoQuiet = false; }   // 自动悟道也走 5 秒读条：先记开始、标 auto，读满后由 tick 的 wdAutoSettle 结算，不直接发奖
+      try { for (const d of ["xiulian", "shenhun", "zhandou"]) if (A[d] && this.wdCheck(d)) { const m0 = this.wdStarts(); if (m0[d]) continue; this.wudao(d); const m = this.wdStarts(); if (m[d]) m[d].auto = 1; } } finally { this._autoQuiet = false; }   // 自动悟道也走 5 秒读条：先记开始、标 auto，读满后由 tick 的 wdAutoSettle 结算，不直接发奖
       const go = (tgt, cq) => { const p = (tgt || "").split(":").map(Number); if (!tgt) return log("没有选择地图。");
         if (cq) { const r = p[2];
           if (s.cq || (s.explore && s.explore.cq)) return log("正在出窍，跳过自动出窍。");
