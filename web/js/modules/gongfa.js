@@ -90,7 +90,7 @@ G.module({
     },
 
     /* ---------- v173 学习队列 ----------
-     * 三条队列各自独立：gf 功法 / 法术 / 秘法 / 背包秘诀，dan 丹方，forge 炼器图谱 / 背包图纸
+     * 一条队列（2026-11-15 起同时只学一个）：gf 功法 / 法术 / 秘法 / 背包秘诀，dan 丹方，forge 炼器图谱 / 背包图纸
      * 正在学的放在 s.gfLearn / s.danStudy / s.forgeStudy（{ id 或 key, end, ms, k }），后面排队的在 s.lq[队列]
      * 点学习就扣费，不能取消；排队最多 CFG.gongfa.LEARN_Q.MAX 个（不算正在学的）；前一个学完，下一个接着开始（离线也是） */
     lqSlot(ch) { return { gf: "gfLearn", dan: "danStudy", forge: "forgeStudy" }[ch]; },
@@ -99,7 +99,11 @@ G.module({
     lqKey(x) { return x.id !== undefined ? x.id : x.key; },
     // 0 = 没有，1 = 正在学，2 = 排队中
     lqHas(ch, key) { const c = this.s[this.lqSlot(ch)]; if (c && this.lqKey(c) === key) return 1; return this.lqList(ch).some(x => this.lqKey(x) === key) ? 2 : 0; },
-    lqFull(ch) { return !DATA.isTest() && !!this.s[this.lqSlot(ch)] && this.lqList(ch).length >= this.lqMax(); },
+    // 三条只是存放位置，实际是一条队列：同时只学一个，按加入顺序（x.sq）轮流学（用户定 2026-11-15）
+    lqChs() { return ["gf", "dan", "forge"]; },
+    lqCur() { const s = this.s; for (const c of this.lqChs()) if (s[this.lqSlot(c)]) return s[this.lqSlot(c)]; return null; },
+    lqQueued() { const a = []; for (const c of this.lqChs()) this.lqList(c).forEach((x, i) => a.push({ ch: c, x, i })); return a.sort((p, q) => ((p.x.sq || 0) - (q.x.sq || 0)) || (p.i - q.i)); },
+    lqFull(ch) { return !DATA.isTest() && !!this.lqCur() && this.lqQueued().length >= this.lqMax(); },
     // 能不能再加一个（不能就提示）
     lqCan(ch, key) {
       if (this.lqHas(ch, key)) { this.log("已经在学习 / 排队中了。", "sys"); return false; }
@@ -124,17 +128,21 @@ G.module({
       const s = this.s, sl = this.lqSlot(ch);
       if (DATA.isTest()) x = Object.assign({}, x, { ms: 0 });   // 测试模式学习瞬间完成
       else if (ch === "gf" && this.oriSum && this.oriSum("gfStudyPct")) x = Object.assign({}, x, { ms: Math.round(x.ms * Math.max(0, 1 - this.oriSum("gfStudyPct") / 100)) });   // 出身「书香门第」
-      if (!s[sl]) { s[sl] = Object.assign({}, x, { end: this.now() + x.ms }); this.log(`开始学习${this.lqName(x)}，需 ${U.dur(x.ms / 1000)}。`, "good"); }
-      else { this.lqList(ch).push(x); this.log(`${this.lqName(x)}已加入学习队列（排第 ${this.lqList(ch).length} 个）。`, "good"); }
+      s.lqSeq = (s.lqSeq || 0) + 1; x = Object.assign({}, x, { sq: s.lqSeq });
+      if (!this.lqCur()) { s[sl] = Object.assign({}, x, { end: this.now() + x.ms }); this.log(`开始学习${this.lqName(x)}，需 ${U.dur(x.ms / 1000)}。`, "good"); }
+      else { this.lqList(ch).push(x); this.log(`${this.lqName(x)}已加入学习队列（排第 ${this.lqQueued().length} 个）。`, "good"); }
       this.lqTick(ch); this.dirty();
     },
     // 到时间就学会，下一个从上一个学完的时刻开始（离线补算也对）
-    lqTick(ch) {
-      const s = this.s, sl = this.lqSlot(ch); let c, guard = 0;
-      while ((c = s[sl]) && this.now() >= c.end && guard++ < 100) {
-        s[sl] = null; this.lqDone(ch, c);
-        const q = this.lqList(ch);
-        if (q.length) { const n = q.shift(); s[sl] = Object.assign({}, n, { end: c.end + this.lqMs(ch, n) }); }
+    lqTick() {
+      const s = this.s, now = this.now(); let guard = 0;
+      while (guard++ < 300) {
+        let last = 0;
+        for (const c of this.lqChs()) { const sl = this.lqSlot(c), x = s[sl]; if (x && now >= x.end) { s[sl] = null; this.lqDone(c, x); last = Math.max(last, x.end); } }
+        if (this.lqCur()) return;   // 还有在学的（老存档可能同时学几个），等它学完
+        const nx = this.lqQueued()[0]; if (!nx) return;
+        this.lqList(nx.ch).splice(nx.i, 1);
+        s[this.lqSlot(nx.ch)] = Object.assign({}, nx.x, { end: (last || now) + this.lqMs(nx.ch, nx.x) });
       }
     },
     // 背包里正在学 / 排队的那本（学完才从背包消失）
@@ -173,25 +181,23 @@ G.module({
       if (h === 1) { const left = Math.max(0, c.end - this.now()); return `<button class="sm pg" disabled>${this.pgFill(left, this.lqMs(ch, c))}<span>学习中 ${U.cd(left / 1000)}</span></button>`; }
       if (h === 2) return `<button class="sm" disabled>排队中</button>`;
       if (this.lqFull(ch)) return `<button class="sm" disabled>队列已满</button>`;
-      return `<button class="sm" onclick="${on}" ${poor ? "disabled" : ""}>${c ? "排队" : "学习"}</button>`;
+      return `<button class="sm" onclick="${on}" ${poor ? "disabled" : ""}>${this.lqCur() ? "排队" : "学习"}</button>`;
     },
     // 学习队列卡片（没有就空）；每本一行、时间跟在名字后面（.lq-card，用户定 2026-11-14）
     lqCard(ch, title) {
-      const c = this.s[this.lqSlot(ch)], q = this.lqList(ch); if (!c) return "";
+      const c = this.lqCur(), q = this.lqQueued(); if (!c) return "";
       const left = Math.max(0, c.end - this.now());
       return `<div class="card lq-card"><h3>${title || "学习队列"}<small>排队 ${q.length} / ${this.lqMax()}</small></h3>
-        <div class="line"><div class="pg">${this.pgFill(left, this.lqMs(ch, c))}<span>${this.lqName(c)}<small>学习中 · 剩余 ${U.cd(left / 1000)}</small></span></div></div>` +
-        q.map((x, i) => `<div class="line"><div>${i + 1}. ${this.lqName(x)}<small>排队中 · 需 ${U.dur(this.lqMs(ch, x) / 1000)}</small></div></div>`).join("") + `</div>`;
+        <div class="line"><div class="pg">${this.pgFill(left, c.ms)}<span>${this.lqName(c)}<small>学习中 · 剩余 ${U.cd(left / 1000)}</small></span></div></div>` +
+        q.map((o, i) => `<div class="line"><div>${i + 1}. ${this.lqName(o.x)}<small>排队中 · 需 ${U.dur(this.lqMs(o.ch, o.x) / 1000)}</small></div></div>`).join("") + `</div>`;
     },
     // 「队列」按钮：点开弹窗看学习队列（坊市功法、功法殿用，用户定 2026-11-15）
     // 「队列」按钮：后面显示正在学 + 排队的总数；点开弹窗看全部学习队列（功法 / 丹方 / 图纸，含背包里学的）（用户定 2026-11-15）
-    lqAll() { return ["gf", "dan", "forge"].reduce((t, c) => t + (this.s[this.lqSlot(c)] ? 1 + this.lqList(c).length : 0), 0); },
+    lqAll() { return this.lqChs().reduce((t, c) => t + (this.s[this.lqSlot(c)] ? 1 : 0) + this.lqList(c).length, 0); },
     lqQBtn(ch, cnt) { const n = this.lqAll(); return `<button onclick="G.openLqQ('${ch}')">${cnt ? "学习队列" : "队列"}${n ? ` ${n}` : ""}</button>`; },
     lqBar(ch) { return `<div class="room-grid lq-bar">${this.lqQBtn(ch, 1)}</div>`; },   // 没有按钮行的页面：单独一个「队列」按钮
     openLqQ(ch) {
-      const T = { gf: "功法", dan: "丹方", forge: "图纸" }, ord = [ch].concat(["gf", "dan", "forge"].filter(c => c !== ch && T[c]));
-      const h = ord.filter(c => T[c]).map(c => this.lqCard(c, `${T[c]}学习队列`)).join("");
-      this.modal(`${h || `<div class="card lq-card"><h3>学习队列</h3><p class="desc">没有正在学习的东西。</p></div>`}<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+      this.modal(`${this.lqCard(ch, "学习队列") || `<div class="card lq-card"><h3>学习队列</h3><p class="desc">没有正在学习的东西。</p></div>`}<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
     // 所有已学功法的加成合计（法术不算）
     gongfaBonus() {

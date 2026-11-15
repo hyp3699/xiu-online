@@ -683,7 +683,7 @@ G.module({
       if (st === 1) { const c = this.s[this.lqSlot(ch)], left = Math.max(0, c.end - this.now()); return `<button class="primary" disabled>学习中 ${U.cd(left / 1000)}</button>`; }
       if (st === 2) return `<button class="primary" disabled>排队中</button>`;
       if (this.lqFull(ch)) return `<button class="primary" disabled>学习队列已满</button>`;
-      return `<button class="primary" onclick="${on}">${this.s[this.lqSlot(ch)] ? "排队学习" : "学习"}（${U.dur(ms / 1000)}）</button>`;   // 先关框会把学习失败（队列满 / 灵识不够 / 已学会）也关掉；成功时各 learn 函数自己关框
+      return `<button class="primary" onclick="${on}">${this.lqCur() ? "排队学习" : "学习"}（${U.dur(ms / 1000)}）</button>`;   // 先关框会把学习失败（队列满 / 灵识不够 / 已学会）也关掉；成功时各 learn 函数自己关框
     },
     /* ---------- 弹窗：点储物格 ---------- */
     openItem(i) {
