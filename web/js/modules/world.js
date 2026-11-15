@@ -1011,7 +1011,7 @@ G.module({
         const fb = a.fb;
         const isBm = a.key === "fb:bm", pjK = isBm && mShield && bmV.pjDmg > 0 ? 1 + bmV.pjDmg / 100 : 1;   // 破禁①：对手有护盾时增伤
         if (isBm && txP > 0 && Math.random() * 100 < txP) txGo = true;
-        if (fb.shield) { shield = Object.assign({ el: fb.el }, fb.shield, { def: st.def * (fb.shield.defPct || 0) / 100 });   // 盾防御 = 祭盾时全部防御 × %
+        if (fb.shield) { shield = Object.assign({ el: fb.el }, fb.shield, { def: st.def * (fb.shield.defPct || 0) / 100, hp: st.hp * (fb.shield.hpPct || 0) / 100 + (fb.shield.hpAdd || 0) });   // 盾防御 = 祭盾时全部防御 × %
           act = { k: 3, sp: j, f: 0 }; return 0; }
         let d = roll(fb.hit || fb.critAdd ? Object.assign({}, st, { hit: st.hit + (fb.hit || 0), crit: st.crit + (fb.critAdd || 0) }) : st, mE(), X => fabaoDmg(fb, X) * jmUp(fb.el) * pjK, 2, j);   // 经脉该系属性伤害 +%   // 刀 / 锤专属：本次攻击额外命中、暴击
         if (act.f === 2 && fb.crit) d *= fb.crit / 100 / BT.CRIT_MULT;   // 锤：暴击伤害 %（代替普通暴击倍率）

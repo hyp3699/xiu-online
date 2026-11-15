@@ -148,9 +148,9 @@ DATA.attrBase = (a, g, e) => {
     // v165 盾（方案 A，同攻击法宝）：基数 = 自己修为 + 肉身（不超过参考值）+ 功法
     // v167 盾主属性：法宝对应境界（参考）生命 / 防御 × SHIELD_MULT（3.8）× %
     const SM = _FG.fabao.SHIELD_MULT || 1;
-    if (a.k === "shHpMain") return ref.hp * SM * v / 100;
+    if (a.k === "shHpMain") return v;   // 护盾值 = 人物全部生命 × %（用户定 2026-11-15），这里只返回 %
     if (a.k === "shDef") return v;   // 盾防御 = 人物全部防御 × %（用户定 2026-11-15），这里只返回 %
-    if (a.k === "shHp") { let m = 0; for (const b of e.attrs) if (b.k === "shHpMain") m += ref.hp * SM * (DATA.fbPct(b) + (b.m === 1 && b.k !== "crit" ? DATA.fbRj(b.k, e) : 0)) / 100; return m * v / 100; }   // v170 附加护盾值 = 盾主属性护盾值 × %（不算强化）
+    if (a.k === "shHp") { let m = 0; for (const b of e.attrs) if (b.k === "shHpMain") m += DATA.fbPct(b) + (b.m === 1 && b.k !== "crit" ? DATA.fbRj(b.k, e) : 0); return m * v / 100; }   // v170 附加护盾值 = 盾主属性护盾值 × %（不算强化）
     return DATA.FB_REF_OF[a.k] ? ref[DATA.FB_REF_OF[a.k]] * v / 100 : v;
   }
   // 主属性暴击%：base.crit × 阶数 × 颜色范围倍率（附加暴击都在上面 AFFIX_TOP）
@@ -252,7 +252,7 @@ DATA.attrText = (a, e) => {
     const t = { pct: `伤害 攻击×${p}%`, elDmg: `${el}属性伤害 ${p}%`, ignRes: `攻击时无视${el}抗 ${p}%`, manaCut: `法力消耗 -${p}%`,
       sAtk: `法宝攻击时额外增加攻击 +${v}`, dSAtk: `法宝攻击时额外增加攻击 +${v}`, sHit: `法宝攻击时额外增加命中 +${v}`, sCrit: `法宝攻击时额外增加暴击 +${p}%`, sCritDmg: `暴击伤害 ${p}%`, sMana: `本法宝法力消耗 -${p}%`,
       sDing: `击中后降低对方属性 ${v} 回合`, sYin: `眩晕几率 ${p}%（${(F.YIN_ROUNDS || [])[a.c] || 1} 回合）`,
-      shHpMain: `护盾值 ${v}`, shDef: `防御 人物防御×${p}%`, shHp: `护盾值 +${v}`, dmgRed: `受到伤害 -${p}%`, uses: `每场战斗祭出次数 +${Math.round(p)}` }[a.k] || DATA.fbAttrNames[a.k] || a.k;
+      shHpMain: `护盾值 人物生命×${p}%`, shDef: `防御 人物防御×${p}%`, shHp: `护盾值 +人物生命×${p}%`, dmgRed: `受到伤害 -${p}%`, uses: `每场战斗祭出次数 +${Math.round(p)}` }[a.k] || DATA.fbAttrNames[a.k] || a.k;
     if (e.bm) return t;   // 本命法宝：不分颜色
     const txt = `${a.m === 2 ? "专属 " : a.m ? "" : a.k === "elDmg" ? "附加伤害 " : "附加 "}${t}（${col}）`;
     // v157 属性和法宝不同的附加伤害 / 无视抗性不生效：红字标出
@@ -273,9 +273,9 @@ DATA.fabaoInfo = (e, own) => {
   const ownO = own || DATA.ownAtk();
   // 本命：伤害%已固定为 bmPct，攻击也不吃原法宝星级的参考上限（否则 5 星材料做的本命比 10 星的弱）；攻击 = 人物修为+肉身+其余攻击（不封顶）
   const o = { name: DATA.fabaoName(e.ft, e.g, e.name), el: e.el, ft: e.ft, atk: e.bm ? ownO.br + ownO.gf : DATA.capAtk(ref.atk, ownO), pct: 0, ign: 0, cutPct: 0, extra: [] };
-  let shHp = 0, shDef = 0, red = 0, ding = 0, yin = 0, yinC = 0;
+  let shHp = 0, shAdd = 0, shDef = 0, red = 0, ding = 0, yin = 0, yinC = 0;
   o.uses = F.USES === undefined ? 1 : F.USES;   // 每场战斗最多祭出几次
-  if (T.shield) shHp += DATA.fbEnh(e); else o.addDmg = DATA.fbEnh(e);   // 强化：护盾值 / 附加伤害
+  if (T.shield) shAdd += DATA.fbEnh(e); else o.addDmg = DATA.fbEnh(e);   // 强化：护盾值 / 附加伤害
   for (const a of e.attrs) {
     const v = DATA.attrVal(a, e.g, e);
     if (a.k === "pct") o.pct += v; else if (a.k === "ignRes") { if (a.el === e.el) o.ign += v; }   // 无视抗性、附加伤害：属性和法宝一样才生效
@@ -292,7 +292,7 @@ DATA.fabaoInfo = (e, own) => {
   const ui = DATA.fbUsesIdx(e); if (ui >= 0) o.uses += Math.round(DATA.attrVal(e.attrs[ui], e.g, e));   // v164 祭出次数一件法宝最多一条
   const CAP = F.CAP || {}, at = (arr, d) => { const x = (arr || [])[e.g]; return x === undefined ? d : x; };
   o.pct *= (e.bm || T.mul === undefined ? 1 : T.mul) * (F.DMG_MUL === undefined ? 1 : F.DMG_MUL);   // 形状倍率、DMG_MUL（不显示）
-  if (T.shield) o.shield = { defPct: shDef, hp: shHp, red: Math.min(CAP.dmgRed === undefined ? 100 : CAP.dmgRed, red) };   // 盾
+  if (T.shield) o.shield = { defPct: shDef, hpPct: shHp, hpAdd: shAdd, red: Math.min(CAP.dmgRed === undefined ? 100 : CAP.dmgRed, red) };   // 盾
   if (T.ding && !e.bm) { const D = F.DING || {}; o.ding = { speed: at(D.SPEED, 0), hit: at(D.HIT, 0), dodge: at(D.DODGE, 0), rounds: ding || 1 }; }   // 鼎（本命没有专属属性，不带鼎减益；印形本就因专属被清掉而不触发，鼎不能例外）
   if (T.yin) o.yin = { chance: yin, rounds: (F.YIN_ROUNDS || [])[yinC] || 1 };   // 印
   o.cutPct = Math.min(CAP.manaCut === undefined ? 80 : CAP.manaCut, o.cutPct);
