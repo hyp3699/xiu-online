@@ -862,7 +862,8 @@ G.module({
       // 秘法、天赋也一起定死（s.mobFix { 键: { mf, tf } }）
       const F = s.mobFix || (s.mobFix = {});
       for (const c in C) for (const k of C[c]) { if (F[k]) continue;
-        const R = this.mobRandCfg(c); F[k] = { mf: this.rollMf(R), tf: this.rollTf(R) }; }   // config/battle.js MOB_RAND
+        const R = this.mobRandCfg(c); F[k] = { mf: this.rollMf(R), tf: this.rollTf(R, this.lingCatOf(k)) }; }   // config/battle.js MOB_RAND
+      for (const c in C) for (const k of C[c]) if (F[k]) F[k].tf = this.lingFix(F[k].tf, this.lingCatOf(k));   // X灵天赋个数（LING_RAND）
     },
     mobElOf(k) { const M = this.s.mobEl || {}; return M[k] || ""; },
     mobFixOf(k) { return (this.s.mobFix || {})[k] || null; },
@@ -871,7 +872,7 @@ G.module({
     //   首领 / 天将 / 星君 / 界主用存档定死的 m.tfFix；普通 / 精英按 MOB_RAND 每次随机（只地图上的怪）
     mobTalents(m) {
       const T = CFG.battle.TALENT || {};
-      m.tf = m.tfFix ? m.tfFix.slice() : m.a >= 0 && DATA.maps[m.a] ? this.rollTf(this.mobRandCfg(m.elite ? "精英" : m.boss ? "首领" : "普通")) : [];
+      m.tf = m.tfFix ? m.tfFix.slice() : m.a >= 0 && DATA.maps[m.a] ? this.rollTf(this.mobRandCfg(m.elite ? "精英" : m.boss ? "首领" : "普通"), m.elite ? "精英" : m.boss ? "首领" : "普通") : [];
       const up = 1 + (T.STAT || 0) / 100, has = k => m.tf.includes(k);
       if (has("minjie")) { m.speed *= up; m.hit *= up; }
       if (has("qiangzhuang")) m.hp *= up;
@@ -886,7 +887,22 @@ G.module({
       while (n-- > 0 && p.length) out.push(p.splice(Math.floor(Math.random() * p.length), 1)[0]);
       return out;
     },
-    rollTf(c) { return this.randSome(Object.keys((CFG.battle.TALENT || {}).NAME || {}), c.天赋几率, c.天赋种数).map(k => k === "xishou" ? "xishou_" + (U.pick(DATA.elements) || {}).id : k); },
+    // cat：X灵天赋另外按 config/battle.js LING_RAND[cat] 给（不占普通天赋种数，用户定 2026-11-15）
+    rollTf(c, cat) { const L = this.lingKeys(); return this.randSome(Object.keys((CFG.battle.TALENT || {}).NAME || {}).filter(k => !L.includes(k)), c.天赋几率, c.天赋种数).map(k => k === "xishou" ? "xishou_" + (U.pick(DATA.elements) || {}).id : k).concat(cat ? this.rollLing(cat) : []); },
+    lingKeys() { return DATA.elements.map(e => e.id + "ling"); },   // 金灵 jinling … 雷灵 leiling
+    lingCfg(cat) { return (CFG.battle.LING_RAND || {})[cat] || null; },
+    rollLing(cat) { const c = this.lingCfg(cat); return c ? this.randSome(this.lingKeys(), c.几率 ?? 100, c.个数 || [1, 1]) : []; },
+    // 定死的怪：X灵个数不在 LING_RAND 范围内就补 / 删到范围内（老存档、改配置后）
+    lingFix(tf, cat) {
+      const c = this.lingCfg(cat), A = Array.isArray(tf) ? tf : []; if (!c) return A;
+      const L = this.lingKeys(), cur = A.filter(k => L.includes(k)), rest = A.filter(k => !L.includes(k)), N = c.个数 || [1, 1];
+      if (cur.length >= N[0] && cur.length <= N[1]) return A;
+      const want = N[0] + Math.floor(Math.random() * (N[1] - N[0] + 1)), pool = L.filter(k => !cur.includes(k));
+      while (cur.length > want) cur.pop();
+      while (cur.length < want && pool.length) cur.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+      return rest.concat(cur);
+    },
+    lingCatOf(k) { const [p, a] = String(k).split(":"), sh = !!DATA.maps[+a] && DATA.maps[+a].w === "shen"; return p === "tj" ? "天将" : p === "xj" ? (sh ? "神界星君" : "星君") : p === "jz" ? (sh ? "神界界主" : "界主") : "首领"; },
     rollMf(c) { return this.randSome((CFG.wudao.MOB_MIFA || {}).POOL || [], c.秘法几率, c.秘法种数); },
     tfName(k) { const N = (CFG.battle.TALENT || {}).NAME || {}, [a, el] = k.split("_"); return el ? `${(DATA.elById[el] || {}).name || ""}系${N[a] || a}` : N[a] || a; },
 
@@ -1081,9 +1097,9 @@ G.module({
       const hp0 = s.hp, mana0 = s.mana; let meFirst = st.speed * spMe >= m.speed * spMob;
       // 怪物出手：先判法术，再判法宝（都按 防御×RES_RATE + 该系抗性 减免），都没有就普通攻击
       let mSp = 0, mFb = 0;
-      const mCast = (k, el) => {
+      const mCast = (k, el, force) => {
         const c = m[k], mA = mE().atk, P = c && c.mana || [0, 1], cost = c ? (m.manaBr || 0) * P[0] * (P[1] === undefined ? 1 : P[1]) * (m.manaK ?? 1) : 0;   // 耗法力 = 修为突破法力 × 比例 × 倍率 × 境界倍率
-        if (!c || m.mana < cost || Math.random() * 100 >= c.chance) return -1;
+        if (!c || m.mana < cost || (!force && Math.random() * 100 >= c.chance)) return -1;
         m.mana -= cost; k === "spell" ? mSp++ : mFb++;
         if (!el) el = (U.pick(DATA.elements) || {}).id;   // 怪物没有本属性：每次随机一系（用户定 2026-11-15）
         const d = roll(mE(), st, X => Math.max(MIN(m), el ? EL(mA * c.pct / 100, X, el, mL) : ATK(mA * c.pct / 100, X, mL)), k === "spell" ? 1 : 2);
@@ -1112,7 +1128,13 @@ G.module({
         else if (boosted) act.st = F.t === "pshield" ? `对护盾额外造成 ${F.p}% 伤害` : `对手生命高于一半，伤害提升 ${F.p}%`;
       };
       const mobSt = () => { const d = mStA.length ? mStCast() : -1; return d < 0 ? mobHit() : d; };
-      const mobHit = () => { let d = mCast("spell", m.el); if (d < 0) d = mCast("fabao", m.el); return d < 0 ? hit(mE(), st) : d; };   // v25：怪物法宝也是属性伤害
+      // 怪物出手（用户定 2026-11-15）：普攻 / 法术 / 法宝 几率一样完全随机；法术法宝的属性六系一样随机，有 X灵天赋的那系 LING_CAST%（几系都有时平分，最多 100%）
+      const lingEls = DATA.elements.map(e => e.id).filter(id => tf(id + "ling")), LP = TL.LING_CAST ?? 36;
+      const mobElPick = () => { const E = DATA.elements.map(e => e.id); if (!lingEls.length) return U.pick(E);
+        const n = lingEls.length, pl = Math.min(LP, 100 / n), r = Math.random() * 100, oth = E.filter(e => !lingEls.includes(e));
+        return r < pl * n ? lingEls[Math.min(n - 1, Math.floor(r / pl))] : oth.length ? U.pick(oth) : U.pick(lingEls); };
+      const mobHit = () => { const ops = [0]; if (m.spell) ops.push(1); if (m.fabao) ops.push(2); const o = ops[Math.floor(Math.random() * ops.length)];
+        const d = o ? mCast(o === 1 ? "spell" : "fabao", mobElPick(), true) : -1; return d < 0 ? hit(mE(), st) : d; };   // 法力不够 → 普攻
       // 每一下记一条：[回合, 谁(0 你 / 1 对方), 方式, 法术名序号, 结果, 伤害, 你的生命, 你的法力, 对方生命, 对方法力]
       const log = [], R = Math.round;
       //   v57 多两格：[10] 标记（1 眩晕对方 2 鼎减益 4 护盾破碎）、[11] 护盾抵挡的伤害；方式 3 = 祭起护盾（伤害格 = 护盾值）、4 = 被眩晕

@@ -65,7 +65,8 @@ G.module({
       const STL = (this.ysStCfg ? this.ysStCfg().LIST : []) || [], SP = this.sjC().JIE_MOB_ST || [12, 36], UPM = (this.ysStCfg ? this.ysStCfg().UP_MAX : 100) || 100;
       const stRoll = () => { const d = U.pick(STL); if (!d) return null; const mx = (d.up && d.up.max) || UPM; return [d.id, Math.max(1, Math.round(mx * (SP[0] + Math.random() * (SP[1] - SP[0])) / 100))]; };   // 再加一种神通：等级 = 满级 × 12% ~ 36%
       for (const i of o.m) if (o.fx[i] && !o.fx[i].st) o.fx[i].st = stRoll();
-      for (const i of o.m) if (!o.fx[i]) { const R = this.mobRandCfg ? this.mobRandCfg("首领") : {}; o.fx[i] = { sd: Math.floor(Math.random() * 2147483647) + 1, el: (U.pick(DATA.elements) || {}).id, mf: this.rollMf ? this.rollMf(R) : [], tf: this.rollTf ? this.rollTf(R) : [], st: stRoll() }; }
+      for (const i of o.m) if (!o.fx[i]) { const R = this.mobRandCfg ? this.mobRandCfg("首领") : {}; o.fx[i] = { sd: Math.floor(Math.random() * 2147483647) + 1, el: (U.pick(DATA.elements) || {}).id, mf: this.rollMf ? this.rollMf(R) : [], tf: this.rollTf ? this.rollTf(R, "小世界") : [], st: stRoll() }; }
+      if (this.lingFix) for (const i of o.m) if (o.fx[i]) o.fx[i].tf = this.lingFix(o.fx[i].tf, "小世界");   // X灵天赋 1~3 个，以后固定（用户定 2026-11-15）
       if (o.m.includes(C0)) {   // 老存档：中间格是怪物的，挪到别的空格（打败过的一起挪）
         const vs = new Set(o.v || []), free0 = [], seen0 = []; for (let i = 0; i < N * N; i++) if (i !== C0 && !o.m.includes(i)) (vs.has(i) ? seen0 : free0).push(i);
         const free = free0.length ? free0 : seen0, to = free.length ? free[Math.floor(Math.random() * free.length)] : -1;

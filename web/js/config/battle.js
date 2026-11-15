@@ -63,13 +63,24 @@ CFG.battle.SKIP_SEC = 3;    // 现场战斗几秒后可跳过（秒）
  *   X系吸收 受到该系法术 / 法宝伤害 −XISHOU%（金木水火土雷各一种，用户定 2026-11-15，原为全免疫）；幸运 不会被暴击
  *   敏捷 速度、命中 +STAT%；强壮 生命 +STAT%；防御 防御 +STAT%；强力 攻击 +STAT%
  *   灵性 金木水火土雷属性伤害（法术 / 法宝）都 +LINGXING%，不分系
- *   金灵 / 木灵 / 水灵 / 火灵 / 土灵 / 雷灵 该系法术、法宝伤害 +EL_LING%，受到该系法术、法宝伤害 −EL_LING_RED%（用户定 2026-11-15）
+ *   金灵 / 木灵 / 水灵 / 火灵 / 土灵 / 雷灵 该系法术、法宝伤害 +EL_LING%，受到该系法术、法宝伤害 −EL_LING_RED%，放法术法宝时选该系的几率 LING_CAST%（用户定 2026-11-15）
+ *     X灵不在普通天赋池里，个数另按下面 LING_RAND 给
  */
 CFG.battle.TALENT = {
-  LIANJI: 30, BAOJI: 20, STAT: 20, LINGXING: 20, XISHOU: 75, EL_LING: 36, EL_LING_RED: 12,
+  LIANJI: 30, BAOJI: 20, STAT: 20, LINGXING: 20, XISHOU: 75, EL_LING: 24, EL_LING_RED: 12, LING_CAST: 36,
   SHENYOU: { CHANCE: 20, PCT: 30 },
   NAME: { lianji: "连击", baoji: "暴击", bizhong: "必中", shenyou: "神佑", xishou: "吸收", xingyun: "幸运", minjie: "敏捷", qiangzhuang: "强壮", fangyu: "防御", qiangli: "强力", lingxing: "灵性",
     jinling: "金灵", muling: "木灵", shuiling: "水灵", huoling: "火灵", tuling: "土灵", leiling: "雷灵" },
+};
+
+// X灵天赋个数（用户定 2026-11-15）：几率% 有，个数 [最少, 最多]；首领以上和神界小世界怪第一次定死，普通 / 精英每次随机
+//   天将（神界叫神将）、星君（仙魔冥）、神界星君（天尊）、界主（仙魔冥大帝）、神界界主（神界大帝）、小世界（神界界里的怪）
+CFG.battle.LING_RAND = {
+  普通: { 几率: 30, 个数: [1, 1] }, 精英: { 几率: 30, 个数: [1, 1] },
+  首领: { 几率: 100, 个数: [1, 1] }, 天将: { 几率: 100, 个数: [1, 1] },
+  星君: { 几率: 100, 个数: [2, 2] }, 神界星君: { 几率: 100, 个数: [3, 3] },
+  界主: { 几率: 100, 个数: [4, 4] }, 神界界主: { 几率: 100, 个数: [5, 5] },
+  小世界: { 几率: 100, 个数: [1, 3] },
 };
 
 // 怪物的秘法、天赋随机（秘法有哪几种见 config/wudao.js MOB_MIFA.POOL，天赋见上面 TALENT.NAME）
