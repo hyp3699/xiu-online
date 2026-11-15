@@ -43,7 +43,7 @@ test("灵果田：离线结算也能收获；灵果种子随秘境结算发放�
 test("灵果减伤：受到该系属性伤害直接减少，不是加抗性", () => {
   const { G, D, s } = mk();
   const run = () => seeded(() => { const m = G.makeMob(0, 0, "boss"); m.hp = 1e13; m.atk = 5000; m.el = "huo"; m.spell = { chance: 100, pct: 100, mana: [0, 1] }; m.fabao = null; m.mf = []; m.tf = []; m.shield = null; m.mana = 1e9;
-    s.hp = 1e12; const r = G.battle(m, {}); return r.detail.log.filter(x => x[1] === 1 && x[4] === 0).map(x => x[5]); });
+    s.hp = 1e12; const r = G.battle(m, {}); return r.detail.log.filter(x => x[1] === 1 && x[4] === 0 && x[2] === 1 && x[13] === "huo").map(x => x[5]); });   // 怪物法术属性随机：只算火系法术
   const avg = () => { let t = [], i = 0; while (i++ < 8) t = t.concat(run()); return t.reduce((a, b) => a + b, 0) / t.length; };
   const a = avg(); const k = D.LG().list.findIndex(x => x.k === "dr_huo"); s.lgEat = { [k]: 40 }; const b = avg();
   console.log("taken avg before/after:", a, b);

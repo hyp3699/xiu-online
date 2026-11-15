@@ -66,6 +66,9 @@ CFG.battle.SKIP_SEC = 3;    // 现场战斗几秒后可跳过（秒）
  *   金灵 / 木灵 / 水灵 / 火灵 / 土灵（雷灵已去掉）该系法术、法宝伤害 +EL_LING%，受到该系法术、法宝伤害 −EL_LING_RED%，受到克它那系（EL_KE：火克金、金克木、土克水、水克火、木克土）伤害 +EL_LING_KE%，放法术法宝时选该系的几率 LING_CAST%（用户定 2026-11-15）
  *     X灵不在普通天赋池里，个数另按下面 LING_RAND 给
  */
+// 怪物出手几率（用户定 2026-11-15）：普攻 MOB_HIT_PCT%，剩下法术、法宝各一半，属性六系平均（有 X灵 的那系 TALENT.LING_CAST%）
+CFG.battle.MOB_HIT_PCT = 4;
+
 CFG.battle.TALENT = {
   LIANJI: 30, BAOJI: 20, STAT: 20, LINGXING: 20, XISHOU: 75, EL_LING: 18, EL_LING_RED: 9, EL_LING_KE: 12, LING_CAST: 36,
   EL_KE: { jin: "huo", mu: "jin", shui: "tu", huo: "shui", tu: "mu" },

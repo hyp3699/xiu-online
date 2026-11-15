@@ -1114,7 +1114,7 @@ G.module({
         const D = mStA[j].d, F = D.fx || {}, el = D.el, A = mE(), pct = (SC.PCT || 100) + mStA[j].lv * (SC.LV_PCT || 0);
         const up = F.t === "pshield" && shield ? 1 + F.p / 100 : F.t === "hp50" && php > st.hp * 0.5 ? 1 + F.p / 100 : 1;
         let d = roll(A, st, X => Math.max(MIN(m), EL(A.atk * pct / 100, X, el, mL)) * up, 1, j, true);
-        if (d > 0) { const dd = d * (tf("lingxing") ? 1 + (TL.LINGXING || 0) / 100 : 1) * jmDn(el); d = Math.max(0, dd - lgR(el, dd)); }   // 灵果减伤最后直接减   // 同怪物法术：天赋灵性、经脉腿部
+        if (d > 0) { const dd = d * (tf("lingxing") ? 1 + (TL.LINGXING || 0) / 100 : 1) * (tf(el + "ling") ? 1 + (TL.EL_LING ?? 18) / 100 : 1) * jmDn(el); d = Math.max(0, dd - lgR(el, dd)); }   // X灵：该系神通伤害也加   // 灵果减伤最后直接减   // 同怪物法术：天赋灵性、经脉腿部
         if (act.f !== 1) mStFx(D, d, up > 1);
         return d;
       };
@@ -1134,7 +1134,9 @@ G.module({
       const mobElPick = () => { const E = DATA.elements.map(e => e.id); if (!lingEls.length) return U.pick(E);
         const n = lingEls.length, pl = Math.min(LP, 100 / n), r = Math.random() * 100, oth = E.filter(e => !lingEls.includes(e));
         return r < pl * n ? lingEls[Math.min(n - 1, Math.floor(r / pl))] : oth.length ? U.pick(oth) : U.pick(lingEls); };
-      const mobHit = () => { const ops = [0]; if (m.spell) ops.push(1); if (m.fabao) ops.push(2); const o = ops[Math.floor(Math.random() * ops.length)];
+      //   几率（用户定 2026-11-15）：普攻 MOB_HIT_PCT 4%，其余法术 / 法宝各一半（每系法术、法宝各 8%，一系合计 16%）
+      const HP = CFG.battle.MOB_HIT_PCT ?? 4;
+      const mobHit = () => { const ops = []; if (m.spell) ops.push(1); if (m.fabao) ops.push(2); const o = !ops.length || Math.random() * 100 < HP ? 0 : ops[Math.floor(Math.random() * ops.length)];
         const d = o ? mCast(o === 1 ? "spell" : "fabao", mobElPick(), true) : -1; return d < 0 ? hit(mE(), st) : d; };   // 法力不够 → 普攻
       // 每一下记一条：[回合, 谁(0 你 / 1 对方), 方式, 法术名序号, 结果, 伤害, 你的生命, 你的法力, 对方生命, 对方法力]
       const log = [], R = Math.round;
@@ -1172,7 +1174,7 @@ G.module({
           const KE = (CFG.battle.TALENT || {}).EL_KE || {};
           if (el && Object.keys(KE).some(e => KE[e] === el && tf(e + "ling"))) d *= 1 + ((CFG.battle.TALENT || {}).EL_LING_KE ?? 12) / 100;   // X灵：受到克它那系的伤害增加（火克金…）
           if (el && tf(el + "ling")) d *= Math.max(0, 1 - ((CFG.battle.TALENT || {}).EL_LING_RED ?? 9) / 100);   // 天赋金灵等：受到该系伤害减少
-          else if (el && m.elRed && m.elRed[el]) d *= Math.max(0, 1 - m.elRed[el] / 100);   // 试炼塔守关者：某几系伤害减少（config/mobs.js tower.EL_RED）
+          if (el && m.elRed && m.elRed[el]) d *= Math.max(0, 1 - m.elRed[el] / 100);   // 试炼塔守关者：某几系伤害减少（config/mobs.js tower.EL_RED）
         }
         if (lx) act.x = (act.x || 0) | 8;
         if (txF) act.x = (act.x || 0) | 4096;   // 通玄：上一下本命法宝没占回合
@@ -1290,7 +1292,7 @@ G.module({
         ms: { hp: m.hp, atk: m.atk, def: m.def, speed: m.speed, hit: m.hit, dodge: m.dodge, mana: m.maxMana || 0, crit: m.crit || 0, res: Object.assign({}, m.res || {}),
           sp: m.spell ? [m.spell.chance, m.spell.pct] : null, fb: m.fabao ? [m.fabao.chance, m.fabao.pct] : null },
         // 战斗画面点人物：你进这场战斗时的属性（用户定 2026-11-15）
-        ps: { hp: st0.hp, atk: st0.atk, def: st0.def, speed: st0.speed, hit: st0.hit, dodge: st0.dodge, mana: st0.mana, crit: st0.crit || 0, res: Object.assign({}, st0.res || {}) } };
+        pst: { hp: st0.hp, atk: st0.atk, def: st0.def, speed: st0.speed, hit: st0.hit, dodge: st0.dodge, mana: st0.mana, crit: st0.crit || 0, res: Object.assign({}, st0.res || {}) } };
       const win = mhp <= 0 && php > 0;   // 打满 MAX_ROUNDS 回合没击败对方也算失败（timeout）
       return { win, lose: !win, timeout: !win && php > 0, rounds, why, detail };
     },
@@ -1365,7 +1367,7 @@ G.module({
       if (who === undefined || el.style.display !== "none" && el.dataset.who === String(who)) { el.style.display = "none"; return; }
       el.dataset.who = String(who);
       if (who === 0) {   // 点人物：你的属性
-        const p = b.ps, f = U.fmt; if (!p) { el.innerHTML = "<p>没有这场战斗的人物属性</p>"; el.style.display = ""; return; }
+        const p = b.pst, f = U.fmt; if (!p) { el.innerHTML = "<p>没有这场战斗的人物属性</p>"; el.style.display = ""; return; }
         el.innerHTML = `<b>你</b><p>生命 ${f(p.hp)}　攻击 ${f(p.atk)}　防御 ${f(p.def)}</p><p>速度 ${f(p.speed)}　命中 ${f(p.hit)}　闪避 ${f(p.dodge)}</p>
           <p>法力 ${f(p.mana)}　暴击 ${U.num(p.crit)}%</p><p>抗性：${DATA.elements.map(e => `${e.name}${f(p.res[e.id] || 0)}`).join("　")}</p>
           ${b.sp && b.sp.length ? `<p>法术 / 法宝：${b.sp.join("、")}</p>` : ""}${b.pasN && b.pasN.length ? `<p>被动神通：${b.pasN.join("、")}</p>` : ""}<small>点击关闭</small>`;
