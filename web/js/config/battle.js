@@ -63,14 +63,15 @@ CFG.battle.SKIP_SEC = 3;    // 现场战斗几秒后可跳过（秒）
  *   X系吸收 受到该系法术 / 法宝伤害 −XISHOU%（金木水火土雷各一种，用户定 2026-11-15，原为全免疫）；幸运 不会被暴击
  *   敏捷 速度、命中 +STAT%；强壮 生命 +STAT%；防御 防御 +STAT%；强力 攻击 +STAT%
  *   灵性 金木水火土雷属性伤害（法术 / 法宝）都 +LINGXING%，不分系
- *   金灵 / 木灵 / 水灵 / 火灵 / 土灵 / 雷灵 该系法术、法宝伤害 +EL_LING%，受到该系法术、法宝伤害 −EL_LING_RED%，放法术法宝时选该系的几率 LING_CAST%（用户定 2026-11-15）
+ *   金灵 / 木灵 / 水灵 / 火灵 / 土灵（雷灵已去掉）该系法术、法宝伤害 +EL_LING%，受到该系法术、法宝伤害 −EL_LING_RED%，受到克它那系（EL_KE：火克金、金克木、土克水、水克火、木克土）伤害 +EL_LING_KE%，放法术法宝时选该系的几率 LING_CAST%（用户定 2026-11-15）
  *     X灵不在普通天赋池里，个数另按下面 LING_RAND 给
  */
 CFG.battle.TALENT = {
-  LIANJI: 30, BAOJI: 20, STAT: 20, LINGXING: 20, XISHOU: 75, EL_LING: 24, EL_LING_RED: 12, LING_CAST: 36,
+  LIANJI: 30, BAOJI: 20, STAT: 20, LINGXING: 20, XISHOU: 75, EL_LING: 18, EL_LING_RED: 9, EL_LING_KE: 12, LING_CAST: 36,
+  EL_KE: { jin: "huo", mu: "jin", shui: "tu", huo: "shui", tu: "mu" },
   SHENYOU: { CHANCE: 20, PCT: 30 },
   NAME: { lianji: "连击", baoji: "暴击", bizhong: "必中", shenyou: "神佑", xishou: "吸收", xingyun: "幸运", minjie: "敏捷", qiangzhuang: "强壮", fangyu: "防御", qiangli: "强力", lingxing: "灵性",
-    jinling: "金灵", muling: "木灵", shuiling: "水灵", huoling: "火灵", tuling: "土灵", leiling: "雷灵" },
+    jinling: "金灵", muling: "木灵", shuiling: "水灵", huoling: "火灵", tuling: "土灵" },
 };
 
 // X灵天赋个数（用户定 2026-11-15）：几率% 有，个数 [最少, 最多]；首领以上和神界小世界怪第一次定死，普通 / 精英每次随机

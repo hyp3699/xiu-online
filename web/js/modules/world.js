@@ -889,13 +889,14 @@ G.module({
     },
     // cat：X灵天赋另外按 config/battle.js LING_RAND[cat] 给（不占普通天赋种数，用户定 2026-11-15）
     rollTf(c, cat) { const L = this.lingKeys(); return this.randSome(Object.keys((CFG.battle.TALENT || {}).NAME || {}).filter(k => !L.includes(k)), c.天赋几率, c.天赋种数).map(k => k === "xishou" ? "xishou_" + (U.pick(DATA.elements) || {}).id : k).concat(cat ? this.rollLing(cat) : []); },
-    lingKeys() { return DATA.elements.map(e => e.id + "ling"); },   // 金灵 jinling … 雷灵 leiling
+    lingKeys() { const N = (CFG.battle.TALENT || {}).NAME || {}; return DATA.elements.map(e => e.id + "ling").filter(k => N[k]); },   // 金灵 jinling … 土灵 tuling（雷灵去掉，用户定 2026-11-15）
     lingCfg(cat) { return (CFG.battle.LING_RAND || {})[cat] || null; },
     rollLing(cat) { const c = this.lingCfg(cat); return c ? this.randSome(this.lingKeys(), c.几率 ?? 100, c.个数 || [1, 1]) : []; },
     // 定死的怪：X灵个数不在 LING_RAND 范围内就补 / 删到范围内（老存档、改配置后）
     lingFix(tf, cat) {
-      const c = this.lingCfg(cat), A = Array.isArray(tf) ? tf : []; if (!c) return A;
-      const L = this.lingKeys(), cur = A.filter(k => L.includes(k)), rest = A.filter(k => !L.includes(k)), N = c.个数 || [1, 1];
+      const L = this.lingKeys(), N0 = (CFG.battle.TALENT || {}).NAME || {};
+      const c = this.lingCfg(cat), A = (Array.isArray(tf) ? tf : []).filter(k => !/^[a-z]+ling$/.test(k) || k === "lingxing" || N0[k]); if (!c) return A;   // 去掉已删的 X灵（雷灵）
+      const cur = A.filter(k => L.includes(k)), rest = A.filter(k => !L.includes(k)), N = c.个数 || [1, 1];
       if (cur.length >= N[0] && cur.length <= N[1]) return A;
       const want = N[0] + Math.floor(Math.random() * (N[1] - N[0] + 1)), pool = L.filter(k => !cur.includes(k));
       while (cur.length > want) cur.pop();
@@ -1104,7 +1105,7 @@ G.module({
         if (!el) el = (U.pick(DATA.elements) || {}).id;   // 怪物没有本属性：每次随机一系（用户定 2026-11-15）
         const d = roll(mE(), st, X => Math.max(MIN(m), el ? EL(mA * c.pct / 100, X, el, mL) : ATK(mA * c.pct / 100, X, mL)), k === "spell" ? 1 : 2);
         act.e = el;
-        if (!el || d <= 0) return d; const dd = d * (tf("lingxing") ? 1 + (TL.LINGXING || 0) / 100 : 1) * (tf(el + "ling") ? 1 + (TL.EL_LING ?? 36) / 100 : 1) * jmDn(el); return Math.max(0, dd - lgR(el, dd));   // 灵果减伤：最后直接减，不吃任何加成   // 天赋灵性：金木水火土雷属性伤害都增加；天赋金灵等：该系法术 / 法宝伤害增加；经脉腿部：受到该系伤害 −%
+        if (!el || d <= 0) return d; const dd = d * (tf("lingxing") ? 1 + (TL.LINGXING || 0) / 100 : 1) * (tf(el + "ling") ? 1 + (TL.EL_LING ?? 18) / 100 : 1) * jmDn(el); return Math.max(0, dd - lgR(el, dd));   // 灵果减伤：最后直接减，不吃任何加成   // 天赋灵性：金木水火土雷属性伤害都增加；天赋金灵等：该系法术 / 法宝伤害增加；经脉腿部：受到该系伤害 −%
       };
       // 怪物主动神通：还有没用完的就先放（按配置顺序，每种每场 USES 次），sp = 第几种（战斗过程里怪物法术 sp 是 -1，靠这个区分）
       const mStCast = () => {
@@ -1129,7 +1130,7 @@ G.module({
       };
       const mobSt = () => { const d = mStA.length ? mStCast() : -1; return d < 0 ? mobHit() : d; };
       // 怪物出手（用户定 2026-11-15）：普攻 / 法术 / 法宝 几率一样完全随机；法术法宝的属性六系一样随机，有 X灵天赋的那系 LING_CAST%（几系都有时平分，最多 100%）
-      const lingEls = DATA.elements.map(e => e.id).filter(id => tf(id + "ling")), LP = TL.LING_CAST ?? 36;
+      const lingEls = this.lingKeys().map(k => k.slice(0, -4)).filter(id => tf(id + "ling")), LP = TL.LING_CAST ?? 36;
       const mobElPick = () => { const E = DATA.elements.map(e => e.id); if (!lingEls.length) return U.pick(E);
         const n = lingEls.length, pl = Math.min(LP, 100 / n), r = Math.random() * 100, oth = E.filter(e => !lingEls.includes(e));
         return r < pl * n ? lingEls[Math.min(n - 1, Math.floor(r / pl))] : oth.length ? U.pick(oth) : U.pick(lingEls); };
@@ -1168,7 +1169,9 @@ G.module({
         if ((act.k === 1 || act.k === 2) && act.f !== 1 && d > 0) {   // 天赋 X系吸收：该系法术 / 法宝伤害 −XISHOU%（用户定 2026-11-15，原为全免疫）
           const a = acts[act.sp], el = a ? (act.k === 1 ? a.sp.el.id : a.fb.el) : "";
           if (el && tf("xishou_" + el)) d *= Math.max(0, 1 - ((CFG.battle.TALENT || {}).XISHOU ?? 75) / 100);
-          if (el && tf(el + "ling")) d *= Math.max(0, 1 - ((CFG.battle.TALENT || {}).EL_LING_RED ?? 12) / 100);   // 天赋金灵等：受到该系伤害减少
+          const KE = (CFG.battle.TALENT || {}).EL_KE || {};
+          if (el && Object.keys(KE).some(e => KE[e] === el && tf(e + "ling"))) d *= 1 + ((CFG.battle.TALENT || {}).EL_LING_KE ?? 12) / 100;   // X灵：受到克它那系的伤害增加（火克金…）
+          if (el && tf(el + "ling")) d *= Math.max(0, 1 - ((CFG.battle.TALENT || {}).EL_LING_RED ?? 9) / 100);   // 天赋金灵等：受到该系伤害减少
           else if (el && m.elRed && m.elRed[el]) d *= Math.max(0, 1 - m.elRed[el] / 100);   // 试炼塔守关者：某几系伤害减少（config/mobs.js tower.EL_RED）
         }
         if (lx) act.x = (act.x || 0) | 8;
