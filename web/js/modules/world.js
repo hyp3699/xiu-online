@@ -1086,7 +1086,7 @@ G.module({
         if (!c || m.mana < cost || Math.random() * 100 >= c.chance) return -1;
         m.mana -= cost; k === "spell" ? mSp++ : mFb++;
         const d = roll(mE(), st, X => Math.max(MIN(m), el ? EL(mA * c.pct / 100, X, el, mL) : ATK(mA * c.pct / 100, X, mL)), k === "spell" ? 1 : 2);
-        if (!el || d <= 0) return d; const dd = d * (tf("lingxing") ? 1 + (TL.LINGXING || 0) / 100 : 1) * jmDn(el); return Math.max(0, dd - lgR(el, dd));   // 灵果减伤：最后直接减，不吃任何加成   // 天赋灵性：金木水火土雷属性伤害都增加；经脉腿部：受到该系伤害 −%
+        if (!el || d <= 0) return d; const dd = d * (tf("lingxing") ? 1 + (TL.LINGXING || 0) / 100 : 1) * (tf(el + "ling") ? 1 + (TL.EL_LING ?? 36) / 100 : 1) * jmDn(el); return Math.max(0, dd - lgR(el, dd));   // 灵果减伤：最后直接减，不吃任何加成   // 天赋灵性：金木水火土雷属性伤害都增加；天赋金灵等：该系法术 / 法宝伤害增加；经脉腿部：受到该系伤害 −%
       };
       // 怪物主动神通：还有没用完的就先放（按配置顺序，每种每场 USES 次），sp = 第几种（战斗过程里怪物法术 sp 是 -1，靠这个区分）
       const mStCast = () => {
@@ -1144,6 +1144,7 @@ G.module({
         if ((act.k === 1 || act.k === 2) && act.f !== 1 && d > 0) {   // 天赋 X系吸收：该系法术 / 法宝伤害 −XISHOU%（用户定 2026-11-15，原为全免疫）
           const a = acts[act.sp], el = a ? (act.k === 1 ? a.sp.el.id : a.fb.el) : "";
           if (el && tf("xishou_" + el)) d *= Math.max(0, 1 - ((CFG.battle.TALENT || {}).XISHOU ?? 75) / 100);
+          if (el && tf(el + "ling")) d *= Math.max(0, 1 - ((CFG.battle.TALENT || {}).EL_LING_RED ?? 12) / 100);   // 天赋金灵等：受到该系伤害减少
           else if (el && m.elRed && m.elRed[el]) d *= Math.max(0, 1 - m.elRed[el] / 100);   // 试炼塔守关者：某几系伤害减少（config/mobs.js tower.EL_RED）
         }
         if (lx) act.x = (act.x || 0) | 8;

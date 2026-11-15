@@ -63,11 +63,13 @@ CFG.battle.SKIP_SEC = 3;    // 现场战斗几秒后可跳过（秒）
  *   X系吸收 受到该系法术 / 法宝伤害 −XISHOU%（金木水火土雷各一种，用户定 2026-11-15，原为全免疫）；幸运 不会被暴击
  *   敏捷 速度、命中 +STAT%；强壮 生命 +STAT%；防御 防御 +STAT%；强力 攻击 +STAT%
  *   灵性 金木水火土雷属性伤害（法术 / 法宝）都 +LINGXING%，不分系
+ *   金灵 / 木灵 / 水灵 / 火灵 / 土灵 / 雷灵 该系法术、法宝伤害 +EL_LING%，受到该系法术、法宝伤害 −EL_LING_RED%（用户定 2026-11-15）
  */
 CFG.battle.TALENT = {
-  LIANJI: 30, BAOJI: 20, STAT: 20, LINGXING: 20, XISHOU: 75,
+  LIANJI: 30, BAOJI: 20, STAT: 20, LINGXING: 20, XISHOU: 75, EL_LING: 36, EL_LING_RED: 12,
   SHENYOU: { CHANCE: 20, PCT: 30 },
-  NAME: { lianji: "连击", baoji: "暴击", bizhong: "必中", shenyou: "神佑", xishou: "吸收", xingyun: "幸运", minjie: "敏捷", qiangzhuang: "强壮", fangyu: "防御", qiangli: "强力", lingxing: "灵性" },
+  NAME: { lianji: "连击", baoji: "暴击", bizhong: "必中", shenyou: "神佑", xishou: "吸收", xingyun: "幸运", minjie: "敏捷", qiangzhuang: "强壮", fangyu: "防御", qiangli: "强力", lingxing: "灵性",
+    jinling: "金灵", muling: "木灵", shuiling: "水灵", huoling: "火灵", tuling: "土灵", leiling: "雷灵" },
 };
 
 // 怪物的秘法、天赋随机（秘法有哪几种见 config/wudao.js MOB_MIFA.POOL，天赋见上面 TALENT.NAME）
