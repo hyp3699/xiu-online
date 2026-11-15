@@ -550,7 +550,7 @@ button small .cd{min-width:0}
 
 /* v181 战斗画面点怪物看属性 */
 .btv-u.r{cursor:pointer}
-.btv-info{position:absolute;left:4%;right:4%;top:64px;max-height:calc(100% - 130px);overflow-y:auto;z-index:20;background:rgba(20,16,10,.92);border:1px solid #a8864a;border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.6;color:#eee}
+.btv-info{position:absolute;left:3%;right:3%;top:6px;bottom:6px;overflow-y:auto;-webkit-overflow-scrolling:touch;z-index:20;background:rgba(20,16,10,.92);border:1px solid #a8864a;border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.6;color:#eee}
 .btv-info b{color:#f0c060}.btv-info p{margin:0}.btv-info small{opacity:.6}
 
 /* v193 学习列表：已学会的排到最后并变灰 */
