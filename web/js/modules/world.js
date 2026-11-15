@@ -809,21 +809,21 @@ G.module({
     addMagic(m, kind, b = {}) {
       // kind：normal / elite / boss / tower，或直接写中文种类（考核、天将、星君、界主）
       const MG = CFG.mobs.magic || {}, M = MG[{ normal: "普通", elite: "精英", boss: "首领", tower: "试炼塔" }[kind] || kind] || {};
-      m.el = b.el || (m.elKey && this.mobElOf(m.elKey)) || (U.pick(DATA.elements) || {}).id;   // 首领 / 天将 / 星君 / 界主：存档里定死的属性（mobElInit）
+      m.el = "";   // 怪物不再有金木水火土雷本属性（用户定 2026-11-15）：法术 / 法宝每次随机一系；存档里的 mobEl 不再用
       const fx = m.elKey && this.mobFixOf(m.elKey); if (fx) { m.mf = (fx.mf || []).slice(); m.tfFix = fx.tf || []; }   // 定死的秘法、天赋
       const O = 1;   // 本属性抗性改为进战斗随机 +%（下面 ELRES），不再按种类乘 OWN_RES
       m.mana = m.maxMana = b.mana !== undefined ? b.mana : m.mana || 0;   // 法力 = 修为突破 + 肉身突破的法力 × 倍率（同其他属性）
       const r0 = m.res, rv = typeof r0 === "number" ? r0 : 0;   // 数字 = 六系一样；对象 = 每系单独（真经按系分开算）
       m.res = {};
       for (const e of DATA.elements) m.res[e.id] = b.res && b.res[e.id] !== undefined ? b.res[e.id] : (r0 && typeof r0 === "object" ? +r0[e.id] || 0 : rv) * DATA.mobRnd("res_" + e.id) * (e.id === m.el ? O : 1);   // v227 每系单独随机；每系抗性 = 怪物抗性（修为 + 肉身 + 真诀）× 倍率，本属性再 × OWN_RES
-      // 进战斗：本属性那系抗性 +UP%，克它的那系 −DOWN%（金克木 木克土 土克水 水克火 火克金；雷随机一系），都在范围内随机
+      // 进战斗：六系抗性随机一系 +UP1%，两系 +UP2%[最小, 最大]，两系不变，一系 −DOWN%[最小, 最大]（用户定 2026-11-15，config/mobs.js ELRES）
       if (!b.res) {
-        const ER = Object.assign({ UP: [15, 25], DOWN: [15, 22], KE: { mu: "jin", tu: "mu", shui: "tu", huo: "shui", jin: "huo" } }, MG.ELRES || {});
-        const rr = a => a[0] + Math.random() * ((a[1] ?? a[0]) - a[0]);
-        const ke = ER.KE[m.el] || U.pick(DATA.elements.filter(e => e.id !== m.el)).id;
-        if (m.res[m.el] !== undefined) m.res[m.el] *= 1 + rr(ER.UP) / 100;
-        if (m.res[ke] !== undefined) m.res[ke] *= Math.max(0, 1 - rr(ER.DOWN) / 100);
-        m.weakEl = ke;
+        const ER = Object.assign({ UP1: 24, UP2: [6, 12], DOWN: [18, 24] }, MG.ELRES || {});
+        const rr = a => Array.isArray(a) ? a[0] + Math.random() * ((a[1] ?? a[0]) - a[0]) : +a || 0;
+        const ids = DATA.elements.map(e => e.id).map(id => [Math.random(), id]).sort((p, q) => p[0] - q[0]).map(x => x[1]);
+        const mul = (id, pct) => { if (m.res[id] !== undefined) m.res[id] *= Math.max(0, 1 + pct / 100); };
+        mul(ids[0], rr(ER.UP1)); mul(ids[1], rr(ER.UP2)); mul(ids[2], rr(ER.UP2)); mul(ids[5], -rr(ER.DOWN));
+        m.weakEl = ids[5];
       }
       // v258 伤害% = 基础 + (地图等级 − 起始等级) × 每级加成（config/mobs.js magic.SPELL_LV / FABAO_LV）；mapA = 所在地图，没有按境界折算
       const kn = { normal: "普通", elite: "精英", boss: "首领", tower: "试炼塔" }[kind] || kind;
@@ -1085,7 +1085,9 @@ G.module({
         const c = m[k], mA = mE().atk, P = c && c.mana || [0, 1], cost = c ? (m.manaBr || 0) * P[0] * (P[1] === undefined ? 1 : P[1]) * (m.manaK ?? 1) : 0;   // 耗法力 = 修为突破法力 × 比例 × 倍率 × 境界倍率
         if (!c || m.mana < cost || Math.random() * 100 >= c.chance) return -1;
         m.mana -= cost; k === "spell" ? mSp++ : mFb++;
+        if (!el) el = (U.pick(DATA.elements) || {}).id;   // 怪物没有本属性：每次随机一系（用户定 2026-11-15）
         const d = roll(mE(), st, X => Math.max(MIN(m), el ? EL(mA * c.pct / 100, X, el, mL) : ATK(mA * c.pct / 100, X, mL)), k === "spell" ? 1 : 2);
+        act.e = el;
         if (!el || d <= 0) return d; const dd = d * (tf("lingxing") ? 1 + (TL.LINGXING || 0) / 100 : 1) * (tf(el + "ling") ? 1 + (TL.EL_LING ?? 36) / 100 : 1) * jmDn(el); return Math.max(0, dd - lgR(el, dd));   // 灵果减伤：最后直接减，不吃任何加成   // 天赋灵性：金木水火土雷属性伤害都增加；天赋金灵等：该系法术 / 法宝伤害增加；经脉腿部：受到该系伤害 −%
       };
       // 怪物主动神通：还有没用完的就先放（按配置顺序，每种每场 USES 次），sp = 第几种（战斗过程里怪物法术 sp 是 -1，靠这个区分）
@@ -1114,7 +1116,7 @@ G.module({
       // 每一下记一条：[回合, 谁(0 你 / 1 对方), 方式, 法术名序号, 结果, 伤害, 你的生命, 你的法力, 对方生命, 对方法力]
       const log = [], R = Math.round;
       //   v57 多两格：[10] 标记（1 眩晕对方 2 鼎减益 4 护盾破碎）、[11] 护盾抵挡的伤害；方式 3 = 祭起护盾（伤害格 = 护盾值）、4 = 被眩晕
-      const rec = (w, d) => { const L = [rounds, w, act.k, act.sp === undefined ? -1 : act.sp, act.f, R(d), R(Math.max(0, php)), R(s.mana), R(Math.max(0, mhp)), R(m.mana || 0), act.x || 0, R(act.ab || 0)]; if (act.st) L.push(act.st); log.push(L); };   // [12] 神通附加效果说明
+      const rec = (w, d) => { const L = [rounds, w, act.k, act.sp === undefined ? -1 : act.sp, act.f, R(d), R(Math.max(0, php)), R(s.mana), R(Math.max(0, mhp)), R(m.mana || 0), act.x || 0, R(act.ab || 0)]; if (act.st) L[12] = act.st; if (act.e) L[13] = act.e; log.push(L); };   // [13] 怪物法术 / 法宝这一下的属性   // [12] 神通附加效果说明
       // v165 出手前：护盾不在、盾还有次数、法力够 → 先免费祭起护盾（不占这次出手，只算盾的使用次数）
       const freeShield = () => {
         if (meSeal || shield || onlyAtk) return;
@@ -1256,7 +1258,7 @@ G.module({
       s.hp = TEST ? tHp : Math.max(1, php);
       if (TEST) s.mana = tMp;
       // 战斗说明（显示在探索信息里）
-      const why = `你出战时生命 ${U.fmt(hp0)}，共造成 ${U.fmt(dealt)} 伤害（对方剩余生命 ${U.fmt(Math.max(0, mhp))}/${U.fmt(m.hp)}），承受 ${U.fmt(taken)} 伤害；对方攻击 ${U.fmt(m.atk)} 防御 ${U.fmt(m.def)}${m.el ? `，${DATA.elById[m.el].name}属性，施法术 ${mSp} 次、法宝 ${mFb} 次` : ""}`;
+      const why = `你出战时生命 ${U.fmt(hp0)}，共造成 ${U.fmt(dealt)} 伤害（对方剩余生命 ${U.fmt(Math.max(0, mhp))}/${U.fmt(m.hp)}），承受 ${U.fmt(taken)} 伤害；对方攻击 ${U.fmt(m.atk)} 防御 ${U.fmt(m.def)}，施法术 ${mSp} 次、法宝 ${mFb} 次`;
       const detail = { pasN: PAS.map(x => x.name), mPasN: mPas.map(x => x.name), mSt: mStA.map(x => ({ id: x.d.id, el: x.d.el, name: x.d.name })), mStl: mStl.map(x => [x.d.name, x.lv, x.d.type === "pas" ? 1 : 0]), name: m.name, el: m.el || "", a: m.a, img: m.img, glow: m.glow ? 1 : 0, zf: this.zfAOn ? (CFG.zhenfa && CFG.zhenfa.ACTIVE || []).filter(f => this.zfAOn(f.id)).map(f => f.el) : [], sp: spNames, spEl: spells.map(sp => sp.el.name), vfx: [...spells.map(sp => sp.el.id), ...fabaos.map((fb, i) => fbSlots[i] === "bm" ? [fb.el, fb.ft, 1] : [fb.el, fb.ft]), ...stns.map(sp => ["st", sp.stn.id, sp.el.id])], stI: spells.length + fabaos.length, first: meFirst ? 0 : 1, log, ps: Object.fromEntries(Object.entries(psG).map(([k, v]) => [k, R(v)])), mf: m.mf.slice(), tf: m.tf.slice(),
         me: [R(hp0), R(st.hp), R(mana0), R(st.mana)], mob: [R(m.hp), R(m.hp), R(m.maxMana || 0), R(m.maxMana || 0)],
         // v181 这场战斗怪物的准确属性（战斗画面点怪物查看）
@@ -1268,13 +1270,13 @@ G.module({
 
     // 战斗过程每一下的文字（b = battle() 返回的 detail）
     battleRow(b, x) {
-      const [r, w, k, sp, f, d, ph, pm, mh, mm, fx, ab, stx] = x, el = b.el ? DATA.elById[b.el].name : "";
+      const [r, w, k, sp, f, d, ph, pm, mh, mm, fx, ab, stx, xe] = x, el = (xe || b.el) && DATA.elById[xe || b.el] ? DATA.elById[xe || b.el].name : "";
       const P = `<span class="bt-p">你</span>`, M = `<span class="bt-m">${b.name}</span>`, who = w ? M : P, tgt = w ? P : M;
       const S = t => `<span class="bt-s">${t}</span>`, D = n => `<span class="bt-d">${U.fmt(n)}</span>`;
       const pre = (fx & 4096 ? `${S("通玄")}发动，` : "") + (fx & 8 ? `发动${S("连星秘法")}，` : "") + (fx & 1024 ? `发动${S("连击")}，` : "") + (fx & 32 ? `发动${S("破军秘法")}，` : "");
       if (k === 6) return `<p>${who}的被动神通${S(`「${((w ? b.mPasN : b.pasN) || [])[sp] || "神通"}」`)}发动，${stx || ""}。</p>`;
       const isSt = !w && k === 1 && b.stI !== undefined && sp >= b.stI, isMSt = w && k === 1 && sp >= 0 && b.mSt && b.mSt[sp];   // 怪物神通：w = 1、sp ≥ 0（怪物法术 sp = -1）
-      const how = isSt ? `施展神通${S(`「${b.sp[sp] || "神通"}」`)}` : isMSt ? `施展神通${S(`「${b.mSt[sp].name}」`)}` : k === 1 ? `施放${S(w ? `${el}系法术` : `《${b.sp[sp] || "法术"}》`)}` : k === 2 ? `祭出${S(w || !b.sp[sp] ? "法宝" : `「${b.sp[sp]}」`)}`
+      const how = isSt ? `施展神通${S(`「${b.sp[sp] || "神通"}」`)}` : isMSt ? `施展神通${S(`「${b.mSt[sp].name}」`)}` : k === 1 ? `施放${S(w ? `${el ? el + "系" : ""}法术` : `《${b.sp[sp] || "法术"}》`)}` : k === 2 ? `祭出${S(w || !b.sp[sp] ? "法宝" : `「${b.sp[sp]}」`)}`
         : k === 3 ? `祭起${S(`「${b.sp[sp] || "护盾"}」`)}` : k === 4 ? "被眩晕" : k === 5 ? `发动${S("金蝉秘法")}` : "发动普通攻击";
       let res = k === 3 ? `，护盾值 ${D(d)}` : k === 4 ? "，无法行动" : k === 5 ? `，${CFG.wudao.JINCHAN && CFG.wudao.JINCHAN.ROUNDS || 3} 回合内免疫攻击` : fx & 128 ? `，被${tgt}的金蝉秘法挡下` : f === 1 ? `，被${tgt}闪避` : `，${f === 2 ? `<span class="bt-c">暴击</span>` : ""}对${tgt}造成 ${D(d)} 点伤害`;
       if (ab) res += `（护盾抵挡 ${U.fmt(ab)}）`;
@@ -1404,7 +1406,7 @@ G.module({
     },
     // 播放一次出手：文字 + 血条 + 动作（普通攻击冲撞、法术光球、法宝飞剑、护盾光罩）
     btAct(x, anim) {
-      const bp = this._bp, b = bp.b, [r, w, k, sp, f, d, ph, pm, mh, mm, fx] = x;
+      const bp = this._bp, b0 = bp.b, [r, w, k, sp, f, d, ph, pm, mh, mm, fx] = x, b = x[13] ? Object.assign({}, b0, { el: x[13] }) : b0;   // 怪物这一下的属性（x[13]）
       // v253 血条 / 蓝条等这一下真正打到身上（hit）再变，不在出手瞬间提前扣；seq 防止上一下迟到的命中把血条改回去
       const seq = bp.seq = (bp.seq || 0) + 1, H = () => { if (seq >= (bp.hpSeq || 0)) { bp.hpSeq = seq; bp.hp = [ph, mh]; bp.mp = [pm, mm]; } this.btHp(); };
       if (!anim) { bp.hpSeq = seq; bp.hp = [ph, mh]; bp.mp = [pm, mm]; }
