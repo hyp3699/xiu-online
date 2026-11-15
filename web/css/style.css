@@ -930,7 +930,7 @@ button.sm.pill{padding:4px 12px}
 .jm-cost{position:absolute;left:0;right:0;bottom:8px;z-index:2;display:flex;justify-content:center;gap:18px;font-size:13px;color:#e8d8b8;text-shadow:0 0 4px #000}
 .jm-cost img{width:18px;height:18px;vertical-align:-4px;margin-right:3px}
 .jm-pt{cursor:pointer}
-.jm-pt.nx>circle:nth-child(2){animation:jm-pulse 1.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.jm-pt.fl>circle:nth-child(2){animation:jm-pulse 1.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
 @keyframes jm-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.5)}}
 .jm-lb{font-size:13px;fill:#ffe8b0;paint-order:stroke;stroke:#000a;stroke-width:3px;pointer-events:none}
 .jm-stage.fx{animation:jm-fx .9s ease-out}

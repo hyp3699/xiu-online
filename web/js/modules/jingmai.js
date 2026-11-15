@@ -181,16 +181,17 @@ G.jmNodeStats = function (node) {
 G.jmNodeView = function (node) {
   const d = this.jmNodes()[node], ly = this.jmLy(), xn = this.jmXN(), cur = this.jmCur(node), col = d.m.color;
   const pts = []; for (let x = 0; x < xn; x++) { const a = -Math.PI / 2 + x * 2 * Math.PI / xn; pts.push([200 + 165 * Math.cos(a), 200 + 165 * Math.sin(a)]); }   // 外圈半径 165
-  const lines = [], dots = [];
+  const lines = [], dots = [], rq = this.jmReq(node), st = this.jmStarted(node), rr = this.s.mortal ? -1 : this.r(),
+    can = cur < xn && (st || ((rq < 0 || rr >= rq) && this.jmUsed() < this.jmCap())) && this.smCount("cmd") >= this.jmDan() && this.smCount("lingye") >= this.jmLyNeed();   // 物品够才闪（用户定 2026-11-15）
   for (let x = 0; x < xn; x++) { const [px, py] = pts[x], nm = this.jmXue(node, x)[0], lv = this.jmGet(node, x), on = lv >= ly, nx = x === cur;
     if (x > 0) { const [qx, qy] = pts[x - 1], lit = this.jmGet(node, x - 1) >= ly && lv > 0;
       lines.push(`<line x1="${qx}" y1="${qy}" x2="${px}" y2="${py}" stroke="${lit ? col : "#c8a878"}" stroke-opacity="${lit ? 1 : 0.25}" stroke-width="${lit ? 3 : 1.5}"${lit ? ` filter="url(#jmGlow)"` : ""}/>`); }
-    dots.push(`<g class="jm-pt${nx ? " nx" : ""}" onclick="G.jmOpen(${node},${x})"><circle cx="${px}" cy="${py}" r="26" fill="transparent"/>
+    dots.push(`<g class="jm-pt${nx ? " nx" : ""}${nx && can ? " fl" : ""}" onclick="G.jmOpen(${node},${x})"><circle cx="${px}" cy="${py}" r="26" fill="transparent"/>
       <circle cx="${px}" cy="${py}" r="${nx ? 13 : 11}" fill="${on || lv ? col : "#3a3028"}" fill-opacity="${on ? 1 : lv ? 0.4 + lv / ly * 0.5 : 1}" stroke="${on || nx ? "#fff" : "#a89070"}" stroke-width="${nx ? 2 : 1.2}"${on || nx || lv ? ` filter="url(#jmGlow)"` : ""}/>
       <text x="${px}" y="${py + 30}" class="jm-xn">${nm}</text><text x="${px}" y="${py + 46}" class="jm-xs">${lv}/${ly}</text></g>`); }
   const inOk = this.jmInOk(node), inn = this.jmInList().map((X, j) => { const px = j ? 288 : 112, py = 200, o = this.jmInGet(node, j), cn = X.cost === "bodyExp" ? "气血" : "修为",
-      ok = true;   // 一直闪（用户定）
-    return `<g class="jm-pt${ok ? " nx" : ""}" onclick="G.jmInOpen(${node},${j})"><circle cx="${px}" cy="${py}" r="24" fill="transparent"/>
+      ok = inOk && (+this.s[X.cost === "bodyExp" ? "bodyExp" : "exp"] || 0) >= this.jmInCost(node, j);   // 修为/气血够才闪（用户定 2026-11-15）
+    return `<g class="jm-pt${ok ? " nx fl" : ""}" onclick="G.jmInOpen(${node},${j})"><circle cx="${px}" cy="${py}" r="24" fill="transparent"/>
       <circle cx="${px}" cy="${py}" r="12" fill="${o.n ? col : "#3a3028"}" fill-opacity="${o.n ? 0.9 : 1}" stroke="${ok ? "#fff" : "#a89070"}" stroke-width="${ok ? 2 : 1.2}"${o.n || ok ? ` filter="url(#jmGlow)"` : ""}/>
       <text x="${px}" y="${py + 30}" class="jm-xn">${X.name}</text><text x="${px}" y="${py + 46}" class="jm-xs">${o.n} 层</text><text x="${px}" y="${py + 61}" class="jm-xs">消耗${cn} ${U.fmt(this.jmInCost(node, j))}</text></g>`; }).join("");
   return `<div class="jm-card"><div class="jm-stage${this._jmFx && Date.now() - this._jmFx < 1000 ? " fx" : ""}">
