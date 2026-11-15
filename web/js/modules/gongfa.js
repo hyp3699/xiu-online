@@ -176,17 +176,23 @@ G.module({
       return `<button class="sm" onclick="${on}" ${poor ? "disabled" : ""}>${c ? "排队" : "学习"}</button>`;
     },
     // 学习队列卡片（没有就空）；每本一行、时间跟在名字后面（.lq-card，用户定 2026-11-14）
-    lqCard(ch) {
+    lqCard(ch, title) {
       const c = this.s[this.lqSlot(ch)], q = this.lqList(ch); if (!c) return "";
       const left = Math.max(0, c.end - this.now());
-      return `<div class="card lq-card"><h3>学习队列<small>排队 ${q.length} / ${this.lqMax()}</small></h3>
+      return `<div class="card lq-card"><h3>${title || "学习队列"}<small>排队 ${q.length} / ${this.lqMax()}</small></h3>
         <div class="line"><div class="pg">${this.pgFill(left, this.lqMs(ch, c))}<span>${this.lqName(c)}<small>学习中 · 剩余 ${U.cd(left / 1000)}</small></span></div></div>` +
         q.map((x, i) => `<div class="line"><div>${i + 1}. ${this.lqName(x)}<small>排队中 · 需 ${U.dur(this.lqMs(ch, x) / 1000)}</small></div></div>`).join("") + `</div>`;
     },
     // 「队列」按钮：点开弹窗看学习队列（坊市功法、功法殿用，用户定 2026-11-15）
-    lqQBtn(ch, cnt) { const c = cnt && this.s[this.lqSlot(ch)]; return `<button onclick="G.openLqQ('${ch}')">${cnt ? "学习队列" : "队列"}${c ? ` · 排队 ${this.lqList(ch).length}/${this.lqMax()}` : ""}</button>`; },
-    lqBar(ch) { return `<div class="room-grid lq-bar">${this.lqQBtn(ch, 1)}</div>`; },   // 没有按钮行的页面：单独一个「队列」按钮（用户定 2026-11-15）
-    openLqQ(ch) { this.modal(`${this.lqCard(ch) || `<div class="card lq-card"><h3>学习队列</h3><p class="desc">没有正在学习的功法。</p></div>`}<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`); },
+    // 「队列」按钮：后面显示正在学 + 排队的总数；点开弹窗看全部学习队列（功法 / 丹方 / 图纸，含背包里学的）（用户定 2026-11-15）
+    lqAll() { return ["gf", "dan", "forge"].reduce((t, c) => t + (this.s[this.lqSlot(c)] ? 1 + this.lqList(c).length : 0), 0); },
+    lqQBtn(ch, cnt) { const n = this.lqAll(); return `<button onclick="G.openLqQ('${ch}')">${cnt ? "学习队列" : "队列"}${n ? ` ${n}` : ""}</button>`; },
+    lqBar(ch) { return `<div class="room-grid lq-bar">${this.lqQBtn(ch, 1)}</div>`; },   // 没有按钮行的页面：单独一个「队列」按钮
+    openLqQ(ch) {
+      const T = { gf: "功法", dan: "丹方", forge: "图纸" }, ord = [ch].concat(["gf", "dan", "forge"].filter(c => c !== ch && T[c]));
+      const h = ord.filter(c => T[c]).map(c => this.lqCard(c, `${T[c]}学习队列`)).join("");
+      this.modal(`${h || `<div class="card lq-card"><h3>学习队列</h3><p class="desc">没有正在学习的东西。</p></div>`}<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+    },
     // 所有已学功法的加成合计（法术不算）
     gongfaBonus() {
       const b = { def: 0, atk: 0, hp: 0, cultivate: 0, speed: 0, hit: 0, dodge: 0, mana: 0, body: 0, res: {} };   // body：炼体秘诀加的肉身修炼速度 // res：真诀加的各系抗性

@@ -724,7 +724,7 @@ G.module({
       } else if (it.t === "xd") {
         const x = this.xdItem(it), ch = this.xdCh(x.k), key = this.xdKey(x), sp = (CFG.xinde || {}).SPD ?? 1;
         h += `<p>${x.src === "js" ? "四界坊市" : "隐世宗门"}心得，学习 ${(CFG.xinde || {}).MIN ?? 30} 分钟，${x.k === "jl" ? `学完每 10 秒聚灵永久 +${U.fmt(this.xdJl().GATHER)}` : `学完获得 ${U.fmt(this.xdExp(x.k, x.src, x.id, x.v))} 点${CFG.craftsman[x.k].name}经验，${this.xdLab(x.k)}速度永久 +${sp}%`}。</p>
-          ${this.lqCard(ch)}<div class="btns">${this.lqBtn(ch, key, `G.learnXd(${i})`, false)}</div>`;
+          <div class="btns">${this.lqBtn(ch, key, `G.learnXd(${i})`, false)}</div>`;   // 队列在背包「队列」按钮里看
       } else if (it.t === "cxp") {
         const v = (CFG.yinshi.MJ || {}).CXP_VAL || 10, ck = it.k === "qi" || it.k === "ling" ? it.k : "dan", max = this.craftLv(ck) >= this.craftMax(ck);
         h += `<img class="item-img" src="${DATA.cxpIcon(ck)}" alt=""><p>使用后获得 ${v} 点${CFG.craftsman[ck].name}经验。${max ? "<br>已满阶，无法再获得经验。" : ""}</p>
@@ -1145,7 +1145,7 @@ G.module({
     const ftabs = `<div class="bag-tabs">${[["all", "全部"], ["dan", "丹药"], ["herb", DATA.matKinds.herb], ["ore", DATA.matKinds.ore]].map(([k, t]) =>
       `<button class="${flt === k && !this.bagSell ? "active" : ""}" onclick="G.setBagFilter('${k}')">${t}</button>`).join("")}
       <button class="sell ${this.bagSell ? "active" : ""}" onclick="G.openSellPage()">出售</button>
-      <button onclick="G.sortBagNow()">整理</button></div>`;
+      <button onclick="G.sortBagNow()">整理</button>${this.lqQBtn("gf")}</div>`;   // 学习队列按钮（用户定 2026-11-15）
     if (this.bagSell) return top + `<div class="card"><h3>储物格<small>${this.bagUsed()} / ${s.bagCap}</small></h3>${ftabs}</div>` + this.sellPageView(match);
     let cells = "", shown = 0;
     for (let i = 0; i < s.bagCap; i++) {
