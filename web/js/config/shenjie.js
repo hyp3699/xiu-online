@@ -30,7 +30,7 @@ CFG.shenjie = {
 
   // 愿力祠兑换（愿力 / 个）
   YL_SHOP: { wdg: 200, sjlp: 100 },   // 悟道果、小世界令牌
-  MAT_GX: { herb: 3, ore: 5, special: 7 },   // 仙魔冥神坊市（神界神市）：本图贡献换本图药材 / 矿石，普通药材 3、普通矿石 5、本图特色（config/drops.js worldDrops 的 special）7 点贡献/个（用户定 2026-11-15，原神界统一 6）
+  MAT_GX: { low: 3, high: 5, LOW_PRICE: 5, special: 7 },   // 仙魔冥神坊市（神界神市）：本图贡献换本图药材 / 矿石，药材矿石同样分两档：出售价（config/items.js matsOther）≤ LOW_PRICE 的 low 3，其余 high 5；本图特色（config/drops.js worldDrops 的 special）7 点贡献/个（用户定 2026-11-15，原神界统一 6）
   JIE_LP: 1,                     // 界里每走一格耗几个小世界令牌
   JIE_N: 9,                      // 界格子边长（9 × 9 = 81 格）
   JIE_MOB: 36,                   // 每个界随机 36 格有怪物（用户定 2026-11-12，原 33；中间神像格不放怪），全部打败 = 彻底征服

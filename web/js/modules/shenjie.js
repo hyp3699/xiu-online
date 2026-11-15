@@ -278,7 +278,7 @@ G.module({
       const C = this.sjC().MAT_GX, m = DATA.matByName[name]; if (!m) return 0;
       if (typeof C === "number") return C;
       const G = C || {}, sp = ((DATA.mapDrops[a] || {}).special || []).includes(name);
-      return sp ? (G.special || 7) : m.kind === "ore" ? (G.ore || 5) : (G.herb || 3);
+      return sp ? (G.special || 7) : (DATA.matPrice(m.kind, m.g) || 0) <= (G.LOW_PRICE || 5) ? (G.low || 3) : (G.high || 5);   // 药材矿石一样分两档：出售价 ≤5 的 3 贡献，其余 5 贡献；本图特色 7
     },
     jsMatOK(a) { const m = DATA.maps[a]; return !!(m && m.w && m.w !== "fan" && DATA.jieGfOf("jshop", a) && this.mapOpen(a)); },
     jsMatView(a, t) {
