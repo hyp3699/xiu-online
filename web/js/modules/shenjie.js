@@ -273,29 +273,33 @@ G.module({
       if (!this.addSm(k, n)) return;
       s.yuanli -= c * n; this.log(`兑换${DATA.smName(k)} ×${n}。`, "good"); this.after();
     },
-    // 神市：分类 功法 / 药材 / 矿石；药材矿石用本图贡献换本图神界药材矿石（MAT_GX 点一个）
-    setSjShopTab(t) { this.sjShopTab = t; this.render(); },
-    sjShopView(a) {
-      const t = ["gf", "herb", "ore"].includes(this.sjShopTab) ? this.sjShopTab : "gf";
-      const tabs = `<div class="sub-tabs">${[["gf", "功法"], ["herb", "药材"], ["ore", "矿石"]].map(([k, n]) => `<button class="${t === k ? "active" : ""}" onclick="G.setSjShopTab('${k}')">${n}</button>`).join("")}</div>`;
-      if (t === "gf") return tabs + this.jieGfView("jshop", a);
-      const c = this.sjC().MAT_GX || 6, gx = this.xjGxOf(a), L = DATA.mapPool(a)[t] || [];
-      return tabs + `<div class="card"><h3>${t === "herb" ? "药材" : "矿石"}<small>本图贡献 ${U.fmt(gx)}</small></h3>${L.map((n, i) => { const m = DATA.matByName[n] || {};
-        return `<div class="line"><div>${DATA.li(DATA.matImg(m.kind || t, m.g))}${n}<small>${U.fmt(c)} 贡献/个 · 已有 ${U.fmt(this.countMat(m.kind || t, m.g))}</small></div><button class="sm" onclick="G.openSjMat(${a},'${t}',${i})" ${gx < c ? "disabled" : ""}>兑换</button></div>`; }).join("")}</div>`;
+    // 四界坊市（神界神市）药材 / 矿石：本图贡献换本图药材矿石（含本图特色），价格 CFG.shenjie.MAT_GX（用户定 2026-11-15）
+    jsMatGx(a, name) {
+      const C = this.sjC().MAT_GX, m = DATA.matByName[name]; if (!m) return 0;
+      if (typeof C === "number") return C;
+      const G = C || {}, sp = ((DATA.mapDrops[a] || {}).special || []).includes(name);
+      return sp ? (G.special || 7) : m.kind === "ore" ? (G.ore || 5) : (G.herb || 3);
+    },
+    jsMatOK(a) { const m = DATA.maps[a]; return !!(m && m.w && m.w !== "fan" && DATA.jieGfOf("jshop", a) && this.mapOpen(a)); },
+    jsMatView(a, t) {
+      const gx = this.xjGxOf(a), L = DATA.mapPool(a)[t] || [];
+      return `<div class="card"><h3>${t === "herb" ? "药材" : "矿石"}<small>本图贡献 ${U.fmt(gx)}</small></h3>${L.map((n, i) => { const m = DATA.matByName[n] || {}, c = this.jsMatGx(a, n);
+        return `<div class="line"><div>${DATA.li(DATA.matImg(m.kind || t, m.g))}${n}<small>${U.fmt(c)} 贡献/个 · 已有 ${U.fmt(this.countMat(m.kind || t, m.g))}</small></div><button class="sm" onclick="G.openSjMat(${a},'${t}',${i})" ${gx < c ? "disabled" : ""}>兑换</button></div>`; }).join("") || `<p class="desc">本图没有${t === "herb" ? "药材" : "矿石"}。</p>`}</div>`;
     },
     openSjMat(a, t, i) {
-      const n0 = (DATA.mapPool(+a)[t] || [])[+i], c = this.sjC().MAT_GX || 6; if (!n0) return;
+      const n0 = (DATA.mapPool(+a)[t] || [])[+i]; if (!n0) return; const c = this.jsMatGx(+a, n0); if (!c) return;
       const max = Math.min(9999, Math.floor(this.xjGxOf(+a) / c)); if (max <= 0) return this.log("贡献不足。", "sys");
       this.qtyModal(`兑换${n0}`, `<p class="desc">每个 ${U.fmt(c)} 点本图贡献 · 现有贡献 ${U.fmt(this.xjGxOf(+a))}</p>`, max, n => this.sjBuyMat(a, t === "herb" ? 0 : 1, i, n), { max: "最多可换", ok: "兑换" });
     },
     sjBuyMat(a, k, i, n) {
-      a = +a; const t = +k ? "ore" : "herb", name = (DATA.mapPool(a)[t] || [])[+i], c = this.sjC().MAT_GX || 6;
-      if (!name || !DATA.maps[a] || DATA.maps[a].w !== "shen" || !this.mapOpen(a)) return;
+      a = +a; const t = +k ? "ore" : "herb", name = (DATA.mapPool(a)[t] || [])[+i];
+      if (!name || !this.jsMatOK(a)) return;
+      const c = this.jsMatGx(a, name); if (!(c > 0)) return;
       n = Math.min(9999, Math.floor(+n), Math.floor(this.xjGxOf(a) / c));
       if (!Number.isFinite(n) || n <= 0) return this.log("贡献不足。", "sys");
       const m = DATA.matByName[name]; if (!m) return;
       this.addMat(m.kind, name, m.g, n); this.xjGxAdd(a, -c * n);
-      this.log(`兑换${name} ×${n}。`, "good"); this.after();
+      this.log(`兑换${name} ×${n}，本图贡献 -${U.fmt(c * n)}。`, "good"); this.after();
     },
     sjHeadCard(a) {
       return `<div class="card"><div class="row small"><span>愿力 <b>${U.fmt(this.s.yuanli)}</b> · 本图贡献 <b>${U.fmt(this.xjGxOf(a))}</b></span></div></div>`;

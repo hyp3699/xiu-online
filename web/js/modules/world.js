@@ -2710,7 +2710,17 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       if (!this.addDan(type, d.g, n, 1)) return;
       s[ck] -= d.cost * n; this.log(`购得${DATA.danName(type, d.g, 1)} ×${n}。`, "good"); this.after();
     },
-    jieGfView(kind, a) {
+    // 四界坊市（含神界神市）分类：杂物 / 药材 / 矿石 / 功法；功德司（含神界愿力祠）：杂物 / 丹方 / 丹药 / 功法；不属于这几类的都放杂物（用户定 2026-11-15）
+    jieTabs(kind) { return kind === "gd" ? [["misc", "杂物"], ["rec", "丹方"], ["dan", "丹药"], ["gf", "功法"]] : [["misc", "杂物"], ["herb", "药材"], ["ore", "矿石"], ["gf", "功法"]]; },
+    jieTabOf(kind) { const T = this.jieTabs(kind), v = kind === "gd" ? this.gdTab : this.jsTab; return T.some(x => x[0] === v) ? v : T[0][0]; },
+    setJieTab(kind, t) { if (kind === "gd") this.gdTab = t; else this.jsTab = t; this.render(); if (this.viewScroll) this.viewScroll(0); },
+    jieShopView(kind, a) {
+      if (!DATA.jieGfOf(kind, a)) return "";
+      const t = this.jieTabOf(kind), tabs = `<div class="sub-tabs">${this.jieTabs(kind).map(([k, n]) => `<button class="${t === k ? "active" : ""}" onclick="G.setJieTab('${kind}','${k}')">${n}</button>`).join("")}</div>`;
+      if (t === "herb" || t === "ore") return tabs + this.jsMatView(a, t);
+      return tabs + this.jieGfView(kind, a, t);
+    },
+    jieGfView(kind, a, part = "gf") {
       const s = this.s, o = DATA.jieGfOf(kind, a); if (!o) return "";
       const lock = !this.realmOK(o.reqRealm), gd = kind === "gd", ck = this.jieCur(a), cn = this.jieCurName(a), cur = s[ck] || 0;
       const gAll = DATA.gfTypesOf(o.src, o.star).map(ty => [DATA.gongfaInfo(DATA.gongfaId(o.id, ty.id)), ty]);
@@ -2727,9 +2737,15 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
         return [has, `<div class="line"><div>${DATA.danImg(DATA.danIcon(d.type), DATA.danCls(d.type, d.g), "li")}《${DATA.danName(d.type, d.g)}》<span class="tag">${DATA.recipeEffect(d.type, d.g)}</span>
           <small>${this.matsText(DATA.danRecipe(d.type, d.g))}<br>${U.fmt(d.cost)} ${cn}</small></div>
           ${has ? `<button class="sm" disabled>已学会</button>` : s.bag.some(x => x && x.t === "dfb" && x.type === d.type && x.g === d.g) ? `<button class="sm" disabled>已在背包</button>` : lock ? `<button class="sm" disabled>境界不足</button>` : `<button class="sm" onclick="G.learnGdRecipe(${a},'${d.type}')" ${cur < d.cost ? "disabled" : ""}>兑换</button>`}</div>`]; }) : [];
-      const fruit = gd && (DATA.maps[a] || {}).w !== "shen" ? (c => `<div class="card"><h3>${DATA.smName("wdg")}</h3><div class="line"><div>${DATA.li(DATA.smIcon("wdg"))}${DATA.smName("wdg")}<small>洞府悟道室悟道用 · ${c} 功德/个 · 已有 ${U.fmt(this.smCount("wdg"))}</small></div>
+      const shenW = (DATA.maps[a] || {}).w === "shen", fruit = gd && !shenW ? (c => `<div class="card"><h3>${DATA.smName("wdg")}</h3><div class="line"><div>${DATA.li(DATA.smIcon("wdg"))}${DATA.smName("wdg")}<small>洞府悟道室悟道用 · ${c} 功德/个 · 已有 ${U.fmt(this.smCount("wdg"))}</small></div>
         <button class="sm" onclick="G.openWdFruit(${a})" ${(s.merit || 0) < c ? "disabled" : ""}>购买</button></div></div>`)(this.wdFruitCost(a)) : "";
-      return this.lqBar("gf") + fruit + (gd ? this.bmMifaCard(a) : "") + this.gfSideWrap(gAll.map(x => x[0]), (this.gfSide === "done" ? U.doneCard(gfl) || `<div class="card"><p class="desc">还没有学会的功法。</p></div>` : `<div class="card"><h3>${o.name}<small>${gd ? `${cn} ${U.fmt(cur)}` : `灵石 ${U.fmt(s.stone)} · 本图贡献 ${U.fmt(this.xjGxOf(a))}`}</small></h3>${rows || `<p class="desc">这一类都学会了。</p>`}</div>`)) + `${recs.length ? this.lqBar("dan") + (todo(recs) ? `<div class="card"><h3>丹方</h3>${todo(recs)}</div>` : "") : ""}${dans ? `<div class="card"><h3>上古丹</h3>${dans}</div>` : ""}${gd ? "" : `<div class="card">${this.xdRows("js", a, "dan")}</div><div class="card">${this.xdRows("js", a, "qi")}</div><div class="card">${this.xdRows("js", a, "jl")}</div>`}` + U.doneCard([...recs, ...(gd ? [this.bmMifaRow(a)] : [])]);   // 已学会的丹方、图纸放最后；已学会的功法在左侧类型栏右边（用户定 2026-11-14）
+      if (part === "misc") {   // 杂物：坊市 = 炼丹 / 炼器 / 聚灵心得；功德司 = 悟道果、本命法宝图纸（神界愿力祠另有愿力兑换）
+        const misc = gd ? (shenW ? this.sjShopCard(a) : "") + fruit + this.bmMifaCard(a) : `<div class="card">${this.xdRows("js", a, "dan")}</div><div class="card">${this.xdRows("js", a, "qi")}</div><div class="card">${this.xdRows("js", a, "jl")}</div>`;
+        return (misc || `<div class="card"><p class="desc">暂无货品。</p></div>`) + (gd ? U.doneCard([this.bmMifaRow(a)]) : "");
+      }
+      if (part === "rec") return this.lqBar("dan") + (todo(recs) ? `<div class="card"><h3>丹方</h3>${todo(recs)}</div>` : `<div class="card"><p class="desc">${recs.length ? "丹方都兑换了。" : "暂无丹方。"}</p></div>`) + U.doneCard(recs);
+      if (part === "dan") return dans ? `<div class="card"><h3>上古丹<small>${cn} ${U.fmt(cur)}</small></h3>${dans}</div>` : `<div class="card"><p class="desc">暂无丹药。</p></div>`;
+      return this.lqBar("gf") + this.gfSideWrap(gAll.map(x => x[0]), (this.gfSide === "done" ? U.doneCard(gfl) || `<div class="card"><p class="desc">还没有学会的功法。</p></div>` : `<div class="card"><h3>${o.name}<small>${gd ? `${cn} ${U.fmt(cur)}` : `灵石 ${U.fmt(s.stone)} · 本图贡献 ${U.fmt(this.xjGxOf(a))}`}</small></h3>${rows || `<p class="desc">这一类都学会了。</p>`}</div>`));   // 已学会的功法在左侧类型栏右边（用户定 2026-11-14）
     },
     // 管理员：网页里更新游戏（服务器拉取 GitHub 最新代码，完成后刷新页面）
     async webUpdate() {
@@ -2864,10 +2880,9 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
         const hs = shen ? (["tg", "xj", "gd", "shop", "dc"].includes(this.hallSel) ? this.hallSel : null) : halls[this.hallSel] ? this.hallSel : null;   // 神界没有神纹、神将殿、九重天
         if (hs) {
           const back = `<div class="pghead">${DATA.maps[sel].name} · ${hn(hs)}</div>`;
-          const page = shen && hs === "dc" ? this.sjDcView(sel) : shen && hs === "gd" ? this.sjShopCard(sel) + this.jieGfView("gd", sel) : hs === "tg" ? this.tgView(sel) + (shen && this.sjSgCard ? this.sjSgCard(sel) : "") : hs === "xj" ? this.xjView(sel)
+          const page = shen && hs === "dc" ? this.sjDcView(sel) : shen && hs === "gd" ? this.jieShopView("gd", sel) : hs === "tg" ? this.tgView(sel) + (shen && this.sjSgCard ? this.sjSgCard(sel) : "") : hs === "xj" ? this.xjView(sel)
             : hs === "lilian" ? bars + status + this.regionsCard(sel) : hs === "lingdi" ? bars + status + this.lingdiView()
-            : shen && hs === "shop" ? this.sjShopView(sel)
-            : hs === "shop" || hs === "gd" ? this.jieGfView(hs === "gd" ? "gd" : "jshop", sel) : `<div class="card"><h3>${hn(hs)}</h3></div>`;
+            : hs === "shop" || hs === "gd" ? this.jieShopView(hs === "gd" ? "gd" : "jshop", sel) : `<div class="card"><h3>${hn(hs)}</h3></div>`;
           return `<div class="mpage" style="background-image:url(img/map/bg_${wid}.webp)">${back + page + fback("G.setHall(null)")}</div>`;
         }
         if (shen) return `<div class="mpage mfit sjfit" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${DATA.maps[sel].name}</div>${this.sjMapView(sel)}${this.exOverlay()}${mb}</div>`;
