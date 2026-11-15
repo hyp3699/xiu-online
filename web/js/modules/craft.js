@@ -659,7 +659,7 @@ G.module({
       this.log(`${this.ringPayName(r)} −${U.fmt(c)}，获得${DATA.ringBpName(g, r)}，已放进${where === "mail" ? "传音" : "背包"}（点「学习」）。`, "gold"); this.after();
     },
     buyRingSm(r, n, ysId) {
-      r = +r; n = Math.floor(+n || 0); if (n <= 0 || n > 100000 || !this.ringShopOK(r, ysId || undefined)) return;
+      r = +r; n = Math.floor(+n || 0); if (n <= 0 || n > 9999 || !this.ringShopOK(r, ysId || undefined)) return;
       const S = DATA.ringSp(r), c = S.SM_COST * n; if (this.ringPayHave(r) < c) return this.log(`${this.ringPayName(r)}不足，需要 ${U.fmt(c)}。`, "sys");
       if (!this.addSm(S.sm, n)) return;
       this.ringPay(r, c);

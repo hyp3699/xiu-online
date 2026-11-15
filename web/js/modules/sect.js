@@ -590,7 +590,7 @@ G.module({
     seedOK(g) { return DATA.herbGrow(g) && this.seedList().some(x => x.g === g && !x.lock); },
     // 兑换材料（药材、矿石，凡界全部可换）；n 不填就用输入框里的数量
     exchangeMat(kind, g, n) {
-      n = Math.min(1000, Math.floor(n || +($("#tr-n") && $("#tr-n").value) || 1));
+      n = Math.min(9999, Math.floor(n || +($("#tr-n") && $("#tr-n").value) || 1));
       if (n <= 0 || !this.treasuryMatOK(kind, g)) return;
       const c = DATA.matContrib(kind, g) * n;
       if (this.s.contrib < c) return this.log(`贡献不足，需要 ${U.fmt(c)}。`, "sys");
@@ -601,7 +601,7 @@ G.module({
     // 贡献兑换窗口：输入数量（数量记在 G.trN）
     openExchangeMat(kind, g) {
       if (!this.treasuryMatOK(kind, g)) return;
-      const c = DATA.matContrib(kind, g), max = Math.floor(this.s.contrib / Math.max(1, c)), n = Math.max(1, Math.min(Math.floor(this.trN) || 1, max || 1)); this.trN = n;
+      const c = DATA.matContrib(kind, g), max = Math.min(9999, Math.floor(this.s.contrib / Math.max(1, c))), n = Math.max(1, Math.min(Math.floor(this.trN) || 1, max || 1)); this.trN = n;
       this.modal(`<h2>兑换${DATA.matName(kind, g)}</h2>
         <div class="line"><div>${DATA.li(DATA.matImg(kind, g))}${DATA.matFull(kind, g)}<small>${U.fmt(c)} 贡献/个 · 已有 ${U.fmt(this.countMat(kind, g))}</small></div></div>
         <div class="line"><div>兑换数量<small>需要贡献 ${U.fmt(c * n)} · 现有 ${U.fmt(this.s.contrib)} · 最多 ${U.fmt(max)}</small></div></div>
@@ -620,7 +620,7 @@ G.module({
     },
     matSwap(kind, mode, from, to, n) {
       if (!this.s.sect || !["herb", "ore"].includes(kind) || !["two", "four"].includes(mode)) return;
-      from = +from; to = +to; n = Math.floor(+n || 0);
+      from = +from; to = +to; n = Math.min(9999, Math.floor(+n || 0));
       if (n <= 0 || !this.matSwapFrom(kind, mode, to).includes(from)) return this.log("请选择要换的材料。", "sys");
       const r = this.matSwapRate(mode), need = r * n;
       if (this.countMat(kind, from) < need) return this.log(`${DATA.matName(kind, from)}不足，需要 ${U.fmt(need)} 个。`, "sys");
@@ -631,9 +631,9 @@ G.module({
     // 神识功法药材互换（CFG.sect.SS_SWAP）：元魂果 ⇄ 凝魂芝，每换 1 个 = 1 个另一种 + COST 贡献，宗门 STAR 星起
     ssSwapCfg() { return Object.assign({ STAR: 2, COST: 50, ITEMS: ["yhg", "nhz"] }, CFG.sect.SS_SWAP || {}); },
     ssSwapTo(from) { const I = this.ssSwapCfg().ITEMS; return I.includes(from) ? I.find(k => k !== from) : null; },
-    ssSwapMax(from) { const C = this.ssSwapCfg(); return Math.min(this.smCount(from), Math.floor((this.s.contrib || 0) / Math.max(1, C.COST))); },
+    ssSwapMax(from) { const C = this.ssSwapCfg(); return Math.min(9999, this.smCount(from), Math.floor((this.s.contrib || 0) / Math.max(1, C.COST))); },
     ssSwap(from, n) {
-      const C = this.ssSwapCfg(), to = this.ssSwapTo(from); n = Math.floor(+n || 0);
+      const C = this.ssSwapCfg(), to = this.ssSwapTo(from); n = Math.min(9999, Math.floor(+n || 0));
       if (!this.s.sect || !to) return;
       if (this.sectInfo().star < C.STAR) return this.log(`${C.STAR}星宗门才能兑换。`, "sys");
       if (n <= 0) return;
@@ -660,7 +660,7 @@ G.module({
       const w = this.msw = this.msw && this.msw.kind === kind && this.msw.mode === mode && this.msw.to === to ? this.msw : { kind, mode, to, from: -1, n: 1 };
       const froms = this.matSwapFrom(kind, mode, to), r = this.matSwapRate(mode), kn = DATA.matKinds[kind];
       if (!froms.includes(w.from) || this.countMat(kind, w.from) < r) w.from = froms.find(g => this.countMat(kind, g) >= r) ?? -1;
-      const max = w.from >= 0 ? Math.floor(this.countMat(kind, w.from) / r) : 0;
+      const max = Math.min(9999, w.from >= 0 ? Math.floor(this.countMat(kind, w.from) / r) : 0);
       w.n = Math.max(1, Math.min(Math.floor(w.n) || 1, max || 1));
       const re = `G.openMatSwap('${kind}','${mode}',${to})`;
       const cells = froms.map(g => { const c = this.countMat(kind, g);
@@ -675,7 +675,7 @@ G.module({
     // 兑换种子（每种一次，永久可种）
     openExchangeSeed(g) {
       if (!this.seedOK(g)) return;
-      const c = DATA.seedCost(g), max = Math.floor(this.s.contrib / Math.max(1, c));
+      const c = DATA.seedCost(g), max = Math.min(9999, Math.floor(this.s.contrib / Math.max(1, c)));
       if (max < 1) return this.log("贡献不足。", "sys");
       this.qtyModal(`兑换${DATA.seedName(g)}`, `<p class="desc">每颗 ${U.fmt(c)} 贡献 · 贡献 ${U.fmt(this.s.contrib)} · 已有 ${U.fmt(this.seedCount(g))}</p>`, max, k => this.exchangeSeed(g, k), { max: "最多可换", ok: "兑换" });
     },
@@ -683,7 +683,7 @@ G.module({
     exchangeSeed(g, n) {
       if (!this.seedOK(g)) return;
       const c = DATA.seedCost(g), max = Math.floor(this.s.contrib / Math.max(1, c));
-      n = n === undefined ? 1 : Math.floor(+n); if (!(n >= 1) || n > max) return this.log("贡献不足。", "sys");
+      n = n === undefined ? 1 : Math.min(9999, Math.floor(+n)); if (!(n >= 1) || n > max) return this.log("贡献不足。", "sys");
       if (!this.addSeed(g, n)) return;
       this.s.contrib -= c * n;
       this.log(`兑换${DATA.seedName(g)} ×${U.fmt(n)}，贡献 -${U.fmt(c * n)}。`, "gold"); this.closeModal(); this.after();

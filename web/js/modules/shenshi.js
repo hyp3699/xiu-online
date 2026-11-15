@@ -54,7 +54,7 @@ G.module({
     },
     buyLingshi(n) {
       // 原来 n=0.5 时 lsBuyCost(0.5)=0（循环一次都不跑），却 lsMax += 0.5，白嫖灵识。
-      const s = this.s; n = Math.min(Math.floor(+n), this.lsCap() - s.lsMax);
+      const s = this.s; n = Math.min(9999, Math.floor(+n), this.lsCap() - s.lsMax);
       if (!Number.isFinite(n)) return this.log("数量无效。", "sys");
       if (n <= 0) return this.log("灵识点已达上限。", "sys");
       const c = this.lsBuyCost(n);

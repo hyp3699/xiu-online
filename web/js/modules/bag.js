@@ -507,7 +507,7 @@ G.module({
     bmAttrName(k) { if (k.startsWith("res.")) { const e = DATA.elById[k.slice(4)]; return (e ? e.name : "") + "抗性"; } return { hp: "生命", atk: "攻击", def: "防御", hit: "命中", speed: "速度", dodge: "闪避" }[k] || k; },
     // 熔炼：消耗 n 颗第 j 种石头，每颗随机 FUSE_PER 种不同属性加到 s.bm.b
     bmFuse(j, n) {
-      const x = this.bmStones()[Math.floor(+j)]; n = Math.max(1, Math.floor(+n) || 1);
+      const x = this.bmStones()[Math.floor(+j)]; n = Math.min(9999, Math.max(1, Math.floor(+n) || 1));
       if (!this.bmEq() || !x) return;
       const have = this.herbCount(x.name); if (have <= 0) return this.log(`没有${x.name}。`, "sys");
       return this.bmFuseRun([[x, Math.min(n, have)]]);
