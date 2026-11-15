@@ -9,7 +9,7 @@
  * ===================================================================== */
 G.module({
   id: "shenshi",
-  defaults: () => ({ lsMax: CFG.shenshi.INIT, ssPow: 0, ssGf: {} }),
+  defaults: () => ({ lsMax: CFG.shenshi.INIT, ssPow: 0, ssGf: {}, lsStoneBought: 0, lsFragBought: 0 }),
 
   api: {
     // 养神：消耗养神丹，神识强度 +1
@@ -40,16 +40,17 @@ G.module({
     },
     lsTotal() { return (this.s.lsMax || 0) + ((this.s.wd || {}).ls || 0) + (this.oriSum ? this.oriSum("ls") : 0) + this.ssGfSum("ls"); },   // + 神识功法《灵台开识篇》   // + 出身「残魂附体」   // 总灵识点 = 买的 + 神魂之道得的
     lsLeft() { return this.lsTotal() - this.lsUsed(); },
-    // 第 k 点神识要多少灵石（表里没有 = null，买不了）
-    lsPrice(k) {   // BUY = [每阶段点数, 每阶段递增灵石]：第 n 阶段每点 n × 递增（兼容旧的 [[从, 到, 灵石], …] 写法）
+    lsStoneCount() { const s = this.s; return s.lsStoneBought !== undefined ? s.lsStoneBought : Math.max(0, (s.lsMax || 0) - (CFG.shenshi.INIT || 0)); },   // 用灵石买过的点数（老存档没有这个字段时按 lsMax − INIT 折算，阶段不变）
+    // 第 i 个用灵石买的点要多少灵石（i 从 1 开始）
+    lsPrice(i) {   // BUY = [每阶段点数, 每阶段递增灵石]：第 n 阶段每点 n × 递增（兼容旧的 [[从, 到, 灵石], …] 写法）
       const C = CFG.shenshi, B = C.BUY || [], init = C.INIT || 0;
-      if (Array.isArray(B[0])) { for (const [a, b, p] of B) if (k >= a && k <= b) return p; return null; }
-      const n = +B[0] || 0, add = +B[1] || 0; if (!n || k <= init || k > this.lsCap()) return null;
-      return (Math.floor((k - init - 1) / n) + 1) * add;
+      if (Array.isArray(B[0])) { const k = init + i; for (const [a, b, p] of B) if (k >= a && k <= b) return p; return null; }
+      const n = +B[0] || 0, add = +B[1] || 0; if (!n || i < 1) return null;
+      return (Math.floor((i - 1) / n) + 1) * add;
     },
     lsBuyCost(n) {
-      let c = 0;
-      for (let i = 1; i <= n; i++) { const p = this.lsPrice(this.s.lsMax + i); if (p === null) return null; c += p; }
+      const bought = this.lsStoneCount(); let c = 0;
+      for (let i = 1; i <= n; i++) { const p = this.lsPrice(bought + i); if (p === null) return null; c += p; }
       return c;
     },
     buyLingshi(n) {
@@ -60,14 +61,35 @@ G.module({
       const c = this.lsBuyCost(n);
       if (c === null) return this.log("灵识点已达上限。", "sys");
       if (s.stone < c) return this.log(`灵石不足，需要 ${U.fmt(c)} 灵石。`, "sys");
-      s.stone -= c; s.lsMax += n;
+      const bought = this.lsStoneCount(); s.stone -= c; s.lsMax += n; s.lsStoneBought = bought + n;   // 先取数再加 lsMax，老存档的折算（lsMax − INIT）才不会多算 1
       this.log(`消耗灵石 ${U.fmt(c)}，灵识点 +${n}（共 ${this.lsTotal()}）。`, "good"); this.dirty(); this.after();
+    },
+    // 第 i 个用碎片换的点（i 从 1 开始）：阶段单独算，按碎片换过的点数，不跟灵石买共用
+    lsFragPrice(i) {
+      const C = CFG.shenshi, B = C.BUY_FRAG || [];
+      const n = +B[0] || 0, add = +B[1] || 0; if (!n || i < 1) return null;
+      return (Math.floor((i - 1) / n) + 1) * add;
+    },
+    lsFragBuyCost(n) {
+      const bought = this.s.lsFragBought || 0; let c = 0;
+      for (let i = 1; i <= n; i++) { const p = this.lsFragPrice(bought + i); if (p === null) return null; c += p; }
+      return c;
+    },
+    buyLsFrag(n) {
+      const s = this.s; n = Math.min(9999, Math.floor(+n), this.lsCap() - s.lsMax);
+      if (!Number.isFinite(n)) return this.log("数量无效。", "sys");
+      if (n <= 0) return this.log("灵识点已达上限。", "sys");
+      const c = this.lsFragBuyCost(n);
+      if (c === null) return this.log("灵识点已达上限。", "sys");
+      if (this.smCount("lsfrag") < c) return this.log(`灵识碎片不足，需要 ${U.fmt(c)}。`, "sys");
+      this.takeSm("lsfrag", c); s.lsMax += n; s.lsFragBought = (s.lsFragBought || 0) + n;
+      this.log(`消耗灵识碎片 ${U.fmt(c)}，灵识点 +${n}（共 ${this.lsTotal()}）。`, "good"); this.dirty(); this.after();
     },
     // 学习前检查：神识不够就提示，返回 false
     lsCheck(id) {
       if (DATA.isTest()) return true;   // 测试模式不占灵识
       const need = this.ssCost(id), left = this.lsLeft();
-      if (need > 0 && left < need) { this.log(`灵识点不足（需要 ${need}，剩余 ${Math.max(0, left)}），可在「修炼 → 神识」用灵石增加，或在功法页遗忘功法。`, "bad"); return false; }
+      if (need > 0 && left < need) { this.log(`灵识点不足（需要 ${need}，剩余 ${Math.max(0, left)}），可在「修炼 → 神识」用灵石购买或用灵识碎片兑换，或在功法页遗忘功法。`, "bad"); return false; }
       return true;
     },
     // 遗忘：删除功法（层数、属性一起删），从修炼队列里去掉，神识归还
@@ -159,6 +181,9 @@ G.shenshiView = function () {
   const need = this.ysNeed(), have = this.smCount("yd"), fx = this._ysFx && Date.now() - this._ysFx < 1500 ? " fx" : "";
   const btn = n => { n = Math.min(n, room); const c = n > 0 ? this.lsBuyCost(n) : null;
     return `<button ${c === null || s.stone < c ? "disabled" : ""} onclick="G.buyLingshi(${n})">增加 ${n > 0 ? n : ""} 点${c !== null ? `<small>${U.fmt(c)} 灵石</small>` : ""}</button>`; };
+  const fbtn = n => { n = Math.min(n, room); const c = n > 0 ? this.lsFragBuyCost(n) : null;
+    return `<button ${c === null || this.smCount("lsfrag") < c ? "disabled" : ""} onclick="G.buyLsFrag(${n})">碎片换 ${n > 0 ? n : ""} 点${c !== null ? `<small>${U.fmt(c)} 碎片</small>` : ""}</button>`; };
+  const fPrice = this.lsFragPrice((s.lsFragBought || 0) + 1);
   // 神识功法光点：贴着人物，两侧从头到胸各 3 个（左 0~2，右 3~5）；坐标是人物图内的 %，跟人物一起浮动；名字、层数点开才显示
   const POS = [[30, 6], [25, 20], [22, 34], [70, 6], [75, 20], [78, 34]];
   const dots = (CFG.shenshi.GONGFA || []).slice(0, 6).map((g, i) => { const [x, y] = POS[i];
@@ -173,8 +198,10 @@ G.shenshiView = function () {
   <div class="card ls-card"><h3>灵识点</h3>
     <div class="stats"><div><span>剩余灵识点</span>${left < 0 ? `<b class="q5">${left}</b>` : left}</div><div><span>总灵识点</span>${this.lsTotal()}</div></div>
     <p class="desc" style="margin-top:6px">学会攻击、防御、修炼速度、肉身修炼速度类功法和宗门秘法会占用灵识点（1 星 1 点 … 10 星 10 点），灵识点不够不能学习；功法页「遗忘」可归还。已占用 ${used}。</p>
-    <div class="btns">${room > 0 ? btn(1) + (room > 1 ? btn(10) : "") : `<button disabled>灵识点已达上限</button>`}
-      <button onclick="G.openShenshi(false)">返回修炼</button></div></div>`;
+    <p class="desc">灵识碎片 ${DATA.li(DATA.smIcon("lsfrag"))} ${U.fmt(this.smCount("lsfrag"))}${fPrice !== null ? ` · 当前每点 ${U.fmt(fPrice)} 碎片` : ""}（地图探索获得，也可出售 1 灵石）。</p>
+    <div class="btns">${room > 0 ? btn(1) : `<button disabled>灵识点已达上限</button>`}
+      <button onclick="G.openShenshi(false)">返回修炼</button></div>
+    ${room > 0 ? `<div class="btns">${fbtn(1)}</div>` : ""}</div>`;
 };
 
 /* 功法页 · 遗忘（gongfa.js 调用） */
