@@ -601,12 +601,8 @@ G.module({
     // 贡献兑换窗口：输入数量（数量记在 G.trN）
     openExchangeMat(kind, g) {
       if (!this.treasuryMatOK(kind, g)) return;
-      const c = DATA.matContrib(kind, g), max = Math.min(9999, Math.floor(this.s.contrib / Math.max(1, c))), n = Math.max(1, Math.min(Math.floor(this.trN) || 1, max || 1)); this.trN = n;
-      this.modal(`<h2>兑换${DATA.matName(kind, g)}</h2>
-        <div class="line"><div>${DATA.li(DATA.matImg(kind, g))}${DATA.matFull(kind, g)}<small>${U.fmt(c)} 贡献/个 · 已有 ${U.fmt(this.countMat(kind, g))}</small></div></div>
-        <div class="line"><div>兑换数量<small>需要贡献 ${U.fmt(c * n)} · 现有 ${U.fmt(this.s.contrib)} · 最多 ${U.fmt(max)}</small></div></div>
-        <input type="number" min="1" max="${max}" value="${n}" oninput="G.trN=+this.value" onchange="G.openExchangeMat('${kind}',${g})">
-        <div class="btns"><button class="primary" onclick="G.exchangeMat('${kind}',${g},G.trN)" ${max < 1 ? "disabled" : ""}>兑换</button><button onclick="G.closeModal()">关闭</button></div>`);
+      const c = DATA.matContrib(kind, g), max = Math.min(9999, Math.floor(this.s.contrib / Math.max(1, c)));
+      this.buyModal({ title: `兑换${DATA.matName(kind, g)}`, icon: DATA.li(DATA.matImg(kind, g)), name: DATA.matFull(kind, g), sub: `${U.fmt(c)} 贡献/个 · 已有 ${U.fmt(this.countMat(kind, g))}`, ok: "兑换", cost: c, cur: "贡献", have: this.s.contrib, max, call: n => this.exchangeMat(kind, g, n) });
     },
     // 宝库材料互换：mode "two" 二换一（宝库可换的同类材料）；"four" 四界换凡界（SWAP_FOUR_STAR 星起）
     matSwapRate(mode) { const C = CFG.sect; return Math.max(1, mode === "four" ? C.SWAP_FOUR_RATE ?? 1 : C.SWAP_RATE ?? 2); },
@@ -647,7 +643,8 @@ G.module({
     openSsSwap(from) {
       const C = this.ssSwapCfg(), to = this.ssSwapTo(from); if (!to) return;
       const max = this.ssSwapMax(from); if (max < 1) return this.log(`${DATA.smName(from)}或贡献不足。`, "sys");
-      this.qtyModal(`兑换${DATA.smName(to)}`, `<p class="desc">每个 1 个${DATA.smName(from)} + ${U.fmt(C.COST)} 贡献 · 已有${DATA.smName(from)} ${U.fmt(this.smCount(from))} · 贡献 ${U.fmt(this.s.contrib || 0)}</p>`, max, k => this.ssSwap(from, k), { max: "最多可换", ok: "兑换" });
+      this.buyModal({ title: `兑换${DATA.smName(to)}`, icon: DATA.li(DATA.smIcon(to)), name: DATA.smName(to), sub: `每个 1 个${DATA.smName(from)} + ${U.fmt(C.COST)} 贡献 · 已有 ${U.fmt(this.smCount(to))}`, ok: "兑换", max,
+        need: k => `需要${DATA.smName(from)} ${U.fmt(k)}（有 ${U.fmt(this.smCount(from))}）+ 贡献 ${U.fmt(C.COST * k)}（有 ${U.fmt(this.s.contrib || 0)}）`, call: k => this.ssSwap(from, k) });
     },
     ssSwapCard() {
       const C = this.ssSwapCfg(), lock = this.sectInfo().star < C.STAR;
@@ -677,7 +674,7 @@ G.module({
       if (!this.seedOK(g)) return;
       const c = DATA.seedCost(g), max = Math.min(9999, Math.floor(this.s.contrib / Math.max(1, c)));
       if (max < 1) return this.log("贡献不足。", "sys");
-      this.qtyModal(`兑换${DATA.seedName(g)}`, `<p class="desc">每颗 ${U.fmt(c)} 贡献 · 贡献 ${U.fmt(this.s.contrib)} · 已有 ${U.fmt(this.seedCount(g))}</p>`, max, k => this.exchangeSeed(g, k), { max: "最多可换", ok: "兑换" });
+      this.buyModal({ title: `兑换${DATA.seedName(g)}`, icon: DATA.li(DATA.seedImg(g)), name: DATA.seedName(g), sub: `${U.fmt(c)} 贡献/颗 · 已有 ${U.fmt(this.seedCount(g))}`, ok: "兑换", cost: c, cur: "贡献", have: this.s.contrib, max, call: k => this.exchangeSeed(g, k) });
     },
     // 兑换种子：不限次数，放进背包（贡献 = 药材出售价 × config/garden.js SEED_COST_MUL）
     exchangeSeed(g, n) {

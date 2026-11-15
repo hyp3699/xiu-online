@@ -450,8 +450,23 @@ G.module({
         <p class="desc" style="text-align:center">${o.max || "最多可炼"} ${U.fmt(max)}　<a href="javascript:void 0" onclick="G.qtySet(${max})">最大</a></p>
         <div class="btns"><button class="primary" onclick="G.qtyOk()">${o.ok || "炼制"}</button><button onclick="G.closeModal()">取消</button></div>`);
     },
+    /* 购买 / 兑换数量窗口（全部商店共用，样式同宗门宝库，用户定 2026-11-15）：
+     *   物品行 → 数量说明（需要多少，随输入变）→ 输入框 + 购买按钮一行 → 快捷 1 / 10 / 100 / 1000 个；没有关闭按钮（点外面关）
+     *   o = { title, icon, name, sub, ok: "兑换"|"购买", cost 单价, cur 货币名, have 货币现有, max, call(n), need(n) 可选自定义需要文字 } */
+    buyModal(o) {
+      const ok = o.ok || "购买", max = Math.max(0, Math.floor(o.max || 0));
+      const need = o.need || (n => `需要${o.cur} ${U.fmt(o.cost * n)} · 现有 ${U.fmt(o.have)}`);
+      this._qty = { max, call: o.call, n: max ? 1 : 0, title: o.title, need: n => `${need(n)} · 最多 ${U.fmt(max)}` };
+      this.modal(`<h2>${o.title}</h2>
+        <div class="line"><div>${o.icon || ""}${o.name}<small>${o.sub || ""}</small></div></div>
+        <div class="line"><div>${ok}数量<small id="qty-need">${this._qty.need(this._qty.n)}</small></div></div>
+        <div class="bq-row"><input id="qty-n" type="number" min="1" max="${max}" value="${this._qty.n}" oninput="G.qtySet(this.value,1)"><button class="primary" onclick="G.qtyOk()" ${max < 1 ? "disabled" : ""}>${ok}</button></div>
+        <div class="bq-quick">${[1, 10, 100, 1000].map(k => `<button onclick="G.qtyGo(${k})" ${max < k ? "disabled" : ""}>${ok}${k}个</button>`).join("")}</div>`);
+    },
+    qtyGo(k) { const q = this._qty; if (!q || k > q.max) return; q.n = k; this.qtyOk(); },
     qtySet(v, typing) { const q = this._qty; if (!q) return; v = Math.floor(+v || 0); q.n = Math.max(1, Math.min(q.max, v));
-      const el = document.getElementById("qty-n"); if (el && (!typing || v > q.max)) el.value = q.n; },
+      const el = document.getElementById("qty-n"); if (el && (!typing || v > q.max)) el.value = q.n;
+      const nd = q.need && document.getElementById("qty-need"); if (nd) nd.innerHTML = q.need(q.n); },
     qtyAdd(d) { const q = this._qty; if (q) this.qtySet(q.n + d); },
     qtyOk() { const q = this._qty; if (!q) return; const n = q.n, call = q.call; this._qty = null; this.closeModal(); call(n); },
     // 炼丹数量：最多 = 药材够炼几枚（一炉上限 MAX_BATCH）
@@ -661,7 +676,8 @@ G.module({
     openRingSm(r, ysId) {   // 弹窗输入数量（同宗门宝库，用户定 2026-11-15）
       r = +r; if (!this.ringShopOK(r, ysId || undefined)) return;
       const S = DATA.ringSp(r), max = Math.min(9999, Math.floor(this.ringPayHave(r) / Math.max(1, S.SM_COST))); if (max <= 0) return this.log(`${this.ringPayName(r)}不足。`, "sys");
-      this.qtyModal(`兑换${DATA.smName(S.sm)}`, `<p class="desc">每个 ${U.fmt(S.SM_COST)} ${this.ringPayName(r)} · 现有 ${U.fmt(this.ringPayHave(r))} · 已有 ${U.fmt(this.smCount(S.sm))}</p>`, max, n => this.buyRingSm(r, n, ysId), { max: "最多可换", ok: "兑换" });
+      const pn = this.ringPayName(r);
+      this.buyModal({ title: `兑换${DATA.smName(S.sm)}`, icon: DATA.li(DATA.smIcon(S.sm)), name: DATA.smName(S.sm), sub: `${U.fmt(S.SM_COST)} ${pn}/个 · 已有 ${U.fmt(this.smCount(S.sm))}`, ok: "兑换", cost: S.SM_COST, cur: pn, have: this.ringPayHave(r), max, call: n => this.buyRingSm(r, n, ysId) });
     },
     buyRingSm(r, n, ysId) {
       r = +r; n = Math.floor(+n || 0); if (n <= 0 || n > 9999 || !this.ringShopOK(r, ysId || undefined)) return;

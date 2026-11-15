@@ -264,7 +264,7 @@ G.module({
     openSjBuy(k) {
       const c = (this.sjC().YL_SHOP || {})[k]; if (!c) return;
       const max = Math.min(9999, Math.floor((this.s.yuanli || 0) / c)); if (max <= 0) return this.log("愿力不足。", "sys");
-      this.qtyModal(`兑换${DATA.smName(k)}`, `<p class="desc">每个 ${U.fmt(c)} 愿力 · 现有愿力 ${U.fmt(this.s.yuanli || 0)}</p>`, max, n => this.sjBuyItem(k, n), { max: "最多可换", ok: "兑换" });
+      this.buyModal({ title: `兑换${DATA.smName(k)}`, icon: DATA.li(DATA.smIcon(k)), name: DATA.smName(k), sub: `${U.fmt(c)} 愿力/个 · 已有 ${U.fmt(this.smCount(k))}`, ok: "兑换", cost: c, cur: "愿力", have: this.s.yuanli || 0, max, call: n => this.sjBuyItem(k, n) });
     },
     sjBuyItem(k, n) {
       const s = this.s, c = (this.sjC().YL_SHOP || {})[k]; if (!c) return;
@@ -289,7 +289,8 @@ G.module({
     openSjMat(a, t, i) {
       const n0 = (DATA.mapPool(+a)[t] || [])[+i]; if (!n0) return; const c = this.jsMatGx(+a, n0); if (!c) return;
       const max = Math.min(9999, Math.floor(this.xjGxOf(+a) / c)); if (max <= 0) return this.log("贡献不足。", "sys");
-      this.qtyModal(`兑换${n0}`, `<p class="desc">每个 ${U.fmt(c)} 点本图贡献 · 现有贡献 ${U.fmt(this.xjGxOf(+a))}</p>`, max, n => this.sjBuyMat(a, t === "herb" ? 0 : 1, i, n), { max: "最多可换", ok: "兑换" });
+      const m = DATA.matByName[n0] || {}, mk = m.kind || t;
+      this.buyModal({ title: `兑换${n0}`, icon: DATA.li(DATA.matImg(mk, m.g)), name: n0, sub: `${U.fmt(c)} 本图贡献/个 · 已有 ${U.fmt(this.countMat(mk, m.g))}`, ok: "兑换", cost: c, cur: "本图贡献", have: this.xjGxOf(+a), max, call: n => this.sjBuyMat(a, t === "herb" ? 0 : 1, i, n) });
     },
     sjBuyMat(a, k, i, n) {
       a = +a; const t = +k ? "ore" : "herb", name = (DATA.mapPool(a)[t] || [])[+i];

@@ -396,7 +396,8 @@ G.module({
       const D = this.ysDanCfg(), d = this.ysDanDef(k); if (!d) return;
       const left = D.MAX - this.ysDanGotN(id, k), max = Math.min(9999, left, Math.floor(this.ysFav(id) / Math.max(1, D.FAV)));
       if (max <= 0) return this.log(left <= 0 ? `${this.ysDanName(id, k)}已兑换满 ${D.MAX} 颗。` : "好感度不足。", "sys");
-      this.qtyModal(`兑换${this.ysDanName(id, k)}`, `<p class="desc">每颗 ${U.fmt(D.FAV)} 好感 · 现有好感 ${U.fmt(this.ysFav(id))} · 还可兑换 ${left} 颗</p>`, max, n => this.ysBuyDan(id, k, n), { max: "最多可换", ok: "兑换" });
+      const d0 = this.ysDanDef(k) || {};
+      this.buyModal({ title: `兑换${this.ysDanName(id, k)}`, icon: DATA.li(`img/ysdan/${k}.webp`), name: this.ysDanName(id, k), sub: `${U.fmt(D.FAV)} 好感/颗 · 已兑换 ${this.ysDanGotN(id, k)}/${D.MAX}`, ok: "兑换", cost: D.FAV, cur: "好感", have: this.ysFav(id), max, call: n => this.ysBuyDan(id, k, n) });
     },
     ysBuyDan(id, k, n) {
       if (!this.ysFound(id)) return; const D = this.ysDanCfg(), d = this.ysDanDef(k); if (!d) return;
@@ -2640,11 +2641,11 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
     openShopBuy(i) {
       const it = this.shopList()[i]; if (!it) return;
       const max = Math.min(9999, Math.floor((this.s.stone || 0) / Math.max(1, it.price))); if (max <= 0) return this.log("灵石不足。", "sys");
-      this.qtyModal(`购买${this.shopItemName(it)}`, `<p class="desc">每${it.kind === "pill" ? "枚" : "件"} ${U.fmt(it.price)} 灵石 · 现有灵石 ${U.fmt(this.s.stone)}</p>`, max, n => this.buy(i, n), { max: "最多可买", ok: "购买" });
+      this.buyModal({ title: `购买${this.shopItemName(it)}`, icon: DATA.li(it.kind === "pill" ? DATA.pillIcon(it.type) : DATA.iconImg("eq_" + it.slot)), name: this.shopItemName(it), sub: `${U.fmt(it.price)} 灵石/${it.kind === "pill" ? "枚" : "件"}`, ok: "购买", cost: it.price, cur: "灵石", have: this.s.stone, max, call: n => this.buy(i, n) });
     },
     openShopMat(kind, g) {
       const c = this.shopMatPrice(kind, g), max = Math.min(9999, Math.floor((this.s.stone || 0) / Math.max(1, c))); if (max <= 0) return this.log("灵石不足。", "sys");
-      this.qtyModal(`购买${DATA.matName(kind, g)}`, `<p class="desc">每个 ${U.fmt(c)} 灵石 · 现有灵石 ${U.fmt(this.s.stone)} · 已有 ${U.fmt(this.countMat(kind, g))}</p>`, max, n => this.buyMat(kind, g, n), { max: "最多可买", ok: "购买" });
+      this.buyModal({ title: `购买${DATA.matName(kind, g)}`, icon: DATA.li(DATA.matImg(kind, g)), name: DATA.matFull(kind, g), sub: `${U.fmt(c)} 灵石/个 · 已有 ${U.fmt(this.countMat(kind, g))}`, ok: "购买", cost: c, cur: "灵石", have: this.s.stone, max, call: n => this.buyMat(kind, g, n) });
     },
     buy(i, n = 1) {
       const it = this.shopList()[i]; if (!it) return;
@@ -2723,7 +2724,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
     openSgDan(a, type) {
       const s = this.s, d = this.sgDanList(a).find(x => x.type === type); if (!d) return;
       const ck = this.jieCur(a), max = Math.min(9999, Math.floor((s[ck] || 0) / Math.max(1, d.cost))); if (max <= 0) return this.log(`${this.jieCurName(a)}不足。`, "sys");
-      this.qtyModal(`购买${DATA.danName(type, d.g, 1)}`, `<p class="desc">每枚 ${U.fmt(d.cost)} ${this.jieCurName(a)} · 现有 ${U.fmt(s[ck] || 0)} · 已服 ${DATA.danLimit(type, d.g) - this.danLeft(type, d.g)} / ${DATA.danLimit(type, d.g)}</p>`, max, n => this.buySgDan(a, type, n), { max: "最多可买", ok: "购买" });
+      this.buyModal({ title: `购买${DATA.danName(type, d.g, 1)}`, icon: DATA.danImg(DATA.danIcon(type), DATA.danCls(type, d.g), "li"), name: DATA.danName(type, d.g, 1), sub: `${U.fmt(d.cost)} ${this.jieCurName(a)}/枚 · 已服 ${DATA.danLimit(type, d.g) - this.danLeft(type, d.g)} / ${DATA.danLimit(type, d.g)}`, ok: "购买", cost: d.cost, cur: this.jieCurName(a), have: s[ck] || 0, max, call: n => this.buySgDan(a, type, n) });
     },
     buySgDan(a, type, n) {
       const s = this.s, o = DATA.jieGfOf("gd", a), d = this.sgDanList(a).find(x => x.type === type); if (!o || !d) return;

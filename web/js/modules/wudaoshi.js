@@ -81,7 +81,7 @@ G.module({
     openWdFruit(a) {
       const c = this.wdFruitCost(a), max = Math.min(9999, Math.floor((this.s.merit || 0) / c));
       if (max <= 0) return this.log("功德不足。", "sys");
-      this.qtyModal(`购买${DATA.smName("wdg")}`, `<p class="desc">每个 ${U.fmt(c)} 功德 · 现有功德 ${U.fmt(this.s.merit || 0)}</p>`, max, n => this.buyWdFruit(n, a), { max: "最多可买", ok: "购买" });
+      this.buyModal({ title: `购买${DATA.smName("wdg")}`, icon: DATA.li(DATA.smIcon("wdg")), name: DATA.smName("wdg"), sub: `${U.fmt(c)} 功德/个 · 已有 ${U.fmt(this.smCount("wdg"))}`, ok: "购买", cost: c, cur: "功德", have: this.s.merit || 0, max, call: n => this.buyWdFruit(n, a) });
     },
     buyWdFruit(n, a) {
       if ((DATA.maps[a] || {}).w === "shen") return this.log("愿力祠不出售悟道果。", "sys");

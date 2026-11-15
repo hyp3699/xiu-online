@@ -1416,3 +1416,9 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .lq-card .line>div,.lq-card .pg>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 .room-grid.lq-bar{grid-template-columns:1fr}
+/* 购买 / 兑换数量窗口（buyModal）：输入框 + 按钮一行，下面快捷 1/10/100/1000 */
+.bq-row{display:flex;gap:8px;align-items:stretch;margin:10px 0 8px}
+.bq-row input{flex:1;min-width:0;font-size:16px}
+.bq-row button{flex:0 0 32%}
+.bq-quick{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.bq-quick button{padding:8px 4px}
