@@ -31,8 +31,14 @@ G.module({
     // 职位：1 天将；星君名单第 i 位（0 起）= 职位 i + 2（名单从低到高）
     xjPos(a, t, seat) { return t === "tj" ? 1 : t === "jz" ? CFG.xingjun.JZ_POS : seat + 2; },
     // 每张地图的贡献
-    xjGxOf(a) { return DATA.isTest() ? 1e15 : (this.s.xjGx || {})[a] || 0; },   // 测试模式本图贡献随便花
-    xjGxAdd(a, n) { if (DATA.isTest()) return; const g = this.s.xjGx || (this.s.xjGx = {}); g[a] = (g[a] || 0) + n; },
+    // 贡献按界通用（用户定 2026-11-15）：s.xjGx = { xian/ming/mo/shen: 点数 }；老存档按地图序号存的，合并进所在界
+    xjGxKey(a) { const m = DATA.maps[a]; return m && m.w ? m.w : String(a); },
+    xjGxMap() { const g = this.s.xjGx || (this.s.xjGx = {});
+      for (const k of Object.keys(g)) if (/^\d+$/.test(k)) { const w = this.xjGxKey(+k); if (w !== k) { g[w] = (g[w] || 0) + (+g[k] || 0); delete g[k]; } }
+      return g; },
+    xjGxOf(a) { return DATA.isTest() ? 1e15 : this.xjGxMap()[this.xjGxKey(a)] || 0; },   // 测试模式贡献随便花
+    xjGxAdd(a, n) { if (DATA.isTest()) return; const g = this.xjGxMap(), k = this.xjGxKey(a); g[k] = (g[k] || 0) + n; },
+    xjGxName(a) { const m = DATA.maps[a], w = m && DATA.worlds.find(x => x.id === m.w); return `${w ? w.name : ""}贡献`; },
     // 挑战需要的贡献 = 基础 × 职位 × 第几张地图
     xjCost(a, t, seat) { return Math.round(CFG.xingjun.CH_BASE * this.xjPos(a, t, seat) * ((DATA.maps[a].wi || 0) + 1)); },
     // 担任过的职位
@@ -177,7 +183,7 @@ G.module({
     xjHead(a) {
       const s = this.s, w = this.xjW(a), o = this.xjOfficeOf(w), H = CFG.xingjun.HOUR || 3600, L = this.xjLast && this.xjW(this.xjLast.map) === w ? this.xjLast : null;
       const next = o ? Math.max(0, Math.ceil((o.T + H * 1000 - this.now()) / 1000)) : 0;
-      return `<div class="row small"><span>官位 ${this.xjOffice(o)}</span><span>功德 ${U.fmt(s.merit || 0)} · 本图贡献 ${U.fmt(this.xjGxOf(a))}</span></div>
+      return `<div class="row small"><span>官位 ${this.xjOffice(o)}</span><span>功德 ${U.fmt(s.merit || 0)} · ${this.xjGxName(a)} ${U.fmt(this.xjGxOf(a))}</span></div>
         ${o ? `<div class="line"><div>俸禄<small>${this.xjRangeText(this.xjRate(o))} / ${U.dur(H)} · ${U.cd(next)}后结算</small></div><button class="sm" onclick="G.xjResign('${w}')">辞官</button></div>` : ""}
         ${L ? `<p class="desc ${L.bad ? "q5" : ""}">${L.title}</p>${L.ev.map((e, i) => `<div class="row small"><span class="${e.c === "bad" ? "q5" : ""}">${e.t}</span>${e.b ? `<button class="sm" onclick="G.xjShowLast(${i})">详情</button>` : ""}</div>`).join("")}` : ""}`;
     },

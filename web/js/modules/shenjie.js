@@ -283,14 +283,14 @@ G.module({
     jsMatOK(a) { const m = DATA.maps[a]; return !!(m && m.w && m.w !== "fan" && DATA.jieGfOf("jshop", a) && this.mapOpen(a)); },
     jsMatView(a, t) {
       const gx = this.xjGxOf(a), L = DATA.mapPool(a)[t] || [];
-      return `<div class="card"><h3>${t === "herb" ? "药材" : "矿石"}<small>本图贡献 ${U.fmt(gx)}</small></h3>${L.map((n, i) => { const m = DATA.matByName[n] || {}, c = this.jsMatGx(a, n);
+      return `<div class="card"><h3>${t === "herb" ? "药材" : "矿石"}<small>${this.xjGxName(a)} ${U.fmt(gx)}</small></h3>${L.map((n, i) => { const m = DATA.matByName[n] || {}, c = this.jsMatGx(a, n);
         return `<div class="line"><div>${DATA.li(DATA.matImg(m.kind || t, m.g))}${n}<small>${U.fmt(c)} 贡献/个 · 已有 ${U.fmt(this.countMat(m.kind || t, m.g))}</small></div><button class="sm" onclick="G.openSjMat(${a},'${t}',${i})" ${gx < c ? "disabled" : ""}>兑换</button></div>`; }).join("") || `<p class="desc">本图没有${t === "herb" ? "药材" : "矿石"}。</p>`}</div>`;
     },
     openSjMat(a, t, i) {
       const n0 = (DATA.mapPool(+a)[t] || [])[+i]; if (!n0) return; const c = this.jsMatGx(+a, n0); if (!c) return;
       const max = Math.min(9999, Math.floor(this.xjGxOf(+a) / c));
       const m = DATA.matByName[n0] || {}, mk = m.kind || t;
-      this.buyModal({ title: `兑换${n0}`, icon: DATA.li(DATA.matImg(mk, m.g)), name: n0, sub: `${U.fmt(c)} 本图贡献/个 · 已有 ${U.fmt(this.countMat(mk, m.g))}`, ok: "兑换", cost: c, cur: "本图贡献", have: this.xjGxOf(+a), max, call: n => this.sjBuyMat(a, t === "herb" ? 0 : 1, i, n) });
+      this.buyModal({ title: `兑换${n0}`, icon: DATA.li(DATA.matImg(mk, m.g)), name: n0, sub: `${U.fmt(c)} ${this.xjGxName(+a)}/个 · 已有 ${U.fmt(this.countMat(mk, m.g))}`, ok: "兑换", cost: c, cur: this.xjGxName(+a), have: this.xjGxOf(+a), max, call: n => this.sjBuyMat(a, t === "herb" ? 0 : 1, i, n) });
     },
     sjBuyMat(a, k, i, n) {
       a = +a; const t = +k ? "ore" : "herb", name = (DATA.mapPool(a)[t] || [])[+i];
@@ -300,10 +300,10 @@ G.module({
       if (!Number.isFinite(n) || n <= 0) return this.log("贡献不足。", "sys");
       const m = DATA.matByName[name]; if (!m) return;
       this.addMat(m.kind, name, m.g, n); this.xjGxAdd(a, -c * n);
-      this.log(`兑换${name} ×${n}，本图贡献 -${U.fmt(c * n)}。`, "good"); this.after();
+      this.log(`兑换${name} ×${n}，${this.xjGxName(a)} -${U.fmt(c * n)}。`, "good"); this.after();
     },
     sjHeadCard(a) {
-      return `<div class="card"><div class="row small"><span>愿力 <b>${U.fmt(this.s.yuanli)}</b> · 本图贡献 <b>${U.fmt(this.xjGxOf(a))}</b></span></div></div>`;
+      return `<div class="card"><div class="row small"><span>愿力 <b>${U.fmt(this.s.yuanli)}</b> · ${this.xjGxName(a)} <b>${U.fmt(this.xjGxOf(a))}</b></span></div></div>`;
     },
     // 道场：感悟 + 真意
     sjDcView(a) {

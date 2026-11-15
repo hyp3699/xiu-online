@@ -2347,7 +2347,7 @@ G.module({
           if (!lost) this.mjDiscover(x.map);   // 地图走完一次：有几率发现秘境（凡界）/ 灵地（四界）
           if (x.once) { // 历练只走一次；走完且未战败 = 通过，解锁该区域自动探索
             const key = this.regionKey(x.map, x.reg || 0);
-            if (!lost && DATA.maps[x.map].w !== "fan" && this.xjGxAdd) { const g = CFG.xingjun.CONTRIB_RUN || 0; if (g) { this.xjGxAdd(x.map, g); this.log(`${DATA.maps[x.map].name}贡献 +${g}`, "gold"); } }   // 四界地图：完成一次历练得本图贡献（config/xingjun.js）
+            if (!lost && DATA.maps[x.map].w !== "fan" && this.xjGxAdd) { const g = CFG.xingjun.CONTRIB_RUN || 0; if (g) { this.xjGxAdd(x.map, g); this.log(`${this.xjGxName(x.map)} +${g}`, "gold"); } }   // 四界地图：完成一次历练得本图贡献（config/xingjun.js）
             if (!lost && !s.trainedR.includes(key)) { s.trainedR.push(key); this.log(`${DATA.regionName(x.map, x.reg || 0)}历练通过！已可自动探索。`, "gold"); }
             else if (lost) this.log("历练失败，提升实力后再来。", "bad");
             s.explore = null; break;
@@ -2693,7 +2693,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       if (g.src === "gd") { const ck = this.jieCur(g.sect.map); if ((s[ck] || 0) < g.cost) return this.log(`${this.jieCurName(g.sect.map)}不足。`, "sys"); s[ck] -= g.cost; }
       else {
         if (s.stone < g.cost) return this.log("灵石不足。", "sys");
-        if (this.xjGxOf(g.sect.map) < g.gx) return this.log("本图贡献不足。", "sys");
+        if (this.xjGxOf(g.sect.map) < g.gx) return this.log(`${this.xjGxName(g.sect.map)}不足。`, "sys");
         s.stone -= g.cost; this.xjGxAdd(g.sect.map, -g.gx);
       }
       this.startGfLearn(id); this.after();
@@ -2767,7 +2767,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       }
       if (part === "rec") return this.lqBar("dan") + (todo(recs) ? `<div class="card"><h3>丹方</h3>${todo(recs)}</div>` : `<div class="card"><p class="desc">${recs.length ? "丹方都兑换了。" : "暂无丹方。"}</p></div>`) + U.doneCard(recs);
       if (part === "dan") return dans ? `<div class="card"><h3>上古丹<small>${cn} ${U.fmt(cur)}</small></h3>${dans}</div>` : `<div class="card"><p class="desc">暂无丹药。</p></div>`;
-      return this.lqBar("gf") + this.gfSideWrap(gAll.map(x => x[0]), (this.gfSide === "done" ? U.doneCard(gfl) || `<div class="card"><p class="desc">还没有学会的功法。</p></div>` : `<div class="card"><h3>${o.name}<small>${gd ? `${cn} ${U.fmt(cur)}` : `灵石 ${U.fmt(s.stone)} · 本图贡献 ${U.fmt(this.xjGxOf(a))}`}</small></h3>${rows || `<p class="desc">这一类都学会了。</p>`}</div>`));   // 已学会的功法在左侧类型栏右边（用户定 2026-11-14）
+      return this.lqBar("gf") + this.gfSideWrap(gAll.map(x => x[0]), (this.gfSide === "done" ? U.doneCard(gfl) || `<div class="card"><p class="desc">还没有学会的功法。</p></div>` : `<div class="card"><h3>${o.name}<small>${gd ? `${cn} ${U.fmt(cur)}` : `灵石 ${U.fmt(s.stone)} · ${this.xjGxName(a)} ${U.fmt(this.xjGxOf(a))}`}</small></h3>${rows || `<p class="desc">这一类都学会了。</p>`}</div>`));   // 已学会的功法在左侧类型栏右边（用户定 2026-11-14）
     },
     // 管理员：网页里更新游戏（服务器拉取 GitHub 最新代码，完成后刷新页面）
     async webUpdate() {
