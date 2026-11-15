@@ -182,7 +182,7 @@ G.shenshiView = function () {
   const btn = n => { n = Math.min(n, room); const c = n > 0 ? this.lsBuyCost(n) : null;
     return `<button ${c === null || s.stone < c ? "disabled" : ""} onclick="G.buyLingshi(${n})">增加 ${n > 0 ? n : ""} 点${c !== null ? `<small>${U.fmt(c)} 灵石</small>` : ""}</button>`; };
   const fbtn = n => { n = Math.min(n, room); const c = n > 0 ? this.lsFragBuyCost(n) : null;
-    return `<button ${c === null || this.smCount("lsfrag") < c ? "disabled" : ""} onclick="G.buyLsFrag(${n})">碎片换 ${n > 0 ? n : ""} 点${c !== null ? `<small>${U.fmt(c)} 碎片</small>` : ""}</button>`; };
+    return `<button ${c === null || this.smCount("lsfrag") < c ? "disabled" : ""} onclick="G.buyLsFrag(${n})">增加 ${n > 0 ? n : ""} 点${c !== null ? `<small>${U.fmt(c)} 碎片</small>` : ""}</button>`; };
   const fPrice = this.lsFragPrice((s.lsFragBought || 0) + 1);
   // 神识功法光点：贴着人物，两侧从头到胸各 3 个（左 0~2，右 3~5）；坐标是人物图内的 %，跟人物一起浮动；名字、层数点开才显示
   const POS = [[30, 6], [25, 20], [22, 34], [70, 6], [75, 20], [78, 34]];
@@ -199,9 +199,8 @@ G.shenshiView = function () {
     <div class="stats"><div><span>剩余灵识点</span>${left < 0 ? `<b class="q5">${left}</b>` : left}</div><div><span>总灵识点</span>${this.lsTotal()}</div></div>
     <p class="desc" style="margin-top:6px">学会攻击、防御、修炼速度、肉身修炼速度类功法和宗门秘法会占用灵识点（1 星 1 点 … 10 星 10 点），灵识点不够不能学习；功法页「遗忘」可归还。已占用 ${used}。</p>
     <p class="desc">灵识碎片 ${DATA.li(DATA.smIcon("lsfrag"))} ${U.fmt(this.smCount("lsfrag"))}${fPrice !== null ? ` · 当前每点 ${U.fmt(fPrice)} 碎片` : ""}（地图探索获得，也可出售 1 灵石）。</p>
-    <div class="btns">${room > 0 ? btn(1) : `<button disabled>灵识点已达上限</button>`}
-      <button onclick="G.openShenshi(false)">返回修炼</button></div>
-    ${room > 0 ? `<div class="btns">${fbtn(1)}</div>` : ""}</div>`;
+    <div class="btns">${room > 0 ? btn(1) + fbtn(1) : `<button disabled>灵识点已达上限</button>`}
+      <button onclick="G.openShenshi(false)">返回修炼</button></div></div>`;
 };
 
 /* 功法页 · 遗忘（gongfa.js 调用） */
