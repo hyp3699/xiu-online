@@ -104,7 +104,7 @@ test("戒指耀石同法宝（10、20、40、70……）；强化三类共用灵
   assert.equal(D.jyCost(1, 499).xd, 10); assert.equal(D.jyCost(1, 500).xd, 20); assert.equal(D.jyCost(1, 1000).xd, 30);
 });
 
-test("强化加成不分星级：装备按部位、戒指按种类（+1 命中）；护盾法宝每级 +30 护盾，不能融合也不能被融合", () => {
+test("强化加成不分星级：装备按部位、戒指按种类（+1 命中）；护盾法宝每级 +60 护盾，不能融合也不能被融合", () => {
   const { G, D, s } = setup(6), J = o => JSON.parse(JSON.stringify(o));
   for (const g of [0, 9]) {
     assert.deepEqual(J(D.eqEnhStats({ slot: "boots", g, attrs: [], enh: 3 })), { atk: 15, mana: 24, speed: 3 });
@@ -114,8 +114,8 @@ test("强化加成不分星级：装备按部位、戒指按种类（+1 命中�
     assert.deepEqual(J(D.eqEnhStats({ slot: "ring", r: 2, g, attrs: [], enh: 1 })), { atk: 5, hp: 10, hit: 1 });
   }
   const sh = Object.keys(D.fabaoTypes).find(k => D.fabaoTypes[k].shield), dm = Object.keys(D.fabaoTypes).find(k => !D.fabaoTypes[k].shield);
-  for (const g of [0, 9]) { assert.equal(D.fbEnh({ slot: "fabao", ft: sh, g, enh: 2 }), 60); assert.equal(D.fbEnh({ slot: "fabao", ft: dm, g, enh: 2 }), 24); }
-  // 法宝融合已取消：不再有 fbFuse / fbFusable，护盾法宝每级 +30 护盾的断言在上面
+  for (const g of [0, 9]) { assert.equal(D.fbEnh({ slot: "fabao", ft: sh, g, enh: 2 }), 120); assert.equal(D.fbEnh({ slot: "fabao", ft: dm, g, enh: 2 }), 24); }
+  // 法宝融合已取消：不再有 fbFuse / fbFusable，护盾法宝每级 +60 护盾的断言在上面
 });
 
 test("心得灵石价格翻倍；炼丹师 / 炼器师 / 灵植夫升阶经验 = EXP × 1.18（共享总倍率已删）", () => {
