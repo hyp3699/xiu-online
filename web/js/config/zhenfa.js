@@ -1,6 +1,7 @@
 /* ★ 阵法室：阵法相关参数都在这里（代码 modules/formation.js，阵法室）
  * 一、主动阵法 ACTIVE：6 个，按六系，最高 MAX 级，可同时全开、随时开关。
  *   开着时只在战斗、度雷劫里生效：受到本系（el）属性伤害直接减 RED × 等级，受到克制系（ke）属性伤害直接加 ADD × 等级。
+ *   ke 可以是单个系，也可以是五系数组：雷泽阵 ke = [金,木,水,火,土]，ADD 按五系均分（余数补给前几位，五份之和恰好等于 ADD）。
  *   固定点数，不乘任何倍率（用户定）；最后算，伤害最低减到 0。
  *   每次受到本系属性伤害：减少的伤害 = min(本次伤害, RED 上限)，消耗灵气 = 减少的伤害 × RATE（1 点伤害扣 3.6 点灵气）；
  *   灵气不够时按剩余灵气比例减伤（减伤 = 灵气 / RATE，灵气扣光），阵保持开启。克制系加伤不收费。
@@ -26,7 +27,7 @@ CFG.zhenfa = {
     { id: "shui", name: "壬水阵", el: "shui", ke: "tu", img: "img/zf/zfa_shui.webp" },
     { id: "huo",  name: "离火阵", el: "huo",  ke: "shui", img: "img/zf/zfa_huo.webp" },
     { id: "tu",   name: "戊土阵", el: "tu",   ke: "mu", img: "img/zf/zfa_tu.webp" },
-    { id: "lei",  name: "雷泽阵", el: "lei",  ke: "tu", img: "img/zf/zfa_lei.webp" },
+    { id: "lei",  name: "雷泽阵", el: "lei",  ke: ["jin", "mu", "shui", "huo", "tu"], img: "img/zf/zfa_lei.webp" },
   ],
   ACT: { RED: [100, 18000], ADD: [90, 9000], KEEP: [300, 36000], RATE: 3.6, ORE: 1800, BAND: [12, 24, 36] },   // RED/ADD = [1 级, 满级]，中间每级平均增加（四舍五入）；RATE：每减 1 点伤害扣 3.6 点灵气；升级：每种矿石 ORE × 当前级；1~12 级凡界、13~24 仙界、25~36 神界矿石
   STAT: [

@@ -2,6 +2,7 @@
  * 阵法室（配置 config/zhenfa.js，阵法参数都在那里）
  * 主动阵法：升级花灵石，受到本系属性伤害时：减伤 = min(本次伤害, RED)，耗灵气 = 减伤 × 3.6（灵气不够时按剩余灵气比例减伤），
  *   战斗 / 雷劫里受到本系属性伤害直接减、克制系直接加（world.js lgR、trib.js 调 zfDmg）。
+ *   雷泽阵的 ke 是金木水火土五系数组，ADD 按五系均分（余数补给前几位，五份之和恰好等于 ADD）；其余五阵 ke 是单个系，加伤整份就是 ADD。
  * 属性阵法：7 种 × 12 阶，每阶单独升到 36 级（花灵石，升的是属性上限）；修炼一次 5 秒，开始扣灵气，
  *   结束加 13~49 点到上限为止，存 s.zf.v，进 craft.js danBonus（zfBonus）。
  * 存档 s.zf = { a: { 阵id: 等级 }, on: { 阵id: 1 }, t: { "属性:阶": 等级 }, v: { "属性:阶": 已修炼属性 }, bp: { "属性:阶": 1 学会图纸 }, job: { k, t, end } | null }
@@ -30,6 +31,17 @@ G.module({
     },
     zfARed(lv) { return this.zfAVal((this.zfC().ACT || {}).RED, lv); },
     zfAAdd(lv) { return this.zfAVal((this.zfC().ACT || {}).ADD, lv); },
+    // 阵法 f 在 lv 级对受到 id 系伤害的克制加伤：ke 为单系时是整份 ADD；
+    // ke 为数组时按数组顺序五等分（base = floor(ADD/5)，余数 +1 补给前几位，五份之和恰好等于 ADD）；id 不在 ke 里返回 0
+    zfKeAdd(f, lv, id) {
+      const ke = f && f.ke; if (!ke) return 0;
+      if (Array.isArray(ke)) {
+        const i = ke.indexOf(id); if (i < 0) return 0;
+        const add = this.zfAAdd(lv), base = Math.floor(add / ke.length), rem = add - base * ke.length;
+        return base + (i < rem ? 1 : 0);
+      }
+      return ke === id ? this.zfAAdd(lv) : 0;
+    },
     zfAOpen(id) { return !!(this.zfS().bp || {})[id + ":0"]; },   // 学会主动阵法图纸（阶记 0）
     zfAOn(id) { return !!this.zfS().on[id] && this.zfALv(id) > 0; },
     // 从第 lv 级升级的花费：{ mats: [{kind,g,n}], stone }；band = 用哪一界矿石（0 凡 1 仙 2 神）
@@ -99,7 +111,7 @@ G.module({
           const got = rate > 0 ? Math.floor(Math.max(0, Math.min(want, this.s.ling / rate))) : want;
           if (got > 0) { this.s.ling = Math.max(0, this.s.ling - Math.round(got * rate)); r += got; }
         }
-        if (f.ke === id) r -= this.zfAAdd(lv);
+        if (f.ke) r -= this.zfKeAdd(f, lv, id);
       }
       return r;
     },
@@ -219,9 +231,9 @@ G.module({
     // 弹窗：主动阵法
     openZfAct(id) {
       const f = this.zfAct(id); if (!f) return;
-      const A = this.zfC().ACT || {}, s = this.s, lv = this.zfALv(f.id), MX = this.zfMax(), on = this.zfAOn(f.id), full = lv >= MX, c = this.zfACost(lv, f.id), EN = e => (DATA.elById[e] || {}).name || e;
+      const A = this.zfC().ACT || {}, s = this.s, lv = this.zfALv(f.id), MX = this.zfMax(), on = this.zfAOn(f.id), full = lv >= MX, c = this.zfACost(lv, f.id), EN = e => (DATA.elById[e] || {}).name || e, keTxt = Array.isArray(f.ke) ? "五行" : EN(f.ke);
       this.modal(`<div class="zf-mhead"><img class="zf-mimg" src="${this.zfImg(f.id)}" alt=""><div><h2>${f.name}</h2><p class="desc">${lv} 级${on ? ` · <span class="c-green">运转中</span>` : ""}</p></div></div>
-        ${lv ? `<div class="stats"><div><span>受到${EN(f.el)}属性伤害</span>-${U.fmt(this.zfARed(lv))}</div><div><span>受到${EN(f.ke)}属性伤害</span>+${U.fmt(this.zfAAdd(lv))}</div><div><span>每减 1 点伤害消耗灵气</span>${this.zfARate()}</div></div>${full ? "" : this.zfCostHtml(c)}` : this.zfCostHtml(c, "布阵消耗")}
+        ${lv ? `<div class="stats"><div><span>受到${EN(f.el)}属性伤害</span>-${U.fmt(this.zfARed(lv))}</div><div><span>受到${keTxt}属性伤害</span>+${U.fmt(this.zfAAdd(lv))}</div><div><span>每减 1 点伤害消耗灵气</span>${this.zfARate()}</div></div>${full ? "" : this.zfCostHtml(c)}` : this.zfCostHtml(c, "布阵消耗")}
         <div class="btns">${!lv ? `<button class="primary" onclick="G.zfAUp('${f.id}')" ${this.zfCanPay(c) ? "" : "disabled"}>布阵</button>` : `${full ? "" : `<button class="primary" onclick="G.zfAUp('${f.id}')" ${this.zfCanPay(c) ? "" : "disabled"}>升级</button>`}<button onclick="G.zfAToggle('${f.id}')">${on ? "关闭" : "开启"}</button>`}<button onclick="G.closeModal()">关闭</button></div>`);
     },
     // 弹窗：属性阵法
