@@ -60,12 +60,12 @@ CFG.battle.SKIP_SEC = 3;    // 现场战斗几秒后可跳过（秒）
 /* 怪物天赋：点战斗画面里的怪物可查看；哪些怪有、几种见下面 MOB_RAND
  *   连击 普通攻击后 LIANJI% 几率再普通攻击一次；暴击 普通攻击暴击几率 +BAOJI%；必中 攻击不会被闪避
  *   神佑 生命归零时 SHENYOU.CHANCE% 几率复活，恢复 SHENYOU.PCT% 生命和法力（每场最多 1 次）
- *   X系吸收 免疫该系法术 / 法宝伤害（金木水火土雷各一种）；幸运 不会被暴击
+ *   X系吸收 受到该系法术 / 法宝伤害 −XISHOU%（金木水火土雷各一种，用户定 2026-11-15，原为全免疫）；幸运 不会被暴击
  *   敏捷 速度、命中 +STAT%；强壮 生命 +STAT%；防御 防御 +STAT%；强力 攻击 +STAT%
  *   灵性 金木水火土雷属性伤害（法术 / 法宝）都 +LINGXING%，不分系
  */
 CFG.battle.TALENT = {
-  LIANJI: 30, BAOJI: 20, STAT: 20, LINGXING: 20,
+  LIANJI: 30, BAOJI: 20, STAT: 20, LINGXING: 20, XISHOU: 75,
   SHENYOU: { CHANCE: 20, PCT: 30 },
   NAME: { lianji: "连击", baoji: "暴击", bizhong: "必中", shenyou: "神佑", xishou: "吸收", xingyun: "幸运", minjie: "敏捷", qiangzhuang: "强壮", fangyu: "防御", qiangli: "强力", lingxing: "灵性" },
 };

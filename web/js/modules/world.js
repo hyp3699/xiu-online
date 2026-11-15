@@ -1141,9 +1141,9 @@ G.module({
         altD = mShield ? Object.assign({}, mE(), { def: def0 * (pj ? 1 - pMe.pjI / 100 : 1) }) : null;
         let d = myHit(); m.def = def0; altD = null;
         if (psG.eld && (act.k === 1 || act.k === 2) && d > 0) d += psG.eld;   // 被动神通：属性伤害 +点
-        if ((act.k === 1 || act.k === 2) && act.f !== 1 && d > 0) {   // 天赋 X系吸收：免疫该系法术 / 法宝伤害
+        if ((act.k === 1 || act.k === 2) && act.f !== 1 && d > 0) {   // 天赋 X系吸收：该系法术 / 法宝伤害 −XISHOU%（用户定 2026-11-15，原为全免疫）
           const a = acts[act.sp], el = a ? (act.k === 1 ? a.sp.el.id : a.fb.el) : "";
-          if (el && tf("xishou_" + el)) { d = 0; act.x = (act.x || 0) | 512; }
+          if (el && tf("xishou_" + el)) d *= Math.max(0, 1 - ((CFG.battle.TALENT || {}).XISHOU ?? 75) / 100);
           else if (el && m.elRed && m.elRed[el]) d *= Math.max(0, 1 - m.elRed[el] / 100);   // 试炼塔守关者：某几系伤害减少（config/mobs.js tower.EL_RED）
         }
         if (lx) act.x = (act.x || 0) | 8;
