@@ -391,10 +391,17 @@ G.module({
       const L = DATA.LG(), fav = L.YS_FAV ?? 10, lim = L.YS_DAY ?? 1, got = this.lgYsGot(id), g = DATA.LG_BASE + k, d = DATA.lgDef(k);
       return `<div class="line"><div>${DATA.li(DATA.seedImg(g))}${DATA.seedName(g)}<small>${DATA.lgLab(d.k)} +${U.fmt(d.v)} · 今日 ${got}/${lim}</small></div><button class="sm" onclick="G.ysBuyLgSeed('${id}')" ${got >= lim || this.ysFav(id) < fav ? "disabled" : ""}>${got >= lim ? "已兑换" : `${fav} 好感`}</button></div>`;
     },
+    // 购买 / 兑换统一弹窗输入数量（同宗门宝库，用户定 2026-11-15）
+    openYsDan(id, k) {
+      const D = this.ysDanCfg(), d = this.ysDanDef(k); if (!d) return;
+      const left = D.MAX - this.ysDanGotN(id, k), max = Math.min(9999, left, Math.floor(this.ysFav(id) / Math.max(1, D.FAV)));
+      if (max <= 0) return this.log(left <= 0 ? `${this.ysDanName(id, k)}已兑换满 ${D.MAX} 颗。` : "好感度不足。", "sys");
+      this.qtyModal(`兑换${this.ysDanName(id, k)}`, `<p class="desc">每颗 ${U.fmt(D.FAV)} 好感 · 现有好感 ${U.fmt(this.ysFav(id))} · 还可兑换 ${left} 颗</p>`, max, n => this.ysBuyDan(id, k, n), { max: "最多可换", ok: "兑换" });
+    },
     ysBuyDan(id, k, n) {
       if (!this.ysFound(id)) return; const D = this.ysDanCfg(), d = this.ysDanDef(k); if (!d) return;
       const left = D.MAX - this.ysDanGotN(id, k); if (left <= 0) return this.log(`${this.ysDanName(id, k)}已兑换满 ${D.MAX} 颗。`, "sys");
-      n = Math.max(1, Math.min(10, Math.floor(+n) || 1, left));
+      n = Math.max(1, Math.min(9999, Math.floor(+n) || 1, left));
       const cost = D.FAV * n; if (this.ysFav(id) < cost) return this.log(`好感度不足，需要 ${cost}（现有 ${this.ysFav(id)}）。`, "sys");
       if (!this.bagAdd(x => x.t === "ysd" && x.ys === id && x.k === k, c => ({ t: "ysd", ys: id, k, n: c }), n, "背包已满，兑换失败。")) return;
       this.ysFavPay(id, cost); const got = this.ysDanMap("ysDanGot", id); got[k] = (got[k] || 0) + n;
@@ -517,7 +524,7 @@ G.module({
         const D = this.ysDanCfg(), fav = this.ysFav(id);
         const rows = (D.LIST || []).map(d => { const got = this.ysDanGotN(id, d.k), left = D.MAX - got, m = Math.min(10, left);
           return `<div class="line"><div>${DATA.li(`img/ysdan/${d.k}.webp`)}${d.name}<small>${this.ysDanLab(d.k)} +${U.fmt(D.VAL)} · 已兑换 ${got}/${D.MAX}</small></div>${left > 0
-            ? `<div><button class="sm" onclick="G.ysBuyDan('${id}','${d.k}',1)" ${fav < D.FAV ? "disabled" : ""}>${D.FAV} 好感</button><button class="sm" onclick="G.ysBuyDan('${id}','${d.k}',10)" ${m < 2 || fav < D.FAV * m ? "disabled" : ""}>×${m}</button></div>`
+            ? `<button class="sm" onclick="G.openYsDan('${id}','${d.k}')" ${fav < D.FAV ? "disabled" : ""}>兑换</button>`
             : `<span class="q5">已满</span>`}</div>`; }).join("");
         return this.modal(`${head}${this.ysLgSeedRow(id)}${rows}${this.ysXdRows(id, "dan")}${close}`);
       }
@@ -2629,6 +2636,16 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       }
       return list;
     },
+    shopItemName(it) { return it.kind === "pill" ? `${DATA.realms[it.g]}·${DATA.pills[it.type].name}` : DATA.forgeEqName(it.slot, 0); },
+    openShopBuy(i) {
+      const it = this.shopList()[i]; if (!it) return;
+      const max = Math.min(9999, Math.floor((this.s.stone || 0) / Math.max(1, it.price))); if (max <= 0) return this.log("灵石不足。", "sys");
+      this.qtyModal(`购买${this.shopItemName(it)}`, `<p class="desc">每${it.kind === "pill" ? "枚" : "件"} ${U.fmt(it.price)} 灵石 · 现有灵石 ${U.fmt(this.s.stone)}</p>`, max, n => this.buy(i, n), { max: "最多可买", ok: "购买" });
+    },
+    openShopMat(kind, g) {
+      const c = this.shopMatPrice(kind, g), max = Math.min(9999, Math.floor((this.s.stone || 0) / Math.max(1, c))); if (max <= 0) return this.log("灵石不足。", "sys");
+      this.qtyModal(`购买${DATA.matName(kind, g)}`, `<p class="desc">每个 ${U.fmt(c)} 灵石 · 现有灵石 ${U.fmt(this.s.stone)} · 已有 ${U.fmt(this.countMat(kind, g))}</p>`, max, n => this.buyMat(kind, g, n), { max: "最多可买", ok: "购买" });
+    },
     buy(i, n = 1) {
       const it = this.shopList()[i]; if (!it) return;
       n = Math.min(Math.floor(+n), 9999); if (!(n >= 1)) return this.after();   // 小数向下取整，负数/0 不买；一次最多 9999 件（一整组背包堆叠，防超大数逐件循环卡死服务器）
@@ -2703,6 +2720,11 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       s[ck] -= d.cost; const where = this.bagPutOrMail({ t: "dfb", type, g: d.g });   // 兑换到背包（满时进传音），在背包里学习
       this.log(`兑换了${DATA.danName(type, d.g)}丹方，放入${where === "mail" ? "传音" : "背包"}，可在背包里学习。`, "good"); this.after();
     },
+    openSgDan(a, type) {
+      const s = this.s, d = this.sgDanList(a).find(x => x.type === type); if (!d) return;
+      const ck = this.jieCur(a), max = Math.min(9999, Math.floor((s[ck] || 0) / Math.max(1, d.cost))); if (max <= 0) return this.log(`${this.jieCurName(a)}不足。`, "sys");
+      this.qtyModal(`购买${DATA.danName(type, d.g, 1)}`, `<p class="desc">每枚 ${U.fmt(d.cost)} ${this.jieCurName(a)} · 现有 ${U.fmt(s[ck] || 0)} · 已服 ${DATA.danLimit(type, d.g) - this.danLeft(type, d.g)} / ${DATA.danLimit(type, d.g)}</p>`, max, n => this.buySgDan(a, type, n), { max: "最多可买", ok: "购买" });
+    },
     buySgDan(a, type, n) {
       const s = this.s, o = DATA.jieGfOf("gd", a), d = this.sgDanList(a).find(x => x.type === type); if (!o || !d) return;
       if (!this.realmOK(o.reqRealm)) return this.log(`境界不足，需要${DATA.realmLabel(o.reqRealm)}。`, "sys");
@@ -2732,7 +2754,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       const todo = l => l.filter(x => !x[0]).map(x => x[1]).join(""), rows = todo(gfl);
       const dans = gd ? this.sgDanList(a).map(d => { const r = DATA.dans[d.type], poor = cur < d.cost;
         return `<div class="line"><div>${DATA.danImg(DATA.danIcon(d.type), DATA.danCls(d.type, d.g), "li")}${DATA.danName(d.type, d.g, 1)}<small>${r.label} +${U.num(DATA.danVal(d.type, d.g))} · 已服 ${DATA.danLimit(d.type, d.g) - this.danLeft(d.type, d.g)} / ${DATA.danLimit(d.type, d.g)} · ${U.fmt(d.cost)} ${cn}</small></div>
-          ${lock ? `<button class="sm" disabled>境界不足</button>` : `<div class="sg-btns"><button class="sm" onclick="G.buySgDan(${a},'${d.type}',1)" ${poor ? "disabled" : ""}>购买</button><button class="sm" onclick="G.buySgDan(${a},'${d.type}',10)" ${poor ? "disabled" : ""}>×10</button></div>`}</div>`; }).join("") : "";
+          ${lock ? `<button class="sm" disabled>境界不足</button>` : `<button class="sm" onclick="G.openSgDan(${a},'${d.type}')" ${poor ? "disabled" : ""}>购买</button>`}</div>`; }).join("") : "";
       const recs = gd ? this.gdRecipeList(a).map(d => { const key = d.type + "|" + d.g, has = s.recipes.includes(key);
         return [has, `<div class="line"><div>${DATA.danImg(DATA.danIcon(d.type), DATA.danCls(d.type, d.g), "li")}《${DATA.danName(d.type, d.g)}》<span class="tag">${DATA.recipeEffect(d.type, d.g)}</span>
           <small>${this.matsText(DATA.danRecipe(d.type, d.g))}<br>${U.fmt(d.cost)} ${cn}</small></div>
@@ -2769,12 +2791,11 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
         const rows = this.shopList().map((it, i) => {
           if (it.tab !== t) return "";
           const multi = it.kind === "pill";
-          const name = it.kind === "pill" ? `${DATA.realms[it.g]}·${DATA.pills[it.type].name}` : DATA.forgeEqName(it.slot, 0);
+          const name = this.shopItemName(it);
           const desc = it.kind === "pill" ? `修炼速度 +${Math.round(DATA.pillPct(it.type, it.g))}%，${DATA.pills[it.type].dur}次修炼` : `${DATA.slots[it.slot]} · 2 条主属性 + 1~5 条附加属性（颜色随机）`;
           const img = it.kind === "pill" ? DATA.pillIcon(it.type) : DATA.iconImg("eq_" + it.slot);
           return `<div class="line"><div>${DATA.li(img)}${name}<small>${desc}</small></div><div>
-            <button class="sm" onclick="G.buy(${i})" ${s.stone < it.price ? "disabled" : ""}>${U.fmt(it.price)}</button>
-            ${multi ? `<button class="sm" onclick="G.buy(${i},10)" ${s.stone < it.price * 10 ? "disabled" : ""}>×10</button>` : ""}</div></div>`;
+            <button class="sm" onclick="G.openShopBuy(${i})" ${s.stone < it.price ? "disabled" : ""}>${U.fmt(it.price)}</button></div></div>`;
         }).join("");
         return tabs + `<div class="card"><h3>${t === "pill" ? "丹药" : "装备"}<small>练气期货品 · 灵石 ${U.fmt(s.stone)}</small></h3>${rows || `<p class="desc">暂无货品。</p>`}</div>`;
       }
@@ -2791,10 +2812,10 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       }
       const names = t === "herb" ? DATA.herbs : DATA.ores, fan = DATA.fanMats();
       return tabs + `<div class="card"><h3>${DATA.matKinds[t]}<small>凡界地图产出 · 灵石 ${U.fmt(s.stone)}</small></h3>
-        <div class="line"><div>购买数量</div><input id="shop-n" type="number" min="1" value="${this.shopN || 1}" oninput="G.shopN=+this.value" style="width:110px"></div>` +
+` +
         names.map((n, g) => { if (!fan.has(n)) return ""; const c = this.shopMatPrice(t, g);
           return `<div class="line"><div>${DATA.li(DATA.matImg(t, g))}${DATA.matFull(t, g)}<small>${U.fmt(c)} 灵石/个 · 已有 ${U.fmt(this.countMat(t, g))}</small></div>
-            <button class="sm" onclick="G.buyMat('${t}',${g})" ${s.stone < c ? "disabled" : ""}>购买</button></div>`; }).join("") + `</div>`;
+            <button class="sm" onclick="G.openShopMat('${t}',${g})" ${s.stone < c ? "disabled" : ""}>购买</button></div>`; }).join("") + `</div>`;
     },
 
     // 其他设置（修炼页 → 设置 → 其他设置）：管理员、礼包码、账号（人物形象、背景在「背景设置」）

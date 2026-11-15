@@ -658,6 +658,11 @@ G.module({
       this.ringPay(r, c); const where = this.bagPutOrMail({ t: "rbp", r, g });
       this.log(`${this.ringPayName(r)} −${U.fmt(c)}，获得${DATA.ringBpName(g, r)}，已放进${where === "mail" ? "传音" : "背包"}（点「学习」）。`, "gold"); this.after();
     },
+    openRingSm(r, ysId) {   // 弹窗输入数量（同宗门宝库，用户定 2026-11-15）
+      r = +r; if (!this.ringShopOK(r, ysId || undefined)) return;
+      const S = DATA.ringSp(r), max = Math.min(9999, Math.floor(this.ringPayHave(r) / Math.max(1, S.SM_COST))); if (max <= 0) return this.log(`${this.ringPayName(r)}不足。`, "sys");
+      this.qtyModal(`兑换${DATA.smName(S.sm)}`, `<p class="desc">每个 ${U.fmt(S.SM_COST)} ${this.ringPayName(r)} · 现有 ${U.fmt(this.ringPayHave(r))} · 已有 ${U.fmt(this.smCount(S.sm))}</p>`, max, n => this.buyRingSm(r, n, ysId), { max: "最多可换", ok: "兑换" });
+    },
     buyRingSm(r, n, ysId) {
       r = +r; n = Math.floor(+n || 0); if (n <= 0 || n > 9999 || !this.ringShopOK(r, ysId || undefined)) return;
       const S = DATA.ringSp(r), c = S.SM_COST * n; if (this.ringPayHave(r) < c) return this.log(`${this.ringPayName(r)}不足，需要 ${U.fmt(c)}。`, "sys");
@@ -670,7 +675,7 @@ G.module({
       const rs = DATA.ringList().filter(r => this.ringShopOK(r, ysId)); if (!rs.length) return "";
       return rs.map(r => { const S = DATA.ringSp(r), have = this.ringPayHave(r), pn = this.ringPayName(r), q = ysId ? `'${ysId}'` : "''", bn = DATA.ringBonus(r);
         const smRow = `<div class="line"><div>${DATA.li(DATA.smIcon(S.sm))}${DATA.smName(S.sm)}<small>${U.fmt(S.SM_COST)} ${pn}/个 · 已有 ${U.fmt(this.smCount(S.sm))} · 炼制每件要 ${DATA.ringSmNeed(0)}~${DATA.ringSmNeed(DATA.XING.length - 1)} 个</small></div>
-          <div><button class="sm" onclick="G.buyRingSm(${r},1,${q})" ${have < S.SM_COST ? "disabled" : ""}>×1</button><button class="sm" onclick="G.buyRingSm(${r},10,${q})" ${have < S.SM_COST * 10 ? "disabled" : ""}>×10</button><button class="sm" onclick="G.buyRingSm(${r},100,${q})" ${have < S.SM_COST * 100 ? "disabled" : ""}>×100</button></div></div>`;
+          <button class="sm" onclick="G.openRingSm(${r},${q})" ${have < S.SM_COST ? "disabled" : ""}>兑换</button></div>`;
         const bpRows = DATA.XING.slice(0, 10).map((x, g) => { const st = this.ringBpState(r, g), c = DATA.ringBpCost(r, g);
           return `<div class="line"><div>${DATA.li(DATA.iconImg("bp"))}${DATA.ringBpName(g, r)}<small>${U.fmt(c)} ${pn}${g ? ` · 炼制要${DATA.ringName(r, g - 1)}` : ""}</small></div>
             <button class="sm" onclick="G.buyRingBp(${r},${g},${q})" ${st || have < c ? "disabled" : ""}>${st === 1 ? "已学会" : st === 2 ? "已拥有" : "兑换"}</button></div>`; }).join("");
