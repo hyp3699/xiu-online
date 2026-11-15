@@ -69,6 +69,16 @@ G.module({
       return o;
     },
     lingPerStone() { return DATA.array.STONE_LING; }, // 固定数值
+    // 保留灵石：补充灵气（手动、自动）都不会把灵石用到这个数以下（用户定 2026-11-15）
+    stoneKeep() { return Math.max(0, Math.floor(+(this.s.array || {}).keepStone || 0)); },
+    refillStone() { return Math.max(0, Math.floor(this.s.stone - this.stoneKeep())); },
+    setKeepStone(n) { n = Math.floor(+n); if (!Number.isFinite(n) || n < 0) return this.log("数量无效。", "sys");
+      this.s.array.keepStone = Math.min(n, 1e15); this.log(n ? `补充灵气时保留 ${U.fmt(n)} 灵石。` : "补充灵气不再保留灵石。", "sys"); this.after(); },
+    openKeepStone() {
+      this.modal(`<h2>保留灵石</h2><p class="desc" style="text-align:center">补充灵气（包括自动补充）时，灵石不会用到这个数以下</p>
+        <div class="line"><div>保留数量</div><input id="keep-n" type="number" min="0" value="${this.stoneKeep()}" style="width:9em"></div>
+        <div class="btns"><button class="primary" onclick="G.setKeepStone(document.getElementById('keep-n').value);G.openBuyLing()">确定</button><button onclick="G.openBuyLing()">返回</button></div>`);
+    },
 
     // 用灵石补充灵气，stones 为 "fill" 时补满
     buyLing(stones) {
@@ -77,8 +87,8 @@ G.module({
       if (stones === "fill") stones = need;
       else stones = Math.floor(+stones);
       if (!Number.isFinite(stones)) return this.log("数量无效。", "sys");
-      stones = Math.min(stones, need, Math.floor(this.s.stone));
-      if (stones <= 0) return this.log(this.s.ling >= cap ? "灵气已满。" : "灵石不足。", "sys");
+      stones = Math.min(stones, need, this.refillStone());
+      if (stones <= 0) return this.log(this.s.ling >= cap ? "灵气已满。" : this.stoneKeep() ? `灵石不足（保留 ${U.fmt(this.stoneKeep())} 灵石）。` : "灵石不足。", "sys");
       this.s.stone -= stones;
       this.s.ling = Math.min(cap, this.s.ling + stones * rate);
       this.log(`消耗 ${U.fmt(stones)} 灵石，补充灵气 ${U.fmt(stones * rate)}。`, "good");
@@ -104,7 +114,9 @@ G.module({
       const a = this.s.array;
       this.modal(`<h2>补充灵气<small> 1 灵石 = ${U.fmt(this.lingPerStone())} 灵气</small></h2>
         <div class="line"><div>灵气</div><b>${U.fmt(this.s.ling)} / ${U.fmt(this.lingCap())}</b></div><div class="line"><div>灵石</div><b>${U.fmt(this.s.stone)}</b></div>
-        <div class="btns"><button data-refresh="openBuyLing" onclick="G.buyLing(100)">用 100 灵石</button><button class="primary" data-refresh="openBuyLing" onclick="G.buyLing('fill')">补满</button>
+        <div class="btns"><button data-refresh="openBuyLing" onclick="G.buyLing(1)">补充1灵石</button><button data-refresh="openBuyLing" onclick="G.buyLing(100)">补充100灵石</button>
+        <button data-refresh="openBuyLing" onclick="G.buyLing(10000)">补充1万灵石</button><button class="primary" data-refresh="openBuyLing" onclick="G.buyLing('fill')">补满灵气</button>
+        <button style="flex-basis:100%" onclick="G.openKeepStone()">保留灵石${this.stoneKeep() ? ` ${U.fmt(this.stoneKeep())}` : ""}</button>
         <button data-refresh="openBuyLing" class="${a.autoRefill ? "on" : ""}" style="flex-basis:100%" onclick="G.toggleRefill()">灵气不足时自动用灵石补充：${a.autoRefill ? "开" : "关"}</button>
         <button onclick="G.closeModal()">关闭</button></div>`);
     },

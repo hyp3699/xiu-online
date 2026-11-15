@@ -106,7 +106,7 @@
       if (cultOn) for (const t in DATA.pills) { const b = s.buffs[t]; if (s.autoPill[t] && (!b || b.left <= 0) && this.bestPillIndex(t) >= 0) return 0; }
       const bodyOn = !!s.bodyAuto && this.hasTijue() && !this.exBlocksCult() && !this.bodyMax(), anyOn = cultOn || bodyOn;   // 只开肉身时修炼室由肉身扣
       const freeOn = anyOn && this.freeCultOn();   // 付费修炼室 / 练功房不在这里扣：下次扣贡献的时刻（roomAt / gfRoomAt）已由 fastNextEvent 算成事件，加速到不了那一刻，到了由逐个结算的 sect.tick → roomBill 扣
-      const SP = sp.total, RED = this.wdRed("exp"), BRED = this.wdRed("body"), RATE = this.lingPerStone(), refill = !!s.array.autoRefill;
+      const SP = sp.total, RED = this.wdRed("exp"), BRED = this.wdRed("body"), RATE = this.lingPerStone(), refill = !!s.array.autoRefill, KEEP = Math.max(0, +s.array.keepStone || 0);   // 保留灵石（用户定 2026-11-15）
       const buffs = cultOn ? Object.values(s.buffs).filter(b => b.left > 0) : [];
       // 肉身修炼
       const BSP = bodyOn ? this.bodySpeed().total : 0, BR = Math.max(0.0001, CFG.body.LING_RATE || 1);
@@ -143,7 +143,7 @@
             a2 += steps * 2 * STEP;
             const mul = GR ? GR.mul : 1, per = this.ssGfPer(gs.per * mul), sps = (gs.stone || 0) * mul;
             const rem = Math.ceil((gs.total - d2) / (STEP * mul)), want = Math.min(2 * steps, rem);
-            if (L < want * per && refill) { const pay = Math.min(Math.ceil((want * per - L) / RATE), Math.floor(sn - (sps ? want * sps : 0)), Math.max(0, Math.ceil((CAP - L) / RATE))); if (pay > 0) { sn -= pay; L = Math.min(CAP, L + pay * RATE); } }   // 自动补灵气封顶到 lingCap（同 gongfa.tick）
+            if (L < want * per && refill) { const pay = Math.min(Math.ceil((want * per - L) / RATE), Math.floor(sn - KEEP - (sps ? want * sps : 0)), Math.max(0, Math.ceil((CAP - L) / RATE))); if (pay > 0) { sn -= pay; L = Math.min(CAP, L + pay * RATE); } }   // 自动补灵气封顶到 lingCap（同 gongfa.tick）
             // 同 gongfa.js：灵石为负时 can 不能为负，否则会倒加灵气 / 贡献。
             let can = Math.max(0, Math.min(want, per > 0 ? Math.floor(L / per) : Infinity, sps ? Math.floor(sn / sps) : Infinity));
             if (can < rem && can % 2) can--;
@@ -161,7 +161,7 @@
         let ended = false;
         if (cultOn) {
           if (freeOn) { if (--fl <= 0) break; }   // 免费修炼室次数用完：事件（付费修炼室按分钟扣贡献，见 fastNextEvent）
-          if (L < SP - RED && refill && sn >= 1) { const pay = Math.min(Math.ceil((SP - RED - L) / RATE), Math.floor(sn), Math.max(0, Math.ceil((CAP - L) / RATE))); if (pay > 0) { sn -= pay; L = Math.min(CAP, L + pay * RATE); } }   // 自动补灵气封顶到 lingCap（同 cultivate.tick）
+          if (L < SP - RED && refill && sn >= 1) { const pay = Math.min(Math.ceil((SP - RED - L) / RATE), Math.floor(sn - KEEP), Math.max(0, Math.ceil((CAP - L) / RATE))); if (pay > 0) { sn -= pay; L = Math.min(CAP, L + pay * RATE); } }   // 自动补灵气封顶到 lingCap（同 cultivate.tick）
           const PER = Math.max(0, SP - RED) / Math.max(1e-9, SP), gain = PER > 0 ? Math.min(SP, Math.floor(L / PER)) : SP;
           if (gain <= 0) { if (!lk) lk = true; fl++; }   // 与 cultivate.tick 一致：灵气耗尽的 tick 不扣免费修炼室次数
           else {
@@ -175,7 +175,7 @@
           if (!cultOn) {
             if (freeOn) { if (--fl <= 0) break; }   // 免费修炼室次数用完：事件
           }
-          if (L < BSP * BR - BRED && refill && sn >= 1) { const pay = Math.min(Math.ceil((BSP * BR - BRED - L) / RATE), Math.floor(sn), Math.max(0, Math.ceil((CAP - L) / RATE))); if (pay > 0) { sn -= pay; L = Math.min(CAP, L + pay * RATE); } }   // 自动补灵气封顶到 lingCap（同 body.tick）
+          if (L < BSP * BR - BRED && refill && sn >= 1) { const pay = Math.min(Math.ceil((BSP * BR - BRED - L) / RATE), Math.floor(sn - KEEP), Math.max(0, Math.ceil((CAP - L) / RATE))); if (pay > 0) { sn -= pay; L = Math.min(CAP, L + pay * RATE); } }   // 自动补灵气封顶到 lingCap（同 body.tick）
           const BPER = Math.max(0, BSP * BR - BRED) / Math.max(1e-9, BSP), g = BPER > 0 ? Math.min(BSP, Math.floor(L / BPER)) : BSP;
           if (g > 0) { L = Math.max(0, L - g * BPER); be += g; }
           else if (!cultOn && freeOn) fl++;   // 与 body.tick 一致：只开肉身且灵气耗尽的 tick 不扣免费修炼室次数

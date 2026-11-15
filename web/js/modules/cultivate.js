@@ -58,7 +58,7 @@ G.module({
     if (s.ling < sp - red && s.array.autoRefill && s.stone >= 1) {
       const rate = this.lingPerStone(), cap = this.lingCap();
       // 与手动 buyLing 一致：补到灵气上限为止（cap − 当前灵气），结果再钳到 cap；同 tick 里功法先补、肉身后补，后者按剩余容量算
-      const pay = Math.min(Math.ceil((sp - red - s.ling) / rate), Math.floor(s.stone), Math.max(0, Math.ceil((cap - s.ling) / rate)));
+      const pay = Math.min(Math.ceil((sp - red - s.ling) / rate), this.refillStone(), Math.max(0, Math.ceil((cap - s.ling) / rate)));
       if (pay > 0) { s.stone -= pay; s.ling = Math.min(cap, s.ling + pay * rate); }
     }
 

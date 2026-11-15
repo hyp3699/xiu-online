@@ -40,7 +40,7 @@ G.module({
       st.at += fin ? rem * STEP : steps * 2 * STEP;
       // 灵气（秘法还要灵石）够几次就走几次；灵气不够且开了自动补充：用灵石补（秘法要的灵石先留够）；补到灵气上限为止，不超过 lingCap()（同 tick 里功法最先补，修为 / 肉身后补时按剩余容量算）
       const sp = (st.stone || 0) * mul, want = Math.min(2 * steps, rem);
-      if (s.ling < want * per && s.array && s.array.autoRefill) { const keep = sp ? want * sp : 0, rate = this.lingPerStone(), cap = this.lingCap(), pay = Math.min(Math.ceil((want * per - s.ling) / rate), Math.floor(s.stone - keep), Math.max(0, Math.ceil((cap - s.ling) / rate)));
+      if (s.ling < want * per && s.array && s.array.autoRefill) { const keep = sp ? want * sp : 0, rate = this.lingPerStone(), cap = this.lingCap(), pay = Math.min(Math.ceil((want * per - s.ling) / rate), Math.floor(s.stone - keep - this.stoneKeep()), Math.max(0, Math.ceil((cap - s.ling) / rate)));
         if (pay > 0) { s.stone -= pay; s.ling = Math.min(cap, s.ling + pay * rate); } }
       // 灵石为负时 Math.floor(负数 / sp) 为负，can 为负会倒扣灵气 / 倒加进度：
       // 先钳到 0，灵石不够就暂停，不再推进。

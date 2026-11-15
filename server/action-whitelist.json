@@ -146,6 +146,7 @@
   "toggleExplore",
   "toggleMj",
   "toggleRefill",
+  "setKeepStone",
   "unequip",
   "unslotSpell",
   "upgradeArray",
