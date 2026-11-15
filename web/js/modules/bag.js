@@ -89,7 +89,7 @@ G.module({
           const f = e.bm && this.bmEq() === e ? this.bmInfo() : DATA.fabaoInfo(e);   // 本命：含通玄加的使用次数
           head = `${DATA.elById[e.el].name}属性${e.name} · 每次祭出消耗法力 ${U.fmt(f.mana)}<br>`;
           // 合计（攻击 / 护盾 / 鼎）单独一块，和下面的属性条隔开
-          let sum = f.shield ? `护盾值 ${U.int(f.shield.hp)} · 防御 ${U.int(f.shield.def)}` : `攻击 ${U.int(f.atk || 0)}`;
+          let sum = f.shield ? `护盾值 ${U.int(f.shield.hp)} · 防御 ${U.num(f.shield.defPct)}%` : `攻击 ${U.int(f.atk || 0)}`;
           sum += `<br>每场战斗最多祭出 ${f.uses} 次`;
           if (f.ding) sum += `<br>击中后对方速度 -${U.num(f.ding.speed)}%、命中 -${U.num(f.ding.hit)}%、闪避 -${U.num(f.ding.dodge)}%，持续 ${f.ding.rounds} 回合`;
           head += `<span class="fb-sum">${sum}</span>`;

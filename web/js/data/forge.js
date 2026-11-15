@@ -149,7 +149,7 @@ DATA.attrBase = (a, g, e) => {
     // v167 盾主属性：法宝对应境界（参考）生命 / 防御 × SHIELD_MULT（3.8）× %
     const SM = _FG.fabao.SHIELD_MULT || 1;
     if (a.k === "shHpMain") return ref.hp * SM * v / 100;
-    if (a.k === "shDef") return ref.def * SM * v / 100;
+    if (a.k === "shDef") return v;   // 盾防御 = 人物全部防御 × %（用户定 2026-11-15），这里只返回 %
     if (a.k === "shHp") { let m = 0; for (const b of e.attrs) if (b.k === "shHpMain") m += ref.hp * SM * (DATA.fbPct(b) + (b.m === 1 && b.k !== "crit" ? DATA.fbRj(b.k, e) : 0)) / 100; return m * v / 100; }   // v170 附加护盾值 = 盾主属性护盾值 × %（不算强化）
     return DATA.FB_REF_OF[a.k] ? ref[DATA.FB_REF_OF[a.k]] * v / 100 : v;
   }
@@ -252,7 +252,7 @@ DATA.attrText = (a, e) => {
     const t = { pct: `伤害 攻击×${p}%`, elDmg: `${el}属性伤害 ${p}%`, ignRes: `攻击时无视${el}抗 ${p}%`, manaCut: `法力消耗 -${p}%`,
       sAtk: `法宝攻击时额外增加攻击 +${v}`, dSAtk: `法宝攻击时额外增加攻击 +${v}`, sHit: `法宝攻击时额外增加命中 +${v}`, sCrit: `法宝攻击时额外增加暴击 +${p}%`, sCritDmg: `暴击伤害 ${p}%`, sMana: `本法宝法力消耗 -${p}%`,
       sDing: `击中后降低对方属性 ${v} 回合`, sYin: `眩晕几率 ${p}%（${(F.YIN_ROUNDS || [])[a.c] || 1} 回合）`,
-      shHpMain: `护盾值 ${v}`, shDef: `防御 ${v}`, shHp: `护盾值 +${v}`, dmgRed: `受到伤害 -${p}%`, uses: `每场战斗祭出次数 +${Math.round(p)}` }[a.k] || DATA.fbAttrNames[a.k] || a.k;
+      shHpMain: `护盾值 ${v}`, shDef: `防御 人物防御×${p}%`, shHp: `护盾值 +${v}`, dmgRed: `受到伤害 -${p}%`, uses: `每场战斗祭出次数 +${Math.round(p)}` }[a.k] || DATA.fbAttrNames[a.k] || a.k;
     if (e.bm) return t;   // 本命法宝：不分颜色
     const txt = `${a.m === 2 ? "专属 " : a.m ? "" : a.k === "elDmg" ? "附加伤害 " : "附加 "}${t}（${col}）`;
     // v157 属性和法宝不同的附加伤害 / 无视抗性不生效：红字标出
@@ -292,7 +292,7 @@ DATA.fabaoInfo = (e, own) => {
   const ui = DATA.fbUsesIdx(e); if (ui >= 0) o.uses += Math.round(DATA.attrVal(e.attrs[ui], e.g, e));   // v164 祭出次数一件法宝最多一条
   const CAP = F.CAP || {}, at = (arr, d) => { const x = (arr || [])[e.g]; return x === undefined ? d : x; };
   o.pct *= (e.bm || T.mul === undefined ? 1 : T.mul) * (F.DMG_MUL === undefined ? 1 : F.DMG_MUL);   // 形状倍率、DMG_MUL（不显示）
-  if (T.shield) o.shield = { def: shDef, hp: shHp, red: Math.min(CAP.dmgRed === undefined ? 100 : CAP.dmgRed, red) };   // 盾
+  if (T.shield) o.shield = { defPct: shDef, hp: shHp, red: Math.min(CAP.dmgRed === undefined ? 100 : CAP.dmgRed, red) };   // 盾
   if (T.ding && !e.bm) { const D = F.DING || {}; o.ding = { speed: at(D.SPEED, 0), hit: at(D.HIT, 0), dodge: at(D.DODGE, 0), rounds: ding || 1 }; }   // 鼎（本命没有专属属性，不带鼎减益；印形本就因专属被清掉而不触发，鼎不能例外）
   if (T.yin) o.yin = { chance: yin, rounds: (F.YIN_ROUNDS || [])[yinC] || 1 };   // 印
   o.cutPct = Math.min(CAP.manaCut === undefined ? 80 : CAP.manaCut, o.cutPct);
