@@ -90,7 +90,7 @@ G.module({
       this.oriPaint(); this.introPn(this._introPn || "");
       $("#start-btn").onclick = async () => {
         const name = ($("#name-input").value || "").trim() || "无名散修";
-        if ((this._oriSel || []).length < this.oriPick()) return;
+        if ((this._oriSel || []).length < Math.min(this.oriPick(), this.oriBase())) return;   // 出身点可以不用完
         try {
           this.s = await API.createCharacter(name, this._oriSel);
           this._introOn = false; this._lockModal = false; this.closeModal(); document.body.classList.remove("nologin");

@@ -15,6 +15,7 @@ G.module({
 
   api: {
     oriList() { return ((CFG.origin || {}).LIST || []).filter(o => o && o.id); },
+    oriBase() { return Math.max(0, Math.floor((CFG.origin || {}).PICK ?? 4)); },
     oriPick() { return Math.max(0, Math.floor((CFG.origin || {}).PICK ?? 4)) + Math.max(0, Math.floor(this.s ? +this.s.oriExtra || 0 : +this._oriExtra || 0)); },   // + 礼包码出身点
     oriOf(s = this.s) { const L = this.oriList(); return ((s && s.ori) || []).map(id => L.find(o => o.id === id)).filter(Boolean); },
     // 选中的出身里某个数值键加起来
@@ -83,7 +84,8 @@ G.module({
         const on = a.includes(o.id), off = !on && a.length >= P;
         return `<div class="ori-it${on ? " on" : ""}${off ? " off" : ""}" onclick="G.oriToggle('${o.id}')"><b>${o.name}</b><small>${o.desc || ""}</small></div>`;
       }).join("");
-      const b = $("#start-btn"); if (b) { b.disabled = a.length < P; b.textContent = a.length < P ? `还需选择 ${P - a.length} 个出身` : "开始修仙"; }
+      // 礼包码加的出身点可以不用完（用户定 2026-11-16）：只要选够基础个数就能开始
+      const B = Math.min(P, this.oriBase()), b = $("#start-btn"); if (b) { b.disabled = a.length < B; b.textContent = a.length < B ? `还需选择 ${B - a.length} 个出身` : "开始修仙"; }
     },
   },
 });
