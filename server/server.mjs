@@ -128,7 +128,11 @@ function warmEngines() {
 }
 // 结算慢时记一行日志（离线太久、探索 / 出窍中逐个结算等），方便查进游戏慢的原因
 function timedAdvance(engine, state, now, tag, max) {
-  const t = Date.now(), o = engine.advance(state, now, max), ms = Date.now() - t;
+  // 这几处都是玩家不在线时的补算（后台离线结算、上线 / 会话补算、停机后补算）：探索遇怪不打，直接按胜利算（用户定 2026-11-16）
+  const t = Date.now(); let o;
+  if (engine.G) engine.G._autoWin = true;
+  try { o = engine.advance(state, now, max); } finally { if (engine.G) engine.G._autoWin = false; }
+  const ms = Date.now() - t;
   if (ms >= 300) { const s = o.state || {}; console.log(`slow advance ${tag} ${ms}ms ticks=${o.processedTicks} explore=${!!s.explore} cq=${!!s.cq} trib=${!!s.trib}`); }
   return o;
 }
@@ -1254,7 +1258,9 @@ function migrateDowntime() {
   if (n) console.log(`downtime skip: ${n} saves shifted by ${Math.round((now - hb) / 1000)}s`);
   return n;
 }
-migrateDowntime();   // 开始服务之前、同步做完再 listen
+// 用户定 2026-11-16：停机 / 游戏停止运行期间改为按时间补算（不再平移时间锚点），由后台离线结算每轮每人补 1 天接着算；
+// 补算中的探索战斗直接按胜利算。只写一次心跳，migrateDowntime 保留不调用。
+try { setSetting("heartbeat", Date.now()); } catch (err) { console.error("heartbeat write failed:", err?.message || err); }
 server.listen(PORT, HOST, () => {
   console.log(`xiu-online authoritative server listening on http://${HOST}:${PORT}`);
   warmEngines();
