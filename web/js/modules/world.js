@@ -2253,6 +2253,27 @@ G.module({
       if (x.ev.length > this.exCfg(x).TIME) x.ev.length = this.exCfg(x).TIME;
       return c === "bad"; // 战败：本次提前结束
     },
+    // 离线自动胜利补算（用户定 2026-11-16：不逐只算怪，按平均数直接给掉落）：普通自动探索（不含历练、出窍、秘境、灵地、修炼设置要回来的）
+    exAutoFast(x) { return !!this._autoWin && !!x && !x.once && !x.cq && x.mj === undefined && !x.back && !x.rest && !x.lostWait; },
+    // 按平均数给 N 次探索的掉落：灵石、灵识碎片、怪物 / 灵药 / 矿脉固定掉落、本次药材矿石总量，都按平均个数 × N（小数部分按几率进 1）
+    exAvgLoot(x, N) {
+      const E = CFG.explore, b = this.mapBonus(x.map) || {}, a = x.map, avg = v => this.cntAvg(v);
+      const B = avg(E.BOSS), cnt = { monster: avg(E.MONSTERS) + (b.m || 0), elite: avg(E.ELITES) + (b.e || 0), boss: B, herbEvent: avg(E.HERB), oreEvent: avg(E.ORE) };
+      const k = this.incMul(x), acc = {}, add = (name, v) => { if (v > 0) acc[name] = (acc[name] || 0) + v; };
+      const mobs = cnt.monster + cnt.elite + B;
+      if (mobs > 0) {
+        const tot = Math.max(0, this.zoneStone(a, x.reg || 0)) * k * N;
+        x.loot.stone += Math.floor(tot + Math.random());
+        const fr = Math.floor(tot * (CFG.drop.LSFRAG || 0) + Math.random());
+        if (fr > 0) (x.loot.sm = x.loot.sm || {}).lsfrag = (x.loot.sm.lsfrag || 0) + fr;
+        this.s.kills += Math.round(mobs * N);
+      }
+      for (const ev in cnt) { const f = DATA.mapFixed(a, ev); for (const name in f) add(name, avg(f[name] || [1, 1]) * cnt[ev] * N * k); }
+      const D = (CFG.dropTotal || {}).explore || {}, pool = DATA.mapPool(this.matPoolMap(x));
+      ["herb", "ore"].forEach(kk => { const L = pool[kk] || []; if (L.length && D[kk]) for (const name of L) add(name, avg(D[kk]) / L.length * N * k); });
+      delete x.loot.k;
+      for (const name in acc) { const n = Math.floor(acc[name] + Math.random()); if (n > 0) this.lootAdd(x.loot, name, n); }
+    },
     // 离线自动胜利补算的一步：和 exploreStep 同样的掉落，不打战斗、不写事件文字；同一张图同一类怪只生成一次（只用来算掉落）
     exploreStepFast() {
       const x = this.s.explore, a = x.map, r = x.reg || 0;
@@ -2312,6 +2333,7 @@ G.module({
       if (!x) return Infinity;
       if (x.rest) return this.exReady() ? this.now() : Infinity;
       const T = this.exCfg(x).TIME, W = (CFG.explore.END_WAIT || 0) * 1000, ms = x.ms || this.exploreMs();
+      if (this.exAutoFast(x)) return x.start + T * ms + W;   // 离线自动胜利补算：整次走完才结算（按平均数给掉落）
       return x.lostWait ? x.start + (x.step + 1) * ms : x.step >= T ? x.start + T * ms + W : x.start + (x.step + 1) * ms;
     },
     // 推进到当前时间：探索（s.explore）和出窍（s.cq）按时间先后一件一件交替结算，生命、法力顺序正确
@@ -2345,7 +2367,7 @@ G.module({
         this.log(`生命、法力已恢复，继续${x.cq ? "出窍探索" : "自动探索"}。`, "sys"); changed = true;
       }
       const W = (CFG.explore.END_WAIT || 0) * 1000;   // v203 走完最后一步：先显示出来，固定再等 END_WAIT 秒才结算（「神行」不影响）
-      const due = () => x.lostWait ? x.start + (x.step + 1) * x.ms : x.step >= T ? x.start + T * x.ms + W : x.start + (x.step + 1) * x.ms;
+      const due = () => this.exAutoFast(x) ? x.start + T * x.ms + W : x.lostWait ? x.start + (x.step + 1) * x.ms : x.step >= T ? x.start + T * x.ms + W : x.start + (x.step + 1) * x.ms;
       for (let once = 0; s.explore && once < 1 && Math.min(limit, this.now()) >= due(); once++) {
         changed = true;
         const at = due();   // 这次结算的时间：下一次从这里开始
@@ -2353,7 +2375,18 @@ G.module({
         let lost = false;
         if (x.lostWait) { lost = true; x.lostWait = 0; }
         else if (x.step < T) {
-          if (this._autoWin && !x.once && x.mj === undefined) { this.exploreStepFast(); if (x.step >= T) { const st = this.stats(); this.s.hp = st.hp; this.s.mana = st.mana; } continue; }   // 离线自动胜利补算：不打战斗
+          // 离线自动胜利补算（用户定 2026-11-16 不要逐只算怪，直接给掉落）：这一次的掉落一次性全部给出，不逐步、不打战斗，等本次时间到了照常结算
+          if (this.exAutoFast(x)) {
+            const run = T * x.ms + W, end = Math.min(limit, this.now()), first = x.start + run;
+            if (end < first) break;   // 这一次还没到时间：等到时再一次给
+            const N = 1 + Math.floor((end - first) / run);   // 补算时间里一共走完几次
+            this.exAvgLoot(x, N);
+            for (let k = 1; k < N; k++) { this.rollSeedDrop(x); if (this.rollSsHerb) this.rollSsHerb(x); this.mjDiscover(x.map); }   // 每次结束时的几率掉落（种子、神识药材、发现秘境）照次数掷
+            x.count += N - 1; x.start += (N - 1) * run; x.step = T;
+            if (this._off && N > 1) { this._off.exRuns += N - 1; }
+            const st = this.stats(); this.s.hp = st.hp; this.s.mana = st.mana;
+            continue;
+          }
           if (this.exploreStep()) x.lostWait = 1; continue; }
         if (x.step >= T || lost) {
           // 结算本次
