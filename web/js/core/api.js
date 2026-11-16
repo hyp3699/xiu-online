@@ -702,7 +702,7 @@ const API = {
     this._resumePendingAway = false; // 新一轮切回，清除上一轮超时留下的待补弹窗标记
     // 安卓版后台保持连接时，切回来服务器几百毫秒就推回状态：0.8 秒内完成就不显示「加载游戏中…」
     clearTimeout(this._resumeShow);
-    this._resumeShow = setTimeout(() => { if (this._resumeWait) this.showResume(true); }, 800);
+    // 用户定（2026-11-16）：切回不再显示「加载游戏中…」，只在后台重连结算
     // 切后台后连接可能已经悄悄断了但 readyState 还是 OPEN：不再信任它，直接关掉旧连接马上重连
     //   （新连接一接通服务器就会结算并推完整状态）；看门狗计时也从现在重新算
     this._lastMessageAt = this._nativeNow();
