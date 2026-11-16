@@ -127,7 +127,6 @@ G.module({
     lqAdd(ch, x) {
       const s = this.s, sl = this.lqSlot(ch);
       if (DATA.isTest()) x = Object.assign({}, x, { ms: 0 });   // 测试模式学习瞬间完成
-      else if (ch === "gf" && this.oriSum && this.oriSum("gfStudyPct")) x = Object.assign({}, x, { ms: Math.round(x.ms * Math.max(0, 1 - this.oriSum("gfStudyPct") / 100)) });   // 出身「书香门第」
       s.lqSeq = (s.lqSeq || 0) + 1; x = Object.assign({}, x, { sq: s.lqSeq });
       if (!this.lqCur()) { s[sl] = Object.assign({}, x, { end: this.now() + x.ms }); this.log(`开始学习${this.lqName(x)}，需 ${U.dur(x.ms / 1000)}。`, "good"); }
       else { this.lqList(ch).push(x); this.log(`${this.lqName(x)}已加入学习队列（排第 ${this.lqQueued().length} 个）。`, "good"); }
@@ -262,7 +261,8 @@ G.module({
       const pill = this.studyPillPct ? this.studyPillPct() : 0, R = this.gfRoomNow ? this.gfRoomNow() : null;
       const room = R && !R.pillOnly ? [`${R.name}${R.free ? "（免费）" : ""}`, R.pct] : null;
       const gf = [[K("gfStudy"), (m.gfStudy || 0) - ori], ["出身「书香门第」", ori], ["经脉", this.jmGfCut ? this.jmGfCut() : 0], [`聚灵阵（${(this.s.array || {}).lv || 0} 级）`, this.arrayGfCut ? this.arrayGfCut() : 0], ["《识海演道诀》", this.ssGfSum("gf")]];
-      const sp = [[K("spStudy"), m.spStudy || 0], ["《万法通明录》", this.ssGfSum("sp")]];
+      const osp = this.oriSum ? this.oriSum("spStudyPct") : 0;
+      const sp = [[K("spStudy"), (m.spStudy || 0) - osp], ["出身「书香门第」", osp], ["《万法通明录》", this.ssGfSum("sp")]];
       const shared = [room, pill > 0 ? [`悟真丹（剩 ${U.dur(this.studyPillLeft() / 1000)}）`, pill] : null].filter(Boolean);
       const sec = (t, a) => { const r = a.filter(x => x && x[1] > 0), tot = r.reduce((s, x) => s + x[1], 0);
         return `<h3>${t}<small>合计 -${U.num(tot)}%</small></h3>${r.length ? r.map(x => `<div class="line"><div>${x[0]}</div><b>-${U.num(x[1])}%</b></div>`).join("") : `<p class="desc">暂无</p>`}`; };

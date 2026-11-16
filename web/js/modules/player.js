@@ -35,6 +35,7 @@ G.module({
     if (s.mana < st.mana) s.mana = Math.min(st.mana, s.mana + st.mana * R.mana / 100);
     if (Array.isArray(s.mailbox) && s.mailbox.length && this.mailboxPrune) this.mailboxPrune();   // 传音 10 天到期清理
     this.realmRwCheck();   // 境界奖励（含以前没发的补发）
+    this.yearRwCheck();    // 修炼年数奖励
   },
 
   api: {
@@ -53,6 +54,26 @@ G.module({
       }
       s.rrw = r;
       if (!this.silent) this.log(r - done > 1 ? `境界奖励已补发到传音（${DATA.realmLabel(done + 1)} ~ ${DATA.realmLabel(r)}），10 天内领取。` : `到达${DATA.realmLabel(r)}，境界奖励已发到传音，10 天内领取。`, "gold");
+    },
+    // 修炼年数奖励（config/player.js YEAR_RW）：发奖的年数列表（升序）
+    yearRwList() { const out = [], Y = CFG.player.YEAR_RW || {}; for (const k of ["A", "B"]) { const c = Y[k]; if (c && c.step > 0) for (let y = c.from; y <= c.to; y += c.step) out.push([y, c.rw]); } return out.sort((a, b) => a[0] - b[0]); },
+    yearNow() { const s = this.s, ym = (+CFG.player.YEAR_MIN || 15) * 60000; return s.born ? Math.max(0, Math.floor((this.now() - s.born) / ym)) : 0; },
+    // 下一个发奖时刻（毫秒；没有 = Infinity），离线加速用
+    yearRwNextAt() { const s = this.s; if (!s || !s.born || s.mortal) return Infinity; const ym = (+CFG.player.YEAR_MIN || 15) * 60000, d = +s.yrw || 0, n = this.yearRwList().find(x => x[0] > d); return n ? s.born + n[0] * ym : Infinity; },
+    // s.yrw = 已发到第几年
+    yearRwCheck() {
+      const s = this.s; if (!s || s.mortal || !s.born || !this.mailboxAdd) return;
+      const y = this.yearNow(), d = +s.yrw || 0, L = this.yearRwList().filter(x => x[0] > d && x[0] <= y); if (!L.length) return;
+      for (const [yr, rw] of L) {
+        const src = `修炼${U.fmt(yr)}年奖励`;
+        if (rw.stone > 0) this.mailboxAdd({ t: "cur", k: "stone", n: rw.stone }, true, src);
+        if (rw.wuzhen > 0) this.mailboxAdd({ t: "dan", type: "wuzhen", g: 0, n: rw.wuzhen }, true, src);
+        if (rw.merit > 0) this.mailboxAdd({ t: "cur", k: "merit", n: rw.merit }, true, src);
+        if (rw.fire > 0) this.mailboxAdd({ t: "hx", n: rw.fire }, true, src);
+        if (rw.yuanli > 0) this.mailboxAdd({ t: "cur", k: "yuanli", n: rw.yuanli }, true, src);
+      }
+      s.yrw = L[L.length - 1][0];
+      if (!this.silent) this.log(`修炼满 ${U.fmt(s.yrw)} 年，奖励已发到传音，10 天内领取。`, "gold");
     },
     r() { return Math.floor(this.s.L / DATA.LAYERS); },          // 当前大境界序号
     layer() { return this.s.L % DATA.LAYERS; },

@@ -27,7 +27,7 @@ G.module({
       const ZH = CFG.wudao.ZHENHUN || {}, zf = full("zhenhun"); out.zhenhunR = zf.length ? ((ZH.ROUNDS || [])[zf[zf.length - 1] - 1] || 3) : 0;
       out.jinchanCut = Math.max(JC.CUT_MIN || 0, (JC.CUT_START || 0) - full("jinchan").reduce((t, st) => t + ((JC.CUT_STEP || [])[st - 1] || 0), 0));
       if (this.oriSum) {   // 出身（config/start.js CFG.origin）：探索每步秒、功法修炼时间 %、炼丹 / 炼器成功率 %、肉身速度 %
-        out.explore = (out.explore || 0) + this.oriSum("explore"); out.gfStudy = (out.gfStudy || 0) + this.oriSum("gfStudyPct");
+        out.explore = (out.explore || 0) + this.oriSum("explore"); out.gfStudy = (out.gfStudy || 0) + this.oriSum("gfStudyPct"); out.spStudy = (out.spStudy || 0) + this.oriSum("spStudyPct");   // 出身「书香门第」法术修炼时间
         out.danRate = (out.danRate || 0) + this.oriSum("danRate"); out.qiRate = (out.qiRate || 0) + this.oriSum("qiRate");
         out.bodySpeedPct = (out.bodySpeedPct || 0) + this.oriSum("bodyPct"); }
       return out;

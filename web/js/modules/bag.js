@@ -202,7 +202,7 @@ G.module({
       if (!it) return false;
       if (it.t === "eq") return this.addEquipToBag(it.e);
       const n = it.n || 1;
-      if (it.t === "cur") { const k = it.k === "merit" ? "merit" : it.k === "stone" ? "stone" : ""; if (!k || !(n > 0)) return false; this.s[k] = (+this.s[k] || 0) + Math.floor(n); return true; }   // 灵石、功德：直接到账，不占格
+      if (it.t === "cur") { const k = it.k === "merit" ? "merit" : it.k === "stone" ? "stone" : it.k === "yuanli" ? "yuanli" : ""; if (!k || !(n > 0)) return false; this.s[k] = (+this.s[k] || 0) + Math.floor(n); return true; }   // 灵石、功德：直接到账，不占格
       if (it.t === "pill") return this.bagAdd(x => x.t === "pill" && x.type === it.type && x.g === it.g, k => ({ t: "pill", type: it.type, g: it.g, n: k }), n, null, true);
       if (it.t === "dan") return this.bagAdd(x => x.t === "dan" && x.type === it.type && x.g === it.g && !x.sg === !it.sg, k => it.sg ? { t: "dan", type: it.type, g: it.g, n: k, sg: 1 } : { t: "dan", type: it.type, g: it.g, n: k }, n, null, true);
       if (it.t === "mat") return this.bagAdd(x => x.t === "mat" && x.name === it.name && x.g === it.g, k => ({ t: "mat", kind: it.kind, name: it.name, g: it.g, n: k }), n, null, true);
@@ -259,7 +259,7 @@ G.module({
       if (it.n !== undefined && it.n > n) it.n -= n; else this.s.bag[i] = null;
     },
     itemName(it) {
-      if (it.t === "cur") return it.k === "merit" ? "功德" : "灵石";   // 传音里的灵石、功德
+      if (it.t === "cur") return it.k === "merit" ? "功德" : it.k === "yuanli" ? "愿力" : "灵石";   // 传音里的灵石、功德
       if (it.t === "pill") return `${DATA.realms[it.g]}·${DATA.pills[it.type].name}`;
       if (it.t === "dan") return DATA.danName(it.type, it.g, it.sg);
       if (it.t === "ql") return DATA.qlName(it.sect);   // v213 宗主清灵丹
@@ -624,7 +624,7 @@ G.module({
         case "bp": case "rbp": case "bmbp": case "zfbp": return DATA.iconImg("bp");
         case "dfb": return DATA.danIcon(it.type);
         case "cu": return DATA.cuIcon(this.cuDef(it.name));
-        case "cur": return DATA.iconImg(it.k === "merit" ? "merit" : "stone");
+        case "cur": return DATA.iconImg(it.k === "merit" ? "merit" : it.k === "yuanli" ? "yuanli" : "stone");
       }
       return "";
     },
