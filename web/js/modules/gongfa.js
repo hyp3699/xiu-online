@@ -385,9 +385,10 @@ G.module({
         ? `${this.spellDmgTxt(g)}，耗法力 ${U.fmt(g.mana)}，每场战斗 ${g.uses} 次${max ? "" : `，下一层 攻击×${U.dec(g.next)}%`}`
         : `${g.label} ${cv("+" + this.gfValue(g, g.value * lgK))}${lgTxt}${max ? "" : `，下一层 ${cv("+" + this.gfValue(g, g.next * lgK))}`}` +
           (g.label2 ? `；${g.label2} ${cv("+" + this.gfValue(g, g.value2 * lgK))}${max ? "" : `，下一层 ${cv("+" + this.gfValue(g, g.next2 * lgK))}`}` : "");
+      const nxV = [], nx = { v: nxV, d: desc.replace(/，下一层 ([^，；]*)/g, (_, v) => { nxV.push(v); return ""; }) };   // 描述里的「下一层 X」并到下面一行（用户定 2026-11-16）
       const sec = max ? 0 : this.studySec(g), n = Math.ceil(sec / DATA.STUDY_STEP), per = max ? 0 : this.ssGfPer(DATA.studyPer(g), !(this.s.gfStudy && this.s.gfStudy.id === g.id)), sp = max ? 0 : g.layerStone || 0;
-      return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》${g.noEl ? "" : `<span class="tag">${g.star}星</span>`}${g.kind === "mf" || g.noEl ? "" : `<span class="tag">${g.el.name}</span>`}<span class="tag gf-lv">第${g.lv}层</span>${plan > g.lv ? `<span class="tag gf-to">已排至第${plan}层</span>` : ""}
-        <small>${desc}${max ? "" : `${desc.includes("下一层") ? " · " : "，下一层 "}${this.gfYears(sec)} · 每10秒 ${U.fmt(per * 2)} 灵气${sp ? ` + ${U.fmt(Math.round(sp * 2 / n))} 灵石` : ""}`}</small></div>
+      return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》${g.noEl ? "" : `<span class="tag">${g.star}星</span>`}${g.kind === "mf" || g.noEl ? "" : `<span class="tag">${g.el.name}</span>`}<span class="tag gf-lv">第${g.lv}层</span>${plan > g.lv ? `<span class="c-red" style="white-space:nowrap;margin-left:4px">已排至第${plan}层</span>` : ""}
+        <small>${nx.d}${max ? "" : `<br>下一层：${nx.v.length ? nx.v.join("；") + " · " : ""}${this.gfYears(sec)} · 每10秒 ${U.fmt(per * 2)} 灵气${sp ? ` + ${U.fmt(Math.round(sp * 2 / n))} 灵石` : ""}`}</small></div>
         ${max ? `<button class="sm" disabled>圆满</button>` :
           `<button class="sm" onclick="G.studyGongfa('${g.id}')" ${full || s.gfQueue.length >= DATA.GF_QUEUE ? "disabled" : ""}>${full ? "已排满" : "修炼"}</button>`}</div>`;
     },
