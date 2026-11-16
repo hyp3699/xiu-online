@@ -4,6 +4,7 @@
  * 管理员：设置 → 生成礼包码（选物品、兑换次数；可随时删除）。礼包码存在服务器（server/server.py 的 gifts 表）。
  * 所有玩家：设置 → 礼包码兑换。每个账号每个礼包码只能兑换一次；兑换次数用完就失效。
  * 礼包里的物品格式 { c: 类别, ... }：
+ *   ori {n}                             出身点（创建角色前兑换，多选 n 个出身）
  *   stone / contrib / merit / yl {n}    灵石 / 贡献 / 功德 / 愿力
  *   gf {src, type}                      功法（来源 = 门派 / 坊市 / 试炼塔）
  *   sp {src}                            法术（门派本属性）
@@ -25,7 +26,7 @@ G.module({
 
   api: {
     giftCats() {
-      return [["stone", "灵石"], ["contrib", "贡献"], ["merit", "功德"], ["yl", "愿力"], ["gf", "功法"], ["sp", "法术"], ["mf", "秘法"], ["fabao", "法宝"], ["eq", "装备"],
+      return [["ori", "出身点"], ["stone", "灵石"], ["contrib", "贡献"], ["merit", "功德"], ["yl", "愿力"], ["gf", "功法"], ["sp", "法术"], ["mf", "秘法"], ["fabao", "法宝"], ["eq", "装备"],
         ["herb", DATA.matKinds.herb], ["ore", DATA.matKinds.ore], ["tc", "特产"], ["dan", "丹药"], ["bp", "图纸"],
         ["lj", DATA.smName("lj")], ["lz", DATA.smName("lz")], ["hx", DATA.HX], ["sm", "特殊材料"], ["st", "神通"], ["bm", "本命法宝图纸"]];
     },
@@ -35,6 +36,7 @@ G.module({
     giftFields(c, a) {
       const N = { k: "n", label: "数量", num: true }, jie = this.giftJie(), xing = DATA.XING.map((n, i) => [i, n]);   // 装备、法宝、戒指、炼器炉按星（一星 ~ 十二星）
       const srcName = o => `${o.star}星·${o.name}${o.book ? `·第${o.book}卷` : ""}`;
+      if (c === "ori") return [{ k: "n", label: "增加几个出身", num: true }];   // 出身点：创建角色前兑换，多选几个出身
       if (c === "stone" || c === "contrib" || c === "merit" || c === "yl" || c === "hx") return [N];
       if (c === "lj" || c === "lz") return [{ k: "ft", label: "名称", opts: CFG.mijing.items[c].names.map((n, i) => [i, n]) }, N];
       if (c === "sm") return [{ k: "k", label: "名称", opts: ((CFG.shenjie || {}).SX_ITEM || []).map(k => [k, DATA.smName(k)]) }, N];   // 神功修炼的 8 种神像物品
@@ -95,6 +97,7 @@ G.module({
       const n = it.n > 1 ? ` ×${U.fmt(it.n)}` : "";
       try {
         switch (it.c) {
+          case "ori": return `出身点 +${U.fmt(it.n || 1)}`;
           case "stone": return `灵石 ${U.fmt(it.n)}`;
           case "contrib": return `贡献 ${U.fmt(it.n)}`;
           case "merit": return `功德 ${U.fmt(it.n)}`;
@@ -122,6 +125,7 @@ G.module({
       const s = this.s, n = Math.max(1, Math.floor(+it.n || 1)), rep = f => { let ok = 0; for (let i = 0; i < n; i++) if (f()) ok++; return ok === n; };
       if ((it.c === "eq" || it.c === "fabao") && !(Number.isInteger(+it.g) && +it.g >= 0 && +it.g < DATA.XING.length)) return false;   // 旧礼包码的星级超出现在的最高星（一~十二星），不发
       switch (it.c) {
+        case "ori": return false;   // 出身点只能在创建角色前兑换（服务器 /api/gift 无存档分支）
         case "stone": s.stone += n; return true;
         case "contrib": s.contrib = (s.contrib || 0) + n; return true;
         case "merit": s.merit = (s.merit || 0) + n; return true;

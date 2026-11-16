@@ -15,7 +15,7 @@ G.module({
 
   api: {
     oriList() { return ((CFG.origin || {}).LIST || []).filter(o => o && o.id); },
-    oriPick() { return Math.max(0, Math.floor((CFG.origin || {}).PICK ?? 4)); },
+    oriPick() { return Math.max(0, Math.floor((CFG.origin || {}).PICK ?? 4)) + Math.max(0, Math.floor(this.s ? +this.s.oriExtra || 0 : +this._oriExtra || 0)); },   // + 礼包码出身点
     oriOf(s = this.s) { const L = this.oriList(); return ((s && s.ori) || []).map(id => L.find(o => o.id === id)).filter(Boolean); },
     // 选中的出身里某个数值键加起来
     oriSum(k) { let t = 0; for (const o of this.oriOf()) t += +o[k] || 0; return t; },
@@ -79,7 +79,7 @@ G.module({
     oriPaint() {
       const box = $("#ori-box"); if (!box) return;
       const a = this._oriSel || [], P = this.oriPick();
-      box.innerHTML = `<p class="desc">选择出身（${a.length} / ${P}）</p>` + this.oriList().map(o => {
+      box.innerHTML = `<div class="ori-pk"><span class="desc">选择出身（${a.length} / ${P}）</span><button class="ori-rs-btn" onclick="G.introPn('gift')">增加出身点</button></div>` + this.oriList().map(o => {
         const on = a.includes(o.id), off = !on && a.length >= P;
         return `<div class="ori-it${on ? " on" : ""}${off ? " off" : ""}" onclick="G.oriToggle('${o.id}')"><b>${o.name}</b><small>${o.desc || ""}</small></div>`;
       }).join("");

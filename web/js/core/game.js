@@ -63,6 +63,7 @@ const G = {
   },
   log(m, c = "") {
     if (this.silent) return;
+    if (!this.s) { if (typeof API !== "undefined" && API.toastLogs) API.toastLogs([{ m, c }], true); return; }   // 还没创建角色（出身页的管理员功能）
     this.s.log.unshift({ m, c });
     if (this.s.log.length > 60) this.s.log.length = 60;
     this.renderLog();
@@ -283,7 +284,8 @@ const G = {
     o.style.bottom = (n ? Math.max(0, window.innerHeight - n.getBoundingClientRect().top) : 0) + "px";
   },
   render() {
-    const s = this.s; if (!s || this.silent) return;
+    const s = this.s; if (!s && this._introOn && this._introPn === "adm" && this.introAdmPaint && !this.silent) { try { this.introAdmPaint(); } catch (e) { console.error(e); } return; }   // 还没创建角色：出身页的管理员面板
+    if (!s || this.silent) return;
     if (this._btHoldView()) { this._renderDeferred = true; return; }   // 战斗还没播完：页面保持战前（关闭战斗时 closeBattle 会重绘）
     $("#p-name").textContent = s.name;
     $("#p-realm").textContent = this.realmName();
@@ -391,7 +393,8 @@ const G = {
       el.onclick = e => { const b = e.target.closest ? e.target.closest("button[data-a]") : null; if (b) { e.stopPropagation(); done(b.dataset.a === "1"); } else if (e.target === el) done(false); };
     });
   },
-  closeModal() { $("#modal").classList.add("hidden"); if (this._lockModal && this._bp && !this._cfgOpen && !this._restoring && !this._stopped && !this._restartLock && !document.body.classList.contains("nologin")) this._lockModal = false; },
+  closeModal() { $("#modal").classList.add("hidden");   // 出身页被确认框等盖掉，关闭后回到出身页（intro(true)）
+    if (!this.s && this._introOn) setTimeout(() => { if (!this.s && this._introOn && $("#modal").classList.contains("hidden")) this.intro(true); }, 0); if (this._lockModal && this._bp && !this._cfgOpen && !this._restoring && !this._stopped && !this._restartLock && !document.body.classList.contains("nologin")) this._lockModal = false; },
 
   /* ---------- 启动 ---------- */
   start() {

@@ -249,7 +249,7 @@ export class GameEngine {
     this.G._simNow = this.clock.now;
   }
 
-  createState(name, now = Date.now(), ori = []) {
+  createState(name, now = Date.now(), ori = [], oriExtra = 0) {
     this.seedRandom();
     this.setNow(now);
     const state = this.G.newSave(String(name));
@@ -258,6 +258,7 @@ export class GameEngine {
     const stats = this.G.stats();
     state.hp = stats.hp;
     state.mana = stats.mana;
+    if (oriExtra > 0) state.oriExtra = Math.floor(oriExtra);   // 礼包码加的出身点
     if (this.G.oriApply) { this.G.oriApply(ori); const st2 = this.G.stats(); state.hp = st2.hp; state.mana = st2.mana; }   // 出身（config/start.js CFG.origin）
     this.G.log(`${state.name}，自此踏上仙途。赠你聚气丹三枚、${this.CFG.start.book ? this.CFG.start.book.name : "练气诀"}一本。`, "gold");
     this.G.log("提示：修炼页开启“自动修炼”，服务器会继续进行修炼和离线结算。", "sys");

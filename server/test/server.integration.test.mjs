@@ -177,6 +177,14 @@ test("HTTP auth and WebSocket actions use authoritative server state", { timeout
   await assert.rejects(post(base, "/api/admin/user/rename", nonAdminToken, { id: renameId, username: `nope_${Date.now()}` }));
   const usersFinal = await fetch(`${base}/api/admin/users`, { headers: { "X-Token": token } }).then(r => r.json());
   assert.ok(usersFinal.list.some(u => u.username === renameNew));
+  // 出身点礼包：没创建角色时兑换，创建角色时多选
+  await post(base, "/api/admin/gift", token, { code: "ORIGIFT", items: [{ c: "ori", n: 2 }, { c: "stone", n: 5 }], uses: 5 });
+  const oriGot = await post(base, "/api/gift", nonAdminToken, { code: "ORIGIFT" });
+  assert.equal(oriGot.oriExtra, 2);
+  assert.equal((await fetch(`${base}/api/ori/extra`, { headers: { "X-Token": nonAdminToken } }).then(r => r.json())).n, 2);
+  const ids = ["shijia", "shangjia", "dongfu", "liehu", "youfang", "mijing", "simiao"];
+  const made = await post(base, "/api/character", nonAdminToken, { name: "多出身", ori: ids });
+  assert.deepEqual(made.data.ori, ids);
   await post(base, "/api/admin/gift", token, { code: "SERVERTESTGIFT", items: [{ c: "stone", n: 25 }], uses: 1 });
   const gifts = await fetch(`${base}/api/admin/gifts`, { headers: { "X-Token": token } }).then(r => r.json());
   assert.equal(gifts.list[0].code, "SERVERTESTGIFT");

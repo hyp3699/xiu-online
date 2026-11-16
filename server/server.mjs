@@ -324,13 +324,14 @@ function rateLimited(list, limit, windowMs) {
   list.push(now); return false;
 }
 // 礼包物品校验（建礼包码、传音群发共用）。原来只校验数量：类别写错、必需字段缺失的礼包也能建，兑换时才进“遗失”分支
-const GIFT_CATS = new Set(["stone", "contrib", "merit", "yl", "gf", "sp", "mf", "fabao", "eq", "herb", "ore", "lj", "lz", "hx", "bm", "st", "tc", "dan", "bp", "sm"]);
+const GIFT_CATS = new Set(["ori", "stone", "contrib", "merit", "yl", "gf", "sp", "mf", "fabao", "eq", "herb", "ore", "lj", "lz", "hx", "bm", "st", "tc", "dan", "bp", "sm"]);
 function giftItemError(item) {
   if (!item || typeof item !== "object" || Array.isArray(item)) return ("礼包物品格式无效");
   if (!GIFT_CATS.has(item.c)) return (`礼包物品类别无效：${String(item.c)}`);
   const count = Number(item.n || 1);
   const cap = ["stone", "contrib", "merit", "yl"].includes(item.c) ? 10_000_000_000 : ["eq", "fabao", "bp"].includes(item.c) ? 100 : 1_000_000;   // 灵石 / 贡献 / 功德 / 愿力最多 100 亿（用户定 2026-11-12）
   if (!Number.isFinite(count) || count < 1 || count > cap) return (`礼包物品数量超过限制（最多 ${cap}）`);
+  if (item.c === "ori" && count > 100) return ("礼包出身点最多 100 个");
   if ((item.c === "dan" || item.c === "bp") && !String(item.item || "").includes(":")) return ("礼包丹药/图纸缺少 item");
   if (item.c === "eq" && typeof item.slot !== "string") return ("礼包装备缺少 slot");
   if ((item.c === "eq" || item.c === "fabao") && !(Number.isInteger(item.g) && item.g >= 0 && item.g <= 11)) return ("礼包装备/法宝星级需为 0–11（一~十二星）");
@@ -344,6 +345,9 @@ function giftItemError(item) {
   if (item.c === "st" && typeof item.id !== "string") return ("礼包神通缺少 id");
   return null;
 }
+// 礼包码「出身点」：账号还没创建角色时兑换，记在 settings（ori_extra:<用户 id>），创建角色时可多选几个出身；删档重来仍保留
+function oriExtraOf(uid) { return Math.max(0, Math.floor(Number(db.prepare("SELECT value FROM settings WHERE key=?").get(`ori_extra:${uid}`)?.value) || 0)); }
+function oriExtraAdd(uid, n) { const v = oriExtraOf(uid) + n; db.prepare("INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(`ori_extra:${uid}`, String(v)); return v; }
 function registrationOpen() {
   const value = db.prepare("SELECT value FROM settings WHERE key='registration_open'").get()?.value;
   return value === undefined || value === "true";
@@ -541,7 +545,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       if (q.save.get(user.id)) return error(res, 409, "角色已经创建");
       const name = [...String(body.name || "无名散修").trim().replace(/[^\p{L}\p{N}_·-]/gu, "")].slice(0, 12).join("") || "无名散修";
-      const data = getEngine(user.id).createState(name, Date.now(), Array.isArray(body.ori) ? body.ori.slice(0, 20).map(String) : []); persist(user.id, data);
+      const data = getEngine(user.id).createState(name, Date.now(), Array.isArray(body.ori) ? body.ori.slice(0, 200).map(String) : [], oriExtraOf(user.id)); persist(user.id, data);
       return sendJson(res, 201, { data, serverNow: Date.now() });
     }
     if (req.method === "POST" && route === "/api/character/reset") {
@@ -736,11 +740,21 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req); db.prepare("DELETE FROM gifts WHERE code=?").run(String(body.code || ""));
       return sendJson(res, 200, { ok: true });
     }
+    if (req.method === "GET" && route === "/api/ori/extra") return sendJson(res, 200, { n: oriExtraOf(user.id) });
     if (req.method === "POST" && route === "/api/gift") {
       const body = await readBody(req), code = String(body.code || "").trim();
       const redeem = db.transaction(() => {
         const gift = db.prepare("SELECT * FROM gifts WHERE code=?").get(code), on0 = clients.get(user.id);
         let state = on0 ? structuredClone(on0.state) : getState(user.id);   // 在线就用内存里的最新进度
+        if (gift && !state && !(gift.expires_at && gift.expires_at < Date.now()) && gift.used_count < gift.max_uses && !db.prepare("SELECT 1 FROM gift_uses WHERE code=? AND user_id=?").get(code, user.id)) {
+          // 还没创建角色：只发出身点，其余物品没有角色可放
+          const items = JSON.parse(gift.payload).items || [], k = items.filter(it => it && it.c === "ori").reduce((a, it) => a + Math.max(1, Math.floor(+it.n || 1)), 0);
+          if (!k) return false;
+          const oriExtra = oriExtraAdd(user.id, k);
+          db.prepare("INSERT INTO gift_uses(code,user_id,used_at) VALUES(?,?,?)").run(code, user.id, Date.now());
+          db.prepare("UPDATE gifts SET used_count=used_count+1 WHERE code=?").run(code);
+          return { items, got: [`出身点 +${k}`], lost: items.filter(it => it && it.c !== "ori").map(it => String(it.c)), oriExtra, noState: true };
+        }
         if (!gift || !state || (gift.expires_at && gift.expires_at < Date.now()) || gift.used_count >= gift.max_uses) return false;
         if (db.prepare("SELECT 1 FROM gift_uses WHERE code=? AND user_id=?").get(code, user.id)) return false;
         const items = JSON.parse(gift.payload).items || [], playerEngine = getEngine(user.id);
@@ -762,7 +776,7 @@ const server = http.createServer(async (req, res) => {
       // 但内存状态已换、客户端已收到，之后定时落盘会把“未记 gift_uses”的状态写回去，留下重复兑换的口子。
       if (result) {
         const online = clients.get(user.id);
-        if (online) { online.state = structuredClone(result.state); pushState(online, Date.now(), [], true, true); }
+        if (online && result.state) { online.state = structuredClone(result.state); pushState(online, Date.now(), [], true, true); }
         return sendJson(res, 200, { ok: true, ...result, serverNow: Date.now() });
       }
       return error(res, 400, "礼包码无效、已过期、已用完或已经兑换");

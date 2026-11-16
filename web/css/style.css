@@ -1431,6 +1431,7 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .ori-head h2{margin:0}
 .ori-rs-btn{flex:0 0 auto;padding:4px 12px;font-size:13px}
 .modal.ofs{padding:0}
-.ori-rs{display:none}
-.modal-box.ori-fs.rs-on>*{display:none}
-.modal-box.ori-fs.rs-on>.ori-rs{display:block;flex:1 1 auto;overflow-y:auto}
+.ori-pn{display:none}
+.modal-box.ori-fs.pn-on>*{display:none}
+.modal-box.ori-fs.pn-on>.ori-pn.on{display:block;flex:1 1 auto;min-height:0;overflow-y:auto}
+.ori-pk{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:8px}
