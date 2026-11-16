@@ -24,6 +24,10 @@ G.module({
     oriSsFix() { const s = this.s; if (!s || s.oriSs) return; s.oriSs = 1; const v = this.oriSum("ssPow"); if (v > 0) s.ssPow = (s.ssPow || 0) + v; },
     // 出身灵体：k = "Dmg"（造成该系伤害 +%）或 "Cut"（受到该系伤害 −%）
     oriEl(k, el) { if (!el) return 0; let t = 0; for (const o of this.oriOf()) t += (o.el === el ? +o["el" + k] || 0 : 0) + (+o["allEl" + k] || 0); return t; },
+    // 人物头像弹窗里点出身按钮：弹窗内浮层显示具体效果（用户定 2026-11-16）
+    oriTip(id) { const o = this.oriList().find(x => x.id === id), b = $("#modal-box"); if (!o || !b) return; const old = b.querySelector(".ori-tip"); if (old) old.remove();
+      const d = document.createElement("div"); d.className = "ori-tip"; d.onclick = e => { if (e.target === d) d.remove(); };
+      d.innerHTML = `<div class="ori-tip-box"><h3>${o.name}</h3><p>${o.desc || ""}</p><div class="btns"><button onclick="this.closest('.ori-tip').remove()">关闭</button></div></div>`; b.appendChild(d); },
     oriNames(s = this.s) { return this.oriOf(s).map(o => o.name).join("、"); },
     // 清洗客户端传来的选择：只要存在的 id，不重复，最多 PICK 个
     oriClean(ids) {

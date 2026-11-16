@@ -297,7 +297,7 @@ G.module({
           ${["xian", "ming", "mo", "shen"].map(w => { const W = (DATA.worlds || []).find(x => x.id === w); const g = this.xjGxMap ? this.xjGxMap()[w] || 0 : 0; return `<div><span>${W ? W.name : w}贡献</span>${U.fmt(g)}</div>`; }).join("")}
         </div>
         <p class="desc" style="margin-top:6px">平时每 10 秒恢复 生命 ${U.num(R0.hp)}% · 法力 ${U.num(R0.mana)}%；历练/探索每走一步恢复 生命 ${U.num(R1.hp)}%${R1.hpFlat ? ` + ${U.fmt(R1.hpFlat)}` : ""} · 法力 ${U.num(R1.mana)}%${R1.manaFlat ? ` + ${U.fmt(R1.manaFlat)}` : ""}</p>
-        ${this.oriNames && this.oriNames() ? `<div style="height:3em"></div><div class="stats"><div style="grid-column:1/-1"><span>出身</span><b style="font-weight:normal;text-align:right">${this.oriNames()}</b></div></div>` : ""}
+        ${this.oriOf && this.oriOf().length ? `<div style="height:3em"></div><div class="ori-sec"><div class="ori-sec-t">出身</div><div class="ori-tags">${this.oriOf().map(o => `<button class="ori-tag" onclick="G.oriTip('${o.id}')">${o.name}</button>`).join("")}</div></div>` : ""}
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
     // 顶部设置按钮：修炼设置（从修炼卡片移到这里）
