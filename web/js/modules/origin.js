@@ -19,6 +19,8 @@ G.module({
     oriOf(s = this.s) { const L = this.oriList(); return ((s && s.ori) || []).map(id => L.find(o => o.id === id)).filter(Boolean); },
     // 选中的出身里某个数值键加起来
     oriSum(k) { let t = 0; for (const o of this.oriOf()) t += +o[k] || 0; return t; },
+    // 一次性加神识强度（出身「残魂附体」）；s.oriSs = 已加过，老存档在 tick 里补
+    oriSsFix() { const s = this.s; if (!s || s.oriSs) return; s.oriSs = 1; const v = this.oriSum("ssPow"); if (v > 0) s.ssPow = (s.ssPow || 0) + v; },
     oriNames(s = this.s) { return this.oriOf(s).map(o => o.name).join("、"); },
     // 清洗客户端传来的选择：只要存在的 id，不重复，最多 PICK 个
     oriClean(ids) {
@@ -61,6 +63,7 @@ G.module({
         for (const [k, g] of o.furnace || []) if (this.addFurnaceItem) this.addFurnaceItem(k, g);
         if (o.bodyL) { for (let i = 0; i < o.bodyL; i++) { s.bodyL++; if (this.brRoll) this.brRoll("rs", s.bodyL); } }
       }
+      this.oriSsFix();
       this.dirty();
       if (s.ori.length) this.log(`出身：${this.oriNames()}。${got.length ? "获得 " + got.join("、") + "。" : ""}`, "gold");
     },

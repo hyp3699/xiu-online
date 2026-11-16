@@ -36,6 +36,7 @@ G.module({
     if (Array.isArray(s.mailbox) && s.mailbox.length && this.mailboxPrune) this.mailboxPrune();   // 传音 10 天到期清理
     this.realmRwCheck();   // 境界奖励（含以前没发的补发）
     this.yearRwCheck();    // 修炼年数奖励
+    if (!s.oriSs && this.oriSsFix) this.oriSsFix();   // 出身「残魂附体」神识强度
   },
 
   api: {

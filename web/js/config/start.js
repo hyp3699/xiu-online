@@ -60,6 +60,6 @@ CFG.origin = {
     { id: "mijing",   name: "秘境遗民", desc: "生于秘境边缘。秘境掉落 永久 +30%。", mjDrop: 30 },
     { id: "simiao",   name: "寺庙寄养", desc: "在古寺长大，心性平和。渡劫失败不掉修为。", noTribLoss: 1 },
     { id: "shangjia", name: "商贾之家", desc: "家中经商。坊市购买价格 永久 -10%（包括四界坊市），灵石 +30000。", shopCut: 10, stone: 30000 },
-    { id: "canhun",   name: "残魂附体", desc: "一缕上古残魂寄于识海。神识 +100。", ls: 100 },
+    { id: "canhun",   name: "残魂附体", desc: "一缕上古残魂寄于识海。神识强度 +100，灵识点 +100。", ls: 100, ssPow: 100 },   // ssPow 用户 2026-11-16 反馈没加神识：神识强度一次性 +100（老存档补发）
   ],
 };
