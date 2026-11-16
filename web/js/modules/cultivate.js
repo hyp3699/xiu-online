@@ -292,6 +292,7 @@ G.module({
           <div><span>速度</span>${U.int(st.speed)}</div><div><span>暴击</span>${st.crit.toFixed(1)}%</div>
           ${DATA.elements.map(e => `<div><span>${e.name}抗</span>${U.int(st.res[e.id])}</div>`).join("")}
           <div style="grid-column:1/3"><span>修炼速度</span><b style="font-weight:normal">${U.int(sp.total)}<i class="pf-sl">  /  </i>10秒</b></div>
+          <div style="grid-column:1/-1;height:3em;border:0;padding:0"></div>
           <div><span>功德</span>${U.fmt(s.merit || 0)}</div><div><span>愿力</span>${U.fmt(s.yuanli || 0)}</div>
           ${["xian", "ming", "mo", "shen"].map(w => { const W = (DATA.worlds || []).find(x => x.id === w); const g = this.xjGxMap ? this.xjGxMap()[w] || 0 : 0; return `<div><span>${W ? W.name : w}贡献</span>${U.fmt(g)}</div>`; }).join("")}
         </div>
