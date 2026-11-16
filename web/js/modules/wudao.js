@@ -29,7 +29,7 @@ G.module({
       if (this.oriSum) {   // 出身（config/start.js CFG.origin）：探索每步秒、功法修炼时间 %、炼丹 / 炼器成功率 %、肉身速度 %
         out.explore = (out.explore || 0) + this.oriSum("explore"); out.gfStudy = (out.gfStudy || 0) + this.oriSum("gfStudyPct"); out.spStudy = (out.spStudy || 0) + this.oriSum("spStudyPct");   // 出身「书香门第」法术修炼时间
         out.danRate = (out.danRate || 0) + this.oriSum("danRate"); out.qiRate = (out.qiRate || 0) + this.oriSum("qiRate");
-        out.bodySpeedPct = (out.bodySpeedPct || 0) + this.oriSum("bodyPct"); }
+        out.bodySpeedPct = (out.bodySpeedPct || 0) + this.oriSum("bodyPct") + this.oriSum("cultPct"); out.expSpeedPct = (out.expSpeedPct || 0) + this.oriSum("cultPct"); }   // 天道灵体 cultPct：修为、炼体都加
       return out;
     },
     mifaLearnMs(star) { const Q = CFG.gongfa.LEARN_Q || {}; return DATA.gfLearnMin(star) * (Q.MIFA_MUL === undefined ? 5 : Q.MIFA_MUL) * 60000; },

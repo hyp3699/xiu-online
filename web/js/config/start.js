@@ -60,6 +60,14 @@ CFG.origin = {
     { id: "mijing",   name: "秘境遗民", desc: "生于秘境边缘。秘境掉落 永久 +30%。", mjDrop: 30 },
     { id: "simiao",   name: "寺庙寄养", desc: "在古寺长大，心性平和。渡劫失败不掉修为。", noTribLoss: 1 },
     { id: "shangjia", name: "商贾之家", desc: "家中经商。坊市购买价格 永久 -10%（包括四界坊市），灵石 +30000。", shopCut: 10, stone: 30000 },
-    { id: "canhun",   name: "残魂附体", desc: "一缕上古残魂寄于识海。神识强度 +100，灵识点 +100。", ls: 100, ssPow: 100 },   // ssPow 用户 2026-11-16 反馈没加神识：神识强度一次性 +100（老存档补发）
+    { id: "canhun",   name: "转世之身", desc: "前世大能转世，识海未泯。神识强度 +100，灵识点 +12，元婴出窍收益 +3%。", ls: 12, ssPow: 100, cqPct: 3 },   // 用户定 2026-11-16（原 残魂附体 灵识点 +100）
+    // 灵体（用户定 2026-11-16）：elDmg 造成该系伤害 +%、elCut 受到该系伤害 −%；allEl* 对六系都算；cultPct 修炼速度 +%（修为和炼体都加）
+    { id: "jinti",    name: "金灵之体", desc: "造成的金属性伤害 +3%，受到的金属性伤害 -3%。", el: "jin", elDmg: 3, elCut: 3 },
+    { id: "muti",     name: "木灵之体", desc: "造成的木属性伤害 +3%，受到的木属性伤害 -3%。", el: "mu", elDmg: 3, elCut: 3 },
+    { id: "shuiti",   name: "水灵之体", desc: "造成的水属性伤害 +3%，受到的水属性伤害 -3%。", el: "shui", elDmg: 3, elCut: 3 },
+    { id: "huoti",    name: "火灵之体", desc: "造成的火属性伤害 +3%，受到的火属性伤害 -3%。", el: "huo", elDmg: 3, elCut: 3 },
+    { id: "tuti",     name: "土灵之体", desc: "造成的土属性伤害 +3%，受到的土属性伤害 -3%。", el: "tu", elDmg: 3, elCut: 3 },
+    { id: "leiti",    name: "雷灵之体", desc: "造成的雷属性伤害 +3%，受到的雷属性伤害 -3%。", el: "lei", elDmg: 3, elCut: 3 },
+    { id: "tiandao",  name: "天道灵体", desc: "造成的所有属性伤害 +2%，受到的所有属性伤害 -2%，修炼速度 +30%（包括炼体）。", allElDmg: 2, allElCut: 2, cultPct: 30 },
   ],
 };

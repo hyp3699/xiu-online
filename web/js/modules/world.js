@@ -2076,7 +2076,7 @@ G.module({
       const G0 = (CFG.rates || {}).MAP_GAIN || {}, n = v => (v === undefined ? 1 : Math.max(0, +v || 0));
       const mp = x.mk === "ys" ? this.mjDef(x.mj, "ys").a : x.map;
       const k = x.mj !== undefined && x.mk !== "ys" ? (x.mk === "ld" ? "lingdi" : "mijing") : ((DATA.maps[mp] || {}).w || "fan") === "fan" ? "fan" : "sijie";
-      return n(G0[k]) * (k === "mijing" && this.oriSum ? 1 + this.oriSum("mjDrop") / 100 : 1) * (x.cq && this.ssGfSum ? 1 + this.ssGfSum("cq") / 100 : 1);   // 出身「秘境遗民」；元婴出窍：神识功法《太虚采灵经》
+      return n(G0[k]) * (k === "mijing" && this.oriSum ? 1 + this.oriSum("mjDrop") / 100 : 1) * (x.cq && this.ssGfSum ? 1 + (this.ssGfSum("cq") + (this.oriSum ? this.oriSum("cqPct") : 0)) / 100 : 1);   // + 出身「转世之身」   // 出身「秘境遗民」；元婴出窍：神识功法《太虚采灵经》
     },
     // 击败怪物的掉落，写进 loot，返回描述文字
     //   灵石：本次总收益分摊到本次的怪：首领合计 BOSS_SHARE%，其余普通怪、精英怪平分

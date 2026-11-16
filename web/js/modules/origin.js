@@ -21,6 +21,8 @@ G.module({
     oriSum(k) { let t = 0; for (const o of this.oriOf()) t += +o[k] || 0; return t; },
     // 一次性加神识强度（出身「残魂附体」）；s.oriSs = 已加过，老存档在 tick 里补
     oriSsFix() { const s = this.s; if (!s || s.oriSs) return; s.oriSs = 1; const v = this.oriSum("ssPow"); if (v > 0) s.ssPow = (s.ssPow || 0) + v; },
+    // 出身灵体：k = "Dmg"（造成该系伤害 +%）或 "Cut"（受到该系伤害 −%）
+    oriEl(k, el) { if (!el) return 0; let t = 0; for (const o of this.oriOf()) t += (o.el === el ? +o["el" + k] || 0 : 0) + (+o["allEl" + k] || 0); return t; },
     oriNames(s = this.s) { return this.oriOf(s).map(o => o.name).join("、"); },
     // 清洗客户端传来的选择：只要存在的 id，不重复，最多 PICK 个
     oriClean(ids) {
