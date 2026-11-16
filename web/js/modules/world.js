@@ -2321,7 +2321,7 @@ G.module({
     exAdvance1(limit) {
       const s = this.s;
       if (!s.explore) return;
-      let x = s.explore; const T = this.exCfg(x).TIME;
+      let x = s.explore; const T = this.exCfg(x).TIME, x0 = x, c0 = x.count, r0 = x.rest;
       let changed = false;
       if (!x.ms) x.ms = this.exploreMs();
       if (x.rest) {   // v186 探索 / 出窍：生命不足时原地休养，恢复满后自动继续
@@ -2375,7 +2375,8 @@ G.module({
           x.start = at; x.ms = this.exploreMs(); x.step = 0; x.loot = this.newLoot(); x.ev = []; x.plan = this.exPlan(x); delete x.rs;
         }
       }
-      if (changed) this.dirty();
+      // 离线自动胜利补算：中途一步只改生命法力和本次收获（不影响属性），只在一次探索结算 / 休养切换时才让属性缓存失效（提速，2026-11-16）
+      if (changed && (!this._autoWin || s.explore !== x0 || x0.count !== c0 || x0.rest !== r0)) this.dirty();
     },
     /* ---------- 秘境（config/mijing.js）、灵地（config/lingdi.js）：共用一套，k = "mj" 秘境（默认）/ "ld" 灵地 ---------- */
 exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },

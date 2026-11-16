@@ -10,6 +10,12 @@ G.module({
   defaults: () => ({ jmv: [], jmi: {} }),
 
   api: {
+    // 记住经脉合计（离线补算提速，2026-11-16）：补算时每步都要读，原来每次重算 36×10 个穴位。
+    // 换存档对象（读档 / 服务器推送）或冲穴、窍穴变动（本模块各操作调 jmReset）时重算；jmv / jmi 内容另做一次轻量校验
+    jmReset() { this._jmM = null; },
+    jmMemo(k, fn) { const s = this.s, sig = (s.jmv || []).length + ":" + Object.keys(s.jmi || {}).length;
+      if (!this._jmM || this._jmS !== s || this._jmSig !== sig) { this._jmM = {}; this._jmS = s; this._jmSig = sig; }
+      const M = this._jmM; return k in M ? M[k] : (M[k] = fn()); },
     jmList() { return (CFG.jingmai || {}).LIST || []; },
     jmLy() { return Math.max(1, +(CFG.jingmai || {}).LAYERS || 1); },
     jmNodes() { const r = []; this.jmList().forEach((m, i) => (m.nodes || []).forEach((n, j) => r.push({ m, i, j, n }))); return r; },   // 36 个光点
@@ -22,9 +28,11 @@ G.module({
     jmUsed() { let c = 0; const N = this.jmNodes().length; for (let i = 0; i < N; i++) if (this.jmStarted(i)) c++; return c; },
     jmReq(node) { const d = this.jmNodes()[node], a = d && d.m.realm; return Array.isArray(a) && a[d.j] !== undefined ? +a[d.j] : -1; },   // 开启需要的境界，-1 = 不限
     jmCutOf(node) { const d = this.jmNodes()[node], a = d && d.m.gfCut; return Array.isArray(a) ? +a[d.j] || 0 : +a || 0; },   // 冲满后功法修炼时间 −%
-    jmGfCut() { const N = this.jmNodes().length; let t = 0; for (let i = 0; i < N; i++) if (this.jmCur(i) >= this.jmXN()) t += this.jmCutOf(i); return t; },   // 已冲满光点合计
+    jmGfCut() { return this.jmMemo("gfcut", () => this.jmGfCut0()); },
+    jmGfCut0() { const N = this.jmNodes().length; let t = 0; for (let i = 0; i < N; i++) if (this.jmCur(i) >= this.jmXN()) t += this.jmCutOf(i); return t; },   // 已冲满光点合计
     jmElOf(node, key) { const d = this.jmNodes()[node], a = d && d.m[key], e = Array.isArray(a) ? a[d.j] : null; return Array.isArray(e) && e[0] ? [e[0], +e[1] || 0] : null; },   // [属性, %]
-    jmEl(key) { const r = {}, N = this.jmNodes().length; for (let i = 0; i < N; i++) { const e = this.jmElOf(i, key); if (e && this.jmCur(i) >= this.jmXN()) r[e[0]] = (r[e[0]] || 0) + e[1]; } return r; },
+    jmEl(key) { return this.jmMemo("el" + key, () => this.jmEl0(key)); },
+    jmEl0(key) { const r = {}, N = this.jmNodes().length; for (let i = 0; i < N; i++) { const e = this.jmElOf(i, key); if (e && this.jmCur(i) >= this.jmXN()) r[e[0]] = (r[e[0]] || 0) + e[1]; } return r; },
     jmElDmg(el) { return el ? this.jmEl("elDmg")[el] || 0 : 0; },   // 自己该系属性伤害 +%
     jmElCut(el) { return el ? Math.min(100, (this.jmEl("elCut")[el] || 0) + (this.sjSwBonus ? this.sjSwBonus().elCut[el] || 0 : 0)) : 0; },   // + 主神纹「受到的X属性伤害」   // 受到该系属性伤害 −%
     jmCap() { const C = CFG.jingmai || {}, r = this.s.mortal ? -1 : this.r(), st = +C.UNLOCK_REALM || 0; return r < st ? 0 : (r - st + 1) * (+C.UNLOCK_PER || 0); },   // 当前境界可开几个光点
@@ -35,7 +43,8 @@ G.module({
     jmWSum() { const N = this.jmNodes().length; let t = 0; for (let i = 0; i < N; i++) t += this.jmW(i); return t || 1; },
     jmVal(node, x) { const k = this.jmXue(node, x)[1]; if (!k) return 0; return Math.max(1, Math.round(this.jmStatTotal(k) * this.jmW(node) / this.jmWSum() / this.jmLy())); },   // 每层加多少
     jmStatName(k) { return k === "hp" ? "生命" : (DATA.MOB_RAND_ZH[k] || k).replace("抗性", "抗"); },
-    jmBonus() { const b = {}, N = this.jmNodes().length;
+    jmBonus() { return this.jmMemo("bonus", () => this.jmBonus0()); },
+    jmBonus0() { const b = {}, N = this.jmNodes().length;
       for (let i = 0; i < N; i++) for (let x = 0; x < this.jmXN(); x++) { const lv = this.jmGet(i, x); if (lv) { const k = this.jmXue(i, x)[1]; if (k) b[k] = (b[k] || 0) + lv * this.jmVal(i, x); } }
       const I = this.s.jmi || {}; for (const i in I) { const v = (I[i] || {}).v || {}; for (const k in v) b[k] = (b[k] || 0) + (+v[k] || 0); }   // 中间 2 个窍穴
       return b; },
@@ -65,7 +74,7 @@ G.module({
       let ex = "";
       if (s.jmv[k] >= ly) { const c = this.jmRollFull(), b = this.jmRollFull(); (s.jmx = s.jmx || {})[k] = [c, b]; ex = `，额外修炼速度 +${U.fmt(c)}、练体速度 +${U.fmt(b)}`; }
       this.log(`「${nm}」冲至第 ${s.jmv[k]} 层${ex}。`, s.jmv[k] >= ly ? "gold" : "good");
-      this.dirty(); this.after();
+      this.jmReset(); this.dirty(); this.after();
     },
     // 灵液兑换：药材 → 灵液；n = -1 全部（只有 -1 是哨兵，-999、-0.5 都不再算全部）
     jmSwap(name, n) {
@@ -74,7 +83,7 @@ G.module({
       const have = sm ? this.smCount(sm) : this.countMat("herb", m.g); n = n === -1 ? have : Math.min(Math.floor(+n || 0), have);
       if (n <= 0) return this.log(`${name}不足。`, "sys");
       if (sm) this.takeSm(sm, n); else this.takeMat("herb", m.g, n); this.addSm("lingye", n * r);
-      this.log(`${name} ×${U.fmt(n)} 兑换灵液 ${U.fmt(n * r)}。`, "good"); this.dirty(); this.after();
+      this.log(`${name} ×${U.fmt(n)} 兑换灵液 ${U.fmt(n * r)}。`, "good"); this.jmReset(); this.dirty(); this.after();
       if (this._jmSwapOn) this.openJmSwap();
     },
     // 能换灵液的专用材料（神识功法药材 元魂果 yhg、凝魂芝 nhz）：名字 → 键
@@ -107,7 +116,7 @@ G.module({
       if (!s.jmi || typeof s.jmi !== "object" || Array.isArray(s.jmi)) s.jmi = {};
       const o = s.jmi[node * 2 + j] = this.jmInGet(node, j); o.n = (+o.n || 0) + 1; o.v = o.v || {}; o.v[k] = (+o.v[k] || 0) + add; this._jmFx = Date.now();
       this.log(`「${X.name}」冲至第 ${o.n} 层，${this.jmStatName(k)}增加 ${U.num(add)}。`, "good");
-      this.dirty(); this.after();
+      this.jmReset(); this.dirty(); this.after();
     },
     openJingmai(on) { this.cultView = on ? "jingmai" : ""; this.jmNode = null; this.render(); },
     openJmNode(i) { this.jmNode = i === null || i === undefined ? null : i; this.render(); },
