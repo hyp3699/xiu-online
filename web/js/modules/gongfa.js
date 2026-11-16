@@ -302,6 +302,7 @@ G.module({
     },
     countdown(ms) { return `<span class="cd">${this.countdownTxt(ms)}</span>`; },
     // 第3层 → 第4层（目标层红框）
+    gfYears(sec) { const y = sec / ((+CFG.player.YEAR_MIN || 15) * 60); return `${y >= 100 ? Math.round(y) : +y.toFixed(1)}年`; },   // 游戏时间：现实 15 分钟 = 1 年（用户定 2026-11-16）
     gfLvTo(lv) { return `<span class="tag gf-lv">第${lv}层</span> → <span class="tag gf-to">第${lv + 1}层</span>`; },
     // 「修炼队列」页：正在修炼（倒计时、进度、消耗）+ 排队中的
     // 当前修炼进度：{ done, left, mul }（无修炼返回 null），倒计时卡片与队列累计共用
@@ -318,9 +319,9 @@ G.module({
       const s = this.s, st = s.gfStudy; if (!st) return "";
       const info = DATA.skillInfo(st.id, s.gongfa[st.id]), p = this.gfStudyProg(), mul = p.mul;
       // “共 X 灵气”按当前练功房倍率估算：每 5 秒单位灵气 ×mul，总单位数 ÷mul（mul=1 时与旧式一致）
-      return `<div class="card"><h3>修炼中 ·《${info ? info.name : st.id}》${info ? this.gfLvTo(info.lv) : ""}</h3>
+      return `<div class="card"><h3>修炼中 ·《${info ? info.name : st.id}》${info && !info.noEl ? `<span class="tag">${info.star}星</span>` : ""}${info ? this.gfLvTo(info.lv) : ""}</h3>
         <div class="bar tick"><div id="gf-cd-bar"></div></div>
-        <div class="row small"><span>${st.stalled ? `<b class='q5'>${st.stone ? "灵气或灵石" : "灵气"}不足，暂停中</b>` : `倒计时 <b><span class="cd" id="gf-cd"></span></b>`}</span></div>
+        <div class="row small"><span>${st.stalled ? `<b class='q5'>${st.stone ? "灵气或灵石" : "灵气"}不足，暂停中</b>` : `${info ? `<span class="c-green">${this.gfGainTxt(info)}</span> · ` : ""}倒计时 <b><span class="cd" id="gf-cd"></span></b>`}</span></div>
         <div class="row small gf-cost"><span>每 10 秒消耗 <b>${U.fmt(this.ssGfPer(st.per * mul) * 2)}</b> 灵气${st.stone ? ` + ${U.fmt(Math.round(st.stone * mul * 2))} 灵石` : ""} · 已消耗 <b>${U.fix(U.fmt(st.spent))}</b> / ${U.fmt(this.ssGfPer(st.per * mul) * st.total / (DATA.STUDY_STEP * 1000 * mul))}</span><button class="sm" onclick="G.gfBonusView()">功法加成</button></div></div>`;
     },
     // 排队中每部的耗时与累计完成时间（毫秒），供列表渲染与倒计时实时刷新共用
@@ -385,8 +386,8 @@ G.module({
         : `${g.label} ${cv("+" + this.gfValue(g, g.value * lgK))}${lgTxt}${max ? "" : `，下一层 ${cv("+" + this.gfValue(g, g.next * lgK))}`}` +
           (g.label2 ? `；${g.label2} ${cv("+" + this.gfValue(g, g.value2 * lgK))}${max ? "" : `，下一层 ${cv("+" + this.gfValue(g, g.next2 * lgK))}`}` : "");
       const sec = max ? 0 : this.studySec(g), n = Math.ceil(sec / DATA.STUDY_STEP), per = max ? 0 : this.ssGfPer(DATA.studyPer(g), !(this.s.gfStudy && this.s.gfStudy.id === g.id)), sp = max ? 0 : g.layerStone || 0;
-      return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》${g.noEl ? "" : `<span class="tag">${g.star}星</span>`}${g.kind === "mf" || g.noEl ? "" : `<span class="tag">${g.el.name}</span>`}<span class="tag gf-lv">第${g.lv}层</span>
-        <small>${desc}${max ? "" : `<br>下一层：${U.dur(sec)} · 每10秒 ${U.fmt(per * 2)} 灵气${sp ? ` + ${U.fmt(Math.round(sp * 2 / n))} 灵石` : ""}（共 ${U.fmt(per * n)}${sp ? ` 灵气、${U.fmt(sp)} 灵石` : " 灵气"}）`}${plan > g.lv ? `<br><span class="c-green">已排至第 ${plan} 层</span>` : ""}</small></div>
+      return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》${g.noEl ? "" : `<span class="tag">${g.star}星</span>`}${g.kind === "mf" || g.noEl ? "" : `<span class="tag">${g.el.name}</span>`}<span class="tag gf-lv">第${g.lv}层</span>${plan > g.lv ? `<span class="tag gf-to">已排至第${plan}层</span>` : ""}
+        <small>${desc}${max ? "" : `${desc.includes("下一层") ? " · " : "，下一层 "}${this.gfYears(sec)} · 每10秒 ${U.fmt(per * 2)} 灵气${sp ? ` + ${U.fmt(Math.round(sp * 2 / n))} 灵石` : ""}`}</small></div>
         ${max ? `<button class="sm" disabled>圆满</button>` :
           `<button class="sm" onclick="G.studyGongfa('${g.id}')" ${full || s.gfQueue.length >= DATA.GF_QUEUE ? "disabled" : ""}>${full ? "已排满" : "修炼"}</button>`}</div>`;
     },
