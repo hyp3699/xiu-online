@@ -2258,7 +2258,8 @@ G.module({
       return c === "bad"; // 战败：本次提前结束
     },
     // 离线自动胜利补算（用户定 2026-11-16：不逐只算怪，按平均数直接给掉落）：普通自动探索（不含历练、出窍、秘境、灵地、修炼设置要回来的）
-    exAutoFast(x) { return !!this._autoWin && !!x && !x.once && !x.cq && x.mj === undefined && !x.back && !x.rest && !x.lostWait; },
+    //   出窍（x.cq）同样按平均数；秘境 / 灵地每处只走一次：整处一次给掉落（不打战斗，exploreStepFast）（用户定 2026-11-16）
+    exAutoFast(x) { return !!this._autoWin && !!x && !x.once && !x.back && !x.rest && !x.lostWait; },
     // 按平均数给 N 次探索的掉落：灵石、灵识碎片、怪物 / 灵药 / 矿脉固定掉落、本次药材矿石总量，都按平均个数 × N（小数部分按几率进 1）
     exAvgLoot(x, N) {
       const E = CFG.explore, b = this.mapBonus(x.map) || {}, a = x.map, avg = v => this.cntAvg(v);
@@ -2288,8 +2289,8 @@ G.module({
       const c = x.plan[x.step]; x.step++;
       if (c === "h" || c === "o") { this.rollEvent(x.loot, c === "h" ? "herbEvent" : "oreEvent", a); this.stepMats(x, si); }
       else if (c === "m" || c === "e" || c === "b") {
-        const kind = c === "m" ? "normal" : c === "e" ? "elite" : "boss", key = a + "_" + r + "_" + kind, M = this._awMob || (this._awMob = {});
-        const m = M[key] || (M[key] = this.makeMob(a, r, kind)); m.a = a;
+        const kind = c === "m" ? "normal" : c === "e" ? "elite" : "boss", mj = x.mj, key = (mj !== undefined ? "mj" + (x.mk || "") + mj : a + "_" + r) + "_" + kind, M = this._awMob || (this._awMob = {});
+        const m = M[key] || (M[key] = mj !== undefined ? this.makeMjMob(mj, kind, x.mk) : this.makeMob(a, r, kind)); if (mj === undefined) m.a = a;
         this.s.kills++; this.rollMonsterLoot(x, m); this.stepMats(x, si);
       }
     },
@@ -2349,7 +2350,7 @@ G.module({
       for (let n = 0; n < 200000 && (s.explore || s.cq); n++) {
         const now = pz === null ? this.now() : Math.min(this.now(), pz), dE = s.explore && s.explore._pz != null ? Infinity : this.exDueAt(s.explore), dC = s.cq && s.cq._pz != null ? Infinity : this.exDueAt(s.cq);
         if (Math.min(dE, dC) > now) break;
-        if (dE <= dC) this.exAdvance1(this.exAutoFast(s.explore) ? Math.min(now, dC) : dE); else this.cqRun(() => this.exAdvance1(dC));
+        if (dE <= dC) this.exAdvance1(this.exAutoFast(s.explore) ? Math.min(now, dC) : dE); else this.cqRun(() => this.exAdvance1(this.exAutoFast(s.explore) ? Math.min(now, dE) : dC));
       }
       if (tb) for (const x of [s.explore, s.cq]) if (x && x._pz == null) x._pz = Math.min(this.now(), pz);
     },
@@ -2383,11 +2384,13 @@ G.module({
           if (this.exAutoFast(x)) {
             const run = T * x.ms + W, end = Math.min(limit, this.now()), first = x.start + run;
             if (end < first) break;   // 这一次还没到时间：等到时再一次给
-            const N = 1 + Math.floor((end - first) / run);   // 补算时间里一共走完几次
+            if (x.mj !== undefined) { while (x.step < T) this.exploreStepFast(); const st = this.stats(); this.s.hp = st.hp; this.s.mana = st.mana; continue; }   // 秘境 / 灵地：这一处的掉落一次给齐
+            let N = 1 + Math.floor((end - first) / run);   // 补算时间里一共走完几次
+            if (x.cq) N = Math.max(1, Math.min(N, x.cq - x.count));   // 出窍：最多走到出窍次数
             this.exAvgLoot(x, N);
             for (let k = 1; k < N; k++) { this.rollSeedDrop(x); if (this.rollSsHerb) this.rollSsHerb(x); this.mjDiscover(x.map); }   // 每次结束时的几率掉落（种子、神识药材、发现秘境）照次数掷
             x.count += N - 1; x.start += (N - 1) * run; x.step = T;
-            if (this._off && N > 1) { this._off.exRuns += N - 1; }
+            if (this._off && N > 1) { if (x.cq) this._off.cq.runs += N - 1; else this._off.exRuns += N - 1; }
             const st = this.stats(); this.s.hp = st.hp; this.s.mana = st.mana;
             continue;
           }

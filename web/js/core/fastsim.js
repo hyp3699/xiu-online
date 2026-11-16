@@ -37,10 +37,12 @@
       const ids = this.modules.filter(m => m.tick).map(m => m.id);
       if (ids.length !== FAST_MODULES.length || ids.some((id, k) => id !== FAST_MODULES[k])) return -Infinity;
       // 离线自动胜利补算的普通自动探索：中间不用逐个结算，快进到这一次走完那一刻（world.js exAutoFast / exAvgLoot，用户定 2026-11-16）
-      const xf = s.explore && !s.cq && this.exAutoFast && this.exAutoFast(s.explore) && s.explore.ms;
-      // 不再每次走完都停：中间探索不影响别的数值，到下一个别的事件（至少每天 0 点）时一次按次数给齐（用户定 2026-11-16 一次补完）
-      if (xf) { /* 无事件 */ }
-      else if (s.explore || s.cq || (s.trib && !s.trib.result)) return -Infinity;   // 探索 / 渡劫中：逐个结算；渡劫已出结果（只剩领奖）可以加速
+      // 出窍：走满次数那一刻是事件（回来）；秘境 / 灵地：每处走完那一刻是事件（接着下一处 / 结束）
+      const xOk = x => !x || (this.exAutoFast && this.exAutoFast(x) && x.ms), xf = (s.explore || s.cq) && xOk(s.explore) && xOk(s.cq);
+      if (xf) for (const x of [s.explore, s.cq]) { if (!x) continue; const run = this.exCfg(x).TIME * x.ms + (CFG.explore.END_WAIT || 0) * 1000;
+        if (x.mj !== undefined) ev.push(x.start + run); else if (x.cq) ev.push(x.start + Math.max(1, x.cq - x.count) * run); }
+      else if (s.explore || s.cq) return -Infinity;
+      if (s.trib && !s.trib.result) return -Infinity;   // 探索 / 渡劫中：逐个结算；渡劫已出结果（只剩领奖）可以加速
       if (s.zf && s.zf.job) ev.push(s.zf.job.end);   // 属性阵修炼到时结算：快进到 job 结束那一刻再逐个结算（灵气修炼开始时已扣完，修炼中无逐秒消耗；主动阵按次收费不影响加速）
       // 自动悟道读条到时：快进到读满那一刻再逐个结算（wdAutoSettle 发奖；手动记录不等，客户端读条自己发 wudaoDone）
       { const _wd = s._wdStart; if (_wd && typeof _wd === "object" && !Array.isArray(_wd)) for (const dao of Object.keys(_wd)) { const r = _wd[dao]; if (r && r.auto === 1 && r.at) ev.push(r.at + (((CFG.wudaoRoom || {}).TIME || 0)) * 1000); } }
