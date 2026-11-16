@@ -127,10 +127,13 @@ function warmEngines() {
   setTimeout(() => { for (const [a, d] of [[false, false], [true, false]]) { try { const t = Date.now(); poolEngine(a, d); console.log(`engine warm ${a ? "admin" : "player"} ${Date.now() - t}ms`); } catch (err) { console.error("engine warm failed", err?.message || err); } } }, 0);
 }
 // 结算慢时记一行日志（离线太久、探索 / 出窍中逐个结算等），方便查进游戏慢的原因
+const CATCHUP_GAP_MS = 5 * 60_000;   // 存档落后超过 5 分钟 = 服务器那段时间没在跑，才按离线补算（用户定 2026-11-16）
 function timedAdvance(engine, state, now, tag, max) {
-  // 这几处都是玩家不在线时的补算（后台离线结算、上线 / 会话补算、停机后补算）：探索遇怪不打，直接按胜利算（用户定 2026-11-16）
+  // 只补算服务器没在跑的那段（停机 / 存档从别的服务器搬来）：服务器正常运行时后台每 10 秒就结算一次离线玩家，落后不会超过几十秒，
+  // 这时照常逐步战斗；落后超过 CATCHUP_GAP_MS 才算「补算」，遇怪直接胜利、按平均数给掉落（用户定 2026-11-16）
   const t = Date.now(); let o;
-  if (engine.G) engine.G._autoWin = true;
+  const last = Number(state && state.last) || now;
+  if (engine.G) engine.G._autoWin = now - last > CATCHUP_GAP_MS;
   try { o = engine.advance(state, now, max); } finally { if (engine.G) { engine.G._autoWin = false; engine.G._awMob = null; } }
   const ms = Date.now() - t;
   if (ms >= 300) { const s = o.state || {}; console.log(`slow advance ${tag} ${ms}ms ticks=${o.processedTicks} explore=${!!s.explore} cq=${!!s.cq} trib=${!!s.trib}`); }
