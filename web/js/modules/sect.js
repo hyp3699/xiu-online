@@ -836,9 +836,9 @@ G.module({
     jdStatOf(k) { if (k.startsWith("res_")) return k; const t = DATA.gongfaTypes.find(x => x.id === k); return t ? t.stat : ""; },
     jdLabel(st) { return st.startsWith("res_") ? ((DATA.elById[st.slice(4)] || {}).name || "") + "抗" : DATA.QL_LABEL[st] || st; },
     // star 不传时用当前门派星级；听讲结算传听讲时的星级（旧存档 cur 没 star 时回退当前星级）
-    jdInterp(a, b, star) { const n = star ?? this.sectInfo().star, t = Math.min(9, Math.max(0, n - 1)) / 9; return [Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t)]; },   // 1 星 a 到 10 星 b 按星级线性插值
+    jdInterp(a, b, star) { const n = star ?? (this.sectInfo() || {}).star ?? 1, t = Math.min(9, Math.max(0, n - 1)) / 9; return [Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t)]; },   // 1 星 a 到 10 星 b 按星级线性插值
     jdVal(k, star) {   // 功法属性：n 星 = STAT_BASE + STAT_STEP×(n−1)，再 × STAT_MUL（攻防 1.5、生命法力 4）
-      const J = this.jdCfg(), st = this.jdStatOf(k), n = Math.min(10, Math.max(1, star ?? this.sectInfo().star));
+      const J = this.jdCfg(), st = this.jdStatOf(k), n = Math.min(10, Math.max(1, star ?? (this.sectInfo() || {}).star ?? 1));
       if (!J.STAT_BASE) return this.jdInterp(J.STAT1 || [15, 35], J.STAT10 || [70, 110], n);
       const m = (J.STAT_MUL || {})[st] || 1, d = (J.STAT_STEP || 0) * (n - 1);
       return J.STAT_BASE.map(x => Math.round((x + d) * m));

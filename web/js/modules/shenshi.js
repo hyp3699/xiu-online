@@ -9,7 +9,7 @@
  * ===================================================================== */
 G.module({
   id: "shenshi",
-  defaults: () => ({ lsMax: CFG.shenshi.INIT, ssPow: 0, ssGf: {}, lsStoneBought: 0, lsFragBought: 0 }),
+  defaults: () => ({ lsMax: CFG.shenshi.INIT, ssPow: 0, ssGf: {}, lsFragBought: 0 }),
 
   api: {
     // 养神：消耗养神丹，神识强度 +1
@@ -40,7 +40,7 @@ G.module({
     },
     lsTotal() { return (this.s.lsMax || 0) + ((this.s.wd || {}).ls || 0) + (this.oriSum ? this.oriSum("ls") : 0) + this.ssGfSum("ls"); },   // + 神识功法《灵台开识篇》   // + 出身「残魂附体」   // 总灵识点 = 买的 + 神魂之道得的
     lsLeft() { return this.lsTotal() - this.lsUsed(); },
-    lsStoneCount() { const s = this.s; return s.lsStoneBought !== undefined ? s.lsStoneBought : Math.max(0, (s.lsMax || 0) - (CFG.shenshi.INIT || 0)); },   // 用灵石买过的点数（老存档没有这个字段时按 lsMax − INIT 折算，阶段不变）
+    lsStoneCount() { const s = this.s; return Math.max(+s.lsStoneBought || 0, (s.lsMax || 0) - (CFG.shenshi.INIT || 0) - (s.lsFragBought || 0)); },   // lsMax 只有灵石买、碎片换会加，所以灵石买过的 = lsMax − INIT − 碎片换的（修复：defaults 曾把老存档 lsStoneBought 补成 0，阶段被重置）   // 用灵石买过的点数（老存档没有这个字段时按 lsMax − INIT 折算，阶段不变）
     // 第 i 个用灵石买的点要多少灵石（i 从 1 开始）
     lsPrice(i) {   // BUY = [每阶段点数, 每阶段递增灵石]：第 n 阶段每点 n × 递增（兼容旧的 [[从, 到, 灵石], …] 写法）
       const C = CFG.shenshi, B = C.BUY || [], init = C.INIT || 0;

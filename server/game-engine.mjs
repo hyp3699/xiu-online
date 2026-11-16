@@ -161,7 +161,7 @@ export class GameEngine {
     this.G.wudao = function (dao) {
       if (!this.wdCheck(dao)) return;
       const m = this.wdStarts();
-      if (!m[dao]) m[dao] = { at: engine.clock.now };
+      if (!m[dao]) m[dao] = { at: this.now() };   // 补算时用模拟时间，跨天自动悟道才不会漏
     };
     const origWudaoDone = this.G.wudaoDone;
     if (typeof origWudaoDone === "function") {
