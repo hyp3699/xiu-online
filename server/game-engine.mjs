@@ -28,11 +28,11 @@ export function readConfig(name, { original = false } = {}) {
   if (!original && configOverridden(n)) return fs.readFileSync(path.join(CONFIG_OVERRIDE_DIR, n), "utf8");
   return fs.readFileSync(path.join(CONFIG_DIR, n), "utf8");
 }
-const MAX_TICKS_PER_ADVANCE = 3_000_000;
+const MAX_TICKS_PER_ADVANCE = 31_536_000;   // 10 年（用户定 2026-11-16：离线多久都一次补完；离线自动探索按平均数给掉落，1000 天约几秒）
 // 登录 / 会话 / 重连 / 动作单次最多补算的 tick 数（86400 个 10 秒 = 10 天）：
 // state.last 落后几十天时全量补算会卡住事件循环；截断后剩下的由定时结算继续补
 // （advance 截断时 s.last 不跳到现在，见 advance），所以这里可以比离线后台的 1 天大得多。
-export const ADVANCE_BUDGET_TICKS = 86_400;
+export const ADVANCE_BUDGET_TICKS = MAX_TICKS_PER_ADVANCE;   // 用户定 2026-11-16 一次补完（原 86400 = 10 天）
 
 function elementStub() {
   const classes = new Set();

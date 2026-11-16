@@ -2101,8 +2101,12 @@ G.module({
     // 种子掉落：本图药材（不含特色）SEED_DROP% 掉 1 颗；本图特色药材 SEED_DROP_SPECIAL% 掉 1 颗；只掉能种的（config/garden.js herbs）
     rollSeedDrop(x) {
       const GA = CFG.garden || {}, m = DATA.mapDrops[x.map]; if (!m) return;
-      const gOf = n => DATA.herbs.indexOf(n), ok = g => g >= 0 && !!DATA.herbGrow(g);
-      const norm = (m.herb || []).map(gOf).filter(g => ok(g) && !DATA.seedDropOnly(g)), sp = (m.special || []).map(gOf).filter(ok);
+      // 本图能掉的种子列表：离线补算时同一张图只算一次（_awMob 跟着补算清掉）
+      const C = this._autoWin ? (this._awMob || (this._awMob = {})) : null, ck = "seed_" + x.map;
+      let L0 = C && C[ck];
+      if (!L0) { const gOf = n => DATA.herbs.indexOf(n), ok = g => g >= 0 && !!DATA.herbGrow(g);
+        L0 = [(m.herb || []).map(gOf).filter(g => ok(g) && !DATA.seedDropOnly(g)), (m.special || []).map(gOf).filter(ok)]; if (C) C[ck] = L0; }
+      const norm = L0[0], sp = L0[1];
       // 每人每天每种最多 SEED_DROP_DAY_MAX 颗（s.seedDrop = { day, n: { 药材下标: 颗数 } }），掉满的不再抽
       const s = this.s, day = this.bjDay(); if (!s.seedDrop || s.seedDrop.day !== day) s.seedDrop = { day, n: {} };
       const max = GA.SEED_DROP_DAY_MAX ?? 6, left = g => (s.seedDrop.n[g] || 0) < max;
@@ -2345,7 +2349,7 @@ G.module({
       for (let n = 0; n < 200000 && (s.explore || s.cq); n++) {
         const now = pz === null ? this.now() : Math.min(this.now(), pz), dE = s.explore && s.explore._pz != null ? Infinity : this.exDueAt(s.explore), dC = s.cq && s.cq._pz != null ? Infinity : this.exDueAt(s.cq);
         if (Math.min(dE, dC) > now) break;
-        if (dE <= dC) this.exAdvance1(dE); else this.cqRun(() => this.exAdvance1(dC));
+        if (dE <= dC) this.exAdvance1(this.exAutoFast(s.explore) ? Math.min(now, dC) : dE); else this.cqRun(() => this.exAdvance1(dC));
       }
       if (tb) for (const x of [s.explore, s.cq]) if (x && x._pz == null) x._pz = Math.min(this.now(), pz);
     },
