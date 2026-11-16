@@ -13,7 +13,7 @@ G.module({
 
   api: {
     // 养神：消耗养神丹，神识强度 +1
-    ysNeed() { const Y = CFG.shenshi.YANGSHEN || {}, p = Math.max(0, (this.s.ssPow || 0) - (this.ssGfSum ? this.ssGfSum("pow") : 0)); return Math.floor((Y.BASE || 1) + (Y.ADD || 0) * Math.floor(p / (Y.EVERY || 10))); },   // 《凝神观想诀》加的神识强度不让养神丹变贵
+    ysNeed() { const Y = CFG.shenshi.YANGSHEN || {}, p = Math.max(0, (this.s.ssPow || 0) - (this.ssGfSum ? this.ssGfSum("pow") : 0) - (this.s.oriSs && this.oriSum ? this.oriSum("ssPow") : 0)); return Math.floor((Y.BASE || 1) + (Y.ADD || 0) * Math.floor(p / (Y.EVERY || 10))); },   // 《凝神观想诀》、出身加的神识强度不让养神丹变贵（出身的单独算，用户定 2026-11-16）
     yangshen() {
       const s = this.s, need = this.ysNeed();
       if (this.smCount("yd") < need) return this.log(`${DATA.smName("yd")}不足，需要 ${need} 枚。`, "sys");
