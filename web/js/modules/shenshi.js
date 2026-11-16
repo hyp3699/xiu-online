@@ -197,8 +197,9 @@ G.shenshiView = function () {
   <div class="card ls-card"><h3>灵识点</h3>
     <div class="stats"><div><span>剩余灵识点</span>${left < 0 ? `<b class="q5">${left}</b>` : left}</div><div><span>总灵识点</span>${this.lsTotal()}</div></div>
     <p class="desc" style="margin-top:6px">学会攻击、防御、修炼速度、肉身修炼速度类功法和宗门秘法会占用灵识点（1 星 1 点 … 10 星 10 点），灵识点不够不能学习；功法页「遗忘」可归还。已占用 ${used}。</p>
-    <div class="btns">${room > 0 ? btn(1) + fbtn(1) : `<button disabled>灵识点已达上限</button>`}
-      <button onclick="G.openShenshi(false)">返回修炼</button></div></div>`;
+    <div class="btns">${room > 0 ? btn(1) + fbtn(1) : `<button disabled>灵识点已达上限</button>`}</div>
+    ${room > 0 ? `<div class="btns">${btn(10) + fbtn(10)}</div>` : ""}
+    <div class="btns"><button onclick="G.openShenshi(false)">返回修炼</button></div></div>`;
 };
 
 /* 功法页 · 遗忘（gongfa.js 调用） */
