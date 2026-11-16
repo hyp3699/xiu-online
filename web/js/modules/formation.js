@@ -32,14 +32,10 @@ G.module({
     zfARed(lv) { return this.zfAVal((this.zfC().ACT || {}).RED, lv); },
     zfAAdd(lv) { return this.zfAVal((this.zfC().ACT || {}).ADD, lv); },
     // 阵法 f 在 lv 级对受到 id 系伤害的克制加伤：ke 为单系时是整份 ADD；
-    // ke 为数组时按数组顺序五等分（base = floor(ADD/5)，余数 +1 补给前几位，五份之和恰好等于 ADD）；id 不在 ke 里返回 0
+    // ke 为数组时（雷泽阵）数组里每一系都加整份 ADD（用户定 2026-11-16，原五等分）；id 不在 ke 里返回 0
     zfKeAdd(f, lv, id) {
       const ke = f && f.ke; if (!ke) return 0;
-      if (Array.isArray(ke)) {
-        const i = ke.indexOf(id); if (i < 0) return 0;
-        const add = this.zfAAdd(lv), base = Math.floor(add / ke.length), rem = add - base * ke.length;
-        return base + (i < rem ? 1 : 0);
-      }
+      if (Array.isArray(ke)) return ke.includes(id) ? this.zfAAdd(lv) : 0;
       return ke === id ? this.zfAAdd(lv) : 0;
     },
     zfAOpen(id) { return !!(this.zfS().bp || {})[id + ":0"]; },   // 学会主动阵法图纸（阶记 0）
