@@ -885,6 +885,9 @@ button.sm.pill{padding:4px 12px}
 .ori-it.on::after{content:"✓";position:absolute;top:-1px;right:-1px;width:22px;height:22px;line-height:22px;text-align:center;border-radius:0 6px 0 8px;background:#e8c878;color:#3a2a08;font-size:14px;font-weight:700}
 .ori-it.on b{padding-right:16px}
 .ori-it.off{opacity:.45}
+.gf-cur-h{display:flex!important;align-items:center;justify-content:space-between;gap:8px}
+.gf-cur-l{flex:1 1 auto;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+.gf-cur-h>button{flex:0 0 auto;margin:0}
 .ori-sec{border-top:1px dashed rgba(232,200,120,.3);padding-top:6px}
 .ori-sec-t{font-size:14px;margin-bottom:6px}
 .ori-tags{display:flex;flex-wrap:wrap;gap:6px}
