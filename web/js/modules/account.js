@@ -72,15 +72,17 @@ G.module({
     // 创建角色（不再随机灵根；灵根在「灵根」页用灵石提升）
     intro() {
       this._lockModal = true;
-      this.modal(`<h2>踏入仙途</h2><p>凡人寿不过百，你于山野间偶得一卷残破古经，自此心生问道之念。</p>
+      // 出身页占满屏幕（用户定 2026-11-16）；管理员「恢复存档」按钮在右上角，点开是页内浮层
+      this.modal(`<div class="ori-head"><h2>踏入仙途</h2>${API.isAdmin ? `<button class="ori-rs-btn" onclick="$('#modal-box').classList.add('rs-on')">恢复存档</button>` : ""}</div>
+        <p>凡人寿不过百，你于山野间偶得一卷残破古经，自此心生问道之念。</p>
         <p>道号<input id="name-input" maxlength="8" placeholder="例如：青云子"></p>
         <div id="ori-box" class="ori-box"></div>
         <div class="btns"><button class="primary" id="start-btn">开始修仙</button></div>
-        ${API.isAdmin ? `<h3 style="margin-top:16px">管理员：从 GitHub 恢复存档</h3>
+        ${API.isAdmin ? `<div id="ori-rs" class="ori-rs"><h2>从 GitHub 恢复存档</h2>
         <p class="desc">服务器存档损坏或换了服务器时，从备份私有仓库下载最新备份，替换服务器上的全部账号和存档。</p>
         <p><input id="rs-repo" placeholder="仓库：用户名/仓库名" autocomplete="off"></p>
         <p><input id="rs-token" type="password" placeholder="GitHub 令牌" autocomplete="new-password"></p>
-        <div class="btns"><button onclick="G.ghRestoreRun($('#rs-repo').value, $('#rs-token').value)">下载并恢复</button></div>` : ""}`);
+        <div class="btns"><button class="primary" onclick="G.ghRestoreRun($('#rs-repo').value, $('#rs-token').value)">下载并恢复</button><button onclick="$('#modal-box').classList.remove('rs-on')">返回</button></div></div>` : ""}`, "ori-fs");
       this._oriSel = []; this.oriPaint();
       $("#start-btn").onclick = async () => {
         const name = ($("#name-input").value || "").trim() || "无名散修";

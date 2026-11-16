@@ -1422,3 +1422,15 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .bq-row button{flex:0 0 32%}
 .bq-quick{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .bq-quick button{padding:8px 4px}
+
+/* 出身页全屏（用户定 2026-11-16） */
+.modal-box.ori-fs{max-width:none;max-height:none;width:100vw;height:100vh;height:100dvh;border:0;border-radius:0;box-shadow:none;display:flex;flex-direction:column;overflow:hidden;position:relative;padding:calc(10px + env(safe-area-inset-top)) 14px calc(10px + env(safe-area-inset-bottom))}
+.modal-box.ori-fs>*{flex:0 0 auto}
+.modal-box.ori-fs .ori-box{max-height:none;flex:1 1 auto;min-height:0;align-content:start}
+.ori-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ori-head h2{margin:0}
+.ori-rs-btn{flex:0 0 auto;padding:4px 12px;font-size:13px}
+.modal.ofs{padding:0}
+.ori-rs{display:none}
+.modal-box.ori-fs.rs-on>*{display:none}
+.modal-box.ori-fs.rs-on>.ori-rs{display:block;flex:1 1 auto;overflow-y:auto}
