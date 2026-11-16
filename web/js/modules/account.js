@@ -91,6 +91,7 @@ G.module({
       $("#start-btn").onclick = async () => {
         const name = ($("#name-input").value || "").trim() || "无名散修";
         if ((this._oriSel || []).length < Math.min(this.oriPick(), this.oriBase())) return;   // 出身点可以不用完
+        { const left = this.oriPick() - (this._oriSel || []).length; if (left > 0 && !(await this.ask(`还有 ${left} 个出身点没用，开始后不会保留。确定开始修仙？`))) return; }   // 没用完先确认（用户定 2026-11-16）
         try {
           this.s = await API.createCharacter(name, this._oriSel);
           this._introOn = false; this._lockModal = false; this.closeModal(); document.body.classList.remove("nologin");
