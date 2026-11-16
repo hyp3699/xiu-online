@@ -295,6 +295,7 @@ G.module({
           <div style="grid-column:1/-1;height:3em;border:0;padding:0"></div>
           <div><span>功德</span>${U.fmt(s.merit || 0)}</div><div><span>愿力</span>${U.fmt(s.yuanli || 0)}</div>
           ${["xian", "ming", "mo", "shen"].map(w => { const W = (DATA.worlds || []).find(x => x.id === w); const g = this.xjGxMap ? this.xjGxMap()[w] || 0 : 0; return `<div><span>${W ? W.name : w}贡献</span>${U.fmt(g)}</div>`; }).join("")}
+          ${this.oriNames && this.oriNames() ? `<div style="grid-column:1/-1"><span>出身</span><b style="font-weight:normal;text-align:right">${this.oriNames()}</b></div>` : ""}
         </div>
         <p class="desc" style="margin-top:6px">平时每 10 秒恢复 生命 ${U.num(R0.hp)}% · 法力 ${U.num(R0.mana)}%；历练/探索每走一步恢复 生命 ${U.num(R1.hp)}%${R1.hpFlat ? ` + ${U.fmt(R1.hpFlat)}` : ""} · 法力 ${U.num(R1.mana)}%${R1.manaFlat ? ` + ${U.fmt(R1.manaFlat)}` : ""}</p>
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
