@@ -187,7 +187,7 @@ G.shenshiView = function () {
   // 神识功法光点：贴着人物，两侧从头到胸各 3 个（左 0~2，右 3~5）；坐标是人物图内的 %，跟人物一起浮动；名字、层数点开才显示
   const POS = [[30, 6], [25, 20], [22, 34], [70, 6], [75, 20], [78, 34]];
   const dots = (CFG.shenshi.GONGFA || []).slice(0, 6).map((g, i) => { const [x, y] = POS[i];
-    return `<button class="ys-dot" style="left:${x}%;top:${y}%;animation-delay:${(i * 0.4).toFixed(1)}s" onclick="G.openSsGf('${g.id}')" aria-label="${g.name}"><i></i></button>`; }).join("");
+    return `<button class="ys-dot" style="left:${x}%;top:${y}%;animation-delay:${(i * 0.4).toFixed(1)}s" onclick="G.openSsGf('${g.id}')" aria-label="${g.name}">${g.ICON ? `<img src="${DATA.iconImg(g.ICON)}" alt="">` : "<i></i>"}</button>`; }).join("");   // 书的图片（用户定 2026-11-16）
   const wisps = [8, 22, 36, 64, 78, 90, 15, 85].map((x, i) => `<i style="left:${x}%;animation-delay:${(i * 0.9).toFixed(1)}s"></i>`).join("");
   return `<div class="card ys-card">
     <div class="ys-stage${fx}"><div class="ys-pow"><span>神识强度</span><b>${U.fmt(s.ssPow || 0)}</b></div>

@@ -29,16 +29,17 @@ CFG.shenshi = {
  * 药材掉落 HERB_DROP：元魂果 yhg、凝魂芝 nhz（config/mijing.js items）。境界 ≥ REALM（3 = 元婴）的普通地图每次探索 MAP_PCT% 掉 1 颗（两种随机一种）；
  *   进入境界 ≥ REALM 的秘境每次必掉 MJ[0]~MJ[1] 颗（每颗随机一种）。不吃地图收益倍率。
  * UNLOCK：神识强度达到多少才能修炼这本（0 = 不限）。
+ * ICON：神识页人物两侧显示的书图标（img/icons/，借用神功封面，用户定 2026-11-16）。
  * UNIT：显示单位（不写 = 层）。COSTS（可选）：每层消耗 [灵石, 养神丹, 元魂果, 凝魂芝]，写了就不用 COST。
  *   凝神观想诀、灵台开识篇：108 层分 6 个阶段，每阶段 18 层，第 n 阶段每层 +n 点（合计 378），消耗照旧按层（用户定 2026-11-16）；
  *   老存档层数不变，神识强度按新旧加成差补（core/game.js migrate，s.ssGfS6）。 */
 CFG.shenshi.GONGFA = [
-  { id: "ningshen", name: "凝神观想诀", key: "pow",  MAX: 108, STEPS: [[18, 1], [18, 2], [18, 3], [18, 4], [18, 5], [18, 6]], UNLOCK: 0, desc: "观想识海，凝炼元神，增加神识强度。" },
-  { id: "cailing",  name: "太虚采灵经", key: "cq",   MAX: 108, STEPS: [[108, 1]], UNLOCK: 0, desc: "元婴出窍时采撷天地灵物，增加元婴出窍收益。" },
-  { id: "lingtai",  name: "灵台开识篇", key: "ls",   MAX: 108, STEPS: [[18, 1], [18, 2], [18, 3], [18, 4], [18, 5], [18, 6]], UNLOCK: 0, desc: "开辟灵台，识海更广，增加灵识点。" },
-  { id: "lianxi",   name: "敛息归元诀", key: "ling", MAX: 108, FIRST: 1000, TOTAL: 720000, UNLOCK: 0, desc: "收敛周身气息，吐纳不泄，减少修为修炼、肉身修炼、功法修炼的灵气消耗。" },
-  { id: "yandao",   name: "识海演道诀", key: "gf",   MAX: 108, STEPS: [[108, 1]], UNLOCK: 0, desc: "以识海推演功法运行，减少功法修炼时间。" },
-  { id: "wanfa",    name: "万法通明录", key: "sp",   MAX: 108, STEPS: [[108, 1]], UNLOCK: 0, desc: "神识映照万法，法术一观即通，减少法术修炼时间。" },
+  { id: "ningshen", name: "凝神观想诀", ICON: "sg_2_0", key: "pow",  MAX: 108, STEPS: [[18, 1], [18, 2], [18, 3], [18, 4], [18, 5], [18, 6]], UNLOCK: 0, desc: "观想识海，凝炼元神，增加神识强度。" },
+  { id: "cailing",  name: "太虚采灵经", ICON: "sg_4_1", key: "cq",   MAX: 108, STEPS: [[108, 1]], UNLOCK: 0, desc: "元婴出窍时采撷天地灵物，增加元婴出窍收益。" },
+  { id: "lingtai",  name: "灵台开识篇", ICON: "sg_4_0", key: "ls",   MAX: 108, STEPS: [[18, 1], [18, 2], [18, 3], [18, 4], [18, 5], [18, 6]], UNLOCK: 0, desc: "开辟灵台，识海更广，增加灵识点。" },
+  { id: "lianxi",   name: "敛息归元诀", ICON: "sg_0_1", key: "ling", MAX: 108, FIRST: 1000, TOTAL: 720000, UNLOCK: 0, desc: "收敛周身气息，吐纳不泄，减少修为修炼、肉身修炼、功法修炼的灵气消耗。" },
+  { id: "yandao",   name: "识海演道诀", ICON: "sg_8_2", key: "gf",   MAX: 108, STEPS: [[108, 1]], UNLOCK: 0, desc: "以识海推演功法运行，减少功法修炼时间。" },
+  { id: "wanfa",    name: "万法通明录", ICON: "sg_0_2", key: "sp",   MAX: 108, STEPS: [[108, 1]], UNLOCK: 0, desc: "神识映照万法，法术一观即通，减少法术修炼时间。" },
 ];
 CFG.shenshi.COST = { STONE: 3000, STONE_ADD: 3000, HERB: 10, HERB_ADD: 10, YD: 0, YD_ADD: 0 };
 CFG.shenshi.GF_COST = [];   // 例：[[1, 36, 100000, 1, 2, 2], [37, 72, 300000, 2, 4, 4]]

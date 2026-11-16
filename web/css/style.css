@@ -581,6 +581,7 @@ button small .cd{min-width:0}
 .ys-dots { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
 .ys-dot { position: absolute; width: 26px; height: 26px; transform: translate(-50%, -50%); pointer-events: auto; background: none; border: 0; padding: 0; margin: 0; min-width: 0; min-height: 0; box-shadow: none; display: flex; align-items: center; justify-content: center; animation: ys-dot 2.4s ease-in-out infinite; }
 .ys-dot i { display: block; width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle, #fffbe8 0%, #ffe28a 38%, #ffb92e 62%, transparent 74%); box-shadow: 0 0 8px #ffd760, 0 0 16px #ffb52ecc, 0 0 26px #ffa21a88; }
+.ys-dot img { display: block; width: 20px; height: 20px; object-fit: contain; filter: drop-shadow(0 0 4px #ffd760) drop-shadow(0 0 8px #ffb52ecc); }
 @keyframes ys-dot { 0%, 100% { opacity: .8; transform: translate(-50%, -50%) scale(.85); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); } }
 .ys-pow { position: absolute; left: 8px; top: 8px; z-index: 2; padding: 4px 10px; border-radius: 6px; background: #0008; border: 1px solid #c9a96a; text-align: center; line-height: 1.2; }
 .ys-pow span { display: block; font-size: 11px; color: #d8c8a8; } .ys-pow b { font-size: 18px; color: #ffe08a; }
