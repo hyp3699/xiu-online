@@ -319,9 +319,8 @@ G.module({
       const s = this.s, st = s.gfStudy; if (!st) return "";
       const info = DATA.skillInfo(st.id, s.gongfa[st.id]), p = this.gfStudyProg(), mul = p.mul;
       // “共 X 灵气”按当前练功房倍率估算：每 5 秒单位灵气 ×mul，总单位数 ÷mul（mul=1 时与旧式一致）
-      // 星级、层数紧跟名字靠左；右边「修炼」= 再排一层（studyGongfa，满层/队列满时灰掉）（用户定 2026-11-16）
-      const nxOk = this.plannedLv(st.id) < ((DATA.skillInfo(st.id) || {}).max || DATA.GONGFA_MAX) && s.gfQueue.length < DATA.GF_QUEUE;
-      return `<div class="card"><h3 class="gf-cur-h"><span class="gf-cur-l">修炼中 ·《${info ? info.name : st.id}》</span><span class="gf-tags">${info && !info.noEl ? `<span class="tag">${info.star}星</span>` : ""}${info ? this.gfLvTo(info.lv) : ""}</span><button class="sm"${nxOk ? "" : " disabled"} onclick="G.studyGongfa('${st.id}')">修炼</button></h3>
+      // 星级 + 修到第几层（只显示目标层），不换行（用户定 2026-11-16）
+      return `<div class="card"><h3 class="gf-cur-h"><span class="gf-cur-l">修炼中 ·《${info ? info.name : st.id}》</span><span class="gf-tags">${info && !info.noEl ? `<span class="tag">${info.star}星</span>` : ""}${info ? `<span class="tag gf-to">第${info.lv + 1}层</span>` : ""}</span></h3>
         <div class="bar tick"><div id="gf-cd-bar"></div></div>
         <div class="row small"><span>${st.stalled ? `<b class='q5'>${st.stone ? "灵气或灵石" : "灵气"}不足，暂停中</b>` : `${info ? `<span class="c-green">${this.gfGainTxt(info)}</span> · ` : ""}倒计时 <b><span class="cd" id="gf-cd"></span></b>`}</span></div>
         <div class="row small gf-cost"><span>每 10 秒消耗 <b>${U.fmt(this.ssGfPer(st.per * mul) * 2)}</b> 灵气${st.stone ? ` + ${U.fmt(Math.round(st.stone * mul * 2))} 灵石` : ""} · 已消耗 <b>${U.fix(U.fmt(st.spent))}</b> / ${U.fmt(this.ssGfPer(st.per * mul) * st.total / (DATA.STUDY_STEP * 1000 * mul))}</span><button class="sm" onclick="G.gfBonusView()">功法加成</button></div></div>`;
@@ -362,7 +361,7 @@ G.module({
           const q = DATA.skillInfo(id); if (!q) return "";
           // 一张网格排所有行：星级/层数一列对齐、靠右贴着按钮；按钮「修炼」再排一层、「移除」（用户定 2026-11-16）
           const ok = this.plannedLv(id) < (q.max || DATA.GONGFA_MAX) && s.gfQueue.length < DATA.GF_QUEUE;
-          return `<div class="gf-qrow"><div class="gf-qn">${i + 1}. 《${q.name}》</div><div class="gf-tags">${q.noEl ? "" : `<span class="tag">${q.star}星</span>`}${this.gfLvTo(rows[i].lv)}</div><div class="gf-qb"><button class="sm"${ok ? "" : " disabled"} onclick="G.studyGongfa('${id}')">修炼</button><button class="sm" onclick="G.removeQueue(${i})">移除</button></div><small class="gf-qs"><span class="c-green">${this.gfGainTxt(DATA.skillInfo(id, rows[i].lv))}</span> · <span class="cd" id="gf-q-${i}-acc"></span> 后完成</small></div>`; }).join(`<div class="gf-qsep"></div>`) + `</div>`
+          return `<div class="gf-qrow"><div class="gf-qn">${i + 1}. 《${q.name}》</div><div class="gf-tags">${q.noEl ? "" : `<span class="tag">${q.star}星</span>`}<span class="tag gf-to">第${rows[i].lv + 1}层</span></div><div class="gf-qb"><button class="sm"${ok ? "" : " disabled"} onclick="G.studyGongfa('${id}')">修炼</button><button class="sm" onclick="G.removeQueue(${i})">移除</button></div><small class="gf-qs"><span class="c-green">${this.gfGainTxt(DATA.skillInfo(id, rows[i].lv))}</span> · <span class="cd" id="gf-q-${i}-acc"></span> 后完成</small></div>`; }).join(`<div class="gf-qsep"></div>`) + `</div>`
           : `<p class="desc">队列为空。</p>`) + `</div>`;
       return html;
     },
