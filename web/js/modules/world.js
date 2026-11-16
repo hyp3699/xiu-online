@@ -2253,6 +2253,21 @@ G.module({
       if (x.ev.length > this.exCfg(x).TIME) x.ev.length = this.exCfg(x).TIME;
       return c === "bad"; // 战败：本次提前结束
     },
+    // 离线自动胜利补算的一步：和 exploreStep 同样的掉落，不打战斗、不写事件文字；同一张图同一类怪只生成一次（只用来算掉落）
+    exploreStepFast() {
+      const x = this.s.explore, a = x.map, r = x.reg || 0;
+      if (!x.plan) x.plan = this.exPlan(x);
+      if (x.step === 0 || !x.mp) x.mp = this.matPlan(x);
+      const si = x.step;
+      if (x.loot) { const k = this.incMul(x); if (k !== 1) x.loot.k = k; else delete x.loot.k; }
+      const c = x.plan[x.step]; x.step++;
+      if (c === "h" || c === "o") { this.rollEvent(x.loot, c === "h" ? "herbEvent" : "oreEvent", a); this.stepMats(x, si); }
+      else if (c === "m" || c === "e" || c === "b") {
+        const kind = c === "m" ? "normal" : c === "e" ? "elite" : "boss", key = a + "_" + r + "_" + kind, M = this._awMob || (this._awMob = {});
+        const m = M[key] || (M[key] = this.makeMob(a, r, kind)); m.a = a;
+        this.s.kills++; this.rollMonsterLoot(x, m); this.stepMats(x, si);
+      }
+    },
     // 生成一次探索的事件顺序（字符串，每个字符一步）：首领固定在最后一步
     // 怪物加成（普通 / 精英）：从凡界 8 图起，每 2 图普通 +1、每 5 图精英 +1，块数累加
     //   梯子位置 pos：凡界 8 图 = 1、9 图 = 2；仙 / 魔 / 冥 k 图 = 2 + k；神界 k 图 = 12 + k；普通加成 = ceil(pos / 2)，精英加成 = ceil(pos / 5)
@@ -2337,7 +2352,9 @@ G.module({
         // 战败：先把战败那一步显示出来，再等一步的时间才结算「探索失败」
         let lost = false;
         if (x.lostWait) { lost = true; x.lostWait = 0; }
-        else if (x.step < T) { if (this.exploreStep()) x.lostWait = 1; continue; }
+        else if (x.step < T) {
+          if (this._autoWin && !x.once && x.mj === undefined) { this.exploreStepFast(); if (x.step >= T) { const st = this.stats(); this.s.hp = st.hp; this.s.mana = st.mana; } continue; }   // 离线自动胜利补算：不打战斗
+          if (this.exploreStep()) x.lostWait = 1; continue; }
         if (x.step >= T || lost) {
           // 结算本次
           x.count++;

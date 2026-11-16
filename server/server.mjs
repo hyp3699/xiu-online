@@ -131,7 +131,7 @@ function timedAdvance(engine, state, now, tag, max) {
   // 这几处都是玩家不在线时的补算（后台离线结算、上线 / 会话补算、停机后补算）：探索遇怪不打，直接按胜利算（用户定 2026-11-16）
   const t = Date.now(); let o;
   if (engine.G) engine.G._autoWin = true;
-  try { o = engine.advance(state, now, max); } finally { if (engine.G) engine.G._autoWin = false; }
+  try { o = engine.advance(state, now, max); } finally { if (engine.G) { engine.G._autoWin = false; engine.G._awMob = null; } }
   const ms = Date.now() - t;
   if (ms >= 300) { const s = o.state || {}; console.log(`slow advance ${tag} ${ms}ms ticks=${o.processedTicks} explore=${!!s.explore} cq=${!!s.cq} trib=${!!s.trib}`); }
   return o;
@@ -1161,8 +1161,9 @@ setInterval(backupDb, BACKUP_MS).unref();
 const offlineIds = db.prepare("SELECT user_id FROM saves"), offlineBad = new Map();   // 结算出错的角色 30 分钟内不再后台算（免得反复刷错误），之后重试；上线时照常结算
 const OFFLINE_CHUNK = 8640;   // 后台结算每轮每人最多补 1 天（8640 个 10 秒），停服很久后不会一轮卡死，剩下的下一轮接着算
 function offlineSec() { try { const v = Number(poolEngine(false, false).CFG.rates?.OFFLINE_SEC ?? 10); return Number.isFinite(v) && v > 0 ? Math.max(1, v) : 10; } catch { return 10; } }   // 后台结算不能关：0 / 缺失 / 无效一律按默认 10 秒
+let offlineBacklog = false;   // 有人还没补完（停机很久 / 离线很久）：下一轮 0.2 秒后接着补，不等 10 秒（用户定 2026-11-16 补算要快）
 function offlineSettle() {
-  const t0 = Date.now(); let n = 0;
+  const t0 = Date.now(); let n = 0; offlineBacklog = false;
   for (const { user_id: id } of offlineIds.all()) {
     if (clients.has(id)) continue;
     if (offlineBad.has(id)) { if (Date.now() - offlineBad.get(id) < 30 * 60_000) continue; offlineBad.delete(id); }
@@ -1170,13 +1171,14 @@ function offlineSettle() {
       const st = getState(id); if (!st) continue;
       const o = timedAdvance(getEngine(id), st, Date.now(), `offline u${id}`, OFFLINE_CHUNK);
       if (o.processedTicks > 0) { persist(id, o.state); n++; }
+      if (o.truncated) offlineBacklog = true;
     } catch (err) { offlineBad.set(id, Date.now()); console.error(`offline settle u${id} failed:`, err?.message || err); }
   }
   const ms = Date.now() - t0; if (ms >= 1000) console.log(`offline settle ${n} players ${ms}ms`);
 }
 (function offlineLoop() {
   const sec = offlineSec();
-  setTimeout(() => { if (sec > 0) { try { offlineSettle(); } catch (err) { console.error("offline settle failed:", err?.message || err); } } offlineLoop(); }, (sec || 10) * 1000).unref();
+  setTimeout(() => { if (sec > 0) { try { offlineSettle(); } catch (err) { console.error("offline settle failed:", err?.message || err); } } offlineLoop(); }, offlineBacklog ? 200 : (sec || 10) * 1000).unref();
 })();
 
 let lastHousekeeping = 0;
