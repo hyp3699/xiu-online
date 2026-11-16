@@ -359,9 +359,8 @@ G.module({
       html += `<div class="card"><h3>排队中<small>${s.gfQueue.length} / ${DATA.GF_QUEUE}${s.gfQueue.length ? ` · 全部完成约 <span class="cd" id="gf-q-total"></span>` : ""}</small></h3>` +
         (s.gfQueue.length ? `<div class="gf-qlist">` + s.gfQueue.map((id, i) => {
           const q = DATA.skillInfo(id); if (!q) return "";
-          // 一张网格排所有行：星级/层数一列对齐、靠右贴着按钮；按钮「修炼」再排一层、「移除」（用户定 2026-11-16）
-          const ok = this.plannedLv(id) < (q.max || DATA.GONGFA_MAX) && s.gfQueue.length < DATA.GF_QUEUE;
-          return `<div class="gf-qrow"><div class="gf-qn">${i + 1}. 《${q.name}》</div><div class="gf-tags">${q.noEl ? "" : `<span class="tag">${q.star}星</span>`}<span class="tag gf-to">第${rows[i].lv + 1}层</span></div><div class="gf-qb"><button class="sm"${ok ? "" : " disabled"} onclick="G.studyGongfa('${id}')">修炼</button><button class="sm" onclick="G.removeQueue(${i})">移除</button></div><small class="gf-qs"><span class="c-green">${this.gfGainTxt(DATA.skillInfo(id, rows[i].lv))}</span> · <span class="cd" id="gf-q-${i}-acc"></span> 后完成</small></div>`; }).join(`<div class="gf-qsep"></div>`) + `</div>`
+          // 一张网格排所有行：星级/层数一列对齐、靠右贴着按钮；按钮只留「移除」（用户定 2026-11-16）
+          return `<div class="gf-qrow"><div class="gf-qn">${i + 1}. 《${q.name}》</div><div class="gf-tags">${q.noEl ? "" : `<span class="tag">${q.star}星</span>`}<span class="tag gf-to">第${rows[i].lv + 1}层</span></div><div class="gf-qb"><button class="sm" onclick="G.removeQueue(${i})">移除</button></div><small class="gf-qs"><span class="c-green">${this.gfGainTxt(DATA.skillInfo(id, rows[i].lv))}</span> · <span class="cd" id="gf-q-${i}-acc"></span> 后完成</small></div>`; }).join(`<div class="gf-qsep"></div>`) + `</div>`
           : `<p class="desc">队列为空。</p>`) + `</div>`;
       return html;
     },
