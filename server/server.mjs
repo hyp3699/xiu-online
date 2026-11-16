@@ -105,8 +105,9 @@ function engineHandle(userId, E) {
     get DATA() { E.use(userId); return E.DATA; },
     get CFG() { return E.CFG; },
     get logs() { return E.logs; },
-    advance: (s, now, max) => E.use(userId).advance(s, now, max),
-    act: (s, action, args, now) => E.use(userId).act(s, action, args, now),
+    advance: (s, now, max) => withAutoWin(E.use(userId), s, now, e => e.advance(s, now, max)),
+    // 操作前最多补 1 天（补算段按自动胜利），剩下的由定时结算分片补；操作本身不按自动胜利
+    act: (s, action, args, now) => { const e = E.use(userId), pre = withAutoWin(e, s, now, x => x.advance(s, now, CATCHUP_CHUNK_TICKS)); return e.act(s, action, args, now, pre.truncated ? 1 : CATCHUP_CHUNK_TICKS); },
     createState: (...a) => E.use(userId).createState(...a),
     bindState: (s, now) => E.use(userId).bindState(s, now),
     drop: () => E.drop(userId),
@@ -128,16 +129,26 @@ function warmEngines() {
 }
 // 结算慢时记一行日志（离线太久、探索 / 出窍中逐个结算等），方便查进游戏慢的原因
 const CATCHUP_GAP_MS = 5 * 60_000;   // 存档落后超过 5 分钟 = 服务器那段时间没在跑，才按离线补算（用户定 2026-11-16）
-function timedAdvance(engine, state, now, tag, max) {
-  // 只补算服务器没在跑的那段（停机 / 存档从别的服务器搬来）：服务器正常运行时后台每 10 秒就结算一次离线玩家，落后不会超过几十秒，
-  // 这时照常逐步战斗；落后超过 CATCHUP_GAP_MS 才算「补算」，遇怪直接胜利、按平均数给掉落（用户定 2026-11-16）
-  const t = Date.now(); let o;
+// 补算分片（用户定 2026-11-16）：一次 advance 最多补 1 天，同一次调用连续补到用掉 CATCHUP_SLICE_MS 毫秒为止，
+// 剩下的交给下一轮（在线玩家 100 毫秒定时器、离线玩家后台结算），中间让出事件循环，补算 1000 天也不会卡住其他玩家。
+// 结果与一次补完相同（advance 截断时 s.last 只推进到已算完的位置）。
+const CATCHUP_CHUNK_TICKS = 8640, CATCHUP_SLICE_MS = 100;
+// 只补算服务器没在跑的那段（停机 / 存档从别的服务器搬来）：服务器正常运行时后台每 10 秒就结算一次离线玩家，落后不会超过几十秒，
+// 这时照常逐步战斗；落后超过 CATCHUP_GAP_MS 才算「补算」，遇怪直接胜利、按平均数给掉落（用户定 2026-11-16）
+function withAutoWin(e, state, now, fn) {
   const last = Number(state && state.last) || now;
-  if (engine.G) engine.G._autoWin = now - last > CATCHUP_GAP_MS;
-  try { o = engine.advance(state, now, max); } finally { if (engine.G) { engine.G._autoWin = false; engine.G._awMob = null; } }
+  if (e.G) e.G._autoWin = now - last > CATCHUP_GAP_MS;
+  try { return fn(e); } finally { if (e.G) { e.G._autoWin = false; e.G._awMob = null; } }
+}
+function timedAdvance(engine, state, now, tag, sliceMs = CATCHUP_SLICE_MS) {
+  const t = Date.now(); let o, ticks = 0, logs = [], n = 0;
+  do {
+    o = engine.advance(state, now, CATCHUP_CHUNK_TICKS); state = o.state; n++;
+    ticks += o.processedTicks || 0; if (o.logs && o.logs.length) { logs.push(...o.logs); if (logs.length > 200) logs = logs.slice(-200); }
+  } while (o.truncated && Date.now() - t < sliceMs);
   const ms = Date.now() - t;
-  if (ms >= 300) { const s = o.state || {}; console.log(`slow advance ${tag} ${ms}ms ticks=${o.processedTicks} explore=${!!s.explore} cq=${!!s.cq} trib=${!!s.trib}`); }
-  return o;
+  if (ms >= 300) { const s = o.state || {}; console.log(`slow advance ${tag} ${ms}ms ticks=${ticks} chunks=${n} explore=${!!s.explore} cq=${!!s.cq} trib=${!!s.trib}`); }
+  return { ...o, logs, processedTicks: ticks };
 }
 function dropEngine(userId) { const e = engines.get(userId); if (e) { try { e.engine.drop(); } catch {} engines.delete(userId); } }
 
@@ -522,12 +533,12 @@ const server = http.createServer(async (req, res) => {
       let data;
       if (on) {
         // 单次最多补 10 天：剩下的由 WS 定时结算继续补（advance 截断时 s.last 不跳到现在）
-        const advanced = on.engine.advance(on.state, Date.now(), ADVANCE_BUDGET_TICKS);
+        const advanced = timedAdvance(on.engine, on.state, Date.now(), `session u${user.id}`);
         on.state = advanced.state; on.nextCheck = Math.min(Date.now() + CHECK_MS, Math.max(Date.now() + 50, (advanced.nextDue || 0) + DUE_MARGIN_MS));
         data = on.state; persist(user.id, data);
       } else {
         data = getState(user.id);
-        if (data) { data = timedAdvance(getEngine(user.id), data, Date.now(), `session u${user.id}`, ADVANCE_BUDGET_TICKS).state; persist(user.id, data); }
+        if (data) { data = timedAdvance(getEngine(user.id), data, Date.now(), `session u${user.id}`).state; persist(user.id, data); }
       }
       return sendJson(res, 200, { data, serverNow: Date.now(), actions: [...ACTIONS], admin: !!user.is_admin, debug: !!user.debug });
     }
@@ -761,7 +772,7 @@ const server = http.createServer(async (req, res) => {
         const items = JSON.parse(gift.payload).items || [], playerEngine = getEngine(user.id);
         // 在线时也先结算到现在：原来直接用内存状态发奖，内存状态落后时按旧状态结算；
         // 与 /api/session 一致，单次最多补 10 天，剩下的由定时结算继续补。
-        state = timedAdvance(playerEngine, state, Date.now(), `gift u${user.id}`, ADVANCE_BUDGET_TICKS).state;
+        state = timedAdvance(playerEngine, state, Date.now(), `gift u${user.id}`).state;
         playerEngine.bindState(state, Date.now());
         const got = [], lost = [];
         for (const item of items) (playerEngine.G.giftGive(item) ? got : lost).push(playerEngine.G.giftLabel(item));
@@ -898,7 +909,7 @@ wss.on("connection", (socket, session) => {
     state = getState(user.id);
     if (!state) { socket.close(4004, "角色尚未创建"); return; }
     playerEngine = getEngine(user.id);
-    advanced = timedAdvance(playerEngine, state, Date.now(), `login u${user.id}`, ADVANCE_BUDGET_TICKS); persist(user.id, advanced.state);
+    advanced = timedAdvance(playerEngine, state, Date.now(), `login u${user.id}`); persist(user.id, advanced.state);
   } catch (err) { console.error("login settle/save failed:", err?.message || err); socket.close(4005, "角色数据异常，无法登录"); return; }
   const saved = q.save.get(user.id);
   const client = { socket, userId: user.id, engine: playerEngine, state: advanced.state, revision: saved?.revision || 1, lastPersist: Date.now(), rateWindow: Date.now(), rateCount: 0, nextCheck: Math.min(Date.now() + CHECK_MS, (advanced.nextDue || 0) + DUE_MARGIN_MS), lastPush: 0, lastSent: null, seq: 0 };
@@ -923,7 +934,7 @@ wss.on("connection", (socket, session) => {
     if (msg && msg.type === "resync") {
       // 客户端从后台切回来会发 resync：先把到现在为止的进度结算完、落盘，再推完整状态
       let logs = [];
-      try { const o = client.engine.advance(client.state, now, ADVANCE_BUDGET_TICKS); client.state = o.state; logs = o.logs || []; client.nextCheck = Math.min(now + CHECK_MS, Math.max(now + 50, (o.nextDue || 0) + DUE_MARGIN_MS)); } catch (err) { console.error("resync advance failed:", err?.stack || err); }
+      try { const o = timedAdvance(client.engine, client.state, now, `resync u${user.id}`); client.state = o.state; logs = o.logs || []; client.nextCheck = Math.min(now + CHECK_MS, Math.max(now + 50, (o.nextDue || 0) + DUE_MARGIN_MS)); } catch (err) { console.error("resync advance failed:", err?.stack || err); }
       try { persist(user.id, client.state); } catch (err) { console.error("resync save failed:", err?.message || err); }
       pushState(client, now, logs, true, true); return;
     }
@@ -1177,26 +1188,31 @@ setInterval(backupDb, BACKUP_MS).unref();
 // 不在线的角色读出来、结算到现在、落盘，再进游戏时只补最后一小段，不用一次性补算整段离线时间。
 // 每人每次一个 JSON 读写 + 一个周期结算；整轮超过 1 秒会记日志，玩家多了再改成分批。
 const offlineIds = db.prepare("SELECT user_id FROM saves"), offlineBad = new Map();   // 结算出错的角色 30 分钟内不再后台算（免得反复刷错误），之后重试；上线时照常结算
+let offlineAt = 0;   // 后台结算轮转起点：每轮最多用 CATCHUP_SLICE_MS 毫秒补算，下一轮从没轮到的人接着
 const OFFLINE_CHUNK = ADVANCE_BUDGET_TICKS;   // 用户定 2026-11-16：按离线时间一次补完（原 8640 = 每轮 1 天）;   // 后台结算每轮每人最多补 1 天（8640 个 10 秒），停服很久后不会一轮卡死，剩下的下一轮接着算
 function offlineSec() { try { const v = Number(poolEngine(false, false).CFG.rates?.OFFLINE_SEC ?? 10); return Number.isFinite(v) && v > 0 ? Math.max(1, v) : 10; } catch { return 10; } }   // 后台结算不能关：0 / 缺失 / 无效一律按默认 10 秒
 let offlineBacklog = false;   // 有人还没补完（停机很久 / 离线很久）：下一轮 0.2 秒后接着补，不等 10 秒（用户定 2026-11-16 补算要快）
 function offlineSettle() {
   const t0 = Date.now(); let n = 0; offlineBacklog = false;
-  for (const { user_id: id } of offlineIds.all()) {
+  const ids = offlineIds.all(), N = ids.length; let k = 0;
+  for (; k < N; k++) {
+    const id = ids[(offlineAt + k) % N].user_id;
     if (clients.has(id)) continue;
+    if (Date.now() - t0 > CATCHUP_SLICE_MS) { offlineBacklog = true; break; }   // 这一轮时间用完，剩下的人下一轮先补
     if (offlineBad.has(id)) { if (Date.now() - offlineBad.get(id) < 30 * 60_000) continue; offlineBad.delete(id); }
     try {
       const st = getState(id); if (!st) continue;
-      const o = timedAdvance(getEngine(id), st, Date.now(), `offline u${id}`, OFFLINE_CHUNK);
+      const o = timedAdvance(getEngine(id), st, Date.now(), `offline u${id}`);
       if (o.processedTicks > 0) { persist(id, o.state); n++; }
       if (o.truncated) offlineBacklog = true;
     } catch (err) { offlineBad.set(id, Date.now()); console.error(`offline settle u${id} failed:`, err?.message || err); }
   }
+  offlineAt = N ? (offlineAt + k) % N : 0;
   const ms = Date.now() - t0; if (ms >= 1000) console.log(`offline settle ${n} players ${ms}ms`);
 }
 (function offlineLoop() {
   const sec = offlineSec();
-  setTimeout(() => { if (sec > 0) { try { offlineSettle(); } catch (err) { console.error("offline settle failed:", err?.message || err); } } offlineLoop(); }, offlineBacklog ? 200 : (sec || 10) * 1000).unref();
+  setTimeout(() => { if (sec > 0) { try { offlineSettle(); } catch (err) { console.error("offline settle failed:", err?.message || err); } } offlineLoop(); }, offlineBacklog ? 50 : (sec || 10) * 1000).unref();
 })();
 
 let lastHousekeeping = 0;
@@ -1214,7 +1230,10 @@ const timer = setInterval(() => {
     try {
       if (now >= client.nextCheck) {
         // 单次最多补 10 天：截断后 nextDue = s.last+10 秒（已过去），下次检查（最快 50 毫秒后）继续补，直到追上现在
-        const old = client.state, outcome = client.engine.advance(old, now, ADVANCE_BUDGET_TICKS); client.state = outcome.state;   // old 已被引擎改成和新状态一样，拿来当 lastSent
+        // 补算中（落后超过 CATCHUP_GAP_MS）：这一轮定时器已经用掉 CATCHUP_SLICE_MS 就留到下一轮，免得几个人同时补算把服务器卡住
+        const lagging = now - (Number(client.state && client.state.last) || now) > CATCHUP_GAP_MS;
+        if (lagging && Date.now() - now > CATCHUP_SLICE_MS) continue;
+        const old = client.state, outcome = timedAdvance(client.engine, old, now, `online u${userId}`); client.state = outcome.state;   // old 已被引擎改成和新状态一样，拿来当 lastSent
         client.nextCheck = Math.min(now + CHECK_MS, Math.max(now + 50, (outcome.nextDue || 0) + DUE_MARGIN_MS));
         // 先落盘再推送：原来先推送、30 秒才落盘一次，进程在这窗口内崩溃时，客户端已看到
         // 的进度会回滚，且重算的随机结果可能与已推送的不一致；每次结算都落盘

@@ -69,7 +69,8 @@
       if (s.sect && a && a.task !== undefined && a.task >= 0) { const t = DATA.affairs[a.task]; if (!t) return -Infinity; ev.push(a.start + t.time * 60000); }
       if (s.freeGf && s.sect && last < s.freeGf.end) ev.push(s.freeGf.end);
       // 修炼室 / 练功房按分钟扣贡献：到点逐个结算（旧存档还没起算的先逐个结算一次）
-      for (const k of ["room", "gfRoom"]) if (s.sect && s[k] >= 0) { if (!s[k + "At"]) return -Infinity; ev.push(s[k + "At"]); }
+      // 贡献够就不再每分钟停一次：fastRun 里按同样的规则逐分钟扣（用户定 2026-11-16 付费房事件合并），贡献不够那一刻才算事件
+      for (const k of ["room", "gfRoom"]) if (s.sect && s[k] >= 0) { if (!s[k + "At"]) return -Infinity; if (!(k === "room" ? DATA.rooms : DATA.gfRooms)[s[k]]) return -Infinity; }
       // 星君官位俸禄
       const H = (CFG.xingjun.HOUR || 3600) * 1000;
       for (const w in s.offices || {}) { const o = s.offices[w]; if (!o) continue; if (!o.T) return -Infinity; ev.push(o.T + H); }
@@ -128,8 +129,13 @@
       let payMin = Infinity;
       if (s.svAuto) for (const d of s.servants || []) { const c = this.svOwed(d) * this.svSalary(d); if (c > 0) payMin = Math.min(payMin, c); }
 
+      // 付费修炼室 / 练功房扣贡献（同 sect.js roomBill）：免费房使用中只把下次扣费时间往后推；贡献不够要离开房间 = 事件
+      const RB = [], RT = this.roomBillMs();
+      for (const k of ["room", "gfRoom"]) if (s.sect && s[k] >= 0) RB.push({ k, c: k === "room" ? this.roomCost(s[k]) : this.gfRoomCost(s[k]), free: k === "gfRoom" ? !!(this.freeGfOn && this.freeGfOn()) : null });
+      const FREE0 = !!this.freeCultOn();   // 免费修炼室开着（没在修炼时次数不减，一直开着）
+      let contrib = s.contrib, rAt = RB.map(r => s[r.k + "At"]), billed = false;
       // ---------- 逐次做数字计算（顺序和各模块 tick 一致） ----------
-      let hp = s.hp, mana = s.mana, ling = s.ling, exp = s.exp, stone = s.stone, bodyExp = s.bodyExp, lack = s.lackWarned;   // 贡献不在这里变：加速区间到不了扣贡献的时刻，s.contrib 原样不动
+      let hp = s.hp, mana = s.mana, ling = s.ling, exp = s.exp, stone = s.stone, bodyExp = s.bodyExp, lack = s.lackWarned;   // 贡献：付费房扣费在上面 RB 里算
       let freeLeft = freeOn ? s.freeCult.left : 0;
       let bl = buffs.map(b => b.left);
       let at = gs ? gs.at : 0, done = gs ? gs.done : 0, spent = gs ? gs.spent : 0, spentStone = gs ? gs.spentStone : undefined, su = gs ? gs.su || 0 : 0, rU = gs ? gs.rU || 0 : 0, stalled = gs ? gs.stalled : undefined;
@@ -139,6 +145,7 @@
         // 用临时变量算这一次，遇到事件就整次作废，交给逐个结算
         let h = hp, mp = mana, L = ling, ex = exp, sn = stone, be = bodyExp, lk = lack, fl = freeLeft;
         let a2 = at, d2 = done, s2 = spent, ss2 = spentStone, su2 = su, ru2 = rU, sl2 = stalled, bl2 = bl;
+        let cb = contrib, rA2 = rAt, bd = false;
         // 1. player：生命、法力恢复
         if (h < HP) h = Math.min(HP, h + HP * R0.hp / 100);
         if (mp < MP) mp = Math.min(MP, mp + MP * R0.mana / 100);
@@ -167,7 +174,19 @@
             if (d2 >= gs.total) break;   // 修炼完成：事件
           }
         }
-        // 4. sect：0 点重置、炼体池、事务堂都是事件（已算进时间）
+        // 4. sect：0 点重置、炼体池、事务堂都是事件（已算进时间）；付费房扣贡献
+        if (RB.length) {
+          rA2 = rAt.slice(); let quit = false;
+          for (let r = 0; r < RB.length; r++) {
+            const R = RB[r];
+            if (R.k === "room" ? FREE0 && (!freeOn || fl > 0) : R.free) { rA2[r] = now + RT; continue; }   // 免费房使用中：付费房不扣（fl 为这次扣次数前的免费次数，免费房开着才 >0）
+            if (now < rA2[r]) continue;
+            const nn = Math.floor((now - rA2[r]) / RT) + 1;
+            if (R.c > 0 && Math.floor(cb / R.c) < nn) { quit = true; break; }   // 贡献不够：离开房间 = 事件，交给逐个结算
+            cb -= nn * R.c; rA2[r] += nn * RT; bd = true;
+          }
+          if (quit) break;
+        }
         // 5. cultivate：修为修炼
         let ended = false;
         if (cultOn) {
@@ -198,7 +217,7 @@
         // 12. servant：灵石够发俸禄 → 事件
         if (sn >= payMin) break;
         // 这一次没有事件：提交
-        hp = h; mana = mp; ling = L; exp = ex; stone = sn; bodyExp = be; lack = lk; freeLeft = fl;
+        hp = h; mana = mp; ling = L; exp = ex; stone = sn; bodyExp = be; lack = lk; freeLeft = fl; contrib = cb; rAt = rA2; if (bd) billed = true;
         at = a2; done = d2; spent = s2; spentStone = ss2; su = su2; rU = ru2; stalled = sl2; bl = bl2;
         if (ended) stop = true;
       }
@@ -207,6 +226,7 @@
       if (!done_n) return 0;
       s.hp = hp; s.mana = mana; s.ling = ling; s.exp = exp; s.stone = stone; s.bodyExp = bodyExp; s.lackWarned = lack;
       if (freeOn) s.freeCult.left = freeLeft;
+      if (RB.length) { s.contrib = contrib; RB.forEach((R, r) => { s[R.k + "At"] = rAt[r]; }); if (billed) this.dirty(); }
       buffs.forEach((b, k) => { b.left = bl[k]; });
       if (gs) { gs.at = at; gs.done = done; gs.spent = spent; if (spentStone !== undefined) gs.spentStone = spentStone; if (su) gs.su = su; if (rU) gs.rU = rU; else delete gs.rU; if (stalled !== undefined) gs.stalled = stalled; }
       if (stop) this.dirty();   // 丹药药力耗尽：修炼速度重新计算（和 cultivate.js 一样）
