@@ -885,9 +885,17 @@ button.sm.pill{padding:4px 12px}
 .ori-it.on::after{content:"✓";position:absolute;top:-1px;right:-1px;width:22px;height:22px;line-height:22px;text-align:center;border-radius:0 6px 0 8px;background:#e8c878;color:#3a2a08;font-size:14px;font-weight:700}
 .ori-it.on b{padding-right:16px}
 .ori-it.off{opacity:.45}
-.gf-cur-h{display:flex!important;align-items:center;justify-content:space-between;gap:8px}
-.gf-cur-l{flex:1 1 auto;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px}
-.gf-cur-h>button{flex:0 0 auto;margin:0}
+.gf-cur-h{display:grid!important;grid-template-columns:minmax(0,1fr) max-content auto;align-items:center;gap:6px}
+.gf-cur-l{min-width:0}
+.gf-cur-h>button{margin:0}
+.gf-tags{white-space:nowrap;display:flex;align-items:center;gap:3px;font-size:13px;font-weight:normal}
+.gf-tags .tag{margin-left:0}
+.gf-qlist{display:grid;grid-template-columns:minmax(0,1fr) max-content auto;column-gap:6px;align-items:center}
+.gf-qrow{display:contents}
+.gf-qn{padding-top:6px;min-width:0}
+.gf-qb{grid-row:span 2;display:flex;flex-direction:column;gap:4px;padding:6px 0;align-self:stretch;justify-content:center;border-bottom:1px dashed #2f2721}
+.gf-qb button{margin:0}
+.gf-qs{grid-column:1/3;display:block;color:var(--t-dim);font-size:12px;padding-bottom:6px;border-bottom:1px dashed #2f2721}
 .ori-sec{border-top:1px dashed rgba(232,200,120,.3);padding-top:6px}
 .ori-sec-t{font-size:14px;margin-bottom:6px}
 .ori-tags{display:flex;flex-wrap:wrap;gap:6px}
