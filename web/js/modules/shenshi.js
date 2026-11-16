@@ -127,8 +127,9 @@ G.module({
     // 功法修炼每 5 秒单位灵气（减少量按每 10 秒的数字，单位是一半）；alone=true：列表里单独估算（整份减少量都给它）
     ssGfPer(per, alone) { return Math.max(0, per - (alone ? this.ssGfSum("ling") : this.lxShare().gf) / 2); },   // 功法修炼每 5 秒单位灵气（《敛息归元诀》按每 10 秒的数字减，单位是一半）
     // 第 k 层的消耗（没写 = 不要）：stone 灵石，sm 专用材料 [[键, 数量]]（养神丹 yd、元魂果 yhg、凝魂芝 nhz）
-    ssGfCost(k) {
+    ssGfCost(k, g) {
       const mk = (st, yd, yhg, nhz) => ({ stone: Math.max(0, st || 0), sm: [["yd", yd], ["yhg", yhg], ["nhz", nhz]].filter(x => x[1] > 0) });
+      if (g && Array.isArray(g.COSTS)) { const r = g.COSTS[k - 1]; return r ? mk(r[0], r[1], r[2], r[3]) : mk(0); }   // 按阶段的消耗表
       const T = CFG.shenshi.GF_COST || [];
       if (T.length) { for (const [a, b, st, yd, yhg, nhz] of T) if (k >= a && k <= b) return mk(st, yd, yhg, nhz); return mk(0); }
       const C = CFG.shenshi.COST || {}, f = (b, d) => (b || 0) + (d || 0) * (k - 1), h = f(C.HERB, C.HERB_ADD);
@@ -148,7 +149,7 @@ G.module({
       const s = this.s, g = this.ssGfDef(String(id)); if (!g) return;
       const lv = this.ssGfLv(g.id); if (lv >= g.MAX) return this.log(`《${g.name}》已修炼圆满。`, "sys");
       if ((s.ssPow || 0) < (g.UNLOCK || 0) && !DATA.isTest()) return this.log(`神识强度达到 ${g.UNLOCK} 才能修炼《${g.name}》。`, "sys");
-      const c = DATA.isTest() ? { stone: 0, sm: [] } : this.ssGfCost(lv + 1);
+      const c = DATA.isTest() ? { stone: 0, sm: [] } : this.ssGfCost(lv + 1, g);
       if (s.stone < c.stone) return this.log(`灵石不足，需要 ${U.fmt(c.stone)}。`, "sys");
       for (const [k, n] of c.sm) if (this.smCount(k) < n) return this.log(`${DATA.smName(k)}不足，需要 ${n}。`, "sys");
       s.stone -= c.stone; for (const [k, n] of c.sm) this.takeSm(k, n);
@@ -156,18 +157,18 @@ G.module({
       const add = this.ssGfVal(g, lv + 1) - this.ssGfVal(g, lv);
       if (g.key === "pow") s.ssPow = (s.ssPow || 0) + add;   // 神识强度直接加进 ssPow（和悟道室神魂之道一样）
       this._ysFx = Date.now();
-      this.log(`《${g.name}》修炼至第 ${lv + 1} 层，神识功法效果累计 ${this.ssGfEff(g, lv + 1)}。`, "gold"); this.dirty(); this.after();
+      this.log(`《${g.name}》修炼至第 ${lv + 1} ${g.UNIT || "层"}，神识功法效果累计 ${this.ssGfEff(g, lv + 1)}。`, "gold"); this.dirty(); this.after();
     },
     openSsGf(id) {
       const g = this.ssGfDef(id); if (!g) return;
-      const s = this.s, lv = this.ssGfLv(g.id), full = lv >= g.MAX, c = this.ssGfCost(lv + 1), lock = (s.ssPow || 0) < (g.UNLOCK || 0) && !DATA.isTest();
+      const s = this.s, lv = this.ssGfLv(g.id), full = lv >= g.MAX, c = this.ssGfCost(lv + 1, g), lock = (s.ssPow || 0) < (g.UNLOCK || 0) && !DATA.isTest();
       // 消耗：和养神丹一样的图标格（图 + 拥有/需要），灵石也一格
       const cell = (img, have, need, nm) => `<div class="ys-need" title="${nm}"><img src="${img}" alt="${nm}"><b class="${have >= need ? "" : "q5"}">${U.fmt(have)}/${U.fmt(need)}</b></div>`;
       const cost = [c.stone ? cell(DATA.iconImg("stone"), s.stone, c.stone, "灵石") : "", ...c.sm.map(([k, n]) => cell(DATA.smIcon(k), this.smCount(k), n, DATA.smName(k)))].join("");
       const ok = !full && !lock && s.stone >= c.stone && c.sm.every(([k, n]) => this.smCount(k) >= n);
       this.modal(`<h2>《${g.name}》</h2><p class="desc">${g.desc}</p>
-        <div class="stats"><div><span>层数</span>${lv} / ${g.MAX}</div><div><span>当前效果</span>${lv ? this.ssGfEff(g, lv) : "无"}</div></div>
-        ${full ? `<p class="desc">已修炼圆满。</p>` : `<div class="row small"><span>下一层</span><span>${this.ssGfEff(g, lv + 1)}</span></div>
+        <div class="stats"><div><span>${g.UNIT || "层数"}</span>${lv} / ${g.MAX}</div><div><span>当前效果</span>${lv ? this.ssGfEff(g, lv) : "无"}</div></div>
+        ${full ? `<p class="desc">已修炼圆满。</p>` : `<div class="row small"><span>下一${g.UNIT || "层"}</span><span>${this.ssGfEff(g, lv + 1)}</span></div>
         ${cost ? `<div class="ssgf-cost">${cost}</div>` : ""}${lock ? `<p class="desc q5">神识强度达到 ${g.UNLOCK} 才能修炼。</p>` : ""}`}
         <div class="btns">${full ? "" : `<button class="primary" onclick="G.ssGfUp('${g.id}')" ${ok ? "" : "disabled"}>修炼</button>`}<button onclick="G.closeModal()">关闭</button></div>`);
     },

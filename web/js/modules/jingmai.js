@@ -59,6 +59,7 @@ G.module({
     // 冲穴：光点 node 的第 x 个穴位冲一层（只能冲当前那个）
     jmOpen(node, x) {
       const s = this.s, d = this.jmNodes()[node]; if (!d) return;
+      if (this.ngHas && !this.ngHas()) return this.log(`需先在宗门宝库学会${CFG.neiguan.NAME}才能打开经脉。`, "sys");
       const ly = this.jmLy(), cur = this.jmCur(node), nm = this.jmXue(node, x)[0];
       if (cur >= this.jmXN()) return this.log(`${d.n.name}已全部冲满。`, "sys");
       if (x !== cur) return this.log(x < cur ? `「${nm}」已冲满 ${ly} 层。` : `需先冲满「${this.jmXue(node, cur)[0]}」。`, "sys");
@@ -105,6 +106,7 @@ G.module({
     jmInOpen(node, j) {
       node = Math.floor(+node); j = Math.floor(+j);
       const s = this.s, d = this.jmNodes()[node], X = this.jmInList()[j], C = this.jmIn(); if (!d || !X) return;
+      if (this.ngHas && !this.ngHas()) return this.log(`需先在宗门宝库学会${CFG.neiguan.NAME}才能打开经脉。`, "sys");
       if (!this.jmInOk(node)) { const rq = Math.max(this.jmReq(node), +(CFG.jingmai || {}).UNLOCK_REALM || 0); return this.log(`「${X.name}」需要${DATA.realmLabel(rq)}才能冲。`, "sys"); }
       const key = X.cost === "bodyExp" ? "bodyExp" : "exp", cn = key === "exp" ? "修为" : "气血", need = this.jmInCost(node, j);
       if ((+s[key] || 0) < need) return this.log(`${cn}不足，冲「${X.name}」需要 ${U.fmt(need)} ${cn}。`, "sys");
@@ -118,7 +120,8 @@ G.module({
       this.log(`「${X.name}」冲至第 ${o.n} 层，${this.jmStatName(k)}增加 ${U.num(add)}。`, "good");
       this.jmReset(); this.dirty(); this.after();
     },
-    openJingmai(on) { this.cultView = on ? "jingmai" : ""; this.jmNode = null; this.render(); },
+    openJingmai(on) { if (on && this.ngHas && !this.ngHas()) return this.modal(`<h2>经脉</h2><p class="desc">需先在宗门宝库「杂物」学会《${CFG.neiguan.NAME}》才能打开经脉。</p><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);   // 太上内观经（用户定 2026-11-16）
+      this.cultView = on ? "jingmai" : ""; this.jmNode = null; this.render(); },
     openJmNode(i) { this.jmNode = i === null || i === undefined ? null : i; this.render(); },
   },
 });

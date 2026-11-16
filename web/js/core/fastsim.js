@@ -62,6 +62,7 @@
       if (s.studyBuff && s.studyBuff.end && this.studyPillFix) this.studyPillFix(s.studyBuff);
       if (s.studyBuff && s.studyBuff.end) ev.push(s.studyBuff.end);   // 悟真丹到期：重新算练功房倍率
       if (s.cqzjL) ev.push(s.cqzjL.end);   // 出窍真诀学完
+      if (s.ngL) ev.push(s.ngL.end);   // 太上内观经学完
       // 门派：炼体池、事务堂、免费练功房到时
       if (s.pool && s.pool.end) ev.push(s.pool.end);
       if (s.jd && s.jd.cur) ev.push(s.jd.cur.end);   // 讲道室听完

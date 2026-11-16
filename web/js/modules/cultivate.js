@@ -399,6 +399,7 @@ G.module({
     const s = this.s, sp = this.speed(), cap = this.lingCap();
     if (this.cultView === "body") return this.bodyView();   // 修炼肉身（modules/body.js）
     if (this.cultView === "shenshi") return this.shenshiView();   // 神识（modules/shenshi.js）
+    if (this.cultView === "jingmai" && this.ngHas && !this.ngHas()) this.cultView = "";   // 没学太上内观经不能进经脉
     if (this.cultView === "jingmai") return this.jingmaiView();   // 经脉（modules/jingmai.js）
     if (this.cultView === "set") return this.setView();   // 设置（修炼 / 战斗 / 其他）
     this.applyHeroAva();

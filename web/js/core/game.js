@@ -83,6 +83,7 @@ const G = {
     if (this.mobElInit) this.mobElInit(s);   // 首领 / 天将 / 星君 / 界主属性：第一次进游戏随机定死
     if (this.lgYsInit) this.lgYsInit(s);   // 灵果种子：哪些隐世宗门换哪种，第一次进游戏随机定死（world.js）
     s._nm = DATA.nmSnap();   // 新存档记下当前用的名字（config/names.js），以后改名读档时对照
+    s.ssGf6 = 1;   // 神识功法已是 6 阶段（见 migrate）
     s._oreV2 = 1;   // v254 矿石表新版（见 migrate）
     s.lzB1000 = true; s.lzV3 = true;   // lzV3：灵珠 3000 / 每强化 +24（见 migrate）   // 新存档的灵珠直接按 v261 后的 1000 算（见 migrate 的补 +990：只补老存档，新存档不再补）
     return s;
@@ -116,6 +117,12 @@ const G = {
   migrate(s) {
     this.oreV2(s);   // 要在 nmMigrate 之前：矿石序号变了
     DATA.nmMigrate(s);   // 存档里的旧名字 → config/names.js 的新名字
+    if (!s.ssGf6) {   // 凝神观想诀、灵台开识篇 108 层 → 6 阶段（用户定 2026-11-16）：阶段 = 原层数 ÷ 18 取整；神识强度扣掉旧加成、加回新加成
+      const G6 = s.ssGf && typeof s.ssGf === "object" ? s.ssGf : null;
+      if (G6) for (const id of ["ningshen", "lingtai"]) { const o = Math.max(0, Math.floor(+G6[id] || 0)); if (!o) continue;
+        const n = Math.min(6, Math.floor(o / 18)), ov = Math.min(o, 36) + 2 * Math.max(0, Math.min(o, 72) - 36) + 3 * Math.max(0, o - 72), nv = n * (n + 1) / 2;
+        G6[id] = n; if (id === "ningshen") s.ssPow = Math.max(0, (+s.ssPow || 0) - ov + nv); }
+      s.ssGf6 = 1; }
     { const n = ((CFG.cqzj || {}).COST || []).length;   // 出窍真诀删掉的卷（第 4、5 卷）从存档里清掉
       if (Array.isArray(s.cqZj)) s.cqZj = s.cqZj.filter(v => v >= 1 && v <= n);
       if (s.cqzjL && !(s.cqzjL.v >= 1 && s.cqzjL.v <= n)) s.cqzjL = null; }

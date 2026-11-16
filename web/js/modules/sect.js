@@ -39,6 +39,8 @@ G.module({
     pool: null,       // 炼体池：{ i 池子, end 结束时间, gain 泡完加的属性, day, used }
     poolGain: {},     // 炼体池累计加的肉身属性                 // 免费练功房：今天用了几次、本次结束时间
     cqZj: [],         // 已学会的出窍真诀卷号（1~3），每卷地图每步 −CFG.cqzj.SEC 秒
+    ngLearn: 0,       // 1 = 已学会太上内观经（才能打开经脉）
+    ngL: null,        // 正在学习太上内观经 { end 学会时间 }
     cqzjL: null,      // 正在学习的出窍真诀 { v 卷号, end 学会时间 }（不进功法学习队列，学会就生效，不用修炼）
     cqLearn: 0,       // 1 = 已学会元婴出窍秘法（每天次数 = 神识强度 ssPow）
     cqDay: "", cqUsed: 0,   // 元婴出窍：今天已用次数
@@ -51,7 +53,7 @@ G.module({
 
   // 每 10 秒：事务堂任务到时间就结算一次，并自动开始下一次（离线也会补算）
   tick(offline) {
-    this.freeRoomDaily(); this.poolTick(); this.jdSettle(); this.cqzjTick();
+    this.freeRoomDaily(); this.poolTick(); this.jdSettle(); this.cqzjTick(); this.ngTick();
     if (this.s.sect) this.affairGen();
     this.autoTaskCheck();   // v229 每天北京时间 0:05 自动执行任务（修炼设置）；v230 离线补算到 0:05 也执行
     this.wdAutoSettle();   // 自动任务的悟道读条到时结算（手动记录不动，等客户端读条）
@@ -487,7 +489,7 @@ G.module({
       s.gfRoom = i; this.after();
     },
     /* ---------- 宗门宝库 ---------- */
-    treasuryCost(it) { return it.kind === "chuqiao" ? this.cqCost() : it.kind === "cqzj" ? (CFG.cqzj.COST || [])[it.v - 1] || 0 : it.cost; },
+    treasuryCost(it) { return it.kind === "neiguan" ? CFG.neiguan.COST : it.kind === "chuqiao" ? this.cqCost() : it.kind === "cqzj" ? (CFG.cqzj.COST || [])[it.v - 1] || 0 : it.cost; },
     // 出窍真诀：第 v 卷名字 / 是否学会 / 已学会的卷合计减少的地图每步秒数
     cqzjName(v) { return `${CFG.cqzj.NAME}·第${"一二三四五六七八九十"[v - 1] || v}卷`; },
     cqzjHas(v) { return (this.s.cqZj || []).includes(v); },
@@ -496,6 +498,10 @@ G.module({
       s.cqzjL = null; s.cqZj = s.cqZj || []; if (!s.cqZj.includes(L.v)) s.cqZj.push(L.v);
       this.log(`习得${this.cqzjName(L.v)}！地图每步时间 -${U.num2(CFG.cqzj.SEC)} 秒。`, "gold"); this.dirty(); },
     cqzjSec() { return (this.s.cqZj || []).filter(v => v >= 1 && v <= (CFG.cqzj.COST || []).length).length * (CFG.cqzj.SEC || 0); },
+    // 太上内观经（config/sect.js 的 CFG.neiguan）：学到时间就学会（离线也补算）
+    ngTick() { const s = this.s, L = s.ngL; if (!L || this.now() < L.end) return;
+      s.ngL = null; s.ngLearn = 1; this.log(`习得${CFG.neiguan.NAME}！可以打开经脉了（修炼页人物丹田）。`, "gold"); this.dirty(); },
+    ngHas() { return !!this.s.ngLearn || DATA.isTest(); },
     // 元婴出窍秘法（config/sect.js 的 CFG.chuqiao）
     cqCost() { return CFG.chuqiao.LEARN_CONTRIB; },
     cqMaxRuns() { return this.s.cqLearn ? this.s.ssPow || 0 : 0; },   // 每天次数 = 神识强度（shenshi.js 养神）
@@ -510,6 +516,7 @@ G.module({
       if (it.kind === "furnace") return DATA.furnaceName(it.fk, it.g);
       if (it.kind === "pill") return `${DATA.realms[this.r()]}·${DATA.pills[it.type].name}`;
       if (it.kind === "chuqiao") return CFG.chuqiao.NAME;
+      if (it.kind === "neiguan") return CFG.neiguan.NAME;
       if (it.kind === "cqzj") return this.cqzjName(it.v);
       return it.name || "灵石";
     },
@@ -523,6 +530,12 @@ G.module({
         if (!this.realmOK(C.REALM)) return this.log(`${C.NAME}需要${DATA.realmLabel(C.REALM)}。`, "sys");
         this.s.contrib -= c; this.s.cqLearn = 1;
         this.log(`习得${C.NAME}！在世界地图点「出窍」探索，每天可出窍次数 = 神识强度（「修炼 → 神识」养神提升）。`, "gold");
+        return this.after();
+      }
+      if (it.kind === "neiguan") {   // 太上内观经：扣贡献后学 LEARN_MIN 分钟，学完才能打开经脉
+        this.ngTick(); if (this.s.ngLearn || this.s.ngL) return;
+        this.s.contrib -= c; this.s.ngL = { end: this.now() + (CFG.neiguan.LEARN_MIN || 10) * 60000 };
+        this.log(`开始学习${CFG.neiguan.NAME}，需 ${U.dur((CFG.neiguan.LEARN_MIN || 10) * 60)}。`, "good");
         return this.after();
       }
       if (it.kind === "cqzj") {   // 出窍真诀：扣贡献后进功法学习队列，学完生效
@@ -1020,6 +1033,13 @@ G.module({
             return [has, `<div class="line"><div>${DATA.li(DATA.iconImg("mifa"))}<span class="q4">${C.NAME}</span>
               <small>出窍探索时可继续修炼 · 每天出窍次数 = 神识强度 · 需${DATA.realmLabel(C.REALM)} · ${U.fmt(c)} 贡献</small></div>
               <button class="sm" onclick="G.exchange(${i})" ${has || rl || sl || s.contrib < c ? "disabled" : ""}>${has ? "已学会" : sl ? `${C.STAR}星宗门可兑换` : rl ? "境界不足" : "兑换"}</button></div>`];
+          }
+          if (it.kind === "neiguan") {
+            const N = CFG.neiguan, has = !!s.ngLearn, c = N.COST, L = s.ngL, ms = (N.LEARN_MIN || 10) * 60000, left = L ? Math.max(0, L.end - this.now()) : 0;
+            return [has, `<div class="line"><div>${DATA.li(DATA.iconImg("mifa"))}<span class="q4">${N.NAME}</span>
+              <small>学会后才能打开经脉 · 学习 ${U.dur((N.LEARN_MIN || 10) * 60)} · ${U.fmt(c)} 贡献</small></div>
+              ${has ? `<button class="sm" disabled>已学会</button>` : L ? `<button class="sm pg" disabled>${this.pgFill(left, ms)}<span>学习中 ${U.cd(left / 1000)}</span></button>`
+                : `<button class="sm" onclick="G.exchange(${i})" ${s.contrib < c ? "disabled" : ""}>学习</button>`}</div>`];
           }
           if (it.kind === "cqzj") {
             const has = this.cqzjHas(it.v), c = this.treasuryCost(it), L = s.cqzjL, me = L && L.v === it.v, ms = (CFG.cqzj.LEARN_MIN || 10) * 60000, left = me ? Math.max(0, L.end - this.now()) : 0;
