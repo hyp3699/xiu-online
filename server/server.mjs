@@ -345,7 +345,7 @@ function giftItemError(item) {
   if (item.c === "st" && typeof item.id !== "string") return ("礼包神通缺少 id");
   return null;
 }
-// 礼包码「出身点」：账号还没创建角色时兑换，记在 settings（ori_extra:<用户 id>），创建角色时可多选几个出身；删档重来仍保留
+// 礼包码「出身点」：账号还没创建角色时兑换，记在 settings（ori_extra:<用户 id>），创建角色时可多选几个出身，创建后清零（删档重来要重新兑换礼包码）
 function oriExtraOf(uid) { return Math.max(0, Math.floor(Number(db.prepare("SELECT value FROM settings WHERE key=?").get(`ori_extra:${uid}`)?.value) || 0)); }
 function oriExtraAdd(uid, n) { const v = oriExtraOf(uid) + n; db.prepare("INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(`ori_extra:${uid}`, String(v)); return v; }
 function registrationOpen() {
@@ -546,6 +546,7 @@ const server = http.createServer(async (req, res) => {
       if (q.save.get(user.id)) return error(res, 409, "角色已经创建");
       const name = [...String(body.name || "无名散修").trim().replace(/[^\p{L}\p{N}_·-]/gu, "")].slice(0, 12).join("") || "无名散修";
       const data = getEngine(user.id).createState(name, Date.now(), Array.isArray(body.ori) ? body.ori.slice(0, 200).map(String) : [], oriExtraOf(user.id)); persist(user.id, data);
+      db.prepare("DELETE FROM settings WHERE key=?").run(`ori_extra:${user.id}`);   // 出身点创建角色时用掉，删档重来不保留（用户定 2026-11-16）
       return sendJson(res, 201, { data, serverNow: Date.now() });
     }
     if (req.method === "POST" && route === "/api/character/reset") {

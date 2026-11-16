@@ -185,6 +185,7 @@ test("HTTP auth and WebSocket actions use authoritative server state", { timeout
   const ids = ["shijia", "shangjia", "dongfu", "liehu", "youfang", "mijing", "simiao"];
   const made = await post(base, "/api/character", nonAdminToken, { name: "多出身", ori: ids });
   assert.deepEqual(made.data.ori, ids);
+  assert.equal((await fetch(`${base}/api/ori/extra`, { headers: { "X-Token": nonAdminToken } }).then(r => r.json())).n, 0);
   await post(base, "/api/admin/gift", token, { code: "SERVERTESTGIFT", items: [{ c: "stone", n: 25 }], uses: 1 });
   const gifts = await fetch(`${base}/api/admin/gifts`, { headers: { "X-Token": token } }).then(r => r.json());
   assert.equal(gifts.list[0].code, "SERVERTESTGIFT");
