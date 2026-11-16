@@ -84,8 +84,8 @@ G.module({
         const on = a.includes(o.id), off = !on && a.length >= P;
         return `<div class="ori-it${on ? " on" : ""}${off ? " off" : ""}" onclick="G.oriToggle('${o.id}')"><b>${o.name}</b><small>${o.desc || ""}</small></div>`;
       }).join("");
-      // 礼包码加的出身点可以不用完（用户定 2026-11-16）：只要选够基础个数就能开始
-      const B = Math.min(P, this.oriBase()), b = $("#start-btn"); if (b) { b.disabled = a.length < B; b.textContent = a.length < B ? `还需选择 ${B - a.length} 个出身` : "开始修仙"; }
+      // 出身可以不选满（基础和礼包码出身点都是，用户定 2026-11-16）；没选满开始时弹确认
+      const b = $("#start-btn"); if (b) { b.disabled = false; b.textContent = "开始修仙"; }
     },
   },
 });
