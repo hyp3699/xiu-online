@@ -120,7 +120,7 @@ G.module({
       this.log(`「${X.name}」冲至第 ${o.n} 层，${this.jmStatName(k)}增加 ${U.num(add)}。`, "good");
       this.jmReset(); this.dirty(); this.after();
     },
-    openJingmai(on) { if (on && this.ngHas && !this.ngHas()) return this.modal(`<h2>经脉</h2><p class="desc">需先在宗门宝库「杂物」学会《${CFG.neiguan.NAME}》才能打开经脉。</p><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);   // 太上内观经（用户定 2026-11-16）
+    openJingmai(on) { if (on && this.ngHas && !this.ngHas()) return this.modal(`<h2>经脉</h2><p class="desc">需要先学会《${CFG.neiguan.NAME}》</p><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);   // 太上内观经（用户定 2026-11-16）
       this.cultView = on ? "jingmai" : ""; this.jmNode = null; this.render(); },
     openJmNode(i) { this.jmNode = i === null || i === undefined ? null : i; this.render(); },
   },

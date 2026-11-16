@@ -1037,7 +1037,7 @@ G.module({
           if (it.kind === "neiguan") {
             const N = CFG.neiguan, has = !!s.ngLearn, c = N.COST, L = s.ngL, ms = (N.LEARN_MIN || 10) * 60000, left = L ? Math.max(0, L.end - this.now()) : 0;
             return [has, `<div class="line"><div>${DATA.li(DATA.iconImg("mifa"))}<span class="q4">${N.NAME}</span>
-              <small>学会后才能打开经脉 · 学习 ${U.dur((N.LEARN_MIN || 10) * 60)} · ${U.fmt(c)} 贡献</small></div>
+              <small>学习 ${U.dur((N.LEARN_MIN || 10) * 60)} · ${U.fmt(c)} 贡献</small></div>
               ${has ? `<button class="sm" disabled>已学会</button>` : L ? `<button class="sm pg" disabled>${this.pgFill(left, ms)}<span>学习中 ${U.cd(left / 1000)}</span></button>`
                 : `<button class="sm" onclick="G.exchange(${i})" ${s.contrib < c ? "disabled" : ""}>学习</button>`}</div>`];
           }
