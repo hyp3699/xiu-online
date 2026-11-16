@@ -140,8 +140,8 @@
       let bl = buffs.map(b => b.left);
       let at = gs ? gs.at : 0, done = gs ? gs.done : 0, spent = gs ? gs.spent : 0, spentStone = gs ? gs.spentStone : undefined, su = gs ? gs.su || 0 : 0, rU = gs ? gs.rU || 0 : 0, stalled = gs ? gs.stalled : undefined;
       let m = 0, stop = false;
-      for (; m < n && !stop; m++) {
-        const now = tk + m * T;
+      // 逐次结算一次（now 时刻）：遇到事件返回 false，这一次整次作废
+      const one = now => {
         // 用临时变量算这一次，遇到事件就整次作废，交给逐个结算
         let h = hp, mp = mana, L = ling, ex = exp, sn = stone, be = bodyExp, lk = lack, fl = freeLeft;
         let a2 = at, d2 = done, s2 = spent, ss2 = spentStone, su2 = su, ru2 = rU, sl2 = stalled, bl2 = bl;
@@ -155,7 +155,7 @@
         // 3. gongfa：功法修炼进度
         if (gs) {
           { const mul0 = GR ? GR.mul : 1, rem0 = Math.ceil((gs.total - d2) / (STEP * mul0));   // 同 gongfa.js 的 fin：最后不足 10 秒的一段到点就结算 → 这层修完是事件，交给逐个结算
-            if (!sl2 && rem0 < 2 && now >= a2 + rem0 * STEP) break; }
+            if (!sl2 && rem0 < 2 && now >= a2 + rem0 * STEP) return false; }
           const steps = Math.floor((now - a2) / (2 * STEP));   // v247 每 10 秒结算（和 gongfa.js 一样）
           if (steps > 0) {
             a2 += steps * 2 * STEP;
@@ -171,7 +171,7 @@
               const tgt = d2 >= gs.total ? C : Math.min(C, Math.round(gs.stone * su2)), pay = Math.max(0, tgt - (ss2 || 0));
               sn -= pay; ss2 = (ss2 || 0) + pay; }
             sl2 = can < want && d2 < gs.total;
-            if (d2 >= gs.total) break;   // 修炼完成：事件
+            if (d2 >= gs.total) return false;   // 修炼完成：事件
           }
         }
         // 4. sect：0 点重置、炼体池、事务堂都是事件（已算进时间）；付费房扣贡献
@@ -185,12 +185,12 @@
             if (R.c > 0 && Math.floor(cb / R.c) < nn) { quit = true; break; }   // 贡献不够：离开房间 = 事件，交给逐个结算
             cb -= nn * R.c; rA2[r] += nn * RT; bd = true;
           }
-          if (quit) break;
+          if (quit) return false;
         }
         // 5. cultivate：修为修炼
         let ended = false;
         if (cultOn) {
-          if (freeOn) { if (--fl <= 0) break; }   // 免费修炼室次数用完：事件（付费修炼室按分钟扣贡献，见 fastNextEvent）
+          if (freeOn) { if (--fl <= 0) return false; }   // 免费修炼室次数用完：事件（付费修炼室按分钟扣贡献，见 fastNextEvent）
           if (L < SP - RED && refill && sn >= 1) { const pay = Math.min(Math.ceil((SP - RED - L) / RATE), Math.floor(sn - KEEP), Math.max(0, Math.ceil((CAP - L) / RATE))); if (pay > 0) { sn -= pay; L = Math.min(CAP, L + pay * RATE); } }   // 自动补灵气封顶到 lingCap（同 cultivate.tick）
           const PER = Math.max(0, SP - RED) / Math.max(1e-9, SP), gain = PER > 0 ? Math.min(SP, Math.floor(L / PER)) : SP;
           if (gain <= 0) { if (!lk) lk = true; fl++; }   // 与 cultivate.tick 一致：灵气耗尽的 tick 不扣免费修炼室次数
@@ -203,7 +203,7 @@
         // 7. body：肉身修炼
         if (bodyOn) {
           if (!cultOn) {
-            if (freeOn) { if (--fl <= 0) break; }   // 免费修炼室次数用完：事件
+            if (freeOn) { if (--fl <= 0) return false; }   // 免费修炼室次数用完：事件
           }
           if (L < BSP * BR - BRED && refill && sn >= 1) { const pay = Math.min(Math.ceil((BSP * BR - BRED - L) / RATE), Math.floor(sn - KEEP), Math.max(0, Math.ceil((CAP - L) / RATE))); if (pay > 0) { sn -= pay; L = Math.min(CAP, L + pay * RATE); } }   // 自动补灵气封顶到 lingCap（同 body.tick）
           const BPER = Math.max(0, BSP * BR - BRED) / Math.max(1e-9, BSP), g = BPER > 0 ? Math.min(BSP, Math.floor(L / BPER)) : BSP;
@@ -211,15 +211,58 @@
           else if (!cultOn && freeOn) fl++;   // 与 body.tick 一致：只开肉身且灵气耗尽的 tick 不扣免费修炼室次数
         }
         // 修炼设置：灵石掉到下限以下 → 事件（可能要自动去探索）
-        if (sn < CSL) break;
+        if (sn < CSL) return false;
         // 11. garden：等灵气的田灵气够了 → 事件
-        if (L >= waitMin) break;
+        if (L >= waitMin) return false;
         // 12. servant：灵石够发俸禄 → 事件
-        if (sn >= payMin) break;
+        if (sn >= payMin) return false;
         // 这一次没有事件：提交
         hp = h; mana = mp; ling = L; exp = ex; stone = sn; bodyExp = be; lack = lk; freeLeft = fl; contrib = cb; rAt = rA2; if (bd) billed = true;
         at = a2; done = d2; spent = s2; spentStone = ss2; su = su2; rU = ru2; stalled = sl2; bl = bl2;
         if (ended) stop = true;
+        return true;
+      };
+      // 稳态合并（用户定 2026-11-16 离线补算①）：最近两个周期（1/2/3/6 次）每次的变化完全一样，就按线性直接跳到区间末尾；
+      // 只真算最后一个周期，结果对上才采用（各种判断都是线性量和常数比，起点和终点一样，中间也一样），对不上就减半再试
+      const snap = () => [hp, mana, ling, exp, stone, bodyExp, freeLeft, contrib, at, done, spent, spentStone === undefined ? 0 : spentStone, su, rU, lack ? 1 : 0, stalled === undefined ? -1 : stalled ? 1 : 0, ...rAt, ...bl];
+      const load = v => { [hp, mana, ling, exp, stone, bodyExp, freeLeft, contrib, at, done, spent] = v; spentStone = spentStone === undefined && !v[11] ? undefined : v[11]; su = v[12]; rU = v[13]; lack = !!v[14]; stalled = v[15] < 0 ? undefined : !!v[15];
+        rAt = v.slice(16, 16 + rAt.length); bl = v.slice(16 + rAt.length); };
+      const near = (x, y) => x === y || Math.abs(x - y) <= 1e-9 * Math.max(1, Math.abs(x), Math.abs(y));
+      const PS = [1, 2, 3, 6], HN = 13, H = [snap()];
+      let nextTry = 0;
+      const jump = () => {
+        for (const P of PS) {
+          if (H.length < 2 * P + 1) break;
+          const a = H[H.length - 1], b = H[H.length - 1 - P], c = H[H.length - 1 - 2 * P], D = a.map((x, i) => x - b[i]);
+          // 灵石自动补灵气：每次补的是整块灵石，补的时机不规则 → 把灵气和灵石合成一个量（灵气 + 灵石×每块灵气）看是否线性（用户定 2026-11-16：聚灵总量减消耗一次算）
+          const E = b.map((x, i) => x - c[i]), Q = (d, k) => k === 2 ? d[2] + d[4] * RATE : d[k];
+          let qm = false;
+          if (!D.every((d, i) => near(d, E[i]))) {
+            if (!(RATE > 0) || !(D[4] < 0 || E[4] < 0) || !D.every((d, i) => i === 4 || near(Q(D, i), Q(E, i)))) continue;
+            qm = true;
+          }
+          if (D[14] || D[15]) continue;
+          if (qm) { D[2] = Q(D, 2); D[4] = 0; }
+          const rb = rAt, bb = bl, bd0 = billed;
+          for (let k = Math.floor((n - m) / P); k >= 2; k = Math.floor(k / 2)) {
+            const v = a.map((x, i) => x + (k - 1) * D[i]), m0 = m + (k - 1) * P;
+            if (qm) {   // 按整块灵石补回到可能的最低位置（最近几次灵气最大值 − 一块灵石的灵气）；最后一个周期真算时补灵气的逻辑会补齐，结果和逐次算一样
+              const ref = Math.max(0, Math.max(...H.map(h => h[2])) - RATE), pay = Math.max(0, Math.ceil((ref - v[2]) / RATE - 1e-9));
+              if (a[4] - pay < KEEP) continue;
+              v[2] += pay * RATE; v[4] = a[4] - pay; if (v[2] > CAP) continue; }
+            load(v); let ok = true;
+            for (let q = 0; q < P && ok; q++) ok = one(tk + (m0 + q) * T) && !stop;
+            if (ok) { const w = snap(), dw = w.map((x, i) => x - v[i]); ok = qm ? dw[4] <= 0 && dw.every((d, i) => i === 4 || near(i === 2 ? d + dw[4] * RATE : d, D[i])) : dw.every((d, i) => near(d, D[i])); if (ok) { m = m0 + P; H.length = 0; H.push(w); return true; } }
+            load(a); rAt = rb; bl = bb; billed = bd0; stop = false;
+          }
+        }
+        return false;
+      };
+      while (m < n && !stop) {
+        if (m >= nextTry && H.length >= 3 && !jump()) nextTry = m + 32;
+        if (m >= n || stop) break;
+        if (!one(tk + m * T)) break;
+        m++; H.push(snap()); if (H.length > HN) H.shift();
       }
       // 上面 break 时 m 是作废那一次的序号（= 已提交次数）；正常结束时 m = 已提交次数
       const done_n = m;
