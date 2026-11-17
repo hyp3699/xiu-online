@@ -118,7 +118,7 @@ G.module({
       if (job === "lk") {   // 灵矿管理：凡界每座灵矿一个位置，五行不限（选人走 world.js openLkSv）
         const N = DATA.lkSvN(), rows = ((DATA.worldMapIdx || {}).fan || []).map(a => { const n = this.lkSvIdxs(a).length;
           if (!this.lkOwned(a)) return `<div class="line"><div>${DATA.maps[a].name}灵矿：未占领</div></div>`;
-          return `<h3 style="margin-top:8px">${DATA.maps[a].name}灵矿 ${this.lkLv(a)} 级<small> 管理 ${n} / ${N} 位道童${n ? ` · 产量 +${U.num(this.lkBonus(a))}% · 每日产出 ${U.fmt(Math.round(this.lkOutA(a)))} 灵石` : " · 不产出"}</small></h3>${this.lkSlotsHtml(a, "lk")}`; }).join("");
+          return `<h3 style="margin-top:8px">${DATA.maps[a].name}灵矿 ${this.lkLv(a)} 级<small> ${n ? `每日产出 ${U.fmt(Math.round(this.lkOutA(a)))} 灵石` : "不产出"}</small></h3>${this.lkSlotsHtml(a, "lk")}`; }).join("");
         return this.modal(`<h2>${J.name}</h2>${rows}
           <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
       }
