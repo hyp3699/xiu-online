@@ -2871,7 +2871,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
           ${sel === i ? `<div class="explore-log">${(r.ev || []).map((e, j) => this.evLine(e, "h" + i, j)).join("")}</div>` : ""}`).join("") : "<p>还没有记录。</p>"}
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
-    setMapSel(a) { this.wsSave(); this.shopFromCult = false; this.mapSel = a; this.mapPage = true; this.hallSel = null; this.render(); this.viewScroll(0); },   // a = 地图序号，"mj" = 秘境
+    setMapSel(a) { this.wsSave(); this.mapSel = a; this.mapPage = true; this.hallSel = null; this.render(); this.viewScroll(0); },   // a = 地图序号，"mj" = 秘境
 
     /* ---------- 坊市：丹药 装备 功法 药材 矿石 ----------
      * 丹药、装备：content/items.js 的 ITEMS.shop，只卖练气品质
@@ -3083,7 +3083,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
     // 管理员页在「世界」页里显示：跳过去，返回时回到修炼页设置
     openAdminFromCult() { this.setFromCult = true; this.tab = "world"; this.atlasOn = false; this.atlasSub = "set"; this.openAdmin(true); },
     backToCultSet() { this.setFromCult = false; this.adminPage = false; this.atlasSub = null; this.atlasOn = true; this.tab = "cultivate"; this.cultView = "set"; this.setTab = "other"; this.render(); },
-    backFromShop() { this.shopFromCult = false; this.mapPage = false; this.atlasOn = true; this.tab = "cultivate"; this.render(); },
+    backFromShop() { this.tab = "cultivate"; this.render(); },
 
     /* ---------- 背景主题：存在本机（localStorage xiu_bg@存档编号），按存档分开（用户 2026-11-17） ---------- */
     bgCard() {
@@ -3131,7 +3131,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       const idx = (DATA.worldMapIdx[wid] || []).slice().sort((a, b) => DATA.mapReq(a) - DATA.mapReq(b) || a - b), fan = wid === "fan";   // 从低到高
       const ex = s.explore ? (s.explore.mj !== undefined ? (fan && !s.explore.mk ? "mj" : undefined) : idx.includes(s.explore.map) ? s.explore.map : undefined) : undefined;
       const ok = idx.filter(a => this.mapOpen(a));
-      const sel = this.mapSel !== undefined && (this.mapSel === "mj" || this.mapSel === "shop" ? fan : idx.includes(this.mapSel)) ? this.mapSel : ex !== undefined ? ex : idx[0];
+      const sel = this.mapSel !== undefined && (this.mapSel === "mj" ? fan : idx.includes(this.mapSel)) ? this.mapSel : ex !== undefined ? ex : idx[0];
       const halls = ((CFG.worldMaps || {})[wid] || {}).halls;
       if (!this.mapPage) {   // 地图卷轴：不显示生命法力，点一张图进去；四界左下角固定 灵地 / 悟道碑（不跟着地图滑动）
         const wh = halls && (this.hallSel === "lingdi" || this.hallSel === "wudao") && halls[this.hallSel] !== undefined ? this.hallSel : null;
@@ -3139,12 +3139,11 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
         const fl = halls ? ["lingdi", "wudao"].filter(id => halls[id] !== undefined).map(id => `<button class="fic" onclick="G.setWHall('${id}')"><img src="img/hall_${id}.png" alt=""><span>${halls[id]}</span></button>`).join("") : "";
         return this.mapScroll(wid, idx, ex) + this.exOverlay() + `<div class="fback"><div class="fl">${fl}</div><button onclick="G.openAtlas()">返回</button></div>`;
       }
-      const mb = fback(sel === "shop" && this.shopFromCult ? "G.backFromShop()" : "G.setMapPage(false)"), pg = h => `<div class="mpage" style="background-image:url(img/map/bg_${wid}.webp)">${h}${mb}</div>`;   // 点进去的页面也铺满（本界背景图）
+      const mb = fback("G.setMapPage(false)"), pg = h => `<div class="mpage" style="background-image:url(img/map/bg_${wid}.webp)">${h}${mb}</div>`;   // 点进去的页面也铺满（本界背景图）
       const gs = this.gridSel;   // 地图格子页
       if (gs && gs.a === sel && this.ysPick && this.ysHall === this.ysPick && this.ysById(this.ysPick)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.ysById(this.ysPick).name} · 宗门大殿</div>${this.ysHallView(this.ysPick)}<div class="fback"><div class="fl"></div><button onclick="G.ysHallBack()">返回</button></div></div>`;
       if (gs && gs.a === sel && this.ysPick && this.ysById(this.ysPick)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.ysById(this.ysPick).name}</div>${this.ysView(this.ysPick)}<div class="fback"><div class="fl"></div><button onclick="G.ysOpen()">返回</button></div></div>`;
       if (gs && gs.a === sel && this.gridOpen(gs.a, gs.r)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.gridMerged(gs.a) && !this.gridJie(gs.r) ? DATA.maps[gs.a].name : this.gridName(gs.a, gs.r)}</div>${this.gridView(gs.a, gs.r, wid)}<div class="fback"><div class="fl">${this.gridJie(gs.r) ? "" : `<button class="gq" onclick="G.gridQuick(${gs.a},${this.gridMerged(gs.a) ? -1 : gs.r})">快速<br>游历</button><button class="gq" onclick="G.openGridRec(${gs.a})">已获<br>机缘</button>`}</div><button onclick="${wid === "shen" ? `G.openGrid();G.openSjRg(${gs.a},${gs.r >= DATA.regionCount ? (gs.r - DATA.regionCount) >> 1 : gs.r})` : "G.openGrid()"}">返回</button></div></div>`;
-      if (sel === "shop") return pg(`<div class="pghead">${DATA.nmPick(CFG.names.worldTab, "shop", "坊市")}</div>` + this.shopView());
       const mback = `<div class="pghead">${sel === "mj" ? this.mjLabel("mj") : DATA.maps[sel].name}</div>`;
       if (halls && sel !== "mj") {
         // v49：仙冥魔神每张地图 7 处地点（config/worldmaps.js 的 halls，图片 img/hall_<id>.png），点进去是各自的页面
@@ -3202,3 +3201,5 @@ function applyBg() {
 }
 applyBg();
 G.applyBg = applyBg;   // 进存档后按本存档的设置重新上色（core/game.js start）
+// 凡界坊市：独立页面（tab "fshop"，修炼页进），和世界页完全分开（用户定 2026-11-17）
+G.views.fshop = function () { return `<div class="mpage" style="background-image:url(img/map/bg_fan.webp)"><div class="pghead">${DATA.nmPick(CFG.names.worldTab, "shop", "坊市")}</div>${this.shopView()}<div class="fback"><button onclick="G.backFromShop()">返回</button></div></div>`; };

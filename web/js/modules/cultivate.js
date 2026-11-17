@@ -242,7 +242,7 @@ G.module({
     },
     // 顶部「坊市」：直接进凡界坊市（world.js mapSel "shop"）
     // 从修炼页进去的坊市，返回时回到修炼页（world.js backFromShop）
-    openFanShop() { this.tab = "world"; this.worldId = "fan"; this.atlasOn = false; this.atlasSub = null; this.setMapSel("shop"); this.shopFromCult = true; this.render(); },
+    openFanShop() { this.tab = "fshop"; this.render(); this.viewScroll && this.viewScroll(0); },   // 凡界坊市是独立页面，不再借世界页（不动世界页的地图 / 卷轴状态，用户定 2026-11-17）
     /* ---------- 人物形象：存在角色存档（服务器 s.hero，换设备也生效），修炼页、神识、悟道室、头像、战斗页（img/bt_形象.webp）一起换 ---------- */
     HEROES: [["", "默认（男修）"], ["f1", "仙子 · 粉裳"], ["f2", "仙子 · 红裳"], ["f3", "魅影 · 黑纱"], ["f4", "狐仙 · 绯蕾"], ["f5", "冰仙 · 蓝蕾"], ["f6", "金冠 · 白衣"], ["f7", "月仙 · 银蓝"], ["f8", "桃仙 · 粉霞"], ["f9", "紫宸 · 仙后"], ["f10", "魅姬 · 黑蕾"], ["f11", "雪莲 · 金纱"], ["f12", "白莲 · 素纱"], ["f13", "魔后 · 赤纱"], ["f14", "星灵 · 幻纱"], ["f15", "金凤 · 鹅黄"]],
     heroId() { let k = this.s && typeof this.s.hero === "string" ? this.s.hero : ""; if (!(this.s && "hero" in this.s)) try { k = localStorage.getItem("xiu_hero") || ""; } catch (e) {} return this.HEROES.some(h => h[0] === k) ? k : ""; },
