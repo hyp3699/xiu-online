@@ -440,7 +440,7 @@ G.module({
       const cell = (src, have, need, name) => `<div class="cpk-mat${have >= need ? "" : " lack"}"><img src="${src}" alt=""><b>${name}</b><span>${U.fmt(have)}/${U.fmt(need)}</span></div>`;
       const ok = DATA.isTest() || this.hasMats(mats), open = this.gridOpen(a, 0);
       const cost = full ? `<p class="desc">已满级。</p>` : `<p class="zf-cost-t">升到 ${lv + 1} 级消耗</p><div class="cpk-mats zf-cost">${mats.map(m => cell(DATA.matImg(m.kind, m.g), this.countMat(m.kind, m.g), m.n, DATA.matFull(m.kind, m.g))).join("")}</div>`;
-      this.modal(`<img class="item-img" src="${DATA.iconImg("stone")}" alt=""><h2>${DATA.maps[a].name} · 灵矿 ${lv} 级</h2><div class="stats"><div><span>每天产出</span>${U.fmt(DATA.lkOut(lv, a))} 灵石${full ? "" : ` → ${U.fmt(DATA.lkOut(lv + 1, a))}`}</div><div><span>管理道童</span>${sv ? `${this.svName(sv)} · ${sv.lv}级` : `<span class="q5">未派道童，不产出</span>`}</div></div>
+      this.modal(`<img class="item-img" src="${DATA.iconImg("stone")}" alt=""><h2>${DATA.maps[a].name} · 灵矿 ${lv} 级</h2><div class="stats"><div><span>每天产出</span>${U.fmt(DATA.lkOut(lv, a))} 灵石</div><div><span>管理道童</span>${sv ? `${this.svName(sv)} · ${sv.lv}级` : `<span class="q5">未派道童，不产出</span>`}</div></div>
         ${cost}
         <div class="btns">${full ? "" : `<button class="primary" onclick="G.lkUp(${a});G.openLk(${a})" ${ok && open ? "" : "disabled"}>升级</button>`}<button onclick="G.openLkSv(${a})">${sv ? "更换道童" : "派道童"}</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
