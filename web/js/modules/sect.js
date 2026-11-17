@@ -1049,7 +1049,8 @@ G.module({
                 : `<button class="sm" onclick="G.exchange(${i})" ${L || s.contrib < c ? "disabled" : ""}>${L ? "学习中" : "学习"}</button>`}</div>`];
           }
           if (it.kind === "lu") {
-            const lock = (it.star || 1) > x.star, done = this.luDone();
+            if ((it.star || 1) > x.star) return [0, ""];   // 星级不够的宗门不显示养神露（用户 2026-11-17）
+            const lock = false, done = this.luDone();
             return [0, `<div class="line"><div>${DATA.li(DATA.smIcon("lu"))}${DATA.smName("lu")} ×${it.get}<small>${U.fmt(it.n)} 个同一种${DATA.matKinds.herb}或${DATA.matKinds.ore}${it.cost ? ` + ${U.fmt(it.cost)} 贡献` : ""} · 每天一次</small></div>
               <button class="sm" onclick="G.openLuSwap(${i})" ${lock || done ? "disabled" : ""}>${lock ? `${it.star}星宗门可兑换` : done ? "今日已换" : "兑换"}</button></div>`];
           }
