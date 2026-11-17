@@ -44,6 +44,12 @@ G.module({
     setWHall(h) { this.hallSel = h; this.render(); this.viewScroll(!h && this.mapRev(this.worldId || "fan") ? -1 : 0); },   // 地图卷轴左下角的 灵地 / 悟道碑
     // 一张地图的东西南北四域（历练 / 探索 / 出窍）
     regionsCard(sel, noTitle) {
+      if (this.lkMap(sel)) {   // 凡界（用户 2026-11-17）：东西南北四域拼成一张图（上北下南左西右东），正中灵矿；点各域图进去还是各自的格子图
+        const Q = ["dong", "xi", "nan", "bei"], lv = this.lkLv(sel);
+        const rows = DATA.regionDirs.map((d, r) => this.rgTile(sel, r, "q-" + (Q[r] || "dong"))).join("");
+        const lk = `<button class="rglk" onclick="G.openLk(${sel})"><img src="${DATA.iconImg("stone")}" alt=""><b>灵矿</b><small>${lv} 级</small></button>`;
+        return `<div class="card rgcard rgmapc">${noTitle ? "" : `<h3>${DATA.maps[sel].name}</h3>`}<div class="rgmap">${rows}${lk}</div></div>`;
+      }
       const tile = true, rows = DATA.regionDirs.map((d, r) => this.rgTile(sel, r)).join("");   // 凡界、四界都用图片格子
       return `<div class="card${tile ? " rgcard" : ""}">${noTitle ? "" : `<h3>${DATA.maps[sel].name}</h3>`}${tile ? `<div class="rggrid">${rows}</div>` : rows}</div>`;
     },
@@ -303,7 +309,8 @@ G.module({
      *   四块：左上北域、右上东域、左下西域、右下南域；大图 (X, Y) → 域 gridGQ(块)、本域格子 (Y % N) × N + X % N
      *   正中 2×2 = 灵矿（四个域各自贴着中心的那个角格），不能游历 ---------- */
     gridGQ(q) { return [3, 0, 1, 2][q]; },   // 块（0 左上 1 右上 2 左下 3 右下）→ 域（0 东 1 西 2 南 3 北）
-    gridMerged(a) { const m = DATA.maps[a]; return !!m && m.w === "fan"; },
+    gridMerged(a) { return false; },   // 用户 2026-11-17：格子图改回每域独立（大图 gridViewM 留着不用）；拼成一张的是外面的四域图（regionsCard）
+    lkMap(a) { const m = DATA.maps[a]; return !!m && m.w === "fan"; },   // 凡界九张图：四域图正中有灵矿
     gridQuad(r) { return [1, 2, 3, 0][r]; },
     lkCell(r) { const N = this.gridN(r), q = this.gridQuad(r); return ((q >> 1) ? 0 : N - 1) * N + ((q & 1) ? 0 : N - 1); },
     isLkCell(a, r, i) { return r >= 0 && r < DATA.regionCount && this.gridMerged(a) && i === this.lkCell(r); },
@@ -346,7 +353,7 @@ G.module({
     },
     lkUp(a) {
       a = Number(a); const s = this.s, K = DATA.LK();
-      if (!Number.isInteger(a) || !this.gridMerged(a) || !this.gridOpen(a, 0)) throw new Error("该地图尚未开启");
+      if (!Number.isInteger(a) || !this.lkMap(a) || !this.gridOpen(a, 0)) throw new Error("该地图尚未开启");
       const lv = this.lkLv(a); if (lv >= K.MAX) return this.log("灵矿已满级。", "sys");
       const mats = DATA.lkMats(a, lv + 1);
       if (!DATA.isTest()) { if (!this.hasMats(mats)) return this.log("矿石不足。", "sys"); mats.forEach(x => this.takeMat(x.kind, x.g, x.n)); }
@@ -356,7 +363,7 @@ G.module({
       this.log(`${DATA.maps[a].name}灵矿升至 ${lv + 1} 级，每天产出 ${U.fmt(DATA.lkOut(lv + 1))} 灵石。`, "good"); this.dirty(); this.after();
     },
     openLk(a) {
-      a = Number(a); if (!this.gridMerged(a)) return;
+      a = Number(a); if (!this.lkMap(a)) return;
       const K = DATA.LK(), lv = this.lkLv(a), full = lv >= K.MAX, mats = full ? [] : DATA.lkMats(a, lv + 1);
       const cell = (src, have, need, name) => `<div class="cpk-mat${have >= need ? "" : " lack"}"><img src="${src}" alt=""><b>${name}</b><span>${U.fmt(have)}/${U.fmt(need)}</span></div>`;
       const ok = DATA.isTest() || this.hasMats(mats), open = this.gridOpen(a, 0);
