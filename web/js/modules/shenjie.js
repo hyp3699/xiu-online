@@ -27,9 +27,9 @@ G.module({
         if (J.sxDay && n > 0) { const days = Math.max(1, Math.min(C.SX_MAX_DAY || 30, Math.round((Date.parse(d) - Date.parse(J.sxDay)) / 86400000) || 1)), y = this.sjSxDayYl() * days;
           const got = {};   // 每座神像按所在界产一种物品
           for (const x of this.sjSxItems()) got[x.k] = (got[x.k] || 0) + x.n * days;
-          const it = Object.keys(got).filter(k => got[k] > 0); it.forEach(k => this.addSm(k, got[k]));
-          if (y > 0) s.yuanli += y;
-          if (y > 0 || it.length) this.log(`${n} 座神像${days > 1 ? ` ${days} 天` : "今日"}共提供${[y > 0 ? `愿力 ${U.fmt(y)}` : ""].concat(it.map(k => `${DATA.smName(k)} ${U.fmt(got[k])}`)).filter(Boolean).join("、")}。`, "gold"); }
+          const it = Object.keys(got).filter(k => got[k] > 0); it.forEach(k => this.mailMerge({ t: "sm", k, n: got[k] }, "神像产出"));   // 神像产出进传音（用户定 2026-11-17）
+          if (y > 0) this.mailMerge({ t: "cur", k: "yuanli", n: y }, "神像产出");
+          if (y > 0 || it.length) this.log(`${n} 座神像${days > 1 ? ` ${days} 天` : "今日"}共提供${[y > 0 ? `愿力 ${U.fmt(y)}` : ""].concat(it.map(k => `${DATA.smName(k)} ${U.fmt(got[k])}`)).filter(Boolean).join("、")}，已存入传音。`, "gold"); }
         J.sxDay = d;
       }
       return J;

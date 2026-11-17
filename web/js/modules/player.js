@@ -60,10 +60,11 @@ G.module({
     yearRwList() { const out = [], Y = CFG.player.YEAR_RW || {}; for (const k of ["A", "B"]) { const c = Y[k]; if (c && c.step > 0) for (let y = c.from; y <= c.to; y += c.step) out.push([y, c.rw]); } return out.sort((a, b) => a[0] - b[0]); },
     yearNow() { const s = this.s, ym = (+CFG.player.YEAR_MIN || 15) * 60000; return s.born ? Math.max(0, Math.floor((this.now() - s.born) / ym)) : 0; },
     // 下一个发奖时刻（毫秒；没有 = Infinity），离线加速用
-    yearRwNextAt() { const s = this.s; if (!s || !s.born || s.mortal) return Infinity; const ym = (+CFG.player.YEAR_MIN || 15) * 60000, d = +s.yrw || 0, n = this.yearRwList().find(x => x[0] > d); return n ? s.born + n[0] * ym : Infinity; },
+    yearRwNextAt() { const s = this.s; if (!s || !s.born || s.mortal) return Infinity; const ym = (+CFG.player.YEAR_MIN || 15) * 60000, d = s.yrwV === 60 ? +s.yrw || 0 : 0, n = this.yearRwList().find(x => x[0] > d); return n ? s.born + n[0] * ym : Infinity; },
     // s.yrw = 已发到第几年
     yearRwCheck() {
       const s = this.s; if (!s || s.mortal || !s.born || !this.mailboxAdd) return;
+      if (s.yrwV !== 60) { s.yrw = 0; s.yrwV = 60; }   // 2026-11-17 改 60 分钟 = 1 年：已发过的奖励按新年数到时间再发一次（用户定）
       const y = this.yearNow(), d = +s.yrw || 0, L = this.yearRwList().filter(x => x[0] > d && x[0] <= y); if (!L.length) return;
       for (const [yr, rw] of L) {
         const src = `修炼${U.fmt(yr)}年奖励`;

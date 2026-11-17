@@ -30,7 +30,7 @@ G.module({
       while (!f.wait && now >= f.start + this.fieldTime(f.g, f) && guard++ < 1e4) {
         const end = f.start + this.fieldTime(f.g, f), Y = DATA.herbGrow(f.g).yield, lg = DATA.isLg(f.g);
         const n = lg ? this.lgYieldRoll() : Math.floor(U.rand(Y[0], Y[1]) * (1 + (this.plantYieldPct(f.g) + DATA.landYieldPct(f.lv)) / 100)), ck = this.plantCraft(f.g);
-        if (lg) this.addLg(f.g - DATA.LG_BASE, n); else this.addMat("herb", DATA.herbs[f.g], f.g, n);   // 背包满时进传音，不再丢药材却照算经验
+        if (n > 0) this.mailMerge(lg ? { t: "lg", k: f.g - DATA.LG_BASE, n } : { t: "mat", kind: "herb", name: DATA.herbs[f.g], g: f.g, n }, DATA.caveName ? DATA.caveName("garden") : "灵药园");   // 灵药园产出进传音（用户定 2026-11-17）   // 背包满时进传音，不再丢药材却照算经验
         { const K = CFG.craftsman[ck], IE = K.ITEM_EXP, lm = CFG.craftsman.LING_EXP_MULT ?? 1; this.addCraftExp(ck, n * (IE ? ((lg ? IE[(DATA.LG().EXP_TIER ?? 15) - 1] : IE[f.g]) ?? IE[IE.length - 1] ?? 0) : (f.g + 1) * (K.EXP_RATE || 0)) * lm); }   // 每株 ITEM_EXP[品级−1]，再 × 种植经验总倍率   // 品级按药材总序号（仙界药材接在凡界后面）
         if (f.next != null) { f.g = f.next; f.next = null; } // 当季结束才换种
         if (this.payField(f, end)) nNew++;                   // 下一季：扣灵气

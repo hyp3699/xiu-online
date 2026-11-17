@@ -130,6 +130,13 @@ G.module({
       if (n && !this.silent) this.log(`传音里 ${n} 件物品超过 10 天未领，已自动清除。`, "sys");
       return n;
     },
+    // 自动产出进传音：同来源同物品、还没领也没过期的合并成一件（数量相加、重新计 10 天）
+    mailMerge(it, src) {
+      if (!it || !(it.n > 0)) return; const now = this.now(), key = x => [x.t, x.k, x.name, x.g, x.ft, x.type].join("|"), kk = key(it);
+      const e = this.mailboxList().find(x => x && x.src === src && x.it && key(x.it) === kk && now < this.mailboxDue(x));
+      if (e) { e.it.n = (+e.it.n || 0) + it.n; e.at = now; return true; }
+      return this.mailboxAdd(it, true, src);
+    },
     mailboxAdd(it, quiet, src) {   // src：来源说明（如「练气期奖励」），传音里显示
       const list = this.mailboxList(); this.mailboxPrune();
       const e = { id: DATA.newUid(), it, at: this.now() }; if (src) e.src = String(src); list.push(e);
