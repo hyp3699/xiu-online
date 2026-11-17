@@ -85,6 +85,7 @@ const G = {
     s._nm = DATA.nmSnap();   // 新存档记下当前用的名字（config/names.js），以后改名读档时对照
     s.ssGfS6 = 1;   // 凝神观想诀已是 6 段加成（见 migrate）
     s._oreV2 = 1;   // v254 矿石表新版（见 migrate）
+    s.sid = this.newSid(); s.sidNew = 1; s.hero = "";   // 存档编号：本机 localStorage 里的存档设置（隐藏丹方等）按它分开，新存档不继承旧存档的（用户 2026-11-17）
     s.lzB1000 = true; s.lzV3 = true;   // lzV3：灵珠 3000 / 每强化 +24（见 migrate）   // 新存档的灵珠直接按 v261 后的 1000 算（见 migrate 的补 +990：只补老存档，新存档不再补）
     return s;
   },
@@ -115,6 +116,7 @@ const G = {
   },
   // 存档缺字段时，用模块默认值补上（以后加新功能不会坏档）
   migrate(s) {
+    if (!s.sid) s.sid = this.newSid();   // 老存档补存档编号（sidNew 不设：可以接手本机旧的不分存档的设置）
     this.oreV2(s);   // 要在 nmMigrate 之前：矿石序号变了
     DATA.nmMigrate(s);   // 存档里的旧名字 → config/names.js 的新名字
     if (!s.ssGfS6) {   // 凝神观想诀 3 段（36 层 ×1/×2/×3）→ 6 段（18 层 ×1~×6）（用户定 2026-11-16）：层数不变，神识强度按新旧加成差补
@@ -185,7 +187,18 @@ const G = {
   // 离开收益（服务器一直在结算，离线不再单独补算）：客户端在前台时每 30 秒记一次快照，
   // 打开游戏 / 切回前台时和快照比，离开超过 AWAY_MIN_SEC 秒且有变化就弹窗。
   AWAY_MIN_SEC: 60,
-  awayKey() { return "xiuAway_" + ((this.s && (this.s.name || this.s.id)) || ""); },
+  awayKey() { return "xiuAway_" + ((this.s && (this.s.sid || this.s.name || this.s.id)) || ""); },
+  // 本机存的「每个存档自己的」设置（隐藏丹方 / 配方、隐藏探索记录等）：键后加 @存档编号，换存档 / 删档重来不会串。
+  //   老存档第一次读时接手旧的不带编号的键（读完删掉）；新存档（sidNew）从不接手。
+  newSid() { return Date.now().toString(36) + Math.floor(Math.random() * 1e9).toString(36); },
+  saveKey(k) { const s = this.s; return s && s.sid ? k + "@" + s.sid : k; },
+  saveLsGet(k) {
+    if (typeof localStorage === "undefined") return null;
+    try { const nk = this.saveKey(k); let v = localStorage.getItem(nk);
+      if (v === null && nk !== k && this.s && !this.s.sidNew) { const old = localStorage.getItem(k); if (old !== null) { localStorage.setItem(nk, old); localStorage.removeItem(k); v = old; } }
+      return v; } catch (e) { return null; }
+  },
+  saveLsSet(k, v) { if (typeof localStorage === "undefined") return; try { const nk = this.saveKey(k); v === null ? localStorage.removeItem(nk) : localStorage.setItem(nk, v); if (nk !== k) localStorage.removeItem(k); } catch (e) {} },
   awaySnap() {
     const s = this.s; if (!s || typeof localStorage === "undefined") return;
     try { localStorage.setItem(this.awayKey(), JSON.stringify({ t: Date.now(), exp: s.exp || 0, stone: s.stone || 0, ling: s.ling || 0, contrib: s.contrib || 0, kills: s.kills || 0, bag: this.bagCount() })); } catch (e) {}

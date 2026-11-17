@@ -969,11 +969,11 @@ G.module({
 /* ---------- 炼丹房 / 炼器室：顶部按钮（炼丹 · 炼丹记录 · 隐藏丹方；炼器 · 精炼 · 记录 · 隐藏），先「开始炼丹 / 炼器」选配方，再开炉 ----------
  * 隐藏的丹方 / 配方只是界面显示偏好，存在本机 localStorage（xiu_hide_dan / xiu_hide_qi） */
 Object.assign(G, {
-  hideList(k) { try { return JSON.parse(localStorage.getItem("xiu_hide_" + k) || "[]"); } catch { return []; } },
+  hideList(k) { try { return JSON.parse(this.saveLsGet("xiu_hide_" + k) || "[]") || []; } catch { return []; } },   // 按存档分开（用户 2026-11-17）
   isHidden(k, key) { return this.hideList(k).includes(key); },
   toggleHide(k, key) {
     const L = this.hideList(k), i = L.indexOf(key); if (i >= 0) L.splice(i, 1); else L.push(key);
-    try { localStorage.setItem("xiu_hide_" + k, JSON.stringify(L)); } catch {}
+    this.saveLsSet("xiu_hide_" + k, JSON.stringify(L));
     this.render();
   },
   craftStartBtn(call, txt) { return `<div class="craft-start"><button class="primary" onclick="${call}">${txt}</button></div>`; },

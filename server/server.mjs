@@ -564,6 +564,7 @@ const server = http.createServer(async (req, res) => {
       await readBody(req);
       db.prepare("DELETE FROM saves WHERE user_id=?").run(user.id);
       db.prepare("DELETE FROM hist WHERE user_id=?").run(user.id);
+      db.prepare("DELETE FROM receipts WHERE user_id=?").run(user.id); receipts.delete(user.id);   // 旧存档的操作收据也清掉，新存档不沿用（2026-11-17）
       const online = clients.get(user.id);
       if (online) { clients.delete(user.id); online.socket.close(4004, "角色已重置"); }
       dropEngine(user.id);

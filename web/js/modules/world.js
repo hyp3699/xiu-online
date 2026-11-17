@@ -752,8 +752,8 @@ G.module({
     wsFirst() { if (typeof document === "undefined" || !document.querySelector("#view .wscroll")) return; this.viewScroll(this.mapRev(this.worldId || "fan") ? -1 : 0); },
     mapRev(wid) { return wid === "xian" || wid === "mo" || wid === "shen"; },   // 仙界、魔界、神界第一张图在最下面
     // 元婴出窍 / 自动探索 列表：所有能出窍 / 探索的地图（已历练通过的区域），可隐藏（存在本机）
-    runHidden(k) { try { return JSON.parse(localStorage.getItem("xiu_runhide_" + k) || "[]"); } catch (e) { return []; } },
-    hideRun(k, key) { const h = this.runHidden(k), i = h.indexOf(key); if (i >= 0) h.splice(i, 1); else h.push(key); try { localStorage.setItem("xiu_runhide_" + k, JSON.stringify(h)); } catch (e) {} this.openRunList(k); },
+    runHidden(k) { try { return JSON.parse(this.saveLsGet("xiu_runhide_" + k) || "[]") || []; } catch (e) { return []; } },   // 按存档分开（用户 2026-11-17）
+    hideRun(k, key) { const h = this.runHidden(k), i = h.indexOf(key); if (i >= 0) h.splice(i, 1); else h.push(key); this.saveLsSet("xiu_runhide_" + k, JSON.stringify(h)); this.openRunList(k); },
     toggleRunHid(k) { this.runShowHid = !this.runShowHid; this.openRunList(k); },
     openRunList(k) {
       const s = this.s, cq = k === "cq", hid = this.runHidden(k), rows = [];
