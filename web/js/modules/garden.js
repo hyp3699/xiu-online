@@ -29,7 +29,7 @@ G.module({
       let guard = 0;
       while (!f.wait && now >= f.start + this.fieldTime(f.g, f) && guard++ < 1e4) {
         const end = f.start + this.fieldTime(f.g, f), Y = DATA.herbGrow(f.g).yield, lg = DATA.isLg(f.g);
-        const n = lg ? this.lgYieldRoll() : Math.floor(U.rand(Y[0], Y[1]) * (1 + this.plantYieldPct(f.g) / 100)), ck = this.plantCraft(f.g);
+        const n = lg ? this.lgYieldRoll() : Math.floor(U.rand(Y[0], Y[1]) * (1 + (this.plantYieldPct(f.g) + DATA.landYieldPct(f.lv)) / 100)), ck = this.plantCraft(f.g);
         if (lg) this.addLg(f.g - DATA.LG_BASE, n); else this.addMat("herb", DATA.herbs[f.g], f.g, n);   // 背包满时进传音，不再丢药材却照算经验
         { const K = CFG.craftsman[ck], IE = K.ITEM_EXP, lm = CFG.craftsman.LING_EXP_MULT ?? 1; this.addCraftExp(ck, n * (IE ? ((lg ? IE[(DATA.LG().EXP_TIER ?? 15) - 1] : IE[f.g]) ?? IE[IE.length - 1] ?? 0) : (f.g + 1) * (K.EXP_RATE || 0)) * lm); }   // 每株 ITEM_EXP[品级−1]，再 × 种植经验总倍率   // 品级按药材总序号（仙界药材接在凡界后面）
         if (f.next != null) { f.g = f.next; f.next = null; } // 当季结束才换种
@@ -57,7 +57,7 @@ G.module({
         if (!this.hasMats(mats)) return this.log("矿石不足。", "sys");
         this.takeSm("lingye", c); mats.forEach(x => this.takeMat(x.kind, x.g, x.n)); }
       f.lv = lv + 1;
-      this.log(`第 ${Math.floor(+i) + 1} 块灵田升至 ${f.lv} 级，生长速度 +${U.num(DATA.landPct(f.lv))}%。`, "good"); this.dirty(); this.after();
+      this.log(`第 ${Math.floor(+i) + 1} 块灵田升至 ${f.lv} 级，生长速度 +${U.num(DATA.landPct(f.lv))}%，产量 +${U.num(DATA.landYieldPct(f.lv))}%。`, "good"); this.dirty(); this.after();
     },
     // 开始新的一季：扣灵气，不够就等待
     payField(f, at) {
@@ -129,7 +129,7 @@ G.module({
       const tabs = `<div class="bag-tabs">${[...Array(pages).keys()].map(k => `<button class="${k === cur ? "active" : ""}" onclick="G.openLandUp(${k})">${DATA.caveName("garden")}${CN[k] || k + 1}</button>`).join("")}</div>`;
       const rows = s.fields.slice(cur * P, cur * P + P).map((f, j) => {
         const i = cur * P + j, lv = Math.floor(+f.lv || 0), lfull = lv >= L.MAX, lc = lfull ? 0 : DATA.landCost(lv + 1);
-        return `<div class="line"><div>第 ${i + 1} 块 · ${f.g >= 0 ? DATA.cropName(f.g) : "空地"}<small>${lv} 级 · 生长速度 +${U.num(DATA.landPct(lv))}%${lfull ? " · 已满级" : ""}</small></div>${lfull ? "<b>已满级</b>" : `<button class="primary sm" onclick="G.openLandUpOne(${i},${cur})">升级</button>`}</div>`;
+        return `<div class="line"><div>第 ${i + 1} 块 · ${f.g >= 0 ? DATA.cropName(f.g) : "空地"}<small>${lv} 级 · 生长速度 +${U.num(DATA.landPct(lv))}% · 产量 +${U.num(DATA.landYieldPct(lv))}%${lfull ? " · 已满级" : ""}</small></div>${lfull ? "<b>已满级</b>" : `<button class="primary sm" onclick="G.openLandUpOne(${i},${cur})">升级</button>`}</div>`;
       }).join("");
       this.modal(`${tabs}<div class="line"><div>灵液</div><b>${U.fmt(lh)}</b></div><div class="landup-list">${rows || `<p class="desc">这一页还没有灵田。</p>`}</div><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
@@ -141,7 +141,7 @@ G.module({
       const lc = full ? 0 : DATA.landCost(lv + 1), mats = full ? [] : DATA.landMats(i, lv + 1), ly = this.smCount("lingye");
       const ok = DATA.isTest() || (ly >= lc && this.hasMats(mats));
       const cost = full ? `<p class="desc">已满级。</p>` : `<p class="zf-cost-t">升到 ${lv + 1} 级消耗</p><div class="cpk-mats zf-cost">${cell(DATA.smIcon("lingye"), ly, lc, DATA.smName("lingye"))}${mats.map(m => cell(DATA.matImg(m.kind, m.g), this.countMat(m.kind, m.g), m.n, DATA.matFull(m.kind, m.g))).join("")}</div>`;
-      this.modal(`<h2>第 ${i + 1} 块灵田 · ${lv} 级</h2><div class="stats"><div><span>生长速度</span>+${U.num(DATA.landPct(lv))}%${full ? "" : ` → +${U.num(DATA.landPct(lv + 1))}%`}</div></div>${cost}
+      this.modal(`<h2>第 ${i + 1} 块灵田 · ${lv} 级</h2><div class="stats"><div><span>生长速度</span>+${U.num(DATA.landPct(lv))}%${full ? "" : ` → +${U.num(DATA.landPct(lv + 1))}%`}</div><div><span>产量</span>+${U.num(DATA.landYieldPct(lv))}%${full ? "" : ` → +${U.num(DATA.landYieldPct(lv + 1))}%`}</div></div>${cost}
         <div class="btns">${full ? "" : `<button class="primary" onclick="G.fieldLandUp(${i});G.openLandUpOne(${i},${+pg || 0})" ${ok ? "" : "disabled"}>升级</button>`}<button onclick="G.openLandUp(${+pg || 0})">返回</button></div>`);
     },
     openFieldMenu(i) {
@@ -153,7 +153,7 @@ G.module({
       const lv = Math.floor(+f.lv || 0);
       let info = "";
       if (f.g >= 0) {
-        const T = this.fieldTime(f.g, f), now = this.now(), H = DATA.herbGrow(f.g), k = 1 + this.plantYieldPct(f.g) / 100, p = f.wait ? 100 : Math.max(0, 100 - Math.min(100, (now - f.start) / T * 100));   // 倒退：剩余比例
+        const T = this.fieldTime(f.g, f), now = this.now(), H = DATA.herbGrow(f.g), k = 1 + (this.plantYieldPct(f.g) + DATA.landYieldPct(lv)) / 100, p = f.wait ? 100 : Math.max(0, 100 - Math.min(100, (now - f.start) / T * 100));   // 倒退：剩余比例
         info = `<div class="line"><div>剩余时间</div><b>${f.wait === "seed" ? "缺少种子，等待中" : f.wait ? "灵气不足，等待中" : U.cd(Math.max(0, f.start + T - now) / 1000)}</b></div>
           <div class="bar fc-pop${f.wait ? " bad" : ""}"><div style="width:${p}%"></div></div>
           <div class="line"><div>产量</div><b>${DATA.isLg(f.g) ? this.lgYieldTxt() : `${Math.floor(H.yield[0] * k)}~${Math.floor(H.yield[1] * k)} 株`}</b></div>

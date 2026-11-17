@@ -89,6 +89,7 @@ DATA.fieldCost = i => { const a = _GA.OPEN_COST, b = _GA.OPEN_LAST, n = (_GA.MAX
 DATA.LAND = () => Object.assign({ MAX: 36, BAND: [12, 24, 36], PCT: [1, 1, 1], PCT_LV1: 1, PCT_MAX: 72, PCT_STEP1: 1, LY: [100, 5000] }, _GA.LAND || {});   // 默认值与 config/garden.js 一致（1 级 1%，满级 72%）：配置缺失时也不静默变分档
 DATA.landBand = lv => { const B = DATA.LAND().BAND; const i = B.findIndex(v => lv <= v); return i < 0 ? B.length - 1 : i; };
 // 生长速度：1 级 PCT_LV1 %，满级 PCT_MAX %，中间每级平均增加（有 PCT_MAX 时用；否则按旧的 BAND×PCT 累加）
+DATA.landYieldPct = lv => { const L = DATA.LAND(); return L.YIELD_MAX && L.PCT_MAX ? Math.round(DATA.landPct(lv) * L.YIELD_MAX / L.PCT_MAX * 100) / 100 : 0; };   // 土地产量 +%（用户定 2026-11-17）
 DATA.landPct = lv => { const L = DATA.LAND(); lv = Math.max(0, Math.min(L.MAX, Math.floor(+lv || 0))); if (!lv) return 0;
   if (L.PCT_MAX != null) {   // 每级增加量从 PCT_STEP1（1→2 级）起逐级等量变大，正好到满级 PCT_MAX（高级加得多，用户定 2026-11-14）
     const a = +L.PCT_LV1 || 0, b = +L.PCT_MAX || 0, n = L.MAX - 1; if (n <= 0) return b;
