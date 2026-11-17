@@ -47,7 +47,6 @@ DATA.brRate = () => DATA.isTest() ? 0 : +((CFG.rates || {}).BREAK ?? 1) || 0;   
 // 前面突破需要 × REQ_MUL：第 T 层（0 = 第一境界一层）倍率 FROM → TO 按层平均递减，T ≥ LAYERS 起 = TO
 DATA.reqMul = T => { const C = _R.REQ_MUL; if (!C || !(+C.LAYERS > 0)) return 1; const a = +C.FROM || 1, b = +(C.TO ?? 1) || 1, n = +C.LAYERS; T = Math.max(0, T); return T >= n ? b : a + (b - a) * T / n; };
 DATA.needExp = L => Math.round(DATA.brNeed(_R.EXP, L + 1, 1, _R.EXP_GROW, _R.EXP_FIRST) * DATA.reqMul(L + 1) * DATA.brRate());   // 第 L 层 → 第 L+1 层
-DATA.MORTAL_EXP = Math.round(DATA.brNeed(_R.EXP, 0, 1, _R.EXP_GROW, _R.EXP_FIRST) * DATA.reqMul(0) * DATA.brRate());          // 凡人 → 练气一层
 // 突破 n 层（第 0 ~ n-1 层）增加的属性合计（缓存）
 DATA._brSum = {};
 DATA.brSum = (rows, n, tag) => {

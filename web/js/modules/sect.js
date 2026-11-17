@@ -120,7 +120,6 @@ G.module({
       if (pill > 0) return { name: "悟真丹", pct: pill, pill, mul: M(0), cost: 0, cur: null, pillOnly: true };   // 不在练功房时，悟真丹仍生效
       return null;
     },
-    leaveGfRoom(why) { const r = this.gfRoomNow(); this.s.gfRoom = -1; this.s.gfRoomAt = 0; if (r && why) this.log(`${why}，已离开${r.name}。`, "bad"); this.dirty(); },
     setSectStar(n) { this.sectStar = n; this.render(); },
     setSectTab(t) { this.sectTab = t; this.render(); },
 
@@ -153,13 +152,6 @@ G.module({
     },
 
     /* ---------- 宗门大殿 ---------- */
-    // 职务需要的境界：外门弟子 = 门派入门境界；其余 = config/mobs.js 该星宗门考官的第 1 个数
-    rankReqRealm(i) {   // 晋升需要的境界 = 考官境界；config/mobs.js 的 sect 写了「晋升需」按它
-      const I = this.sectInfo(); if (i <= 0) return I.reqRealm;
-      const g = DATA.mobPick(CFG.mobs.sect, I.star + "星", I.star - 1) || {}, o = (g["晋升需"] || {})[DATA.ranks[i] && DATA.ranks[i].name];
-      if (o !== undefined) return o;
-      const t = DATA.mobExam(I.star, i); return t ? t[0] : I.reqRealm;
-    },
     rankCost(i) { return DATA.ranks[i].cost; },   // 晋升贡献：就是 ranks 表的 cost，不乘宗门星级
     promote() {
       const i = this.s.rank + 1; if (i >= DATA.ranks.length) return;
@@ -859,7 +851,6 @@ G.module({
     jdNeed(k) { const c = this.craftInfo(k); return c.lv >= this.craftMax(k) ? 0 : this.craftNeed(k, c.lv); },
     jdExp(k, star) { if (!this.jdNeed(k)) return [0, 0]; return this.jdInterp(this.jdCfg().EXP1 || [20, 40], this.jdCfg().EXP10 || [180, 260], star); },   // 炼丹/炼器经验：1 星 EXP1 到 10 星 EXP10 按星级线性插值（满阶不加）
     jdRoll(r) { return Math.floor(r[0] + Math.random() * (r[1] - r[0] + 1)); },
-    jdRange(r) { return r[0] === r[1] ? U.fmt(r[0]) : `${U.fmt(r[0])}~${U.fmt(r[1])}`; },
     // 当天的长老按「日期 + 角色名 + 门派」固定随机：客户端、服务器算出来一样，刷新页面也不变
     jdRng(day) {
       let h = 2166136261; for (const c of `${day}|${this.s.name}|${this.s.sect}`) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;

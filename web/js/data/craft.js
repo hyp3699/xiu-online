@@ -38,7 +38,6 @@ DATA.danStar = (type, g) => DATA.danSectX(type) ? ((_AL.SECT_XMM.STAR || [])[g] 
 DATA.danStat = type => (_AL.recipes[type] && _AL.recipes[type].stat) || type;
 // v42：仙冥魔神丹（cat ≥ 1）用炼丹仙炉、炼丹仙师；修炼丹的品质 = 阶 + REALM0
 DATA.danFu = type => DATA.danCat(type) === 4 ? "sdan" : DATA.danCat(type) ? "xdan" : "dan";   // 神丹用炼丹神炉
-DATA.danCraft = type => DATA.danCat(type) ? "xdan" : "dan";
 // v256 仙 / 冥 / 魔丹的命中、速度、闪避、生命、法力丹方在宗门炼丹房学（config/alchemy.js SECT_XMM）
 DATA.danSectX = type => { const X = _AL.SECT_XMM, r = _AL.recipes[type]; return !!(X && r && !r.speed && !r.item && (X.CATS || []).includes(r.cat || 0) && (X.STATS || []).includes(DATA.danStat(type))); };
 DATA.danSect = type => DATA.danCat(type) === 0 || DATA.danSectX(type);   // 在宗门炼丹房学的丹方：凡丹 + 上面这些（其余仙冥魔神丹在四界功德司）
@@ -100,7 +99,6 @@ DATA.landPct = lv => { const L = DATA.LAND(); lv = Math.max(0, Math.min(L.MAX, M
 DATA.landMats = (i, lv) => { const L = DATA.LAND(), P = (L.ORES || [])[DATA.landBand(lv)] || [], N = P.length, k = Math.min(N, Math.max(0, +L.ORE_N || 0)), n = Math.round((+L.ORE || 0) * lv), st = (Math.floor(+i) || 0) + lv;
   return N && k && n > 0 ? DATA.parseMats([...Array(k).keys()].map(j => [P[(st + j) % N], n])) : []; };
 DATA.landCost = lv => { const L = DATA.LAND(), a = +L.LY[0] || 0, b = +L.LY[1] || a, n = Math.max(1, L.MAX - 1); return Math.round(a + (b - a) * (Math.max(1, Math.min(L.MAX, lv)) - 1) / n); };   // 升到第 lv 级的灵液
-DATA.landColorName = lv => ["普通", "绿色", "红色"][DATA.landBand(lv)] || "";
 // 土地外观：三张满幅土壤图（0~12 级普通土、13~24 绿、25~36 红），同一样式、只换土色，边缘带一点坡度、不带硬边框，不随等级加深
 DATA.landStyle = lv => { const n = Math.floor(+lv || 0) ? DATA.landBand(Math.floor(+lv)) + 1 : 1;
   return `background-color:transparent;background-image:url(img/land_${n}.webp?v=${DATA.IMG_V});background-size:cover;background-position:center;background-repeat:no-repeat`; };

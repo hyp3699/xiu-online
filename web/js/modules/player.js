@@ -157,9 +157,6 @@ G.module({
       const zp = this.sjPct ? this.sjPct() : {};   // 神界真意：百分比，只乘修为突破 + 肉身突破的属性（shenjie.js）
       for (const k of ["hp", "atk", "def", "mana"]) if (zp[k]) out[k] += (R(k) + (bd[k] || 0)) * zp[k] / 100;
       for (const e of DATA.elements) { const p = zp["res_" + e.id]; if (p) out.res[e.id] += (R("res") + (L < 0 ? 0 : this.brRand("xw", "res:" + e.id)) + (bd.res || 0) + ((bd.resEl || {})[e.id] || 0)) * p / 100; }
-      const sw = this.swPct ? this.swPct() : {};   // 神界主神纹：百分比（shenjie.js）
-      for (const k of ["hp", "atk", "def", "dodge"]) if (sw[k]) out[k] *= 1 + sw[k] / 100;
-      if (sw.res) for (const e in out.res) out.res[e] *= 1 + sw.res / 100;
       return out;
     },
   },

@@ -15,7 +15,6 @@ G.module({
 
   api: {
     oriList() { return ((CFG.origin || {}).LIST || []).filter(o => o && o.id); },
-    oriBase() { return Math.max(0, Math.floor((CFG.origin || {}).PICK ?? 4)); },
     oriPick() { return Math.max(0, Math.floor((CFG.origin || {}).PICK ?? 4)) + Math.max(0, Math.floor(this.s ? +this.s.oriExtra || 0 : +this._oriExtra || 0)); },   // + 礼包码出身点
     oriOf(s = this.s) { const L = this.oriList(); return ((s && s.ori) || []).map(id => L.find(o => o.id === id)).filter(Boolean); },
     // 选中的出身里某个数值键加起来

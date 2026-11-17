@@ -18,13 +18,13 @@ test("灵果：服用永久加属性，无上限；修为 / 气血速度加数�
   G.addSeed(D.LG_BASE + 3, 1); assert.equal(G.sellPrice(s.bag.find(x => x && x.t === "seed")), 100);
 });
 
-test("灵果种植：72 小时、扣 240 万灵气和 1 颗种子，收获 1~3 颗进背包", () => {
+test("灵果种植：72 小时、扣 240 万灵气和 1 颗种子，收获 1~3 颗进传音", () => {
   const { G, D, s } = mk(); s.stone = 1e9; s.ling = 3e6;
   const g = D.LG_BASE + 5; G.addSeed(g, 2); [0, 1, 2].forEach(g => G.addMat("ore", D.ores[g], g, 5000)); G.openField(); G.plantField(0, g);
   assert.equal(s.fields[0].g, g); assert.equal(s.ling, 600000); assert.equal(G.seedCount(g), 1);
   assert.equal(D.growTime(g), 72 * 3600000);
   s.ling = 3e6; s.fields[0].start -= G.fieldTime(g) + 1000; G.tickAll(false);
-  const got = s.bag.filter(x => x && x.t === "lg" && x.k === 5).reduce((t, x) => t + x.n, 0);
+  const got = G.mailboxList().filter(x => x && x.it && x.it.t === "lg" && x.it.k === 5).reduce((t, x) => t + x.it.n, 0);   // 灵药园产出进传音（2026-11-17）
   assert.ok(got >= 1 && got <= 3); assert.equal(G.seedCount(g), 0);
 });
 

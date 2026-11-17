@@ -300,10 +300,8 @@ G.module({
       const t = Math.max(0, Math.ceil(ms / 1000)), h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60;
       return (h ? h + "小时" : "") + (h || m ? m + "分" : "") + s + "秒";
     },
-    countdown(ms) { return `<span class="cd">${this.countdownTxt(ms)}</span>`; },
     // 第3层 → 第4层（目标层红框）
     gfYears(sec) { const y = sec / ((+CFG.player.YEAR_MIN || 15) * 60); return `${y >= 100 ? Math.round(y) : +y.toFixed(1)}年`; },   // 游戏时间：现实 15 分钟 = 1 年（用户定 2026-11-16）
-    gfLvTo(lv) { return `<span class="tag gf-lv">第${lv}层</span> → <span class="tag gf-to">第${lv + 1}层</span>`; },
     // 「修炼队列」页：正在修炼（倒计时、进度、消耗）+ 排队中的
     // 当前修炼进度：{ done, left, mul }（无修炼返回 null），倒计时卡片与队列累计共用
     gfStudyProg() {

@@ -383,7 +383,6 @@ G.module({
       return { syOn: sy[0] > 0, syDrain: this.bmLerp(sy[0], Array.isArray(SY.DRAIN) ? SY.DRAIN : [0.15, 15]), syLow: SY.LOW || 15, syStun: this.bmLerp(sy[0], SY.STUN || [1, 100]), syR: SY.STUN_R || 1, yxHeal: this.bmLerp(yx[0], Y.HEAL || [1, 100]), pjDmg: this.bmLerp(pj[0], P.DMG || [1, 100]), pjStun: this.bmLerp(pj[1], P.STUN || [1, 100]), pjR: P.STUN_R || 1,
         skRes: this.bmLerp(sk[0], S.RES || [1, 30]), skR: sk[0] > 0 ? Math.max(1, Math.round(this.bmLerp(sk[1], S.ROUNDS || [1, 20]))) : 0,
         txPct: tx[1] * (T.PCT || 0) }; },
-    bmTxPct() { return this.bmFxVal().txPct || 0; },
     bmFxCost(L) { const U2 = this.bmCfg().FX_UP || {}, C = U2.COST || [300, 600], M = this.bmFxMax(); return Math.round(C[0] + (C[1] - C[0]) * (M > 1 ? (L - 1) / (M - 1) : 0)); },   // 升到第 L 级每种精炼石几个
     bmFxUpOK(k) { return ["bmfx1", "bmfx2", "bmfx3", "bmfx4", "bmfx5"].includes(k); },
     bmFxUp(k, m) {
@@ -409,7 +408,6 @@ G.module({
       if (k === "bmfx5") return [["使用次数", `强化到 ${M} 级，本命法宝每场战斗额外增加 ${T.USES || 1} 次使用次数${lv[0] >= M ? "（已生效）" : ""}。`],
         ["不占回合", `每级 +${T.PCT || 1}% 几率使用本命法宝时不占用回合，当前 ${U.fmt(V.txPct || 0)}%。`]];
       return []; },
-    openBmTx() { return this.openBmFxUp("bmfx5"); },
     openBmFxUp(k) {
       const lv = this.bmFxLv(k), M = this.bmFxMax(), R = this.bmCfg().REF_STONES || [], f = this.bmFx().find(x => x[0] === k) || [k, ""];
       const row = (m, [t, d]) => { const L = lv[m], full = L >= M, n = full ? 0 : this.bmFxCost(L + 1), ok = this.craftFree() || R.every(x => this.herbCount(x.name) >= n);
@@ -854,7 +852,6 @@ G.module({
     /* ---------- 秘境专用材料：空间晶核 kj、养神露 lu、耀石 ys（ft = 属性序号 0~5；-1 = 任意一种） ---------- */
     ysFor(e) { return e && e.slot === "fabao" ? DATA.elIdx(e.el) : -1; },   // 强化 / 炼制用哪种耀石
     smIs(k, ft) { return x => x && x.t === "sm" && x.k === k && (!DATA.SM_GRADED.includes(k) || (x.ft || 0) === (ft || 0)); },
-    smFind(k, ft) { return this.s.bag.findIndex(this.smIs(k, ft)); },
     smCount(k, ft) {
       if (k === "ys" && ft < 0) return this.bagNum(x => x.t === "sm" && x.k === "ys");
       return this.bagNum(this.smIs(k, ft));

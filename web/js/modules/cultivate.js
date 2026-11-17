@@ -111,8 +111,8 @@ G.module({
       for (const t in s.buffs) { const b = s.buffs[t]; if (b && b.left > 0) pill += b.pct; }
       const room = this.freeCultOn() ? this.freeCultPct() : s.room >= 0 && s.sect ? this.roomPct(s.room) : 0;
       // 所有百分比加成相加后再乘：总速度 = 基础 × (1 + (聚灵阵% + 丹药% + 修炼室% + 经脉% …) / 100)，避免数值连乘爆炸
-      const arrPct = (arr - 1) * 100, mfPct = this.mifaBonus().expSpeedPct || 0, svPct = this.servantPct("cult") + (this.swPct ? this.swPct().cult || 0 : 0), jm = this.jmFull ? this.jmFull().cult : 0;   // 经脉穴位冲满：直接加数值（jingmai.js）   // 聚元秘法圆满额外 %、道童辅助修炼 %
-      return { base, xs, rs, gfc, lgc, sjc, ori: this.oriSum ? this.oriSum("cultPct") : 0, arrPct, sw: this.swPct ? this.swPct().cult || 0 : 0, arr, pill, room, mifa, mfPct, svPct, jm, total: base * (1 + (arrPct + pill + room + mfPct + svPct) / 100) + jm,
+      const arrPct = (arr - 1) * 100, mfPct = this.mifaBonus().expSpeedPct || 0, svPct = this.servantPct("cult"), jm = this.jmFull ? this.jmFull().cult : 0;   // 经脉穴位冲满：直接加数值（jingmai.js）   // 聚元秘法圆满额外 %、道童辅助修炼 %
+      return { base, xs, rs, gfc, lgc, sjc, ori: this.oriSum ? this.oriSum("cultPct") : 0, arrPct, arr, pill, room, mifa, mfPct, svPct, jm, total: base * (1 + (arrPct + pill + room + mfPct + svPct) / 100) + jm,
         gather: this.gatherAmount() };                                     // 每 10 秒聚灵（开关不影响）
     },
 
@@ -325,7 +325,7 @@ G.module({
       const body = t === "x" ? `<h3>${U.num(sp.total)} 修为 / 10秒</h3>
         ${L("修为境界", sp.xs && F(sp.xs))}${L("肉身境界", sp.rs && F(sp.rs))}${L("秘诀", sp.gfc && F(sp.gfc))}${L("聚元秘法", sp.mifa && F(sp.mifa))}${L("灵果", sp.lgc && F(sp.lgc))}${L("神界感悟", sp.sjc && F(sp.sjc))}
         <div class="line"><div>基础合计</div><b>${U.num(sp.base)}</b></div>
-        ${L("聚灵阵", sp.arrPct && P(sp.arrPct), `${s.array.lv} 级`)}${L("聚元秘法圆满", (sp.mfPct - sp.ori) && P(sp.mfPct - sp.ori))}${ORI(["cultPct"])}${L("道童辅助修炼", (sp.svPct - sp.sw) && P(sp.svPct - sp.sw))}${L("神纹", sp.sw && P(sp.sw))}
+        ${L("聚灵阵", sp.arrPct && P(sp.arrPct), `${s.array.lv} 级`)}${L("聚元秘法圆满", (sp.mfPct - sp.ori) && P(sp.mfPct - sp.ori))}${ORI(["cultPct"])}${L("道童辅助修炼", sp.svPct && P(sp.svPct))}${L("神纹", sp.sw && P(sp.sw))}
         ${L("丹药", sp.pill && P(sp.pill))}${L("修炼室", sp.room && P(sp.room), roomNm)}${L("经脉", sp.jm && F(sp.jm), "最后直接加")}`
       : `<h3>${U.num(bs.total)} 气血 / 10秒</h3>
         ${L("肉身境界", bs.base && F(bs.base))}${L("修为境界", bs.xw && F(bs.xw))}${L("炼体秘诀", bs.gfB && F(bs.gfB))}${L("炼体秘法", bs.mf && F(bs.mf))}${L("灵果", bs.lgB && F(bs.lgB))}${L("神界感悟", bs.sjB && F(bs.sjB))}

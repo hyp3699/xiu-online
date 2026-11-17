@@ -8,7 +8,7 @@ import os from "node:os";
 import zlib from "node:zlib";
 import Database from "better-sqlite3";
 import { WebSocketServer, WebSocket } from "ws";
-import { GameEngine, ADVANCE_BUDGET_TICKS, CONFIG_OVERRIDE_DIR, configNames, configOverridden, readConfig, validConfigName, configHash } from "./game-engine.mjs";
+import { GameEngine, CONFIG_OVERRIDE_DIR, configNames, configOverridden, readConfig, validConfigName, configHash } from "./game-engine.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const HOST = process.env.XIU_HOST || "127.0.0.1";
@@ -1190,7 +1190,6 @@ setInterval(backupDb, BACKUP_MS).unref();
 // 每人每次一个 JSON 读写 + 一个周期结算；整轮超过 1 秒会记日志，玩家多了再改成分批。
 const offlineIds = db.prepare("SELECT user_id FROM saves"), offlineBad = new Map();   // 结算出错的角色 30 分钟内不再后台算（免得反复刷错误），之后重试；上线时照常结算
 let offlineAt = 0;   // 后台结算轮转起点：每轮最多用 CATCHUP_SLICE_MS 毫秒补算，下一轮从没轮到的人接着
-const OFFLINE_CHUNK = ADVANCE_BUDGET_TICKS;   // 用户定 2026-11-16：按离线时间一次补完（原 8640 = 每轮 1 天）;   // 后台结算每轮每人最多补 1 天（8640 个 10 秒），停服很久后不会一轮卡死，剩下的下一轮接着算
 function offlineSec() { try { const v = Number(poolEngine(false, false).CFG.rates?.OFFLINE_SEC ?? 10); return Number.isFinite(v) && v > 0 ? Math.max(1, v) : 10; } catch { return 10; } }   // 后台结算不能关：0 / 缺失 / 无效一律按默认 10 秒
 let offlineBacklog = false;   // 有人还没补完（停机很久 / 离线很久）：下一轮 0.2 秒后接着补，不等 10 秒（用户定 2026-11-16 补算要快）
 function offlineSettle() {

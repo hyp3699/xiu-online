@@ -40,8 +40,6 @@ DATA.wdSrc = sid => {
     juan: DATA.wdVolsBefore(k) + Math.floor(j / T.length) + 1, mult: X.BOOK_MULT, el: "jin", prefix: "", name: "悟道室", reqRealm: -1 };   // 倍率固定 BOOK_MULT（原来是 MULT 区间随机）
 };
 DATA.wdBookId = (k, j) => { const o = DATA.wdSrc(`wd${k}_${j}`); return o ? `${o.id}:${o.type}` : null; };
-// 本阶段开始前已悟道的累计次数（战斗功法序号 j 用：本阶段第几本）
-DATA.wdStageStart = (k, dao) => { let s = 0; for (let i = 1; i < k; i++) s += DATA.wdStageTimes(i, dao); return s; };
 // 第 k 阶段开始前已给过的战斗功法本数（各阶段间隔按 BOOK_STEPS 表，所以要逐阶段算）
 DATA.wzBooksBefore = k => { let s = 0; for (let i = 1; i < k; i++) s += Math.floor(DATA.wdStageTimes(i, "zhandou") / DATA.wdBookInterval(i, "zhandou")); return s; };
 // 战斗功法来源（现算 + 缓存）：wz阶段_序号；类型、抗性属性由序号哈希定（发功法时按同一规则显示名字，不用另存）

@@ -119,7 +119,6 @@ DATA.enhCfg = e => CFG.forge.enhance[e && e.slot === "fabao" ? "fabao" : "equip"
 // 装备 / 戒指：强化后这条主属性加多少（固定数值）；不是主属性、PER 里没写（暴击）= 0
 DATA.eqEnhAdd = e => { const E = CFG.forge.enhance.equip; if (!e || e.slot === "fabao") return {};
   return (e.slot === "ring" ? (E.RING || [])[e.r] : (E.ADD || {})[e.slot]) || {}; };   // 每强化一次加的属性，不分星级
-DATA.eqEnhPer = (e, k) => DATA.eqEnhAdd(e)[k] || 0;
 // 一条属性的数值（e = 整件装备，用来区分法宝 / 戒指），含强化
 DATA.bmPct = e => { const B = CFG.forge.benming || {}; return (B.PCT || 105) + Math.min(e.bmRf || 0, B.RF_MAX || 300) * (B.RF_PCT === undefined ? 0.5 : B.RF_PCT); };   // 本命法宝伤害%：PCT + 精炼次数 e.bmRf × RF_PCT
 DATA.attrVal = (a, g, e) => e && e.bm && a.k === "pct" ? DATA.bmPct(e) : DATA.attrBase(a, g, e);   // 本命法宝：伤害固定 攻击×PCT%（config/benming.js）   // v156 强化属性单独算（DATA.eqEnhStats），不并进属性条，洗练不影响

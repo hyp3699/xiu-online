@@ -36,9 +36,7 @@ G.module({
     },
     isShen(a) { return !!DATA.maps[a] && DATA.maps[a].w === "shen"; },
     sjWi(a) { return (DATA.maps[a] || {}).wi || 0; },
-    sjAt(arr, a) { arr = arr || []; return arr[Math.min(this.sjWi(a), arr.length - 1)] || 0; },
     sjJieName(a) { return (DATA.maps[a] || {}).name || ""; },
-    sjJk() { return 1; },
     // 每域 2 界：格子游历用 r = 4 + 域 × 2 + j（4 ~ 11），和四域 0 ~ 3 的格子分开存
     sjJieOf(a, r, j) { const N = (this.sjC().JIE_NAMES || [])[this.sjWi(a)] || []; return N[r * 2 + (j ? 1 : 0)] ? N[r * 2 + (j ? 1 : 0)] + "界" : ""; },
     // 界的征服：s.grids["a_g"].m = 怪物格子（第一次进入时随机 JIE_MOB 个，不含中间神像格），.k = 已打败，.sx = 神像等级（0 级没有效果）
@@ -146,12 +144,6 @@ G.module({
     // 道场：从第一重天起，前一重天 10 种真意都得到了才去下一重天得真意（还要境界够）；全部得到后仍可每天感悟（在最高能进的那重天）
     sjZyKinds() { return this.sjC().ZY_KINDS || []; },
     sjZyOf(a) { return this.sjS().zy.filter(z => z.a === a); },
-    sjDcDone(a) { return this.sjZyOf(a).length >= this.sjZyKinds().length; },
-    sjDcAt() {
-      const L = [...(DATA.worldMapIdx.shen || [])].sort((x, y) => this.sjWi(x) - this.sjWi(y));
-      for (const a of L) { if (this.sjDcDone(a)) continue; return this.sjMapOk(a) ? { a, j: 0 } : null; }
-      const ok = L.filter(a => this.sjMapOk(a)); return ok.length ? { a: ok[ok.length - 1], j: 0, all: true } : null;
-    },
     sjGwN() { const J = this.sjS(); return Math.max(0, Math.floor(+J.gwN || 0)); },   // 已感悟总次数
     sjGwToday(a) { return !DATA.isTest() && (this.sjS().dcDayM || {})[this.sjKey(a)] === this.bjDay(); },   // 每重天每天一次
     // 每重天单独计次：本重天第 n 次 = n × GW_YL / GW_STONE × 重天倍率（第一重天 1 倍 → 最后一重天 GW_LAST 倍）

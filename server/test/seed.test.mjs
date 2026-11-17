@@ -17,7 +17,7 @@ test("种子：宝库无限兑换进背包，种植和续种各扣 1 颗，可�
   assert.equal(s.fields[0].g, 0); assert.equal(G.seedCount(0), 4);
   const f = s.fields[0]; f.start -= G.fieldTime(0) + 1000;
   G.tickAll(false);   // 成熟收获，自动续种再扣 1 颗
-  assert.equal(G.seedCount(0), 3); assert.ok(G.countMat("herb", 0) > 0); assert.equal(f.wait, false);
+  assert.equal(G.seedCount(0), 3); assert.ok(G.mailboxList().some(x => x && x.it && x.it.t === "mat" && x.it.kind === "herb" && x.it.g === 0 && x.it.n > 0));   // 收获进传音 assert.equal(f.wait, false);
   G.takeSeed(0, 3); f.start -= G.fieldTime(0) + 1000; G.tickAll(false);
   assert.equal(f.wait, "seed");   // 没种子就停
   G.addSeed(0, 1); G.tickAll(false); assert.equal(f.wait, false); assert.equal(G.seedCount(0), 0);

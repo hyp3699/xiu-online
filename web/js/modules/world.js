@@ -33,7 +33,6 @@ G.module({
   tick() { this.advanceExplore(); this.lkSettle(); },   // 灵矿按时间进灵石（fastsim.js 把下次结算时刻算成事件）
 
   api: {
-    setWorldTab(t) { this.worldTab = t; this.render(); },
     openAdmin(on) {
       this.adminPage = !!on; this.giftPage = false; this.accPage = false;
       if (on) API.adminInfo().then(j => { this.adminInfo = j; this.render(); }).catch(() => {});
@@ -1058,7 +1057,6 @@ G.module({
         const R = this.mobRandCfg(c); F[k] = { mf: this.rollMf(R), tf: this.rollTf(R, this.lingCatOf(k)) }; }   // config/battle.js MOB_RAND
       for (const c in C) for (const k of C[c]) if (F[k]) F[k].tf = this.lingFix(F[k].tf, this.lingCatOf(k));   // X灵天赋个数（LING_RAND）
     },
-    mobElOf(k) { const M = this.s.mobEl || {}; return M[k] || ""; },
     mobFixOf(k) { return (this.s.mobFix || {})[k] || null; },
 
     // 怪物天赋（config/battle.js 的 TALENT）：第一次战斗时定，m.tf = ["lianji", "xishou_huo", …]；属性类天赋这时直接加到怪物属性上
@@ -2390,11 +2388,6 @@ G.module({
       this.log(`元婴出窍，前往${DATA.regionName(a, r)}探索 ${n} 次。`, "sys");
       this.after();
     },
-    // 停止：本次已获得的东西也结算
-    // 正在出窍时不能历练 / 探索，要先停止出窍
-    // v 出窍和探索可以同时进行：出窍放在 s.cq（结构同 s.explore），上一次出窍结果 s.lastCq
-    //   cqRun(fn)：把 s.cq / s.lastCq 临时换到 s.explore / s.lastRun 上执行，探索那套代码直接复用
-    cqBusy() { return false; },
     cqRun(fn) {
       const s = this.s, e = s.explore, l = s.lastRun;
       this._cqOther = !!(e && !e.rest);   // 探索也在走：每步恢复只算一次（由探索那边算）
@@ -2852,7 +2845,6 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
     setExInfo(k, keep) { if (!keep && this.exploreOpen && this.exInfoTab() === k) this.exploreOpen = false; else { this.exploreOpen = true; this.exInfo = k; } this.render(); },
     // 探索信息一行：战斗事件后面带「详情」按钮
     evLine(e, src, i) { return `<p class="${e.c}">${e.n ? `<b>第${e.n}步</b> ` : ""}${e.t}${e.b ? ` <button class="sm" onclick="G.showBattle('${src}',${i})">详情</button>` : ""}</p>`; },
-    setLastOpen(v) { this.lastOpen = v; this.render(); },
     // 全部信息：探索、出窍、历练、秘境每次结束记一条，战斗（实力测试除外）在服务器 playBattle 里记，天劫在 trib.js endTrib 记；
     //   放进 s.histQ，服务器取走存 hist 表（最近 20 条），客户端打开时用 /api/hist 读
     exHistAdd(r, x) {

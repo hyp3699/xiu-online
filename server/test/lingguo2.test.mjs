@@ -31,7 +31,7 @@ test("灵果田：离线结算也能收获；灵果种子随秘境结算发放�
   const { e, G, D, s } = mk(); s.stone = 1e9; s.ling = 3e6;
   const g = D.LG_BASE + 7; G.addSeed(g, 1); [0, 1, 2].forEach(g => G.addMat("ore", e.DATA.ores[g], g, 5000)); G.openField(); G.plantField(0, g);
   s.ling = 3e6; s.fields[0].start -= G.fieldTime(g) + 1000; G.tickAll(true);
-  assert.ok(s.bag.some(x => x && x.t === "lg" && x.k === 7), "离线收获");
+  assert.ok(G.mailboxList().some(x => x && x.it && x.it.t === "lg" && x.it.k === 7), "离线收获（进传音）");
   const loot = G.newLoot(); loot.seed = { [D.LG_BASE + 3]: 2 }; G.giveLoot(loot);
   assert.equal(G.seedCount(D.LG_BASE + 3), 2);
   s.lgEat = { 14: 5 };

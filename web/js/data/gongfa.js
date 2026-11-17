@@ -82,7 +82,6 @@ DATA.GF_CAT_OF = { sect: "sect", shop: "shop", jshop: "shop", gd: "gd", tower: "
 DATA.GF_CATS = { sect: "宗门功法", shop: "坊市功法", gd: "功德司功法", tower: "试炼塔功法", wd: "悟道功法", cc: "宗门传承功法", tianwai: "天外天功法" };
 for (const k in DATA.GF_CATS) DATA.GF_CATS[k] = DATA.nmPick(_NM.gfCat, k, DATA.GF_CATS[k]);
 DATA.gfCat = g => g && g.kind !== "mf" && g.src ? DATA.GF_CAT_OF[g.src] || "" : "";   // 秘法、开局功法不算
-DATA.gfCatName = g => DATA.GF_CATS[DATA.gfCat(g)] || "";
 
 for (const k in DATA.gfSources) DATA.gfSources[k].name = DATA.nmPick(_NM.gfSource, k, DATA.gfSources[k].name);
 
@@ -201,7 +200,6 @@ DATA.towerBookFloors = star => {
   if (last > 0) out.push({ f: max, pct: last });
   return out;
 };
-DATA.towerBookCount = star => DATA.towerBookFloors(star).length;
 DATA.TOWER_TYPES = ["mijue"];   // 试炼塔给的秘诀种类（v223 只给修炼秘诀）
 DATA.towerBooks = [];
 DATA.towerSources.forEach(src => DATA.towerBookFloors(src.star).forEach((x, k) =>
@@ -367,12 +365,6 @@ DATA.ownAtk = () => {
   const st = G._cache ? G._cache.stats : !G._calcBusy && G.calc ? G.calc().stats : null;   // 缓存刚清掉时先补算，免得法术攻击在两种算法间来回跳
   return { br, gf: st ? Math.max(0, st.atk - br) : G.gongfaBonus().atk };
 };
-// v165 通用版：k = hp / def …（盾的护盾值、防御用）：min(修为 + 肉身, 参考值) + 功法
-DATA.ownStat = k => {
-  if (typeof G === "undefined" || !G.s || !G.gongfaBonus) return { br: 0, gf: 0 };
-  return { br: DATA.plRealmStat(G.s.mortal ? -1 : G.s.L, k) + (G.s.mortal || !G.brRand || k === "res" ? 0 : G.brRand("xw", k)) + ((G.bodyBonus ? G.bodyBonus() : {})[k] || 0), gf: G.gongfaBonus()[k] || 0 };
-};
-DATA.capStat = (cap, k) => { const o = DATA.ownStat(k); return o.br || o.gf ? Math.min(o.br, cap) + o.gf : cap; };
 DATA.capAtk = (cap, own) => { const o = own || DATA.ownAtk(); return Math.min(o.br, cap) + o.gf; };
 // 法术第 star 星对应境界（config/gongfa.js 的 REF）的人物属性：修为突破 + 肉身突破（不算功法），含 manaBr
 DATA._spRef = {};

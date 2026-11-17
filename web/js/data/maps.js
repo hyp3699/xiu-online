@@ -98,7 +98,6 @@ DATA.exploreIdle = ["四下寂静，无事发生。", "山风拂过，草木沙�
 
 // 以下数值来自 js/config/ 下的数值文件（explore.js 探索流程，drops.js 掉落）
 const _E = CFG.explore;
-DATA.EXPLORE_STOP = _E.STOP;
 // 该地图某个事件的必掉物品 { 名字: [最少, 最多] }（config/drops.js 的 fixed[事件]）
 DATA.mapFixed = (a, ev) => ((DATA.mapDrops[a] || {}).fixed || {})[ev] || {};
 // v236 该地图药材 / 矿石的随机池（等权重，四界含特产）：{ herb: [名字], ore: [名字] }
