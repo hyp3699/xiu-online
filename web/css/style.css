@@ -1088,6 +1088,14 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .gridbar{display:flex;justify-content:center;font-size:13px;color:#fff3d6;background:rgba(20,16,12,.72);border-radius:6px;padding:5px 8px;margin:8px 0 0}
 .gridbar.gt{margin:0 0 2px}
 
+/* 凡界大图（18×18）：上下左右都能拖；正中灵矿占 2×2；没开的域锁着 */
+.mgwrap.mg2{overflow:auto;touch-action:pan-x pan-y}
+.mgrid .gc.lk{width:auto;height:auto;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(30,24,14,.55);outline:1px solid rgba(255,215,120,.55);box-shadow:inset 0 0 14px rgba(255,215,120,.45);z-index:2}
+.mgrid .gc.lk img{width:70%;height:70%;object-fit:contain;filter:drop-shadow(0 0 8px rgba(255,210,120,.8));pointer-events:none}
+.mgrid .gc.lk span{font-size:11px;line-height:14px;padding:0 5px;border-radius:7px;background:rgba(0,0,0,.65);color:#ffe9a8;white-space:nowrap;pointer-events:none}
+.mgrid .gc.lock{background:rgba(0,0,0,.985);outline:1px solid rgba(120,110,90,.08);cursor:default;position:relative;overflow:visible}
+.mgrid .gc.lock span{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:12px;line-height:16px;color:#9c8d72;white-space:nowrap;text-align:center;pointer-events:none}
+
 /* 隐世宗门 */
 .mgrid .gc.ys{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:visible;z-index:2}
 .mgrid .gc.ys img{width:118%;height:118%;object-fit:contain;margin:-14% 0 -6%;filter:drop-shadow(0 2px 4px rgba(0,0,0,.7));pointer-events:none}

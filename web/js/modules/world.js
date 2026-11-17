@@ -27,10 +27,10 @@ G.module({
    *     ev 本次事件列表（最新在前）, last 上一次结算文字 } */
   // trainedR：已历练通过的区域（地图序号 × 4 + 区域序号）
   // mj：秘境 { found 已发现, trained 已历练通过, day 日期, used { 秘境序号: 今天已进次数 } }；ld：灵地，格式同 mj
-  defaults: () => ({ explore: null, trainedR: [], lastRun: null, mj: { found: [], trained: [], day: "", used: {} }, ld: { found: [], trained: [], day: "", used: {} }, grids: {}, gridDay: null, ybEaten: {}, ylGot: {}, ysPos: null, ysFav: {}, ysTask: null, ysSt: {}, stEq: [] }),
+  defaults: () => ({ explore: null, trainedR: [], lastRun: null, mj: { found: [], trained: [], day: "", used: {} }, ld: { found: [], trained: [], day: "", used: {} }, grids: {}, gridDay: null, ybEaten: {}, ylGot: {}, ysPos: null, ysFav: {}, ysTask: null, ysSt: {}, stEq: [], lk: {}, lkAt: 0, lkF: 0 }),
 
   // 每 10 秒（以及在线时每秒）推进探索
-  tick() { this.advanceExplore(); },
+  tick() { this.advanceExplore(); this.lkSettle(); },   // 灵矿按时间进灵石（fastsim.js 把下次结算时刻算成事件）
 
   api: {
     setWorldTab(t) { this.worldTab = t; this.render(); },
@@ -85,6 +85,7 @@ G.module({
       const N = this.gridN(r);
       if (!Number.isInteger(a) || !Number.isInteger(r) || !Number.isInteger(i) || i < 0 || i >= N * N) throw new Error("格子不存在");
       if (!this.gridOpen(a, r)) throw new Error("该区域尚未开启");
+      if (this.isLkCell(a, r, i)) return this.log("这里是灵矿，点灵矿查看 / 升级。", "sys");   // 凡界大图正中的灵矿格不能游历
       if (this.gridJie(r)) {   // 神界界：每走一格耗小世界令牌
         if (i === this.sjSxCell(r) && this.sjSxSeen(a, r)) return this.log("中间是神像，点神像查看 / 升级。", "sys");   // 神像格：发现后不走、不耗令牌
         const c = (CFG.shenjie || {}).JIE_LP || 1, o = this.sjJieG(a, r), known = this.gridJieKnown(a, r, i);   // 已发现的怪（打输过）：直接打，不耗令牌（用户定 2026-11-13）
@@ -138,20 +139,24 @@ G.module({
       m.a = a; return m;
     },
     // 快速游历：一次用完今日剩余次数，优先点亮还黑着的格子（都亮了就随机）
+    //   凡界大图 r = -1：在已开启的几个域里一起挑（灵矿格不算）
     gridQuick(a, r) {
       a = Number(a); r = Number(r);
-      if (!Number.isInteger(a) || !Number.isInteger(r) || !this.gridOpen(a, r)) throw new Error("该区域尚未开启");
-      if (this.gridJie(r)) throw new Error("界里不能快速游历");
+      const all = r === -1 && this.gridMerged(a);
+      if (!Number.isInteger(a) || !Number.isInteger(r) || !(all ? this.gridOpen(a, 0) : this.gridOpen(a, r))) throw new Error("该区域尚未开启");
+      if (!all && this.gridJie(r)) throw new Error("界里不能快速游历");
       const d = this.gridToday(), left = this.gridDaily() - d.n, N = this.gridN();
       if (left <= 0) { this.log(`今日游历次数已用完（${this.gridDaily()} 次）。`, "sys"); return; }
-      const got = [];
+      const RS = all ? [...Array(DATA.regionCount).keys()].filter(x => this.gridOpen(a, x)) : [r], got = [];
       for (let k = 0; k < left; k++) {
-        const g = (this.s.grids || {})[a + "_" + r], lit = new Set(g && Array.isArray(g.v) ? g.v : []);
-        const dark = []; for (let i = 0; i < N * N; i++) if (!lit.has(i)) dark.push(i);
-        d.n++; got.push(this.gridOnce(a, r, dark.length ? U.pick(dark) : U.rand(0, N * N - 1)));
+        const dark = [], every = [];
+        for (const rr of RS) { const g = (this.s.grids || {})[a + "_" + rr], lit = new Set(g && Array.isArray(g.v) ? g.v : []);
+          for (let i = 0; i < N * N; i++) { if (this.isLkCell(a, rr, i)) continue; every.push([rr, i]); if (!lit.has(i)) dark.push([rr, i]); } }
+        const [r1, i1] = U.pick(dark.length ? dark : every);
+        d.n++; got.push(this.gridOnce(a, r1, i1));
       }
       d.last = got.join("、");
-      this.log(`快速游历${this.gridName(a, r)} ${left} 次，获得${d.last}。`, "gold");
+      this.log(`快速游历${all ? DATA.maps[a].name : this.gridName(a, r)} ${left} 次，获得${d.last}。`, "gold");
       this.dirty(); this.render();
     },
     // 游历一格：点亮格子、发奖励、记进今日「已获机缘」，返回收获文字（不扣次数）
@@ -163,6 +168,7 @@ G.module({
       const lit = Array.isArray(g0.v) ? g0.v.filter(n => Number.isInteger(n) && n >= 0 && n < N * N) : (Number.isInteger(g0.p) ? [g0.p] : []);
       if (!lit.includes(i)) lit.push(i);
       s.grids[gk] = Object.assign({}, g0, { p: i, v: lit });   // 保留界的怪物 / 征服 / 神像（m k sx）   // v = 已点亮（游历过）的格子
+      if (this.gridMerged(a)) { if (!s.gridLR || typeof s.gridLR !== "object") s.gridLR = {}; s.gridLR[a] = r; }   // 凡界大图：上次游历在哪个域（只标这一格「当前位置」）
       this.ysEnsure();
       const R = (v, lo, hi) => Array.isArray(v) ? U.rand(v[0], v[1]) : v === undefined ? U.rand(lo, hi) : v;
       const pool = DATA.mapPool(a);
@@ -277,6 +283,7 @@ G.module({
     // 打开 / 关闭格子页（纯界面）
     openGrid(a, r) { this.ysPick = null; this.gridSel = a === undefined || a === null ? null : { a: Number(a), r: Number(r) }; this.render(); this.viewScroll(0); },
     gridView(a, r, wid) {
+      if (this.gridMerged(a) && !this.gridJie(r)) return this.gridViewM(a, r, wid);
       const s = this.s, N = this.gridN(r), g = (s.grids || {})[a + "_" + r], d = s.gridDay && s.gridDay.day === this.bjDay() ? s.gridDay : { n: 0, last: "" }, jie = this.gridJie(r);
       const D = this.gridDaily(), full = !jie && d.n >= D, cells = [];
       const lit = new Set(g ? (Array.isArray(g.v) ? g.v : Number.isInteger(g.p) ? [g.p] : []) : []), cur =   // 测试模式也只亮走过的格子（用户定 2026-11-12）
@@ -292,6 +299,73 @@ G.module({
         <div id="mgwrap" class="mgwrap" data-c="${cur}" data-n="${N}"><div class="mgrid${this._glRun ? " busy" : ""}" style="background-image:url(img/map/grid_${wid || "fan"}.webp);grid-template-columns:repeat(${N},var(--gcw));grid-template-rows:repeat(${N},var(--gcw))">${cells.join("")}</div></div>`;
     },
 
+    /* ---------- 凡界大图（config/youli.js LK 上面的说明）：东西南北四域拼成一整张 (2N)×(2N)，存档仍按域存（s.grids["地图_域"] 的格子序号不变，老存档不用转换）
+     *   四块：左上北域、右上东域、左下西域、右下南域；大图 (X, Y) → 域 gridGQ(块)、本域格子 (Y % N) × N + X % N
+     *   正中 2×2 = 灵矿（四个域各自贴着中心的那个角格），不能游历 ---------- */
+    gridGQ(q) { return [3, 0, 1, 2][q]; },   // 块（0 左上 1 右上 2 左下 3 右下）→ 域（0 东 1 西 2 南 3 北）
+    gridMerged(a) { const m = DATA.maps[a]; return !!m && m.w === "fan"; },
+    gridQuad(r) { return [1, 2, 3, 0][r]; },
+    lkCell(r) { const N = this.gridN(r), q = this.gridQuad(r); return ((q >> 1) ? 0 : N - 1) * N + ((q & 1) ? 0 : N - 1); },
+    isLkCell(a, r, i) { return r >= 0 && r < DATA.regionCount && this.gridMerged(a) && i === this.lkCell(r); },
+    gridViewM(a, r0, wid) {
+      const s = this.s, N = this.gridN(0), M = 2 * N, d = s.gridDay && s.gridDay.day === this.bjDay() ? s.gridDay : { n: 0, last: "" };
+      const D = this.gridDaily(), full = d.n >= D, cells = [], RN = DATA.regionCount;
+      const G0 = [...Array(RN).keys()].map(r => (s.grids || {})[a + "_" + r]), open = G0.map((g, r) => this.gridOpen(a, r)), ys = G0.map((g, r) => this.ysAt(a, r));
+      const lit = G0.map(g => new Set(g ? (Array.isArray(g.v) ? g.v : Number.isInteger(g.p) ? [g.p] : []) : []));
+      const lr0 = (s.gridLR || {})[a], lr = Number.isInteger(lr0) && lr0 >= 0 && lr0 < RN ? lr0 : r0, gl = G0[lr];
+      const glob = (r, i) => { const q = this.gridQuad(r); return ((q >> 1) * N + Math.floor(i / N)) * M + (q & 1) * N + i % N; };
+      const cur = gl && Number.isInteger(gl.p) && open[lr] ? glob(lr, gl.p) : (N - 1) * M + N - 1, lv = this.lkLv(a);
+      for (let Y = 0; Y < M; Y++) for (let X = 0; X < M; X++) {
+        if ((X === N - 1 || X === N) && (Y === N - 1 || Y === N)) {   // 正中 2×2：灵矿（一个按钮占四格）
+          if (X === N - 1 && Y === N - 1) cells.push(`<button class="gc on lk" style="grid-column:${N} / span 2;grid-row:${N} / span 2" onclick="G.openLk(${a})"><img src="${DATA.iconImg("stone")}" alt=""><span>灵矿 ${lv} 级</span></button>`);
+          continue; }
+        const q = (Y >= N ? 2 : 0) + (X >= N ? 1 : 0), r = this.gridGQ(q), i = (Y % N) * N + X % N, g = G0[r];
+        if (!open[r]) { cells.push(`<button class="gc lock" disabled>${i === Math.floor(N * N / 2) ? `<span>${DATA.regionDirs[r]}域<br>未开启</span>` : ""}</button>`); continue; }   // 没开的域：整块锁着
+        const on = lit[r].has(i), me = r === lr && g && g.p === i, y = ys[r];
+        if (y && y.i === i && (y.fixed || on)) { cells.push(`<button class="gc on ys${me ? " me" : ""}" onclick="G.ysOpen('${y.id}')"><img src="img/icons/ys_sect.png" alt=""><span>${y.name}</span></button>`); continue; }
+        const run = this._glRun && this._glRun.a === a && this._glRun.r === r && this._glRun.i === i;
+        cells.push(`<button class="gc${on ? " on" : ""}${me ? " me" : ""}${run ? " run" : ""}" onclick="G.gridTap(${a},${r},${i})" ${full ? "disabled" : ""}>${run ? "<span>游历中</span>" : ""}</button>`);
+      }
+      return `<div class="gridbar gt"><span>今日游历 ${d.n} / ${D} 次 · 灵矿 ${lv} 级${lv ? ` · 每天 ${U.fmt(DATA.lkOut(lv))} 灵石` : ""}</span></div>
+        <div id="mgwrap" class="mgwrap mg2" data-c="${cur}" data-n="${M}" data-fit="${N}"><div class="mgrid${this._glRun ? " busy" : ""}" style="background-image:url(img/map/grid_${wid || "fan"}.webp);grid-template-columns:repeat(${M},var(--gcw));grid-template-rows:repeat(${M},var(--gcw))">${cells.join("")}</div></div>`;
+    },
+    /* ---------- 灵矿：s.lk[地图] = 等级；s.lkAt = 上次结算时刻，s.lkF = 不足 1 块的灵石零头；每 STEP_MIN 分钟按九座灵矿合计产量进灵石 ---------- */
+    lkLv(a) { return Math.max(0, Math.min(DATA.LK().MAX, Math.floor(+((this.s.lk || {})[a]) || 0))); },
+    lkRate() { const L = this.s.lk; if (!L || typeof L !== "object") return 0; let t = 0; for (const a of (DATA.worldMapIdx || {}).fan || []) t += DATA.lkOut(this.lkLv(a)); return t; },   // 每天合计
+    lkStep() { return Math.max(1, +DATA.LK().STEP_MIN || 10) * 60000; },
+    lkNextAt() { const s = this.s; return s.lkAt > 0 && this.lkRate() > 0 ? s.lkAt + this.lkStep() : 0; },   // fastsim.js：下次结算时刻
+    // 结算：到点按整段时间进灵石（now 是 10 秒结算的时刻，逐个结算和离线加速结果一样）；force = 升级前把零头时间也结掉
+    lkSettle(force) {
+      const s = this.s, now = this.now(), R = this.lkRate();
+      if (!(R > 0)) { if (s.lkAt) s.lkAt = 0; return; }
+      if (!(s.lkAt > 0) || s.lkAt > now) { s.lkAt = now; return; }
+      const P = this.lkStep(), dt = force ? now - s.lkAt : Math.floor((now - s.lkAt) / P) * P;
+      if (dt <= 0) return;
+      const v = R * dt / 86400000 + (+s.lkF || 0), n = Math.floor(v + 1e-9);   // 1e-9：浮点误差（69.44… × 144 次）不丢 1 块
+      s.lkF = Math.max(0, v - n); s.lkAt += dt; if (n > 0) s.stone = (s.stone || 0) + n;
+    },
+    lkUp(a) {
+      a = Number(a); const s = this.s, K = DATA.LK();
+      if (!Number.isInteger(a) || !this.gridMerged(a) || !this.gridOpen(a, 0)) throw new Error("该地图尚未开启");
+      const lv = this.lkLv(a); if (lv >= K.MAX) return this.log("灵矿已满级。", "sys");
+      const mats = DATA.lkMats(a, lv + 1);
+      if (!DATA.isTest()) { if (!this.hasMats(mats)) return this.log("矿石不足。", "sys"); mats.forEach(x => this.takeMat(x.kind, x.g, x.n)); }
+      this.lkSettle(true);   // 先按旧产量结到现在
+      if (!s.lk || typeof s.lk !== "object") s.lk = {};
+      s.lk[a] = lv + 1; if (!(s.lkAt > 0)) s.lkAt = this.now();
+      this.log(`${DATA.maps[a].name}灵矿升至 ${lv + 1} 级，每天产出 ${U.fmt(DATA.lkOut(lv + 1))} 灵石。`, "good"); this.dirty(); this.after();
+    },
+    openLk(a) {
+      a = Number(a); if (!this.gridMerged(a)) return;
+      const K = DATA.LK(), lv = this.lkLv(a), full = lv >= K.MAX, mats = full ? [] : DATA.lkMats(a, lv + 1);
+      const cell = (src, have, need, name) => `<div class="cpk-mat${have >= need ? "" : " lack"}"><img src="${src}" alt=""><b>${name}</b><span>${U.fmt(have)}/${U.fmt(need)}</span></div>`;
+      const ok = DATA.isTest() || this.hasMats(mats), open = this.gridOpen(a, 0);
+      const cost = full ? `<p class="desc">已满级。</p>` : `<p class="zf-cost-t">升到 ${lv + 1} 级消耗</p><div class="cpk-mats zf-cost">${mats.map(m => cell(DATA.matImg(m.kind, m.g), this.countMat(m.kind, m.g), m.n, DATA.matFull(m.kind, m.g))).join("")}</div>`;
+      this.modal(`<img class="item-img" src="${DATA.iconImg("stone")}" alt=""><h2>${DATA.maps[a].name} · 灵矿 ${lv} 级</h2><div class="stats"><div><span>每天产出</span>${U.fmt(DATA.lkOut(lv))} 灵石${full ? "" : ` → ${U.fmt(DATA.lkOut(lv + 1))}`}</div><div><span>九图灵矿合计</span>每天 ${U.fmt(this.lkRate())} 灵石</div></div>
+        <p class="desc">灵石按时间自动存入（每 ${Math.round(this.lkStep() / 60000)} 分钟结算一次，离线也算）。</p>${cost}
+        <div class="btns">${full ? "" : `<button class="primary" onclick="G.lkUp(${a});G.openLk(${a})" ${ok && open ? "" : "disabled"}>升级</button>`}<button onclick="G.closeModal()">关闭</button></div>`);
+    },
+
     /* ---------- 隐世宗门（config/yinshi.js）：s.ysPos = { 宗门id: { r 域, i 格子 } }，第一次游历时随机定下，以后不变 ---------- */
     ysCfg() { return CFG.yinshi || {}; },
     ysList() {
@@ -301,7 +375,12 @@ G.module({
     ysEnsure() {
       const s = this.s, N = this.gridN(); if (!s.ysPos || typeof s.ysPos !== "object") s.ysPos = {};
       for (const y of this.ysList()) { const p = s.ysPos[y.id];
-        if (!p || !(p.r >= 0 && p.r < DATA.regionCount) || !(p.i >= 0 && p.i < N * N)) s.ysPos[y.id] = { r: U.rand(0, DATA.regionCount - 1), i: U.rand(0, N * N - 1) }; }
+        if (!p || !(p.r >= 0 && p.r < DATA.regionCount) || !(p.i >= 0 && p.i < N * N)) s.ysPos[y.id] = { r: U.rand(0, DATA.regionCount - 1), i: U.rand(0, N * N - 1) };
+        const q = s.ysPos[y.id];
+        if (this.isLkCell(y.a, q.r, q.i)) {   // 落在凡界大图正中的灵矿格上：往本域里挪一格（已发现的照样算发现）
+          const Q = this.gridQuad(q.r), ni = ((Q >> 1) ? 1 : N - 2) * N + ((Q & 1) ? 1 : N - 2), g = (s.grids || {})[y.a + "_" + q.r];
+          if (g && Array.isArray(g.v) && g.v.includes(q.i) && !g.v.includes(ni)) g.v.push(ni);
+          s.ysPos[y.id] = { r: q.r, i: ni }; } }
     },
     // 这一域里的宗门（位置 + 是否固定），没有返回 null
     ysAt(a, r) {
@@ -2957,7 +3036,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       const gs = this.gridSel;   // 地图格子页
       if (gs && gs.a === sel && this.ysPick && this.ysHall === this.ysPick && this.ysById(this.ysPick)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.ysById(this.ysPick).name} · 宗门大殿</div>${this.ysHallView(this.ysPick)}<div class="fback"><div class="fl"></div><button onclick="G.ysHallBack()">返回</button></div></div>`;
       if (gs && gs.a === sel && this.ysPick && this.ysById(this.ysPick)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.ysById(this.ysPick).name}</div>${this.ysView(this.ysPick)}<div class="fback"><div class="fl"></div><button onclick="G.ysOpen()">返回</button></div></div>`;
-      if (gs && gs.a === sel && this.gridOpen(gs.a, gs.r)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.gridName(gs.a, gs.r)}</div>${this.gridView(gs.a, gs.r, wid)}<div class="fback"><div class="fl">${this.gridJie(gs.r) ? "" : `<button class="gq" onclick="G.gridQuick(${gs.a},${gs.r})">快速<br>游历</button><button class="gq" onclick="G.openGridRec(${gs.a})">已获<br>机缘</button>`}</div><button onclick="${wid === "shen" ? `G.openGrid();G.openSjRg(${gs.a},${gs.r >= DATA.regionCount ? (gs.r - DATA.regionCount) >> 1 : gs.r})` : "G.openGrid()"}">返回</button></div></div>`;
+      if (gs && gs.a === sel && this.gridOpen(gs.a, gs.r)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.gridMerged(gs.a) && !this.gridJie(gs.r) ? DATA.maps[gs.a].name : this.gridName(gs.a, gs.r)}</div>${this.gridView(gs.a, gs.r, wid)}<div class="fback"><div class="fl">${this.gridJie(gs.r) ? "" : `<button class="gq" onclick="G.gridQuick(${gs.a},${this.gridMerged(gs.a) ? -1 : gs.r})">快速<br>游历</button><button class="gq" onclick="G.openGridRec(${gs.a})">已获<br>机缘</button>`}</div><button onclick="${wid === "shen" ? `G.openGrid();G.openSjRg(${gs.a},${gs.r >= DATA.regionCount ? (gs.r - DATA.regionCount) >> 1 : gs.r})` : "G.openGrid()"}">返回</button></div></div>`;
       if (sel === "shop") return pg(`<div class="pghead">${DATA.nmPick(CFG.names.worldTab, "shop", "坊市")}</div>` + this.shopView());
       const mback = `<div class="pghead">${sel === "mj" ? this.mjLabel("mj") : DATA.maps[sel].name}</div>`;
       if (halls && sel !== "mj") {

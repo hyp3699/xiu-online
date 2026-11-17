@@ -44,6 +44,7 @@
       else if (s.explore || s.cq) return -Infinity;
       if (s.trib && !s.trib.result) return -Infinity;   // 探索 / 渡劫中：逐个结算；渡劫已出结果（只剩领奖）可以加速
       if (this.yearRwNextAt) ev.push(this.yearRwNextAt());   // 修炼年数奖励到点
+      if (this.lkNextAt) { const t = this.lkNextAt(); if (t) ev.push(t); }   // 灵矿每 STEP_MIN 分钟进一次灵石（world.js lkSettle）：结算那一刻逐个结算
       if (s.zf && s.zf.job) ev.push(s.zf.job.end);   // 属性阵修炼到时结算：快进到 job 结束那一刻再逐个结算（灵气修炼开始时已扣完，修炼中无逐秒消耗；主动阵按次收费不影响加速）
       // 自动悟道读条到时：快进到读满那一刻再逐个结算（wdAutoSettle 发奖；手动记录不等，客户端读条自己发 wudaoDone）
       { const _wd = s._wdStart; if (_wd && typeof _wd === "object" && !Array.isArray(_wd)) for (const dao of Object.keys(_wd)) { const r = _wd[dao]; if (r && r.auto === 1 && r.at) ev.push(r.at + (((CFG.wudaoRoom || {}).TIME || 0)) * 1000); } }

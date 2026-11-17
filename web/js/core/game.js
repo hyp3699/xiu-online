@@ -381,7 +381,7 @@ const G = {
   },
   // 地图格子：竖向 9 格刚好占满可用高度，横向超出就左右拖动
   gridFit(mw) {
-    const n = +mw.dataset.n || 9, h = mw.clientHeight;
+    const n = +mw.dataset.fit || +mw.dataset.n || 9, h = mw.clientHeight;   // 凡界大图 18×18：竖向按 9 格铺满，上下左右拖动
     if (h > 0) mw.style.setProperty("--gcw", Math.max(28, Math.floor(h / n)) + "px");
     if (!this._gridRs) { this._gridRs = 1; window.addEventListener("resize", () => { const m = document.getElementById("mgwrap"); if (m) this.gridFit(m); }); }
   },

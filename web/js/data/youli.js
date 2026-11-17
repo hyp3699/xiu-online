@@ -53,4 +53,13 @@
   // 地图 a 的 r 域出的 3 本功法 id
   DATA.ylGfIds = (a, r) => { const o = DATA.ylSrcOf(a), D = (C.GF_DIR || [])[r] || [];
     return o ? D.map(k => DATA.gongfaId(o.id, DATA.ylTypeId(k))).filter(id => DATA.gongfaInfo(id, 1)) : []; };
+
+  /* ---------- 灵矿（凡界大图正中，config/youli.js LK） ---------- */
+  DATA.LK = () => Object.assign({ MAX: 108, STONE: [10000, 10000000], ORE_N: 3, ORE_PER: 120, BAND: [36, 72, 108], STEP_MIN: 10 }, C.LK || {});
+  DATA.lkOut = L => { const K = DATA.LK(), M = Math.max(1, K.MAX), a = +K.STONE[0] || 0, b = +K.STONE[1] || a; L = Math.max(0, Math.min(M, Math.floor(+L || 0)));   // 第 L 级每天产灵石
+    if (!L) return 0; return M <= 1 || a <= 0 ? Math.round(b) : Math.round(a * Math.pow(b / a, (L - 1) / (M - 1))); };
+  DATA.lkBand = L => { const B = DATA.LK().BAND || [], i = B.findIndex(v => L <= v); return i < 0 ? Math.max(0, B.length - 1) : i; };
+  DATA.lkMats = (a, L) => { const K = DATA.LK(), O = K.ORES || (((CFG.garden || {}).LAND) || {}).ORES || [], P = O[DATA.lkBand(L)] || [], N = P.length,   // 升到第 L 级的矿石
+    k = Math.min(N, Math.max(0, Math.floor(+K.ORE_N || 0))), n = Math.round((+K.ORE_PER || 0) * L), st = Math.max(0, ((DATA.worldMapIdx || {}).fan || []).indexOf(+a));
+    return N && k && n > 0 ? DATA.parseMats([...Array(k).keys()].map(j => [P[(st + j) % N], n])) : []; };
 })();
