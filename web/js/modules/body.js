@@ -76,7 +76,7 @@ G.module({
       } else {     // 不在分段里的境界（星辰体及以上）：HERB_XIAN_BASE × HERB_RATE^(T − HERB_FROM × 10)
         n = Math.max(1, Math.round(B.HERB_XIAN_BASE * Math.pow(B.HERB_RATE, T - B.HERB_FROM * DATA.LAYERS))); herbs = B.HERBS_XIAN;
       }
-      return { stone: Math.floor(B.STONE_BASE * Math.pow(B.STONE_RATE, T)),
+      return { stone: Math.floor(B.STONE_BASE * T * Math.pow(B.STONE_RATE, T)),
         herbs: herbs.map(name => ({ name, n })) };
     },
     // 按名字数 / 扣药材（凡界药材或 content/items.js 的自定义物品）
