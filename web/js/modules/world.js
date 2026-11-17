@@ -1370,6 +1370,7 @@ G.module({
           if (el && tf(el + "ling")) d *= Math.max(0, 1 - ((CFG.battle.TALENT || {}).EL_LING_RED ?? 9) / 100);   // 天赋金灵等：受到该系伤害减少
           if (el && m.elRed && m.elRed[el]) d *= Math.max(0, 1 - m.elRed[el] / 100);   // 试炼塔守关者：某几系伤害减少（config/mobs.js tower.EL_RED）
         }
+        if (act.k <= 2 && act.f !== 1 && d > 0) { const r = +(act.k === 0 ? CFG.mobs.普通伤害减免 : CFG.mobs.属性伤害减免) || 0; if (r) d *= Math.max(0, 1 - r / 100); }   // 怪物普通 / 属性伤害减免（负数 = 增伤，config/mobs.js）
         if (lx) act.x = (act.x || 0) | 8;
         if (txF) act.x = (act.x || 0) | 4096;   // 通玄：上一下本命法宝没占回合
         d = after(d, pMe, php, st.hp, meJc, mobJc);
