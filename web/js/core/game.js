@@ -124,6 +124,10 @@ const G = {
       if (o) { const ov = Math.min(o, 36) + 2 * Math.max(0, Math.min(o, 72) - 36) + 3 * Math.max(0, o - 72); let nv = 0; for (let k = 1; k <= o; k++) nv += Math.ceil(k / 18);
         s.ssPow = Math.max(0, (+s.ssPow || 0) - ov + nv); }
       s.ssGfS6 = 1; }
+    if (Array.isArray(s.servants) && DATA.lkSvN) {   // 灵矿道童 1 个 → 最多 SV_N 个（用户定 2026-11-17）：存档格式不变（job "lk" + lkA），旧的那 1 个照样在位；lkA 不是凡界图的、超出 SV_N 个的改回空闲
+      const F = (DATA.worldMapIdx || {}).fan || [], N = DATA.lkSvN(), c = {};
+      for (const d of s.servants) { if (!d || d.job !== "lk") { if (d && d.lkA !== undefined) delete d.lkA; continue; }
+        const a = +d.lkA; if (!F.includes(a) || (c[a] = (c[a] || 0) + 1) > N) { d.job = null; delete d.lkA; } else d.lkA = a; } }
     { const n = ((CFG.cqzj || {}).COST || []).length;   // 出窍真诀删掉的卷（第 4、5 卷）从存档里清掉
       if (Array.isArray(s.cqZj)) s.cqZj = s.cqZj.filter(v => v >= 1 && v <= n);
       if (s.cqzjL && !(s.cqzjL.v >= 1 && s.cqzjL.v <= n)) s.cqzjL = null; }

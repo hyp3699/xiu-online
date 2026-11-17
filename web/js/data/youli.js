@@ -55,11 +55,15 @@
     return o ? D.map(k => DATA.gongfaId(o.id, DATA.ylTypeId(k))).filter(id => DATA.gongfaInfo(id, 1)) : []; };
 
   /* ---------- 灵矿（凡界大图正中，config/youli.js LK） ---------- */
-  DATA.LK = () => Object.assign({ MAX: 108, STONE_MIN: 1200, STONE_MAX: 520000, STONE_MAX_STEP: 30000, ORE_N: 3, ORE_PER: 115, BAND: [36, 72, 108], STEP_MIN: 60, BOSS_MUL: 1.3 }, C.LK || {});
+  DATA.LK = () => Object.assign({ MAX: 108, STONE_MIN: 1200, STONE_MAX: 130000, STONE_MAX_STEP: 6250, ORE_N: 3, ORE_PER: 115, BAND: [36, 72, 108], STEP_MIN: 60, BOSS_MUL: 1.3, SV_N: 3, SV_PCT: 1, SV_LAST: 10 }, C.LK || {});
   DATA.lkIdx = a => Math.max(0, ((DATA.worldMapIdx || {}).fan || []).indexOf(+a));   // 凡界第几张图（0 起）
   DATA.lkOut = (L, a) => { const K = DATA.LK(), M = Math.max(1, K.MAX), lo = +K.STONE_MIN || 0, hi = (+K.STONE_MAX || lo) + (+K.STONE_MAX_STEP || 0) * DATA.lkIdx(a);   // 地图 a 第 L 级每天产灵石
     L = Math.max(0, Math.min(M, Math.floor(+L || 0))); if (!L) return 0;
     return M <= 1 || lo <= 0 ? Math.round(hi) : Math.round(lo * Math.pow(hi / lo, (L - 1) / (M - 1))); };
+  DATA.lkSvN = () => Math.max(1, Math.floor(+DATA.LK().SV_N || 1));   // 每座灵矿最多几个道童
+  // 一个道童给灵矿加的产量 %：1~(满级−1) 级 = 等级 × SV_PCT；满级 = (满级−1) × SV_PCT + SV_LAST（100 级 = 99 + 10 = 109）
+  DATA.lkSvPct = lv => { const K = DATA.LK(), p = +K.SV_PCT || 0, M = Math.max(1, +((CFG.servant || {}).MAX_LV) || 100); lv = Math.max(0, Math.min(M, Math.floor(+lv || 0)));
+    return lv >= M ? (M - 1) * p + (+K.SV_LAST || 0) : lv * p; };
   DATA.lkBand = L => { const B = DATA.LK().BAND || [], i = B.findIndex(v => L <= v); return i < 0 ? Math.max(0, B.length - 1) : i; };
   DATA.lkMats = (a, L) => { const K = DATA.LK(), O = K.ORES || (((CFG.garden || {}).LAND) || {}).ORES || [], P = O[DATA.lkBand(L)] || [], N = P.length,   // 升到第 L 级的矿石：逐级轮换（同 DATA.landMats）
     k = Math.min(N, Math.max(0, Math.floor(+K.ORE_N || 0))), n = Math.round((+K.ORE_PER || 0) * L), st = DATA.lkIdx(a) + L;

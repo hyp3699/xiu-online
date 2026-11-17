@@ -8,7 +8,7 @@
 window.CFG = window.CFG || {};
 
 CFG.servant = {
-  MAX: 20,             // 最多几个道童（用户定 2026-11-17，原 10）
+  MAX: 40,             // 最多几个道童（用户定 2026-11-17，原 20）
   PICK_SEC: 60,        // 选拔时间（秒）
   PICK_COST: 10000,    // 选拔一次消耗灵石
   // 资质：天 地 玄 黄 四品（顺序固定）
@@ -31,7 +31,7 @@ CFG.servant = {
             YIELD_LV1: 0.5, YIELD_MAX: 36 },   // 灵药产量 +%（满级 36%，用户定；原 50%）
     zhen: { name: "阵法辅助", els: ["jin", "mu", "shui", "huo", "tu"], LV1: 0, MAX: 0,   // v260 不再加聚灵 %，只加固定聚灵
             FLAT_LV1: 60, FLAT_MAX: 480000 },   // 另加固定聚灵（每 10 秒，不吃任何 % 加成）：1 级 FLAT_LV1 → 满级 FLAT_MAX，每级 × 同一倍率，多个相加（2026-11-12 用户定：道童聚灵 +100%，原 30 → 240000）
-    lk:   { name: "灵矿管理", els: ["jin", "mu", "shui", "huo", "tu"], LV1: 0, MAX: 0, MINE: 1 },   // 凡界每座灵矿派 1 个道童才产出，五行不限，等级不影响产量（产量见 config/youli.js LK；用户定 2026-11-17）
+    lk:   { name: "灵矿管理", els: ["jin", "mu", "shui", "huo", "tu"], LV1: 0, MAX: 0, MINE: 1 },   // 凡界每座灵矿最多派 LK.SV_N（3）个道童，至少 1 个才产出，五行不限；道童等级加产量（见 config/youli.js LK.SV_PCT / SV_LAST；用户定 2026-11-17）
   },
   SALARY: {   // 每天（北京时间 0 点）每个道童发一次，只看等级；欠发要补
     LV1: 500,          // 1 级每天灵石

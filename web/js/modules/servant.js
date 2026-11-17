@@ -56,7 +56,7 @@ G.module({
       const a = J[f + "LV1"] || 0;
       return Math.round((a + (J[f + "MAX"] - a) * this.svCurve(d.lv)) * 100) / 100;   // 每级都提升（保留 2 位小数）
     },
-    svEffTxt(job, v, flat, y) { if (job === "lk") return `管理 ${(this.s.servants || []).filter(d => d.job === "lk").length} / ${((DATA.worldMapIdx || {}).fan || []).length} 座灵矿`; if (job === "ling") return `种植速度 +${U.num(v)}%，产量 +${U.num(y || 0)}%`; return job === "zhen" ? `${v ? `聚灵 +${U.num(v)}%，` : ""}固定聚灵 +${U.fmt(flat || 0)}` : `${job === "cult" || job === "dan" || job === "qi" || job === "ling" ? "+" : "−"}${U.num(v)}%`; },
+    svEffTxt(job, v, flat, y) { if (job === "lk") { const F = (DATA.worldMapIdx || {}).fan || []; return `管理 ${F.reduce((t, a) => t + this.lkSvIdxs(a).length, 0)} 位道童 · ${F.filter(a => this.lkOutA(a) > 0).length} / ${F.length} 座灵矿产出`; } if (job === "ling") return `种植速度 +${U.num(v)}%，产量 +${U.num(y || 0)}%`; return job === "zhen" ? `${v ? `聚灵 +${U.num(v)}%，` : ""}固定聚灵 +${U.fmt(flat || 0)}` : `${job === "cult" || job === "dan" || job === "qi" || job === "ling" ? "+" : "−"}${U.num(v)}%`; },
     svJobTotal(job) { if (job === "lk") return this.svEffTxt("lk"); return job === "zhen" ? `聚灵 +${U.num(this.gatherServant() + this.servantFlat())}` : this.svEffTxt(job, this.servantPct(job), 0, this.servantPct(job, "YIELD_")); },   // 差事按钮：阵法辅助显示所有道童合计增加的聚灵（每 10 秒）
     servantPct(job, f = "") { return (this.s.servants || []).filter(d => d.job === job).reduce((t, d) => t + this.svEff(d, job, f), 0); },
     svStartPick() {
@@ -94,6 +94,7 @@ G.module({
       const s = this.s, d = s.servants[i]; if (!d || d.lv >= CFG.servant.MAX_LV) return;
       const c = this.svUpCost(d), ly = this.svUpLy(d), ft = this.svLyFt(d); if (s.stone < c) return this.log("灵石不足。", "sys");
       if (this.smCount("ly", ft) < ly) return this.log(`${DATA.smName("ly", ft)}不足（要 ${U.fmt(ly)} 个）。`, "sys");
+      if (d.job === "lk" && this.lkSettle) this.lkSettle(true);   // 管灵矿的：等级改产量，先按旧等级结到现在
       this.takeSm("ly", ly, ft); s.stone -= c; d.lv++; this.after(); this.openSv(i);
     },
     svFire(i) {
@@ -105,7 +106,7 @@ G.module({
       const d = this.s.servants[i]; if (!d) return this.closeModal();
       const C = CFG.servant, max = d.lv >= C.MAX_LV, c = this.svUpCost(d), ly = this.svUpLy(d), lyf = this.svLyFt(d), lyOk = this.smCount("ly", lyf) >= ly, J = C.JOB[d.job], ow = this.svOwed(d), owc = ow * this.svSalary(d), au = this.s.svAuto;
       this.modal(`<h2>${this.svName(d)}</h2><div class="sv-pick"><img src="${this.svImg(d)}" alt=""><div>
-        资质 ${this.svQName(d)} · 五行 ${C.EL[d.el]}<br>等级 ${d.lv} / ${C.MAX_LV}<br>差事：${J && d.job === "lk" ? `${J.name}${DATA.maps[d.lkA] ? " · " + DATA.maps[d.lkA].name : ""}` : J ? `${J.name} ${this.svEffTxt(d.job, this.svEff(d, d.job), d.job === "zhen" ? this.svFlat(d) : 0, this.svEff(d, d.job, "YIELD_"))}` : "空闲"}<br>每日俸禄 ${U.fmt(this.svSalary(d))} 灵石${ow ? `<br><span class="q5">欠发 ${ow} 天</span>` : ""}</div></div>
+        资质 ${this.svQName(d)} · 五行 ${C.EL[d.el]}<br>等级 ${d.lv} / ${C.MAX_LV}<br>差事：${J && d.job === "lk" ? `${J.name}${DATA.maps[d.lkA] ? " · " + DATA.maps[d.lkA].name : ""} 产量 +${U.num(DATA.lkSvPct(d.lv))}%` : J ? `${J.name} ${this.svEffTxt(d.job, this.svEff(d, d.job), d.job === "zhen" ? this.svFlat(d) : 0, this.svEff(d, d.job, "YIELD_"))}` : "空闲"}<br>每日俸禄 ${U.fmt(this.svSalary(d))} 灵石${ow ? `<br><span class="q5">欠发 ${ow} 天</span>` : ""}</div></div>
         <div class="btns"><button class="${au ? "on" : ""}" onclick="G.svAutoToggle(${i})">自动发放俸禄：${au ? "开" : "关"}</button><button onclick="G.svPay(${i})" ${owc && this.s.stone >= owc ? "" : "disabled"}>发放俸禄${owc ? `（${U.fmt(owc)} 灵石）` : ""}</button></div>
         <div class="btns"><button class="primary" onclick="G.svUp(${i})" ${max || this.s.stone < c || !lyOk ? "disabled" : ""}>${max ? "已满级" : `升级（${U.fmt(c)} 灵石、${DATA.smName("ly", lyf)} ${U.fmt(ly)}）`}</button>
         <button onclick="G.svFire(${i})">遣散</button><button onclick="G.closeModal()">关闭</button></div>
@@ -115,9 +116,10 @@ G.module({
     openSvJob(job) {
       const C = CFG.servant, J = C.JOB[job], L = this.s.servants;
       if (job === "lk") {   // 灵矿管理：凡界每座灵矿一个位置，五行不限（选人走 world.js openLkSv）
-        const rows = ((DATA.worldMapIdx || {}).fan || []).map(a => { const i = this.lkSvIdx(a), d = L[i];
-          return `<div class="line"><div>${DATA.maps[a].name}灵矿${!this.lkOwned(a) ? "：未占领" : ` ${this.lkLv(a)} 级${d ? `：${this.svName(d)} ${d.lv}级` : "：未派道童，不产出"}`}</div><span>${!this.lkOwned(a) ? "" : d ? `<button class="sm" onclick="G.lkSetSv(${a},-1,'lk')">撤回</button>` : ""}<button class="sm primary" onclick="G.openLkSv(${a},'lk')">${d ? "更换" : "派遣"}</button></span></div>`; }).join("");
-        return this.modal(`<h2>${J.name}<small> ${this.svJobTotal(job)}</small></h2><p class="desc">每座灵矿派一个道童才产出灵石，五行不限，道童等级不影响产量。</p>${rows}
+        const N = DATA.lkSvN(), rows = ((DATA.worldMapIdx || {}).fan || []).map(a => { const n = this.lkSvIdxs(a).length;
+          if (!this.lkOwned(a)) return `<div class="line"><div>${DATA.maps[a].name}灵矿：未占领</div></div>`;
+          return `<h3 style="margin-top:8px">${DATA.maps[a].name}灵矿 ${this.lkLv(a)} 级<small> 管理 ${n} / ${N} 位道童${n ? ` · 产量 +${U.num(this.lkBonus(a))}% · 每天 ${U.fmt(Math.round(this.lkOutA(a)))} 灵石` : " · 不产出"}</small></h3>${this.lkSlotsHtml(a, "lk")}`; }).join("");
+        return this.modal(`<h2>${J.name}<small> ${this.svJobTotal(job)}</small></h2><p class="desc">每座灵矿最多派 ${N} 个道童，至少 1 个才产出灵石，五行不限；每个道童产量 +等级%（满级 +${U.num(DATA.lkSvPct(C.MAX_LV))}%）。</p>${rows}
           <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
       }
       const slots = J.els.map(el => { const i = L.findIndex(d => d.job === job && d.el === el);

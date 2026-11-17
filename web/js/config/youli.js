@@ -56,5 +56,6 @@ CFG.youli = {
   //   四域都历练通过才能进灵矿；先打败灵矿守卫（属性 = 本图北域首领 × BOSS_MUL）占领，占领后才能升级、派道童、产出
   //   升到第 L 级：ORE_N 种矿石各 ORE_PER × L 个；1 ~ BAND[0] 级用凡界矿石、~ BAND[1] 级仙界矿石、~ BAND[2] 级神界矿石
   //   （矿石池同灵田 config/garden.js LAND.ORES，每界 6 种；第 L 级从第 (图序 + L) 种起连续取 ORE_N 种，逐级轮换、6 种用得平均）
-  LK: { MAX: 108, STONE_MIN: 1200, STONE_MAX: 520000, STONE_MAX_STEP: 30000, ORE_N: 3, ORE_PER: 115, BAND: [36, 72, 108], STEP_MIN: 60, BOSS_MUL: 1.3 },   // 用户定 2026-11-17
+  LK: { MAX: 108, STONE_MIN: 1200, STONE_MAX: 130000, STONE_MAX_STEP: 6250, ORE_N: 3, ORE_PER: 115, BAND: [36, 72, 108], STEP_MIN: 60, BOSS_MUL: 1.3,   // 用户定 2026-11-17（满级每天：第 1 张图 13 万，每往后一张 +6250，第 9 张 18 万）
+    SV_N: 3, SV_PCT: 1, SV_LAST: 10 },   // 每座灵矿最多 SV_N 个道童（至少 1 个才产出）；每个道童产量 +等级×SV_PCT%（1~99 级），满级再多 SV_LAST%（100 级 = +109%，3 个满级 = +327%）；产量 = 基础 × (1 + 合计%)（用户定 2026-11-17）
 };
