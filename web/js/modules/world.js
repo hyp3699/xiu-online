@@ -450,7 +450,7 @@ G.module({
     openLkSv(a, back) {
       a = Number(a); if (!this.lkMap(a)) return; if (!this.lkOwned(a)) return this.openLk(a); const C = CFG.servant, L = this.s.servants || [], bk = back === "lk" ? "lk" : "", N = DATA.lkSvN(), n = this.lkSvIdxs(a).length;
       const cand = L.map((d, i) => [d, i]).filter(([d]) => !(d.job === "lk" && d.lkA === a));
-      this.modal(`<h2>${DATA.maps[a].name}灵矿 · 灵矿管理</h2>
+      this.modal(`<h2>${DATA.maps[a].name}灵矿 · 驻守灵矿</h2>
         <div class="line"><div>已派 ${n} / ${N} 个道童${n ? `，产量 +${U.num(this.lkBonus(a))}%` : "，未派道童不产出"}</div></div>
         <h3 style="margin-top:8px">选择道童</h3>
         ${n >= N ? `<p>这座灵矿已满 ${N} 个道童，先撤回一个再派。</p>` : cand.length ? cand.map(([d, i]) => `<div class="line"><div class="sv-li"><img src="${this.svImg(d)}" alt="">${this.svName(d)} · ${C.EL[d.el]} · ${d.lv}级<small>产量 +${U.num(DATA.lkSvPct(d.lv))}%</small>${d.job ? `<small>${C.JOB[d.job] ? C.JOB[d.job].name : ""}${d.job === "lk" && DATA.maps[d.lkA] ? "·" + DATA.maps[d.lkA].name : ""}中</small>` : ""}</div><button class="sm primary" onclick="G.lkSetSv(${a},${i},'${bk}')">派遣</button></div>`).join("") : `<p>没有可派遣的道童（洞府 · 道童居选拔）。</p>`}

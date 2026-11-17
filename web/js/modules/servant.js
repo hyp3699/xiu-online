@@ -119,7 +119,7 @@ G.module({
         const N = DATA.lkSvN(), rows = ((DATA.worldMapIdx || {}).fan || []).map(a => { const n = this.lkSvIdxs(a).length;
           if (!this.lkOwned(a)) return `<div class="line"><div>${DATA.maps[a].name}灵矿：未占领</div></div>`;
           return `<h3 style="margin-top:8px">${DATA.maps[a].name}灵矿 ${this.lkLv(a)} 级<small> 管理 ${n} / ${N} 位道童${n ? ` · 产量 +${U.num(this.lkBonus(a))}% · 每日产出 ${U.fmt(Math.round(this.lkOutA(a)))} 灵石` : " · 不产出"}</small></h3>${this.lkSlotsHtml(a, "lk")}`; }).join("");
-        return this.modal(`<h2>${J.name}<small> ${this.svJobTotal(job)}</small></h2><p class="desc">每座灵矿最多派 ${N} 个道童，至少 1 个才产出灵石，五行不限。</p>${rows}
+        return this.modal(`<h2>${J.name}</h2>${rows}
           <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
       }
       const slots = J.els.map(el => { const i = L.findIndex(d => d.job === job && d.el === el);
@@ -132,7 +132,7 @@ G.module({
     },
     svSetJob(i, job, back) {
       const L = this.s.servants, d = L[i]; if (!d) return;
-      if (job === "lk") return this.log("灵矿管理请在灵矿里选择道童。", "sys");
+      if (job === "lk") return this.log("驻守灵矿请在灵矿里选择道童。", "sys");
       if (d.job === "lk" && this.lkSettle) { this.lkSettle(true); delete d.lkA; }   // 原来管灵矿：先结算再改差事
       if (job) L.forEach(x => { if (x.job === job && x.el === d.el) x.job = null; });
       d.job = job; this.after(); this.openSvJob(back);
@@ -148,7 +148,7 @@ G.caveViews.servant = function () {
   const pickBtn = !p ? `<button class="primary" onclick="G.svStartPick()" ${s.stone < C.PICK_COST || n >= C.MAX ? "disabled" : ""}>选拔道童<small>${n >= C.MAX ? "道童已满" : U.fmt(C.PICK_COST) + " 灵石 · 天品 " + U.num(this.svPickW()[0]) + "%"}</small></button>`
     : p.end ? `<button disabled>选拔道童<small>${U.cd(Math.max(0, (p.end - this.now()) / 1000))}</small></button>`
     : `<button class="primary" onclick="G.openSvPick()">选拔道童<small>已选出</small></button>`;
-  const jobs = Object.keys(C.JOB).map(k => `<button onclick="G.openSvJob('${k}')">${C.JOB[k].name}<small>${this.svJobTotal(k)}</small></button>`).join("");
+  const jobs = Object.keys(C.JOB).map(k => `<button onclick="G.openSvJob('${k}')">${C.JOB[k].name}</button>`).join("");
   return `<div class="card"><h3>${DATA.caveName("servant")}<small>道童 ${n} / ${C.MAX}</small></h3>
     ${rows}
     <div class="room-grid sv-pickrow">${pickBtn}</div></div><div class="room-grid sv-jobs">${jobs}</div>`;   // 选拔道童放在道童列表下面（用户 2026-11-17）

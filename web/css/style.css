@@ -772,7 +772,7 @@ html[data-bg="xuanzhi"] .bar-img,html[data-bg="xinghuang"] .bar-img,html[data-bg
 .line.sw{padding:0 0 4px 34px}
 .line:has(+ .line.sw){border-bottom:none}
 .room-grid.sv-jobs{grid-auto-rows:1fr}
-.room-grid.sv-jobs button{height:100%;padding:6px 2px}
+.room-grid.sv-jobs button{height:100%;min-height:44px;padding:6px 2px}
 .room-grid.sv-jobs button small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* ===== 六界图 / 地图卷轴 / 探索信息浮层 ===== */
 .wbar{display:flex;align-items:center;gap:8px;margin:2px 0 6px;padding:6px 8px;border-radius:10px;background:var(--c-card);border:1px solid var(--c-line)}
