@@ -411,7 +411,7 @@ G.module({
       this.lkSettle(true);   // 先按旧产量结到现在
       if (!s.lk || typeof s.lk !== "object") s.lk = {};
       s.lk[a] = lv + 1; if (!(s.lkAt > 0) && this.lkRate() > 0) s.lkAt = this.now();
-      this.log(`${DATA.maps[a].name}灵矿升至 ${lv + 1} 级，每天产出 ${U.fmt(Math.round(this.lkSv(a) ? this.lkOutA(a) : DATA.lkOut(lv + 1, a)))} 灵石${this.lkSv(a) ? "" : "（需派道童管理才产出）"}。`, "good"); this.dirty(); this.after();
+      this.log(`${DATA.maps[a].name}灵矿升至 ${lv + 1} 级，每日产出 ${U.fmt(Math.round(this.lkSv(a) ? this.lkOutA(a) : DATA.lkOut(lv + 1, a)))} 灵石${this.lkSv(a) ? "" : "（需派道童管理才产出）"}。`, "good"); this.dirty(); this.after();
     },
     // 派道童管理灵矿 a：i = 道童序号（占一个空位，满 SV_N 个不能再派），i < 0 = 全部撤回；back = 操作后重开哪个界面（"lk" 道童居差事 / 其他 = 灵矿弹窗）
     lkSetSv(a, i, back) {
@@ -466,9 +466,9 @@ G.module({
       const cell = (src, have, need, name) => `<div class="cpk-mat${have >= need ? "" : " lack"}"><img src="${src}" alt=""><b>${name}</b><span>${U.fmt(have)}/${U.fmt(need)}</span></div>`;
       const ok = DATA.isTest() || this.hasMats(mats), open = this.gridOpen(a, 0);
       const cost = full ? `<p class="desc">已满级。</p>` : `<p class="zf-cost-t">升到 ${lv + 1} 级消耗</p><div class="cpk-mats zf-cost">${mats.map(m => cell(DATA.matImg(m.kind, m.g), this.countMat(m.kind, m.g), m.n, DATA.matFull(m.kind, m.g))).join("")}</div>`;
-      this.modal(`<img class="item-img" src="${DATA.iconImg("stone")}" alt=""><h2>${DATA.maps[a].name} · 灵矿 ${lv} 级</h2><div class="stats"><div><span>基础产出</span>${U.fmt(DATA.lkOut(lv, a))} 灵石 / 天</div><div><span>道童加成</span>${n ? `+${U.num(bo)}%` : "—"}</div><div><span>每天产出</span>${n ? `${U.fmt(Math.round(this.lkOutA(a)))} 灵石` : `<span class="q5">未派道童，不产出</span>`}</div></div>
+      this.modal(`<img class="item-img" src="${DATA.iconImg("stone")}" alt=""><h2>${DATA.maps[a].name} · 灵矿 ${lv} 级</h2><div class="stats"><div><span>道童加成</span>${n ? `+${U.num(bo)}%` : "—"}</div><div><span>每日产出</span>${n ? `${U.fmt(Math.round(this.lkOutA(a)))} 灵石` : `<span class="q5">未派道童，不产出</span>`}</div></div>
         <h3 style="margin-top:8px">管理道童 ${n} / ${N}</h3>${this.lkSlotsHtml(a, "")}
-        <p class="desc">至少派 1 个道童才产出；每个道童产量 +等级%，满级 +${U.num(DATA.lkSvPct(CFG.servant.MAX_LV))}%。</p>
+        <p class="desc">至少派 1 个道童才产出。</p>
         ${cost}
         <div class="btns">${full ? "" : `<button class="primary" onclick="G.lkUp(${a});G.openLk(${a})" ${ok && open ? "" : "disabled"}>升级</button>`}<button onclick="G.closeModal()">关闭</button></div>`);
     },
