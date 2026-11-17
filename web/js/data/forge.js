@@ -142,12 +142,10 @@ DATA.attrBase = (a, g, e) => {
     const last = DATA.colorRange(A.colors.length - 1, g)[1] || 1;
     return TOP[a.k][g] * DATA.rangeMult(a, g) / last;
   }
-  if (fb) {   // v108 法宝：比例 %（按颜色随机）；FB_REF_OF 里的 = 参考属性 × %，盾 = 参考生命 / 防御 × SHIELD_MULT × %；鼎 = 回合数
+  if (fb) {   // v108 法宝：比例 %（按颜色随机）；FB_REF_OF 里的 = 参考属性 × %，盾 = 人物全部生命 / 防御 × %；鼎 = 回合数
     if (a.k === "sDing") return (_FG.fabao.DING_ROUNDS || [])[a.c] || 1;
     const v = DATA.fbPct(a) + (a.m === 1 && a.k !== "crit" ? DATA.fbRj(a.k, e) : 0), ref = DATA.fbRef(g);   // 精炼只加主属性（m=1），专属属性（m=2，含锤的暴击/暴击伤害）和附加属性不加；原来用 a.m 真值，专属属性也吃到了精炼
     // v165 盾（方案 A，同攻击法宝）：基数 = 自己修为 + 肉身（不超过参考值）+ 功法
-    // v167 盾主属性：法宝对应境界（参考）生命 / 防御 × SHIELD_MULT（3.8）× %
-    const SM = _FG.fabao.SHIELD_MULT || 1;
     if (a.k === "shHpMain") return v;   // 护盾值 = 人物全部生命 × %（用户定 2026-11-15），这里只返回 %
     if (a.k === "shDef") return v;   // 盾防御 = 人物全部防御 × %（用户定 2026-11-15），这里只返回 %
     if (a.k === "shHp") { let m = 0; for (const b of e.attrs) if (b.k === "shHpMain") m += DATA.fbPct(b) + (b.m === 1 && b.k !== "crit" ? DATA.fbRj(b.k, e) : 0); return m * v / 100; }   // v170 附加护盾值 = 盾主属性护盾值 × %（不算强化）
