@@ -1471,19 +1471,21 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .modal-box.ori-fs.pn-on>*{display:none}
 .modal-box.ori-fs.pn-on>.ori-pn.on{display:block;flex:1 1 auto;min-height:0;overflow-y:auto}
 .ori-pk{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:8px}
-/* 凡界四域拼成一张图（用户 2026-11-17）：上北、左西、右东、下南，正中灵矿 */
-.rgmapc{background:url(../img/map/grid_fan.webp) center/cover;padding:8px 4px}
-.rgmap{display:grid;grid-template-columns:minmax(0,1fr) 76px minmax(0,1fr);grid-template-areas:"bei bei bei" "xi lk dong" "nan nan nan";align-items:center;row-gap:0}
-.rgmap .rgt{background:none;border:0;box-shadow:none;padding:0 2px}
-.rgmap .rgt.cur img{filter:drop-shadow(0 0 8px rgba(255,210,110,.9))}
-.rgmap .rgt b{text-shadow:0 1px 3px #000}
-.rgmap .rgt small{text-shadow:0 1px 2px #000;margin:0 0 3px}
-.rgmap .q-bei{grid-area:bei;justify-self:center;width:62%}
-.rgmap .q-nan{grid-area:nan;justify-self:center;width:62%}
-.rgmap .q-xi{grid-area:xi}
-.rgmap .q-dong{grid-area:dong}
-.rgmap .q-xi img,.rgmap .q-dong img{margin:-6px 0}
-.rglk{grid-area:lk;justify-self:center;width:72px;height:72px;border-radius:50%;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;background:radial-gradient(circle,rgba(255,226,140,.35),rgba(60,40,10,.75));border:1px solid rgba(255,215,120,.8);box-shadow:0 0 12px rgba(255,200,90,.45)}
-.rglk img{width:28px;height:28px}
-.rglk b{color:#ffe7a6;font-size:13px;line-height:1.1}
-.rglk small{color:#e8d6a8;font-size:11px;line-height:1.1}
+/* 凡界每张图一整幅地图（用户 2026-11-17）：上北、左西、右东、下南、正中灵矿，各自独立可点；没有方框 */
+.rgmapc{padding:0;overflow:hidden}
+.rgmapc>h3{position:relative;z-index:2;margin:6px 10px 0}
+.rgmap{position:relative;width:100%;aspect-ratio:928/1152;background:center/cover no-repeat;border-radius:inherit}
+.rgmap .rgs,html.bg-light .rgmap .rgs{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;background:none;border:0;box-shadow:none;padding:0 0 4px}
+.rgmap .rgs.cur{background:radial-gradient(ellipse at center,rgba(255,215,120,.22),transparent 70%)}
+.rgs-hit{position:absolute;inset:0}
+.rgmap .rgs b,.rgmap .rgs small,.rgmap .rgs>div:not(.rgs-hit){position:relative;z-index:1}
+.rgmap .rgs b,html.bg-light .rgmap .rgs b{color:#ffe7a6;font-size:16px;text-shadow:0 0 3px #000,0 1px 4px #000}
+.rgmap .rgs small,html.bg-light .rgmap .rgs small{color:#f3e6c6;text-shadow:0 0 3px #000,0 1px 3px #000;margin:0 0 3px}
+.rgmap .q-bei{left:22%;right:22%;top:2%;height:32%}
+.rgmap .q-xi{left:0;width:38%;top:34%;height:30%}
+.rgmap .q-dong{right:0;width:38%;top:34%;height:30%}
+.rgmap .q-nan{left:22%;right:22%;bottom:1%;height:32%}
+.rglk{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);width:76px;height:76px;border-radius:50%;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:6px;background:transparent;border:1px dashed rgba(255,225,150,.55);box-shadow:none}
+.rglk img{display:none}
+.rglk b{color:#ffe7a6;font-size:13px;line-height:1.1;text-shadow:0 0 3px #000,0 1px 3px #000}
+.rglk small{color:#f3e6c6;font-size:11px;line-height:1.1;text-shadow:0 0 3px #000}

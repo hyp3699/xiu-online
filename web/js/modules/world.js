@@ -44,17 +44,17 @@ G.module({
     setWHall(h) { this.hallSel = h; this.render(); this.viewScroll(!h && this.mapRev(this.worldId || "fan") ? -1 : 0); },   // 地图卷轴左下角的 灵地 / 悟道碑
     // 一张地图的东西南北四域（历练 / 探索 / 出窍）
     regionsCard(sel, noTitle) {
-      if (this.lkMap(sel)) {   // 凡界（用户 2026-11-17）：东西南北四域拼成一张图（上北下南左西右东），正中灵矿；点各域图进去还是各自的格子图
-        const Q = ["dong", "xi", "nan", "bei"], lv = this.lkLv(sel);
-        const rows = DATA.regionDirs.map((d, r) => this.rgTile(sel, r, "q-" + (Q[r] || "dong"))).join("");
+      if (this.lkMap(sel)) {   // 凡界（用户 2026-11-17）：每张图一整幅地图 img/map/fm_<图>.webp（风格随图名），东西南北四域 + 正中灵矿各自是独立按钮；点域进去还是各自的格子图
+        const Q = ["dong", "xi", "nan", "bei"], lv = this.lkLv(sel), fi = ((DATA.worldMapIdx || {}).fan || []).indexOf(sel);
+        const rows = DATA.regionDirs.map((d, r) => this.rgTile(sel, r, "q-" + (Q[r] || "dong"), true)).join("");
         const lk = `<button class="rglk" onclick="G.openLk(${sel})"><img src="${DATA.iconImg("stone")}" alt=""><b>灵矿</b><small>${lv} 级</small></button>`;
-        return `<div class="card rgcard rgmapc">${noTitle ? "" : `<h3>${DATA.maps[sel].name}</h3>`}<div class="rgmap">${rows}${lk}</div></div>`;
+        return `<div class="card rgcard rgmapc">${noTitle ? "" : `<h3>${DATA.maps[sel].name}</h3>`}<div class="rgmap" style="background-image:url(img/map/fm_${fi < 0 ? 0 : fi}.webp)">${rows}${lk}</div></div>`;
       }
       const tile = true, rows = DATA.regionDirs.map((d, r) => this.rgTile(sel, r)).join("");   // 凡界、四界都用图片格子
       return `<div class="card${tile ? " rgcard" : ""}">${noTitle ? "" : `<h3>${DATA.maps[sel].name}</h3>`}${tile ? `<div class="rggrid">${rows}</div>` : rows}</div>`;
     },
     // 一个域的图片格子（历练 / 探索按钮）；出窍不在这里开：统一用六界图左上「元婴出窍」（openRunList）
-    rgTile(sel, r, cls) {
+    rgTile(sel, r, cls, spot) {   // spot：凡界整图上的一块（不放域图片，整块可点进格子图）
       const s = this.s, map = DATA.maps[sel], lock = !this.realmOK(DATA.mapReq(sel)), unl = this.mapUnlocked(sel), tile = true, d = DATA.regionDirs[r];
       const RG = ["dong", "xi", "nan", "bei"];   // 东西南北四域图 img/map/rg_*.webp
       {
@@ -63,6 +63,7 @@ G.module({
               <button class="sm ${x && !x.once ? "on" : ""}" onclick="G.toggleExplore(${sel},${r})" ${ok ? "" : "disabled"}>${x && !x.once ? "停止" : "探索"}</button></div>`;
         const info = `${ok ? "已通过历练" : "未历练"}${q ? " · 出窍中" : ""}`;   // 不显示首领名
         const gk = this.gridOpen(sel, r) ? ` class="rg-go" onclick="G.openGrid(${sel},${r})"` : "";   // 点区域图进地图格子（独立玩法）
+        if (spot) return `<div class="rgt rgs${cls ? " " + cls : ""}${x || q ? " cur" : ""}"><div${gk ? gk.replace('class="rg-go"', 'class="rg-go rgs-hit"') : ' class="rgs-hit"'}></div><b>${d}域</b><small>${info}</small>${btns}</div>`;
         return tile ? `<div class="rgt${cls ? " " + cls : ""}${x || q ? " cur" : ""}"><img${gk} src="img/map/rg_${map.w === "fan" ? "" : map.w + "_"}${RG[r] || "dong"}.webp" alt=""><b>${d}域</b><small>${info}</small>${btns}</div>`
           : `<div class="line"><div>${d}域<small>${info}</small></div>${btns}</div>`;
       }
