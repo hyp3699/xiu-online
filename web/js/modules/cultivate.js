@@ -236,7 +236,7 @@ G.module({
 
     toggleAuto() {
       this.s.auto = !this.s.auto;
-      if (this.s.auto) this._lastTick = Date.now();
+      // 不再重置 _lastTick：修炼 / 炼体 / 聚灵阵同一个 10 秒周期（服务器 s.last）结算，进度条跟着服务器走（用户定 2026-11-17）
       this.log(this.s.auto ? "开启自动修炼。" : "停止自动修炼。", "sys");
       this.after();
     },
