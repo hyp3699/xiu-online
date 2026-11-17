@@ -1175,12 +1175,13 @@ G.module({
       // 出一招：a = acts[j]；res = true 可以动用保留的法力；放不出返回 null
       const usedN = {};   // v152 这场战斗每招已用几次
       let res2 = false;
-      const swSp = 1 + (this.sjSwBonus ? this.sjSwBonus().spDmg || 0 : 0) / 100;   // 主神纹：法术伤害 +%
+      const ssG = k => this.ssGfSum ? this.ssGfSum(k) : 0, ssSpM = Math.max(0, 1 - ssG("spMana") / 100), ssFbM = Math.max(0, 1 - ssG("fbMana") / 100), ssFb = 1 + ssG("fbDmg") / 100;   // 神识功法《御法凝神篇》《驭宝通灵诀》（用户定 2026-11-17）
+      const swSp = (1 + (this.sjSwBonus ? this.sjSwBonus().spDmg || 0 : 0) / 100) * (1 + ssG("spDmg") / 100);   // 主神纹：法术伤害 +%
       const lgSp = el => this.lingenSp ? this.lingenSp(el && el.id || el) : 1;   // 灵根：本系法术伤害 +%（用户定 2026-11-14）
       const jmUp = el => 1 + (this.jmElDmg ? this.jmElDmg(el) : 0) / 100, jmDn = el => 1 - (this.jmElCut ? this.jmElCut(el) : 0) / 100;   // 经脉：手部 +% / 腿部 −%（config/jingmai.js elDmg / elCut）
       const cast = (j, res) => {
         const a = acts[j]; if (!a) return null;
-        const cost = a.k === 1 ? a.sp.mana : a.fb.mana;
+        const cost = a.k === 1 ? (a.sp.stn ? a.sp.mana : a.sp.mana * ssSpM) : a.fb.mana * ssFbM;   // 神识功法：释放法术 / 法宝法力消耗 −%
         if (a.k === 2 && a.fb.shield && (shield || !res2)) return null;   // 护盾还在：盾不用再祭；v165 盾只在出手前免费祭（res2），不占出手
         if (s.mana < cost || (!res && s.mana - cost < keepMp)) return null;
         if ((usedN[j] || 0) >= ((a.k === 1 ? a.sp.uses : a.fb.uses) || 1)) return null;   // v152 每场战斗使用次数用完
@@ -1197,7 +1198,7 @@ G.module({
         if (isBm && txP > 0 && Math.random() * 100 < txP) txGo = true;
         if (fb.shield) { shield = Object.assign({ el: fb.el }, fb.shield, { def: st.def * (fb.shield.defPct || 0) / 100, hp: st.hp * (fb.shield.hpPct || 0) / 100 + (fb.shield.hpAdd || 0) });   // 盾防御 = 祭盾时全部防御 × %
           act = { k: 3, sp: j, f: 0 }; return 0; }
-        let d = roll(fb.hit || fb.critAdd ? Object.assign({}, st, { hit: st.hit + (fb.hit || 0), crit: st.crit + (fb.critAdd || 0) }) : st, mE(), X => fabaoDmg(fb, X) * jmUp(fb.el) * pjK, 2, j);   // 经脉该系属性伤害 +%   // 刀 / 锤专属：本次攻击额外命中、暴击
+        let d = roll(fb.hit || fb.critAdd ? Object.assign({}, st, { hit: st.hit + (fb.hit || 0), crit: st.crit + (fb.critAdd || 0) }) : st, mE(), X => fabaoDmg(fb, X) * jmUp(fb.el) * pjK * ssFb, 2, j);   // 经脉该系属性伤害 +%   // 刀 / 锤专属：本次攻击额外命中、暴击
         if (act.f === 2 && fb.crit) d *= fb.crit / 100 / BT.CRIT_MULT;   // 锤：暴击伤害 %（代替普通暴击倍率）
         if (d > 0) d += lgD(fb.el);   // 灵果属性伤害：最后直接加，不吃任何加成
         if (act.f !== 1) {

@@ -39,6 +39,9 @@ CFG.shenshi.GONGFA = [
   { id: "lingtai",  name: "灵台开识篇", ICON: "sg_4_0", key: "ls",   MAX: 108, STEPS: [[18, 1], [18, 2], [18, 3], [18, 4], [18, 5], [18, 6]], UNLOCK: 0, desc: "开辟灵台，识海更广，增加灵识点。" },
   { id: "lianxi",   name: "敛息归元诀", ICON: "sg_0_1", key: "ling", MAX: 108, FIRST: 1000, TOTAL: 720000, UNLOCK: 0, desc: "收敛周身气息，吐纳不泄，减少修为修炼、肉身修炼、功法修炼的灵气消耗。" },
   { id: "yandao",   name: "识海演道诀", ICON: "sg_8_2", key: "gf",   MAX: 108, STEPS: [[108, 1]], UNLOCK: 0, desc: "以识海推演功法运行，减少功法修炼时间。" },
+  // 两种效果：key 每层 PER，key2 每层 PER2（用户定 2026-11-17）
+  { id: "yufa",     name: "御法凝神篇", ICON: "sg_6_0", key: "spDmg", PER: 0.63, key2: "spMana", PER2: 0.18, MAX: 108, UNLOCK: 0, desc: "以神识御使法术，增加法术伤害，减少释放法术的法力消耗。" },
+  { id: "yubao",    name: "驭宝通灵诀", ICON: "sg_7_1", key: "fbDmg", PER: 0.72, key2: "fbMana", PER2: 0.18, MAX: 108, UNLOCK: 0, desc: "以神识沟通法宝，增加法宝伤害，减少释放法宝的法力消耗。" },
   { id: "wanfa",    name: "万法通明录", ICON: "sg_0_2", key: "sp",   MAX: 108, STEPS: [[108, 1]], UNLOCK: 0, desc: "神识映照万法，法术一观即通，减少法术修炼时间。" },
 ];
 CFG.shenshi.COST = { STONE: 3000, STONE_ADD: 3000, HERB: 10, HERB_ADD: 10, YD: 0, YD_ADD: 0 };

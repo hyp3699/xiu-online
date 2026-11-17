@@ -111,7 +111,7 @@ G.module({
     ssGfVal(g, lv) { if (!g.STEPS && g.FIRST !== undefined && g.TOTAL !== undefined) { const M = g.MAX || 1, a = +g.FIRST || 0, d = M > 1 ? 2 * ((+g.TOTAL || 0) - M * a) / (M * (M - 1)) : 0, k = Math.max(0, Math.min(lv, M)); return Math.round(k * a + d * k * (k - 1) / 2); }
       const S = g.STEPS || [[g.MAX || 0, g.PER || 0]]; let n = 0, left = lv;
       for (let i = 0; i < S.length && left > 0; i++) { const k = i === S.length - 1 ? left : Math.min(left, S[i][0] || 0); n += k * (S[i][1] || 0); left -= k; } return n; },
-    ssGfSum(key) { let n = 0; for (const g of CFG.shenshi.GONGFA || []) if (g.key === key) n += this.ssGfVal(g, this.ssGfLv(g.id)); return n; },   // 某种效果合计
+    ssGfSum(key) { let n = 0; for (const g of CFG.shenshi.GONGFA || []) { if (g.key === key) n += this.ssGfVal(g, this.ssGfLv(g.id)); if (g.key2 === key) n += (+g.PER2 || 0) * this.ssGfLv(g.id); } return n; },   // 某种效果合计
     // 《敛息归元诀》：每 10 秒合计只减一次（用户定）——功法修炼（含秘法、法术）先用，剩下的给修为修炼，再剩下给肉身修炼
     //   返回 { gf, exp, body } 各自分到的减少量（点 / 10 秒）；每项最多减到 0，不会多减
     lxShare() {
@@ -144,7 +144,9 @@ G.module({
       if (n <= 0) return;
       L.sm = L.sm || {}; for (let i = 0; i < n; i++) { const k = U.pick(H.ITEMS); L.sm[k] = (L.sm[k] || 0) + 1; }
     },
-    ssGfEff(g, lv) { const v = this.ssGfVal(g, lv); return g.key === "pow" ? `神识强度 +${v}` : g.key === "cq" ? `元婴出窍收益 +${v}%` : g.key === "ls" ? `灵识点 +${v}` : g.key === "ling" ? `灵气消耗每 10 秒 −${U.fmt(v)}` : g.key === "gf" ? `功法修炼时间 −${v}%` : `法术修炼时间 −${v}%`; },
+    ssGfEff(g, lv) { const v = this.ssGfVal(g, lv), r = x => +(+x).toFixed(2);
+      if (g.key === "spDmg" || g.key === "fbDmg") { const w = g.key === "spDmg" ? "法术" : "法宝"; return `${w}伤害 +${r(v)}%，释放${w}法力消耗 −${r((+g.PER2 || 0) * lv)}%`; }
+      return g.key === "pow" ? `神识强度 +${v}` : g.key === "cq" ? `元婴出窍收益 +${v}%` : g.key === "ls" ? `灵识点 +${v}` : g.key === "ling" ? `灵气消耗每 10 秒 −${U.fmt(v)}` : g.key === "gf" ? `功法修炼时间 −${v}%` : `法术修炼时间 −${v}%`; },
     ssGfUp(id) {
       const s = this.s, g = this.ssGfDef(String(id)); if (!g) return;
       const lv = this.ssGfLv(g.id); if (lv >= g.MAX) return this.log(`《${g.name}》已修炼圆满。`, "sys");
