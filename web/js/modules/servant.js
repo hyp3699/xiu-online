@@ -20,7 +20,7 @@ G.module({
     }
     if (s.svAuto) s.servants.forEach(d => { const c = this.svOwed(d) * this.svSalary(d); if (c > 0 && s.stone >= c) { s.stone -= c; d.paid = this.bjDay(); this.dirty(); } });
     const gone = s.servants.filter(d => this.svOwed(d) > C.SALARY.LEAVE_DAYS);
-    if (gone.length) { s.servants = s.servants.filter(d => !gone.includes(d)); gone.forEach(d => this.log(`${this.svName(d)}连续多日未领俸禄，离开了洞府。`, "bad")); this.dirty(); }
+    if (gone.length) { if (gone.some(d => d.job === "lk") && this.lkSettle) this.lkSettle(true);   /* 管灵矿的道童走之前先结算，已产出的不丢 */ s.servants = s.servants.filter(d => !gone.includes(d)); gone.forEach(d => this.log(`${this.svName(d)}连续多日未领俸禄，离开了洞府。`, "bad")); this.dirty(); }
   },
   api: {
     // 选拔几率：未出天品的次数 n，天品 +n×PITY_STEP%、黄品 −同样（黄品最低 0）
@@ -56,8 +56,8 @@ G.module({
       const a = J[f + "LV1"] || 0;
       return Math.round((a + (J[f + "MAX"] - a) * this.svCurve(d.lv)) * 100) / 100;   // 每级都提升（保留 2 位小数）
     },
-    svEffTxt(job, v, flat, y) { if (job === "ling") return `种植速度 +${U.num(v)}%，产量 +${U.num(y || 0)}%`; return job === "zhen" ? `${v ? `聚灵 +${U.num(v)}%，` : ""}固定聚灵 +${U.fmt(flat || 0)}` : `${job === "cult" || job === "dan" || job === "qi" || job === "ling" ? "+" : "−"}${U.num(v)}%`; },
-    svJobTotal(job) { return job === "zhen" ? `聚灵 +${U.num(this.gatherServant() + this.servantFlat())}` : this.svEffTxt(job, this.servantPct(job), 0, this.servantPct(job, "YIELD_")); },   // 差事按钮：阵法辅助显示所有道童合计增加的聚灵（每 10 秒）
+    svEffTxt(job, v, flat, y) { if (job === "lk") return `管理 ${(this.s.servants || []).filter(d => d.job === "lk").length} / ${((DATA.worldMapIdx || {}).fan || []).length} 座灵矿`; if (job === "ling") return `种植速度 +${U.num(v)}%，产量 +${U.num(y || 0)}%`; return job === "zhen" ? `${v ? `聚灵 +${U.num(v)}%，` : ""}固定聚灵 +${U.fmt(flat || 0)}` : `${job === "cult" || job === "dan" || job === "qi" || job === "ling" ? "+" : "−"}${U.num(v)}%`; },
+    svJobTotal(job) { if (job === "lk") return this.svEffTxt("lk"); return job === "zhen" ? `聚灵 +${U.num(this.gatherServant() + this.servantFlat())}` : this.svEffTxt(job, this.servantPct(job), 0, this.servantPct(job, "YIELD_")); },   // 差事按钮：阵法辅助显示所有道童合计增加的聚灵（每 10 秒）
     servantPct(job, f = "") { return (this.s.servants || []).filter(d => d.job === job).reduce((t, d) => t + this.svEff(d, job, f), 0); },
     svStartPick() {
       const s = this.s, C = CFG.servant, p = s.svPick;
@@ -98,13 +98,14 @@ G.module({
     },
     svFire(i) {
       if (!confirm("遣散这个道童？")) return;
+      const d = this.s.servants[i]; if (d && d.job === "lk" && this.lkSettle) this.lkSettle(true);   // 管灵矿的：先结算
       this.s.servants.splice(i, 1); this.closeModal(); this.after();
     },
     openSv(i) {
       const d = this.s.servants[i]; if (!d) return this.closeModal();
       const C = CFG.servant, max = d.lv >= C.MAX_LV, c = this.svUpCost(d), ly = this.svUpLy(d), lyf = this.svLyFt(d), lyOk = this.smCount("ly", lyf) >= ly, J = C.JOB[d.job], ow = this.svOwed(d), owc = ow * this.svSalary(d), au = this.s.svAuto;
       this.modal(`<h2>${this.svName(d)}</h2><div class="sv-pick"><img src="${this.svImg(d)}" alt=""><div>
-        资质 ${this.svQName(d)} · 五行 ${C.EL[d.el]}<br>等级 ${d.lv} / ${C.MAX_LV}<br>差事：${J ? `${J.name} ${this.svEffTxt(d.job, this.svEff(d, d.job), d.job === "zhen" ? this.svFlat(d) : 0, this.svEff(d, d.job, "YIELD_"))}` : "空闲"}<br>每日俸禄 ${U.fmt(this.svSalary(d))} 灵石${ow ? `<br><span class="q5">欠发 ${ow} 天</span>` : ""}</div></div>
+        资质 ${this.svQName(d)} · 五行 ${C.EL[d.el]}<br>等级 ${d.lv} / ${C.MAX_LV}<br>差事：${J && d.job === "lk" ? `${J.name}${DATA.maps[d.lkA] ? " · " + DATA.maps[d.lkA].name : ""}` : J ? `${J.name} ${this.svEffTxt(d.job, this.svEff(d, d.job), d.job === "zhen" ? this.svFlat(d) : 0, this.svEff(d, d.job, "YIELD_"))}` : "空闲"}<br>每日俸禄 ${U.fmt(this.svSalary(d))} 灵石${ow ? `<br><span class="q5">欠发 ${ow} 天</span>` : ""}</div></div>
         <div class="btns"><button class="${au ? "on" : ""}" onclick="G.svAutoToggle(${i})">自动发放俸禄：${au ? "开" : "关"}</button><button onclick="G.svPay(${i})" ${owc && this.s.stone >= owc ? "" : "disabled"}>发放俸禄${owc ? `（${U.fmt(owc)} 灵石）` : ""}</button></div>
         <div class="btns"><button class="primary" onclick="G.svUp(${i})" ${max || this.s.stone < c || !lyOk ? "disabled" : ""}>${max ? "已满级" : `升级（${U.fmt(c)} 灵石、${DATA.smName("ly", lyf)} ${U.fmt(ly)}）`}</button>
         <button onclick="G.svFire(${i})">遣散</button><button onclick="G.closeModal()">关闭</button></div>
@@ -113,6 +114,12 @@ G.module({
     // 差事：点开后选道童，每种五行一个位置
     openSvJob(job) {
       const C = CFG.servant, J = C.JOB[job], L = this.s.servants;
+      if (job === "lk") {   // 灵矿管理：凡界每座灵矿一个位置，五行不限（选人走 world.js openLkSv）
+        const rows = ((DATA.worldMapIdx || {}).fan || []).map(a => { const i = this.lkSvIdx(a), d = L[i];
+          return `<div class="line"><div>${DATA.maps[a].name}灵矿${!this.lkOwned(a) ? "：未占领" : ` ${this.lkLv(a)} 级${d ? `：${this.svName(d)} ${d.lv}级` : "：未派道童，不产出"}`}</div><span>${!this.lkOwned(a) ? "" : d ? `<button class="sm" onclick="G.lkSetSv(${a},-1,'lk')">撤回</button>` : ""}<button class="sm primary" onclick="G.openLkSv(${a},'lk')">${d ? "更换" : "派遣"}</button></span></div>`; }).join("");
+        return this.modal(`<h2>${J.name}<small> ${this.svJobTotal(job)}</small></h2><p class="desc">每座灵矿派一个道童才产出灵石，五行不限，道童等级不影响产量。</p>${rows}
+          <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+      }
       const slots = J.els.map(el => { const i = L.findIndex(d => d.job === job && d.el === el);
         return `<div class="line"><div>${C.EL[el]}${i >= 0 ? `：${this.svName(L[i])} ${L[i].lv}级` : "：空"}</div>${i >= 0 ? `<button class="sm" onclick="G.svSetJob(${i},null,'${job}')">撤回</button>` : ""}</div>`; }).join("");
       const cand = L.map((d, i) => [d, i]).filter(([d]) => J.els.includes(d.el) && d.job !== job);
@@ -123,6 +130,8 @@ G.module({
     },
     svSetJob(i, job, back) {
       const L = this.s.servants, d = L[i]; if (!d) return;
+      if (job === "lk") return this.log("灵矿管理请在灵矿里选择道童。", "sys");
+      if (d.job === "lk" && this.lkSettle) { this.lkSettle(true); delete d.lkA; }   // 原来管灵矿：先结算再改差事
       if (job) L.forEach(x => { if (x.job === job && x.el === d.el) x.job = null; });
       d.job = job; this.after(); this.openSvJob(back);
     },

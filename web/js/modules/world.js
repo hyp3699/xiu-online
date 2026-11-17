@@ -47,7 +47,7 @@ G.module({
       if (this.lkMap(sel)) {   // 凡界（用户 2026-11-17）：每张图一整幅地图 img/map/fm_<图>.webp（风格随图名），东西南北四域 + 正中灵矿各自是独立按钮；点域进去还是各自的格子图
         const Q = ["dong", "xi", "nan", "bei"], lv = this.lkLv(sel), fi = ((DATA.worldMapIdx || {}).fan || []).indexOf(sel);
         const rows = DATA.regionDirs.map((d, r) => this.rgTile(sel, r, "q-" + (Q[r] || "dong"), true)).join("");
-        const lk = `<button class="rglk" onclick="G.openLk(${sel})"><img src="${DATA.iconImg("stone")}" alt=""><b>灵矿</b><small>${lv} 级</small></button>`;
+        const lk = `<button class="rglk" onclick="G.openLk(${sel})"><img src="${DATA.iconImg("stone")}" alt=""><b>灵矿</b><small>${!this.lkEnter(sel) ? "未开启" : !this.lkOwned(sel) ? "有守卫" : lv + " 级"}</small></button>`;
         return `<div class="card rgcard rgmapc">${noTitle ? "" : `<h3>${DATA.maps[sel].name}</h3>`}<div class="rgmap" style="background-image:url(img/map/fm_${fi < 0 ? 0 : fi}.webp)">${rows}${lk}</div></div>`;
       }
       const tile = true, rows = DATA.regionDirs.map((d, r) => this.rgTile(sel, r)).join("");   // 凡界、四界都用图片格子
@@ -334,44 +334,116 @@ G.module({
         const run = this._glRun && this._glRun.a === a && this._glRun.r === r && this._glRun.i === i;
         cells.push(`<button class="gc${on ? " on" : ""}${me ? " me" : ""}${run ? " run" : ""}" onclick="G.gridTap(${a},${r},${i})" ${full ? "disabled" : ""}>${run ? "<span>游历中</span>" : ""}</button>`);
       }
-      return `<div class="gridbar gt"><span>今日游历 ${d.n} / ${D} 次 · 灵矿 ${lv} 级${lv ? ` · 每天 ${U.fmt(DATA.lkOut(lv))} 灵石` : ""}</span></div>
+      return `<div class="gridbar gt"><span>今日游历 ${d.n} / ${D} 次 · 灵矿 ${lv} 级${lv ? this.lkSv(a) ? ` · 每天 ${U.fmt(DATA.lkOut(lv, a))} 灵石` : " · 未派道童" : ""}</span></div>
         <div id="mgwrap" class="mgwrap mg2" data-c="${cur}" data-n="${M}" data-fit="${N}"><div class="mgrid${this._glRun ? " busy" : ""}" style="background-image:url(img/map/grid_${wid || "fan"}.webp);grid-template-columns:repeat(${M},var(--gcw));grid-template-rows:repeat(${M},var(--gcw))">${cells.join("")}</div></div>`;
     },
-    /* ---------- 灵矿：s.lk[地图] = 等级；s.lkAt = 上次结算时刻，s.lkF = 不足 1 块的灵石零头；每 STEP_MIN 分钟按九座灵矿合计产量进灵石 ---------- */
+    /* ---------- 灵矿：s.lk[地图] = 等级；s.lkAt = 上次结算时刻，s.lkF = 不足 1 块的灵石零头；每 STEP_MIN 分钟按有道童管理的灵矿合计产量结算，灵石进传音 ---------- */
+    // 道童「灵矿管理」：servants 里 job === "lk"、lkA = 地图序号，每座灵矿一个（用户定 2026-11-17）
     lkLv(a) { return Math.max(0, Math.min(DATA.LK().MAX, Math.floor(+((this.s.lk || {})[a]) || 0))); },
-    lkRate() { const L = this.s.lk; if (!L || typeof L !== "object") return 0; let t = 0; for (const a of (DATA.worldMapIdx || {}).fan || []) t += DATA.lkOut(this.lkLv(a)); return t; },   // 每天合计
-    lkStep() { return Math.max(1, +DATA.LK().STEP_MIN || 10) * 60000; },
+    // 进灵矿：本图东西南北四域都历练通过；占领：打败灵矿守卫（s.lkOwn[地图] = 1），旧存档已升过级的算已占领（用户定 2026-11-17）
+    lkEnter(a) { return this.lkMap(a) && DATA.regionDirs.every((d, r) => this.isTrained(a, r)); },
+    lkOwned(a) { return !!((this.s.lkOwn || {})[a]) || this.lkLv(a) > 0; },
+    lkBossName(a) { return `${DATA.maps[a].name}灵矿守卫`; },
+    // 灵矿守卫：本图北域（r = 3）首领的平均属性（不随机）× BOSS_MUL；秘法 / 天赋同北域首领
+    lkBoss(a) {
+      const r = DATA.regionCount - 1, R = DATA.region(a, r), t = R && R._t && R._t.boss, b = t ? DATA.mobStats(t, DATA.mobCrit(DATA.MOB_KIND.boss)) : DATA.mobMeet(R, "boss");
+      const r0 = b.resEl || b.res, res = {}; for (const e of DATA.elements) res[e.id] = r0 && typeof r0 === "object" ? +r0[e.id] || 0 : +r0 || 0;
+      const m = this.addMagic({ name: this.lkBossName(a), mapA: a, Lm: R.L, kind: "boss", boss: true, elite: false, elKey: `b:${a}:${r}`,
+        hp: b.hp, atk: b.atk, def: b.def, speed: b.speed, hit: b.hit, dodge: b.dodge, mana: b.mana, res, manaBr: b.manaBr, L: b.L, crit: b.crit, stl: b.stl }, "boss", { res });
+      const k = +DATA.LK().BOSS_MUL || 1;   // 加完神通等之后整体 × 倍率
+      for (const x of ["hp", "atk", "def", "speed", "hit", "dodge"]) if (typeof m[x] === "number") m[x] *= k;
+      m.mana = m.maxMana = (m.mana || 0) * k; for (const e in m.res) m.res[e] *= k;
+      m.a = a; return m;
+    },
+    lkFight(a) {
+      a = Number(a); const s = this.s;
+      if (!Number.isInteger(a) || !this.lkMap(a)) throw new Error("没有这座灵矿");
+      if (!this.lkEnter(a)) return this.log("需先通过东西南北四域历练。", "sys");
+      if (this.lkOwned(a)) return this.log("这座灵矿已占领。", "sys");
+      const m = this.lkBoss(a), res = this.battle(m, { foe: "boss", useSet: true });
+      if (res.win) { if (!s.lkOwn || typeof s.lkOwn !== "object") s.lkOwn = {}; s.lkOwn[a] = 1; s.kills = (s.kills || 0) + 1; }
+      const txt = res.win ? `击败${m.name}，占领了${DATA.maps[a].name}灵矿！` : `${res.timeout ? `${res.rounds} 回合未能击败` : "不敌"}${m.name}，可以再来挑战。`;
+      if (res.detail) this.playBattle(res.detail, `${DATA.maps[a].name} · 灵矿`, txt, !!res.win, [[txt, res.win ? "gold" : "bad"]]); else this.log(txt, res.win ? "gold" : "bad");
+      this.dirty(); this.after();
+      return !!res.win;
+    },
+    lkSvIdx(a) { return (this.s.servants || []).findIndex(d => d && d.job === "lk" && d.lkA === +a); },
+    lkSv(a) { const i = this.lkSvIdx(a); return i < 0 ? null : this.s.servants[i]; },
+    lkRate() { const L = this.s.lk; if (!L || typeof L !== "object") return 0; let t = 0;   // 每天合计：只算有道童管理的
+      for (const a of (DATA.worldMapIdx || {}).fan || []) if (this.lkSv(a) && this.lkOwned(a)) t += DATA.lkOut(this.lkLv(a), a); return t; },
+    lkStep() { return Math.max(1, +DATA.LK().STEP_MIN || 60) * 60000; },
     lkNextAt() { const s = this.s; return s.lkAt > 0 && this.lkRate() > 0 ? s.lkAt + this.lkStep() : 0; },   // fastsim.js：下次结算时刻
-    // 结算：到点按整段时间进灵石（now 是 10 秒结算的时刻，逐个结算和离线加速结果一样）；force = 升级前把零头时间也结掉
+    // 结算：到点按整段时间算灵石（now 是 10 秒结算的时刻，逐个结算和离线加速结果一样）；force = 升级 / 换道童前把零头时间也结掉
     lkSettle(force) {
       const s = this.s, now = this.now(), R = this.lkRate();
       if (!(R > 0)) { if (s.lkAt) s.lkAt = 0; return; }
       if (!(s.lkAt > 0) || s.lkAt > now) { s.lkAt = now; return; }
       const P = this.lkStep(), dt = force ? now - s.lkAt : Math.floor((now - s.lkAt) / P) * P;
       if (dt <= 0) return;
-      const v = R * dt / 86400000 + (+s.lkF || 0), n = Math.floor(v + 1e-9);   // 1e-9：浮点误差（69.44… × 144 次）不丢 1 块
-      s.lkF = Math.max(0, v - n); s.lkAt += dt; if (n > 0) s.stone = (s.stone || 0) + n;
+      const v = R * dt / 86400000 + (+s.lkF || 0), n = Math.floor(v + 1e-9);   // 1e-9：浮点误差不丢 1 块
+      s.lkF = Math.max(0, v - n); s.lkAt += dt; if (n > 0) this.lkMail(n);
+    },
+    // 灵石进传音：已有未领取的灵矿传音就加到那一封上（刷新暂存时间），不会一小时一封
+    lkMail(n) {
+      const list = this.mailboxList ? this.mailboxList() : null;
+      if (!list) { this.s.stone = (this.s.stone || 0) + n; return; }
+      const e = list.find(x => x && x.lk === 1 && x.it && x.it.t === "cur" && x.it.k === "stone" && this.now() < this.mailboxDue(x));
+      if (e) { e.it.n = (Math.floor(+e.it.n) || 0) + n; e.at = this.now(); }
+      else { this.mailboxAdd({ t: "cur", k: "stone", n }, true, "灵矿产出"); const x = list[list.length - 1]; if (x && x.src === "灵矿产出") x.lk = 1; }
+      this.dirty();
     },
     lkUp(a) {
       a = Number(a); const s = this.s, K = DATA.LK();
       if (!Number.isInteger(a) || !this.lkMap(a) || !this.gridOpen(a, 0)) throw new Error("该地图尚未开启");
+      if (!this.lkEnter(a)) return this.log("需先通过东西南北四域历练。", "sys");
+      if (!this.lkOwned(a)) return this.log("先打败灵矿守卫占领灵矿。", "sys");
       const lv = this.lkLv(a); if (lv >= K.MAX) return this.log("灵矿已满级。", "sys");
       const mats = DATA.lkMats(a, lv + 1);
       if (!DATA.isTest()) { if (!this.hasMats(mats)) return this.log("矿石不足。", "sys"); mats.forEach(x => this.takeMat(x.kind, x.g, x.n)); }
       this.lkSettle(true);   // 先按旧产量结到现在
       if (!s.lk || typeof s.lk !== "object") s.lk = {};
-      s.lk[a] = lv + 1; if (!(s.lkAt > 0)) s.lkAt = this.now();
-      this.log(`${DATA.maps[a].name}灵矿升至 ${lv + 1} 级，每天产出 ${U.fmt(DATA.lkOut(lv + 1))} 灵石。`, "good"); this.dirty(); this.after();
+      s.lk[a] = lv + 1; if (!(s.lkAt > 0) && this.lkRate() > 0) s.lkAt = this.now();
+      this.log(`${DATA.maps[a].name}灵矿升至 ${lv + 1} 级，每天产出 ${U.fmt(DATA.lkOut(lv + 1, a))} 灵石${this.lkSv(a) ? "" : "（需派道童管理才产出）"}。`, "good"); this.dirty(); this.after();
+    },
+    // 派道童管理灵矿 a：i = 道童序号，i < 0 = 撤回；back = 操作后重开哪个界面（"lk" 道童居差事 / 其他 = 灵矿弹窗）
+    lkSetSv(a, i, back) {
+      a = Number(a); i = Number(i); const s = this.s, L = s.servants || [];
+      if (!Number.isInteger(a) || !this.lkMap(a)) throw new Error("没有这座灵矿");
+      if (i >= 0 && !this.lkOwned(a)) return this.log("先打败灵矿守卫占领灵矿，才能派道童。", "sys");
+      this.lkSettle(true);   // 先按旧的管理情况结到现在，已经产出的不丢
+      const old = this.lkSv(a);
+      if (i >= 0) { const d = L[i]; if (!d) return this.log("没有这个道童。", "sys");
+        if (old && old !== d) { old.job = null; delete old.lkA; }
+        d.job = "lk"; d.lkA = a; this.log(`派${this.svName(d)}管理${DATA.maps[a].name}灵矿。`, "good"); }
+      else if (old) { old.job = null; delete old.lkA; this.log(`撤回${this.svName(old)}。`, "sys"); }
+      if (!(s.lkAt > 0) && this.lkRate() > 0) s.lkAt = this.now();
+      this.dirty(); this.after();
+      if (back === "lk") this.openSvJob("lk"); else this.openLk(a);
+    },
+    // 选道童管理灵矿 a（同道童居差事的选人界面）
+    openLkSv(a, back) {
+      a = Number(a); if (!this.lkMap(a)) return; if (!this.lkOwned(a)) return this.openLk(a); const C = CFG.servant, L = this.s.servants || [], cur = this.lkSv(a), bk = back === "lk" ? "lk" : "";
+      const cand = L.map((d, i) => [d, i]).filter(([d]) => d !== cur);
+      this.modal(`<h2>${DATA.maps[a].name}灵矿 · 灵矿管理</h2>
+        <div class="line"><div>${cur ? `${this.svName(cur)} · ${C.EL[cur.el]} · ${cur.lv}级` : "未派道童，不产出"}</div>${cur ? `<button class="sm" onclick="G.lkSetSv(${a},-1,'${bk}')">撤回</button>` : ""}</div>
+        <h3 style="margin-top:8px">选择道童</h3>
+        ${cand.length ? cand.map(([d, i]) => `<div class="line"><div class="sv-li"><img src="${this.svImg(d)}" alt="">${this.svName(d)} · ${C.EL[d.el]} · ${d.lv}级${d.job ? `<small>${C.JOB[d.job] ? C.JOB[d.job].name : ""}${d.job === "lk" && DATA.maps[d.lkA] ? "·" + DATA.maps[d.lkA].name : ""}中</small>` : ""}</div><button class="sm primary" onclick="G.lkSetSv(${a},${i},'${bk}')">派遣</button></div>`).join("") : `<p>没有可派遣的道童（洞府 · 道童居选拔）。</p>`}
+        <div class="btns"><button onclick="${bk ? "G.openSvJob('lk')" : `G.openLk(${a})`}">返回</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
     openLk(a) {
       a = Number(a); if (!this.lkMap(a)) return;
-      const K = DATA.LK(), lv = this.lkLv(a), full = lv >= K.MAX, mats = full ? [] : DATA.lkMats(a, lv + 1);
+      if (!this.lkEnter(a)) return this.modal(`<img class="item-img" src="${DATA.iconImg("stone")}" alt=""><h2>${DATA.maps[a].name} · 灵矿</h2><p class="desc">需先通过东西南北四域历练。</p><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+      if (!this.lkOwned(a)) { const m = this.lkBoss(a);   // 没占领：显示守卫和挑战
+        return this.modal(`<img class="item-img" src="${DATA.iconImg("stone")}" alt=""><h2>${DATA.maps[a].name} · 灵矿</h2><p class="desc">灵矿有守卫把守，打败它才能占领灵矿（升级、派道童、产出灵石）。</p>
+          <div class="stats"><div><span>首领</span>${m.name}</div><div><span>气血</span>${U.fmt(Math.round(m.hp))}</div><div><span>攻击</span>${U.fmt(Math.round(m.atk))}</div><div><span>防御</span>${U.fmt(Math.round(m.def))}</div><div><span>速度</span>${U.fmt(Math.round(m.speed))}</div></div>
+          <div class="btns"><button class="primary" onclick="G.lkFight(${a})">挑战</button><button onclick="G.closeModal()">关闭</button></div>`); }
+      const K = DATA.LK(), lv = this.lkLv(a), full = lv >= K.MAX, mats = full ? [] : DATA.lkMats(a, lv + 1), sv = this.lkSv(a);
       const cell = (src, have, need, name) => `<div class="cpk-mat${have >= need ? "" : " lack"}"><img src="${src}" alt=""><b>${name}</b><span>${U.fmt(have)}/${U.fmt(need)}</span></div>`;
       const ok = DATA.isTest() || this.hasMats(mats), open = this.gridOpen(a, 0);
       const cost = full ? `<p class="desc">已满级。</p>` : `<p class="zf-cost-t">升到 ${lv + 1} 级消耗</p><div class="cpk-mats zf-cost">${mats.map(m => cell(DATA.matImg(m.kind, m.g), this.countMat(m.kind, m.g), m.n, DATA.matFull(m.kind, m.g))).join("")}</div>`;
-      this.modal(`<img class="item-img" src="${DATA.iconImg("stone")}" alt=""><h2>${DATA.maps[a].name} · 灵矿 ${lv} 级</h2><div class="stats"><div><span>每天产出</span>${U.fmt(DATA.lkOut(lv))} 灵石${full ? "" : ` → ${U.fmt(DATA.lkOut(lv + 1))}`}</div><div><span>九图灵矿合计</span>每天 ${U.fmt(this.lkRate())} 灵石</div></div>
-        <p class="desc">灵石按时间自动存入（每 ${Math.round(this.lkStep() / 60000)} 分钟结算一次，离线也算）。</p>${cost}
-        <div class="btns">${full ? "" : `<button class="primary" onclick="G.lkUp(${a});G.openLk(${a})" ${ok && open ? "" : "disabled"}>升级</button>`}<button onclick="G.closeModal()">关闭</button></div>`);
+      this.modal(`<img class="item-img" src="${DATA.iconImg("stone")}" alt=""><h2>${DATA.maps[a].name} · 灵矿 ${lv} 级</h2><div class="stats"><div><span>每天产出</span>${U.fmt(DATA.lkOut(lv, a))} 灵石${full ? "" : ` → ${U.fmt(DATA.lkOut(lv + 1, a))}`}</div><div><span>管理道童</span>${sv ? `${this.svName(sv)} · ${sv.lv}级` : `<span class="q5">未派道童，不产出</span>`}</div></div>
+        ${cost}
+        <div class="btns">${full ? "" : `<button class="primary" onclick="G.lkUp(${a});G.openLk(${a})" ${ok && open ? "" : "disabled"}>升级</button>`}<button onclick="G.openLkSv(${a})">${sv ? "更换道童" : "派道童"}</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
 
     /* ---------- 隐世宗门（config/yinshi.js）：s.ysPos = { 宗门id: { r 域, i 格子 } }，第一次游历时随机定下，以后不变 ---------- */
