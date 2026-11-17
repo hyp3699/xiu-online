@@ -318,18 +318,19 @@ G.module({
       if (tab) this.boostTab = tab; const t = this.boostTab === "b" ? "b" : "x";
       const s = this.s, sp = this.speed(), bs = this.bodySpeed(), L = (n, v, sm) => v ? `<div class="line"><div>${n}${sm ? `<small>${sm}</small>` : ""}</div><b>${v}</b></div>` : "";
       const P = v => `+${U.num(Math.round(v * 100) / 100)}%`, F = v => `+${U.fmt(v)}`;
+      const ORI = ks => (this.oriOf ? this.oriOf() : []).map(o => { const v = ks.reduce((t, k) => t + (+o[k] || 0), 0); return v ? L(o.name, P(v)) : ""; }).join("");   // 出身写具体名字（用户定 2026-11-17）
       const roomNm = this.freeCultOn() ? `${CFG.sect.freeRoom.name}（剩余 ${s.freeCult.left} 次）` : s.room >= 0 && s.sect ? DATA.rooms[s.room].name : "";
       // 顶部两个按钮：修为速度 / 炼体速度，不要标题；弹窗固定 62vh，里面数据滑动（用户定 2026-11-17）；只列有数值的来源，出身单独一行
       const tabs = `<div class="sub-tabs"><button class="${t === "x" ? "active" : ""}" onclick="G.openBoost('x')">修为速度</button><button class="${t === "b" ? "active" : ""}" onclick="G.openBoost('b')">炼体速度</button></div>`;
       const body = t === "x" ? `<h3>${U.num(sp.total)} 修为 / 10秒</h3>
         ${L("修为境界", sp.xs && F(sp.xs))}${L("肉身境界", sp.rs && F(sp.rs))}${L("秘诀", sp.gfc && F(sp.gfc))}${L("聚元秘法", sp.mifa && F(sp.mifa))}${L("灵果", sp.lgc && F(sp.lgc))}${L("神界感悟", sp.sjc && F(sp.sjc))}
         <div class="line"><div>基础合计</div><b>${U.num(sp.base)}</b></div>
-        ${L("聚灵阵", sp.arrPct && P(sp.arrPct), `${s.array.lv} 级`)}${L("聚元秘法圆满", (sp.mfPct - sp.ori) && P(sp.mfPct - sp.ori))}${L("出身", sp.ori && P(sp.ori))}${L("道童辅助修炼", (sp.svPct - sp.sw) && P(sp.svPct - sp.sw))}${L("神纹", sp.sw && P(sp.sw))}
+        ${L("聚灵阵", sp.arrPct && P(sp.arrPct), `${s.array.lv} 级`)}${L("聚元秘法圆满", (sp.mfPct - sp.ori) && P(sp.mfPct - sp.ori))}${ORI(["cultPct"])}${L("道童辅助修炼", (sp.svPct - sp.sw) && P(sp.svPct - sp.sw))}${L("神纹", sp.sw && P(sp.sw))}
         ${L("丹药", sp.pill && P(sp.pill))}${L("修炼室", sp.room && P(sp.room), roomNm)}${L("经脉", sp.jm && F(sp.jm), "最后直接加")}`
       : `<h3>${U.num(bs.total)} 气血 / 10秒</h3>
         ${L("肉身境界", bs.base && F(bs.base))}${L("修为境界", bs.xw && F(bs.xw))}${L("炼体秘诀", bs.gfB && F(bs.gfB))}${L("炼体秘法", bs.mf && F(bs.mf))}${L("灵果", bs.lgB && F(bs.lgB))}${L("神界感悟", bs.sjB && F(bs.sjB))}
         <div class="line"><div>基础合计</div><b>${U.num(bs.base + bs.gf + bs.mf + bs.xw)}</b></div>
-        ${L("聚灵阵", bs.arr && P(bs.arr), `${s.array.lv} 级`)}${L("炼体秘法圆满", (bs.mfPct - bs.ori) && P(bs.mfPct - bs.ori))}${L("出身", bs.ori && P(bs.ori))}${L("道童辅助修炼", bs.svPct && P(bs.svPct))}${L("修炼室", bs.room && P(bs.room), roomNm)}${L("经脉", bs.jm && F(bs.jm), "最后直接加")}`;
+        ${L("聚灵阵", bs.arr && P(bs.arr), `${s.array.lv} 级`)}${L("炼体秘法圆满", (bs.mfPct - bs.ori) && P(bs.mfPct - bs.ori))}${ORI(["bodyPct", "cultPct"])}${L("道童辅助修炼", bs.svPct && P(bs.svPct))}${L("修炼室", bs.room && P(bs.room), roomNm)}${L("经脉", bs.jm && F(bs.jm), "最后直接加")}`;
       if (t === "b") return this.modal(`${tabs}<div style="height:62vh;overflow-y:auto;-webkit-overflow-scrolling:touch">${body}</div><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
       this.modal(`${tabs}<div style="height:62vh;overflow-y:auto;-webkit-overflow-scrolling:touch">${body}
         <h3 style="margin-top:10px">丹药</h3>
