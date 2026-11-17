@@ -104,14 +104,14 @@ G.module({
       const sjc = this.sjBonus ? this.sjBonus().cult || 0 : 0;   // 神界道场感悟「修炼速度」：固定加基础修炼速度
       const rs = DATA.crossSpeed((s.bodyL === undefined ? -1 : s.bodyL) + 1);   // 肉身突破加修为修炼速度（config/realm.js CROSS_SPEED）
       const gfc = this.gongfaBonus().cultivate;
-      const base = st.cultivate + gfc + mifa + lgc + sjc + rs;
+      const base = gfc + mifa + lgc + sjc + rs;   // 境界自带修炼速度去掉（用户定 2026-11-17，改由肉身突破加）
       const arr = this.arrayFactor();                     // 聚灵阵常开
       let pill = 0;
       for (const t in s.buffs) { const b = s.buffs[t]; if (b && b.left > 0) pill += b.pct; }
       const room = this.freeCultOn() ? this.freeCultPct() : s.room >= 0 && s.sect ? this.roomPct(s.room) : 0;
       // 所有百分比加成相加后再乘：总速度 = 基础 × (1 + (聚灵阵% + 丹药% + 修炼室% + 经脉% …) / 100)，避免数值连乘爆炸
       const arrPct = (arr - 1) * 100, mfPct = this.mifaBonus().expSpeedPct || 0, svPct = this.servantPct("cult") + (this.swPct ? this.swPct().cult || 0 : 0), jm = this.jmFull ? this.jmFull().cult : 0;   // 经脉穴位冲满：直接加数值（jingmai.js）   // 聚元秘法圆满额外 %、道童辅助修炼 %
-      return { base, rs, gfc, lgc, sjc, realm: st.cultivate, arrPct, sw: this.swPct ? this.swPct().cult || 0 : 0, arr, pill, room, mifa, mfPct, svPct, jm, total: base * (1 + (arrPct + pill + room + mfPct + svPct) / 100) + jm,
+      return { base, rs, gfc, lgc, sjc, ori: this.oriSum ? this.oriSum("cultPct") : 0, arrPct, sw: this.swPct ? this.swPct().cult || 0 : 0, arr, pill, room, mifa, mfPct, svPct, jm, total: base * (1 + (arrPct + pill + room + mfPct + svPct) / 100) + jm,
         gather: this.gatherAmount() };                                     // 每 10 秒聚灵（开关不影响）
     },
 
@@ -313,23 +313,24 @@ G.module({
         ${body}<div class="fback"><button onclick="G.closeSettings()">返回</button></div></div>`;
     },
     // 修炼加成（弹窗）：修炼速度构成 + 丹药
-    openBoost() {
+    openBoost(tab) {
+      if (tab) this.boostTab = tab; const t = this.boostTab === "b" ? "b" : "x";
       const s = this.s, sp = this.speed(), bs = this.bodySpeed(), L = (n, v, sm) => v ? `<div class="line"><div>${n}${sm ? `<small>${sm}</small>` : ""}</div><b>${v}</b></div>` : "";
       const P = v => `+${U.num(Math.round(v * 100) / 100)}%`, F = v => `+${U.fmt(v)}`;
       const roomNm = this.freeCultOn() ? `${CFG.sect.freeRoom.name}（剩余 ${s.freeCult.left} 次）` : s.room >= 0 && s.sect ? DATA.rooms[s.room].name : "";
-      // 顶部：修为速度 / 炼体速度（用户定 2026-11-17）；下面分两块列出每一项来源
-      this.modal(`<h2>修炼加成</h2>
-        <div style="display:flex;gap:8px;margin:4px 0 8px"><div class="line" style="flex:1;display:block;text-align:center"><small>修为速度</small><br><b>${U.num(sp.total)}</b><small> / 10秒</small></div>
-          <div class="line" style="flex:1;display:block;text-align:center"><small>炼体速度</small><br><b>${U.num(bs.total)}</b><small> / 10秒</small></div></div>
-        <h3>修为速度</h3>
-        ${L("境界", sp.realm && F(sp.realm))}${L("秘诀", sp.gfc && F(sp.gfc))}${L("聚元秘法", sp.mifa && F(sp.mifa))}${L("灵果", sp.lgc && F(sp.lgc))}${L("神界感悟", sp.sjc && F(sp.sjc))}${L("肉身突破", sp.rs && F(sp.rs))}
+      // 顶部两个按钮：修为速度 / 炼体速度（用户定 2026-11-17）；只列有数值的来源，出身单独一行
+      const tabs = `<div class="sub-tabs"><button class="${t === "x" ? "active" : ""}" onclick="G.openBoost('x')">修为速度</button><button class="${t === "b" ? "active" : ""}" onclick="G.openBoost('b')">炼体速度</button></div>`;
+      const body = t === "x" ? `<h3>${U.num(sp.total)} 修为 / 10秒</h3>
+        ${L("秘诀", sp.gfc && F(sp.gfc))}${L("聚元秘法", sp.mifa && F(sp.mifa))}${L("灵果", sp.lgc && F(sp.lgc))}${L("神界感悟", sp.sjc && F(sp.sjc))}${L("肉身突破", sp.rs && F(sp.rs))}
         <div class="line"><div>基础合计</div><b>${U.num(sp.base)}</b></div>
-        ${L("聚灵阵", sp.arrPct && P(sp.arrPct), `${s.array.lv} 级`)}${L("聚元秘法圆满", sp.mfPct && P(sp.mfPct))}${L("道童辅助修炼", (sp.svPct - sp.sw) && P(sp.svPct - sp.sw))}${L("神纹", sp.sw && P(sp.sw))}
-        ${L("丹药", sp.pill && P(sp.pill))}${L("修炼室", sp.room && P(sp.room), roomNm)}${L("经脉", sp.jm && F(sp.jm), "最后直接加")}
-        <h3 style="margin-top:10px">炼体速度</h3>
-        ${L("肉身境界", bs.base && F(bs.base))}${L("炼体秘诀", bs.gfB && F(bs.gfB))}${L("炼体秘法", bs.mf && F(bs.mf))}${L("灵果", bs.lgB && F(bs.lgB))}${L("神界感悟", bs.sjB && F(bs.sjB))}${L("修为突破", bs.xw && F(bs.xw))}
-        <div class="line"><div>基础合计</div><b>${U.num(bs.base + bs.gf + bs.mf + bs.xw)}</b></div>
-        ${L("聚灵阵", bs.arr && P(bs.arr), `${s.array.lv} 级`)}${L("炼体秘法圆满", bs.mfPct && P(bs.mfPct))}${L("道童辅助修炼", bs.svPct && P(bs.svPct))}${L("修炼室", bs.room && P(bs.room), roomNm)}${L("经脉", bs.jm && F(bs.jm), "最后直接加")}
+        ${L("聚灵阵", sp.arrPct && P(sp.arrPct), `${s.array.lv} 级`)}${L("聚元秘法圆满", (sp.mfPct - sp.ori) && P(sp.mfPct - sp.ori))}${L("出身", sp.ori && P(sp.ori))}${L("道童辅助修炼", (sp.svPct - sp.sw) && P(sp.svPct - sp.sw))}${L("神纹", sp.sw && P(sp.sw))}
+        ${L("丹药", sp.pill && P(sp.pill))}${L("修炼室", sp.room && P(sp.room), roomNm)}${L("经脉", sp.jm && F(sp.jm), "最后直接加")}`
+      : `<h3>${U.num(bs.total)} 气血 / 10秒</h3>
+        ${L("炼体秘诀", bs.gfB && F(bs.gfB))}${L("炼体秘法", bs.mf && F(bs.mf))}${L("灵果", bs.lgB && F(bs.lgB))}${L("神界感悟", bs.sjB && F(bs.sjB))}${L("修为突破", bs.xw && F(bs.xw))}
+        <div class="line"><div>基础合计</div><b>${U.num(bs.gf + bs.mf + bs.xw)}</b></div>
+        ${L("聚灵阵", bs.arr && P(bs.arr), `${s.array.lv} 级`)}${L("炼体秘法圆满", (bs.mfPct - bs.ori) && P(bs.mfPct - bs.ori))}${L("出身", bs.ori && P(bs.ori))}${L("道童辅助修炼", bs.svPct && P(bs.svPct))}${L("修炼室", bs.room && P(bs.room), roomNm)}${L("经脉", bs.jm && F(bs.jm), "最后直接加")}`;
+      if (t === "b") return this.modal(`<h2>修炼增幅</h2>${tabs}${body}<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+      this.modal(`<h2>修炼增幅</h2>${tabs}${body}
         <h3 style="margin-top:10px">丹药</h3>
         ${Object.keys(DATA.pills).map(t => {
           const b = s.buffs[t], on = b && b.left > 0, i = this.bestPillIndex(t);
