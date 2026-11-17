@@ -330,7 +330,7 @@ G.module({
       : `<h3>${U.num(bs.total)} 气血 / 10秒</h3>
         ${L("肉身境界", bs.base && F(bs.base))}${L("修为境界", bs.xw && F(bs.xw))}${L("炼体秘诀", bs.gfB && F(bs.gfB))}${L("炼体秘法", bs.mf && F(bs.mf))}${L("灵果", bs.lgB && F(bs.lgB))}${L("神界感悟", bs.sjB && F(bs.sjB))}
         <div class="line"><div>基础合计</div><b>${U.num(bs.base + bs.gf + bs.mf + bs.xw)}</b></div>
-        ${L("聚灵阵", bs.arr && P(bs.arr), `${s.array.lv} 级`)}${L("炼体秘法圆满", (bs.mfPct - bs.ori) && P(bs.mfPct - bs.ori))}${ORI(["bodyPct", "cultPct"])}${L("道童辅助修炼", bs.svPct && P(bs.svPct))}${L("修炼室", bs.room && P(bs.room), roomNm)}${L("经脉", bs.jm && F(bs.jm), "最后直接加")}`;
+        ${L("聚灵阵", bs.arr && P(bs.arr), `${s.array.lv} 级`)}${L("炼体秘法圆满", (bs.mfPct - bs.ori) && P(bs.mfPct - bs.ori))}${ORI(["bodyPct", "cultPct"])}${L("道童辅助修炼", bs.svPct && P(bs.svPct))}${bs.room ? L("修炼室", P(bs.room), roomNm) : sp.room ? L("修炼室", P(sp.room), `${roomNm} · ${this.exBlocksCult() ? "历练 / 探索中" : this.bodyMax() ? "已达极境" : "未在修炼"}，暂不生效`) : ""}${L("经脉", bs.jm && F(bs.jm), "最后直接加")}`;
       if (t === "b") return this.modal(`${tabs}<div style="height:62vh;overflow-y:auto;-webkit-overflow-scrolling:touch">${body}</div><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
       this.modal(`${tabs}<div style="height:62vh;overflow-y:auto;-webkit-overflow-scrolling:touch">${body}
         <h3 style="margin-top:10px">丹药</h3>
