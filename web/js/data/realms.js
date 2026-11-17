@@ -97,6 +97,14 @@ DATA.gainRate = (body, k) => { const v = body ? _R.BODY_GAIN_RATE : _R.GAIN_RATE
 DATA.realmStat = (L, k) => (k === "res" ? _P.RES_BASE || 0 : _P.base[k] || 0) + (DATA.brSum(DATA.autoRows(false), L < 0 ? 0 : L + 1, "xw")[k] || 0) * DATA.gainRate(false, k);
 // 肉身突破属性：突破 n 层的合计 × 倍率
 DATA.bodyStat = (n, k) => (DATA.brSum(DATA.autoRows(true), n, "rs")[k] || 0) * DATA.gainRate(true, k);
+// 突破互加修炼速度（config/realm.js CROSS_SPEED）：突破 n 层的合计；第 1 层 FIRST，每层 × q，全部层合计 TOTAL
+DATA.crossSpeed = n => {
+  const C = _R.CROSS_SPEED; if (!C || !(n > 0)) return 0;
+  const N = DATA.realms.length * DATA.LAYERS, a = +C.FIRST || 0, T = +C.TOTAL || 0; if (!a) return 0;
+  if (!DATA._xsq || DATA._xsq.c !== C) { let lo = 1, hi = 2; const f = q => a * (Math.pow(q, N) - 1) / (q - 1); while (f(hi) < T) hi *= 2;
+    for (let i = 0; i < 100; i++) { const m = (lo + hi) / 2; if (f(m) < T) lo = m; else hi = m; } DATA._xsq = { c: C, q: T > a * N ? (lo + hi) / 2 : 1 }; }
+  const q = DATA._xsq.q; n = Math.min(n, N); return q === 1 ? a * n : a * (Math.pow(q, n) - 1) / (q - 1);
+};
 DATA.plRealmStat = DATA.realmStat; DATA.plBodyStat = DATA.bodyStat;
 // 按比例减免（config/battle.js FORMULA / RATIO）：L = 攻击方层序；标准值 = 该层修为突破 + 肉身突破的防御 / 抗性
 DATA.ratioOn = () => (CFG.battle || {}).FORMULA === "ratio";

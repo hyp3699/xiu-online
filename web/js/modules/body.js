@@ -62,7 +62,8 @@ G.module({
       const arr = this.arrayFactor ? Math.max(0, (this.arrayFactor() - 1) * 100) : 0;   // 聚灵阵效率 %，同修为修炼
       const pct = (M.bodySpeedPct || 0) + (this.servantPct ? this.servantPct("cult") : 0) + room + arr;   // 炼体秘法圆满额外 % + 道童辅助修炼 % + 修炼室 % + 聚灵阵 %
       const jm = this.jmFull ? this.jmFull().body : 0;   // 经脉穴位冲满：直接加数值（jingmai.js）
-      return { base, gf, mf, room, arr, pct, jm, total: Math.floor(((base + gf + mf) * (1 + pct / 100) + jm) * 100) / 100 };   // 保留两位小数：速度很小时修炼室等百分比加成也能生效
+      const xw = DATA.crossSpeed(s.mortal ? 0 : s.L + 1);   // 修为突破加肉身修炼速度（config/realm.js CROSS_SPEED）
+      return { base, gf, mf, xw, room, arr, pct, jm, total: Math.floor(((base + gf + mf + xw) * (1 + pct / 100) + jm) * 100) / 100 };   // 保留两位小数：速度很小时修炼室等百分比加成也能生效
     },
     // 突破到第 T 层的消耗
     bodyCost(T) {

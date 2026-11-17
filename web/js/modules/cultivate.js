@@ -102,14 +102,15 @@ G.module({
       const mifa = this.mifaBonus().expSpeed || 0;          // 宗门秘法「聚元」：固定加基础修炼速度
       const lgc = this.lgBonus ? this.lgBonus().cult : 0;   // 灵果「玄元果」：固定加基础修炼速度
       const sjc = this.sjBonus ? this.sjBonus().cult || 0 : 0;   // 神界道场感悟「修炼速度」：固定加基础修炼速度
-      const base = st.cultivate + this.gongfaBonus().cultivate + mifa + lgc + sjc;
+      const rs = DATA.crossSpeed((s.bodyL === undefined ? -1 : s.bodyL) + 1);   // 肉身突破加修为修炼速度（config/realm.js CROSS_SPEED）
+      const base = st.cultivate + this.gongfaBonus().cultivate + mifa + lgc + sjc + rs;
       const arr = this.arrayFactor();                     // 聚灵阵常开
       let pill = 0;
       for (const t in s.buffs) { const b = s.buffs[t]; if (b && b.left > 0) pill += b.pct; }
       const room = this.freeCultOn() ? this.freeCultPct() : s.room >= 0 && s.sect ? this.roomPct(s.room) : 0;
       // 所有百分比加成相加后再乘：总速度 = 基础 × (1 + (聚灵阵% + 丹药% + 修炼室% + 经脉% …) / 100)，避免数值连乘爆炸
       const arrPct = (arr - 1) * 100, mfPct = this.mifaBonus().expSpeedPct || 0, svPct = this.servantPct("cult") + (this.swPct ? this.swPct().cult || 0 : 0), jm = this.jmFull ? this.jmFull().cult : 0;   // 经脉穴位冲满：直接加数值（jingmai.js）   // 聚元秘法圆满额外 %、道童辅助修炼 %
-      return { base, arr, pill, room, mifa, mfPct, svPct, jm, total: base * (1 + (arrPct + pill + room + mfPct + svPct) / 100) + jm,
+      return { base, rs, arr, pill, room, mifa, mfPct, svPct, jm, total: base * (1 + (arrPct + pill + room + mfPct + svPct) / 100) + jm,
         gather: this.gatherAmount() };                                     // 每 10 秒聚灵（开关不影响）
     },
 
@@ -314,7 +315,7 @@ G.module({
     openBoost() {
       const s = this.s, st = this.stats(), sp = this.speed(), arrPct = (this.arrayFactor() - 1) * 100;
       this.modal(`<h2>修炼加成<small> · ${U.num(sp.total)} 修为 / 10秒</small></h2>
-        <div class="line"><div>基础修炼速度<small>境界 ${U.num(st.cultivate)} + 秘诀 ${U.num(this.gongfaBonus().cultivate)} + 秘法 ${U.num(sp.mifa)}</small></div><b>${U.num(sp.base)}</b></div>
+        <div class="line"><div>基础修炼速度<small>境界 ${U.num(st.cultivate)} + 秘诀 ${U.num(this.gongfaBonus().cultivate)} + 秘法 ${U.num(sp.mifa)}${sp.rs ? ` + 肉身突破 ${U.num(sp.rs)}` : ""}</small></div><b>${U.num(sp.base)}</b></div>
         <div class="line"><div>聚灵阵<small>${s.array.lv} 级</small></div><b>+${U.num(arrPct)}%</b></div>
         <div class="line"><div>聚元秘法圆满</div><b>+${U.num(sp.mfPct)}%</b></div>
         <div class="line"><div>道童辅助修炼</div><b>+${U.num(sp.svPct)}%</b></div>
