@@ -54,7 +54,7 @@ G.module({
     // 修炼室加成生效：修为或肉身任一在修炼
     roomActive() { return this.cultRoomOn() || this.bodyRunning(); },
     bodySpeed() {
-      const s = this.s, base = 0;   // 境界自带肉身速度去掉（用户定 2026-11-17，改由修为突破加 CROSS_SPEED）
+      const s = this.s, base = DATA.selfSpeed((s.bodyL === undefined ? -1 : s.bodyL) + 1);   // 肉身突破加肉身修炼速度（config/realm.js SELF_SPEED，用户定 2026-11-17）
       const M = this.mifaBonus(), gfB = this.gongfaBonus().body || 0, lgB = this.lgBonus ? this.lgBonus().body || 0 : 0, sjB = this.sjBonus ? this.sjBonus().body || 0 : 0, gf = gfB + lgB + sjB, mf = M.bodySpeed || 0;   // 灵果「血菩提」加在功法这一项
       // 修炼室加成同样作用于肉身修炼（免费修炼室优先，和修为修炼一致）。
       // 修为修炼在跑时由 cultivate.tick() 扣次数 / 贡献；只开肉身时由 body tick 自己扣（bodyRoomCharge），不会白嫖。
@@ -127,8 +127,8 @@ G.module({
       const names = { hp: "生命", atk: "攻击", def: "防御", mana: "法力", speed: "速度", hit: "命中", dodge: "闪避", crit: "暴击%" };
       // 抗性：每系（金木水火土雷）单独一行
       const bonus = Object.keys(names).filter(k => bb[k]).map(k => `<div><span>${names[k]}</span>+${k === "crit" ? U.num(bb[k]) : U.fmt(bb[k])}</div>`).join("")
-        + ((v => v ? `<div><span>修为修炼速度</span>+${U.num(v)}</div>` : "")(DATA.crossSpeed((s.bodyL === undefined ? -1 : s.bodyL) + 1)))   // 肉身突破加修为修炼速度（用户定 2026-11-17）
-        + (bb.res ? DATA.elements.map(e => `<div><span>${e.name}抗性</span>+${U.fmt(bb.res + (bb.resEl[e.id] || 0))}</div>`).join("") : "");
+        + (bb.res ? DATA.elements.map(e => `<div><span>${e.name}抗性</span>+${U.fmt(bb.res + (bb.resEl[e.id] || 0))}</div>`).join("") : "")
+        + ((v => v ? `<div style="grid-column:1/-1"><span>修为修炼速度</span>+${U.num(v)}</div>` : "")(DATA.crossSpeed((s.bodyL === undefined ? -1 : s.bodyL) + 1)));   // 肉身突破加修为修炼速度，放抗性下面单独一行（用户定 2026-11-17）
       return `<div class="bd-page">
         <div class="bd-stg${run ? " on" : ""}">
           <div class="cult-aura bd-aura"></div>
