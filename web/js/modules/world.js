@@ -41,7 +41,11 @@ G.module({
     },
 
     setHall(h) { this.hallSel = h; this.render(); },
-    setWHall(h) { this.hallSel = h; this.render(); this.viewScroll(!h && this.mapRev(this.worldId || "fan") ? -1 : 0); },   // 地图卷轴左下角的 灵地 / 悟道碑
+    setWHall(h) { if (h) this.wsSave(); this.hallSel = h; this.render(); if (h) this.viewScroll(0); else this.wsBack(); },
+    // 地图卷轴：进某张图前记住滑到哪，返回时回到原位置（用户 2026-11-17：返回后又滑到最上面）
+    wsSave() { if (typeof document === "undefined") return; const v = document.getElementById("view"); if (v && v.querySelector(".wscroll")) (this._wsTop = this._wsTop || {})[this.worldId || "fan"] = v.scrollTop; },
+    wsBack() { const y = (this._wsTop || {})[this.worldId || "fan"]; if (y == null) return this.viewScroll(this.mapRev(this.worldId || "fan") ? -1 : 0);
+      this._vsT = 0; this.viewScroll(y); if (typeof document !== "undefined") { const v = document.getElementById("view"); [80, 300, 800].forEach(ms => setTimeout(() => { if (v && !this.mapPage && v.scrollTop < y - 4) v.scrollTop = y; }, ms)); } },   // 地图卷轴左下角的 灵地 / 悟道碑
     // 一张地图的东西南北四域（历练 / 探索 / 出窍）
     regionsCard(sel, noTitle) {
       if (this.lkMap(sel)) {   // 凡界（用户 2026-11-17）：每张图一整幅地图 img/map/fm_<图>.webp（风格随图名），东西南北四域 + 正中灵矿各自是独立按钮；点域进去还是各自的格子图
@@ -930,7 +934,7 @@ G.module({
         <div class="runlist">${show.map(x => `<div class="line${hid.includes(x.key) ? " dimrow" : ""}"><div>${x.name}</div><div><button class="sm pill${x.run ? " on" : ""}" onclick="${x.act}" ${dis && !x.run ? "disabled" : ""}>${x.run ? "停止" : cq ? "出窍" : "探索"}</button><button class="sm pill" onclick="G.hideRun('${k}','${x.key}')">${hid.includes(x.key) ? "显示" : "隐藏"}</button></div></div>`).join("") || `<p class="desc" style="text-align:center">${rows.length ? "都隐藏了。" : "还没有可以" + (cq ? "出窍" : "探索") + "的地图（先历练通过区域）。"}</p>`}</div>
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
-    setMapPage(v) { this.mapPage = !!v; this.hallSel = null; this.render(); if (!v) this.viewScroll(this.mapRev(this.worldId || "fan") ? -1 : 0); },
+    setMapPage(v) { this.mapPage = !!v; this.hallSel = null; this.render(); if (!v) this.wsBack(); },
     setExFollow() { this.exFollow = this.exFollow === false; this.render(); },
     // v45：这一界开放没有（config/worldmaps.js 的 open）
     worldOpen(id) {
@@ -2843,7 +2847,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
           ${sel === i ? `<div class="explore-log">${(r.ev || []).map((e, j) => this.evLine(e, "h" + i, j)).join("")}</div>` : ""}`).join("") : "<p>还没有记录。</p>"}
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
-    setMapSel(a) { this.shopFromCult = false; this.mapSel = a; this.mapPage = true; this.hallSel = null; this.render(); this.viewScroll(0); },   // a = 地图序号，"mj" = 秘境
+    setMapSel(a) { this.wsSave(); this.shopFromCult = false; this.mapSel = a; this.mapPage = true; this.hallSel = null; this.render(); this.viewScroll(0); },   // a = 地图序号，"mj" = 秘境
 
     /* ---------- 坊市：丹药 装备 功法 药材 矿石 ----------
      * 丹药、装备：content/items.js 的 ITEMS.shop，只卖练气品质
