@@ -417,6 +417,7 @@ const G = {
 
   /* ---------- 启动 ---------- */
   start() {
+    this._gfPref = null; this._spPref = null; if (this.applyBg) this.applyBg();   // 本机设置按存档读（用户 2026-11-17）
     this.dirty();
     this._lastTick = this.s.last && this.s.last <= Date.now() ? this.s.last : Date.now();   // v208 接着离线补算后的结算时间
     this.render(); this.renderLog(); this.bars();

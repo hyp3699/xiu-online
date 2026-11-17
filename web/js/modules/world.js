@@ -2899,14 +2899,14 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
     backToCultSet() { this.setFromCult = false; this.adminPage = false; this.atlasSub = null; this.atlasOn = true; this.tab = "cultivate"; this.cultView = "set"; this.setTab = "other"; this.render(); },
     backFromShop() { this.shopFromCult = false; this.mapPage = false; this.atlasOn = true; this.tab = "cultivate"; this.render(); },
 
-    /* ---------- 背景主题：存在本机（localStorage xiu_bg），只影响这台设备 ---------- */
+    /* ---------- 背景主题：存在本机（localStorage xiu_bg@存档编号），按存档分开（用户 2026-11-17） ---------- */
     bgCard() {
-      let cur = ""; try { cur = localStorage.getItem("xiu_bg") || ""; } catch (e) {}
+      const cur = this.saveLsGet("xiu_bg") || "";
       return `<div class="card"><h3>背景</h3><div class="bg-grid">${BG_THEMES.map(([id, nm]) =>
         `<div class="bg-sw${id === cur ? " on" : ""}" data-bgsw="${id}" onclick="G.setBg('${id}')">${nm}</div>`).join("")}</div></div>`;
     },
     setBg(id) {
-      try { id ? localStorage.setItem("xiu_bg", id) : localStorage.removeItem("xiu_bg"); } catch (e) {}
+      this.saveLsSet("xiu_bg", id || null);
       applyBg(); this.render();
     },
   },
@@ -3008,9 +3008,10 @@ const BG_THEMES = [["", "默认"], ["xuanzhi", "宣纸"], ["xinghuang", "杏黄"
 const BG_DARK = ["yanmo"];   // 深色背景主题（文字保持浅色）；其他非默认主题都按浅色处理
 function applyBg() {
   if (typeof document === "undefined" || !document.documentElement) return;   // 服务器端引擎里没有页面
-  let id = ""; try { id = localStorage.getItem("xiu_bg") || ""; } catch (e) {}
+  let id = ""; try { id = (typeof G !== "undefined" && G.s && G.saveLsGet ? G.saveLsGet("xiu_bg") : localStorage.getItem("xiu_bg")) || ""; } catch (e) {}   // 没进存档前（登录页）用旧的本机设置
   if (!BG_THEMES.some(t => t[0] === id)) id = "";
   if (id) document.documentElement.dataset.bg = id; else delete document.documentElement.dataset.bg;
   document.documentElement.classList.toggle("bg-light", !!id && !BG_DARK.includes(id));   // 浅色背景：style.css 里 html.bg-light 把写死的浅色字改深
 }
 applyBg();
+G.applyBg = applyBg;   // 进存档后按本存档的设置重新上色（core/game.js start）

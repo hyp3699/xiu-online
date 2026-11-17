@@ -961,12 +961,12 @@ G.module({
     // 更换列表排序：跟修炼功法列表一样，「按等级」「按星级」只选一个，再点切换方向；
     //   默认 等级 低层 → 高层、星级 高星 → 低星；存在浏览器本地，刷新网页不变（跟功法列表分开存）
     spPickPref() {
-      if (!this._spPref) { let p = {}; try { p = JSON.parse(localStorage.getItem("xiu_sp_pref") || "{}") || {}; } catch (e) {}
+      if (!this._spPref) { let p = {}; try { p = JSON.parse(this.saveLsGet("xiu_sp_pref") || "{}") || {}; } catch (e) {}
         this._spPref = { lvUp: p.lvUp !== false, starUp: p.starUp === true, by: p.by === "star" ? "star" : "lv" }; }
       return this._spPref;
     },
     // 只能选一个：点没选中的改用它，点已选中的切换方向（用户定 2026-11-14）
-    setSpPickSort(k) { const p = this.spPickPref(); k = k === "star" ? "star" : "lv"; if (p.by !== k) p.by = k; else if (k === "lv") p.lvUp = !p.lvUp; else p.starUp = !p.starUp; try { localStorage.setItem("xiu_sp_pref", JSON.stringify(p)); } catch (e) {} this.openSpellPick(this._spPickRep); },
+    setSpPickSort(k) { const p = this.spPickPref(); k = k === "star" ? "star" : "lv"; if (p.by !== k) p.by = k; else if (k === "lv") p.lvUp = !p.lvUp; else p.starUp = !p.starUp; this.saveLsSet("xiu_sp_pref", JSON.stringify(p)); this.openSpellPick(this._spPickRep); },
     // rep：更换第几格（不写 = 放入空格）
     openSpellPick(rep) {
       const s = this.s, P = this.spPickPref(), r = rep === undefined ? "" : "," + rep;

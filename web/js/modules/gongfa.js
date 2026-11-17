@@ -273,17 +273,17 @@ G.module({
     setGfFilter(t) { this.gfFilter = t; this.render(); const g = typeof document !== "undefined" && document.getElementById("gf-scroll"); if (g) g.scrollTop = 0; },   // 换分类时列表回到顶部
     // 排序 / 隐藏满级：「按等级」「按星级」只选一个（by），再点切换方向
     //   默认 等级 低层 → 高层（lvUp = true）、星级 高星 → 低星（starUp = false）
-    //   三个设置存在浏览器本地（localStorage），刷新网页不变
+    //   三个设置存在浏览器本地（localStorage），刷新网页不变；按存档分开（用户 2026-11-17）
     gfPref() {
-      if (!this._gfPref) { let p = {}; try { p = JSON.parse(localStorage.getItem("xiu_gf_pref2") || "{}") || {}; } catch (e) {}
-        let hide = p.hide; if (hide === undefined) { try { hide = !!(JSON.parse(localStorage.getItem("xiu_gf_pref") || "{}") || {}).hide; } catch (e) { hide = false; } }
+      if (!this._gfPref) { let p = {}; try { p = JSON.parse(this.saveLsGet("xiu_gf_pref2") || "{}") || {}; } catch (e) {}
+        let hide = p.hide; if (hide === undefined) { try { hide = !!(JSON.parse(this.saveLsGet("xiu_gf_pref") || "{}") || {}).hide; } catch (e) { hide = false; } }
         this._gfPref = { lvUp: p.lvUp !== false, starUp: p.starUp === true, by: p.by === "star" ? "star" : "lv", hide: !!hide }; }
       return this._gfPref;
     },
-    toggleGfPref(k) { const p = this.gfPref(); p[k] = !p[k]; try { localStorage.setItem("xiu_gf_pref2", JSON.stringify(p)); } catch (e) {} this.render(); },
+    toggleGfPref(k) { const p = this.gfPref(); p[k] = !p[k]; this.saveLsSet("xiu_gf_pref2", JSON.stringify(p)); this.render(); },
     // 按等级 / 按星级只能选一个（用户定 2026-11-14）：点没选中的 → 改用它排序；点已选中的 → 切换方向
     setGfSort(k) { const p = this.gfPref(); k = k === "star" ? "star" : "lv";
-      if (p.by !== k) { p.by = k; try { localStorage.setItem("xiu_gf_pref2", JSON.stringify(p)); } catch (e) {} return this.render(); }
+      if (p.by !== k) { p.by = k; this.saveLsSet("xiu_gf_pref2", JSON.stringify(p)); return this.render(); }
       this.toggleGfPref(k === "lv" ? "lvUp" : "starUp"); },
     toggleGfHideMax() { this.toggleGfPref("hide"); },
 
