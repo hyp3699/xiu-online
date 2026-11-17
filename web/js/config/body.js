@@ -2,7 +2,7 @@
  * T = 要突破到的总层序（第一境界一层 = 0，每境界 10 层）。
  * 修炼速度（每 10 秒）= (BASE_SPEED × SPEED_GROW^人物修为总层序 + 炼体秘诀 + 炼体秘法) × (1 + (炼体圆满% + 道童% + 修炼室%)/100)
  *   耗灵气 = 所得 × LING_RATE − 神魂之道减免。
- * 突破：灵石 = STONE_BASE × T × STONE_RATE^T；药材按 HERB_SEG 分段，段外境界用 HERBS_XIAN 指数公式。
+ * 突破：灵石 = STONE_BASE × T × STONE_RATE^T；药材按 HERB_SEG 分段，每种数量 = HERB_N × T。
  * 药材名可写 config/items.js 的药材或 content/items.js 的自定义物品。 */
 window.CFG = window.CFG || {};
 
@@ -17,26 +17,13 @@ CFG.body = {
 
   // ---------- 突破消耗 ----------
   STONE_BASE: 8100, STONE_RATE: 1.03,                // 灵石 = STONE_BASE × T × STONE_RATE^T（取整，用户定 2026-11-17，原 100 × 1.2^T）
-  // 药材分段：from~to = 起止境界序号；每种数量 = (base + step × 段内第几层(0 起)) × 倍率，四舍五入至少 1
-  // mult："fan" 用 HERB_MULT_FAN，"xian" 用 HERB_MULT_XIAN
+  // 药材分段：from~to = 起止境界序号（共 24 境）；每种数量 = HERB_N × T（T = 要突破到的总层数）
+  //   0~7 境凡界药材；8~15 境 1 种仙/冥/魔特色药材（按境界轮着用）+ 5 种四界通用药材；16~23 境神界药材
+  HERB_N: 11,   // 每种药材数量 = 11 × T（用户定 2026-11-17）
   HERB_SEG: [
-    { from: 0, to: 8,                                         // 淬皮 ~ 银身
-      herbs: ["青灵草", "凝露花", "赤血参", "紫灵芝", "幽冥花", "星辰草"],
-      base: 10,
-      step: 10,
-      mult: "fan" },
-    { from: 9, to: 15,                                        // 金身 ~ 玄晶体（分段外：星辰体及以上）
-      herbs: ["天元草", "玄霜花", "紫府灵根", "万年雪莲", "星河藤"],
-      base: 20,
-      step: 20,
-      mult: "xian" },
+    { from: 0, to: 7, herbs: ["青灵草", "凝露花", "赤血参", "紫灵芝", "幽冥花", "星辰草"] },   // 凡界
+    { from: 8, to: 15, herbs: ["天元草", "玄霜花", "紫府灵根", "万年雪莲", "星河藤"],
+      special: ["琼华仙草", "冥魂花", "噬血魔莲"] },   // 仙/冥/魔特色轮着用 + 5 通用
+    { from: 16, to: 23, herbs: ["九天仙芝", "瑶池玉莲", "彼岸花", "黄泉冥草", "魔血藤", "噬魂魔果"] },   // 神界
   ],
-  HERB_MULT_FAN: 1,   // 凡界药材分段倍率
-  HERB_MULT_XIAN: 1,  // 仙界药材分段倍率
-
-  // 分段外（星辰体及以上）：每种数量 = HERB_XIAN_BASE × HERB_RATE^(T − HERB_FROM × 10)，四舍五入至少 1
-  HERB_XIAN_BASE: 1,
-  HERB_RATE: 1.03,
-  HERB_FROM: 10,      // 计数起点境界序号（10 = 琉璃身）
-  HERBS_XIAN: ["九天仙芝", "瑶池玉莲", "彼岸花", "黄泉冥草", "魔血藤", "噬魂魔果"],
 };

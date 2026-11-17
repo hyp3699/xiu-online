@@ -69,13 +69,9 @@ G.module({
       const B = CFG.body, s = this.s; if (T === undefined) T = s.bodyL + 1;
       if (DATA.isTest()) return { stone: 0, herbs: [] };   // 测试模式不要灵石、药材
       const ri = Math.floor(T / DATA.LAYERS), seg = (B.HERB_SEG || []).find(g => ri >= g.from && ri <= g.to);
-      let n, herbs;
-      if (seg) {   // 分段规则：(base + step × 段内层数) × 凡界 / 仙界倍率
-        const k = T - seg.from * DATA.LAYERS, mult = seg.mult === "xian" ? B.HERB_MULT_XIAN : B.HERB_MULT_FAN;
-        n = Math.max(1, Math.round((seg.base + seg.step * k) * (mult === undefined ? 1 : mult))); herbs = seg.herbs;
-      } else {     // 不在分段里的境界（星辰体及以上）：HERB_XIAN_BASE × HERB_RATE^(T − HERB_FROM × 10)
-        n = Math.max(1, Math.round(B.HERB_XIAN_BASE * Math.pow(B.HERB_RATE, T - B.HERB_FROM * DATA.LAYERS))); herbs = B.HERBS_XIAN;
-      }
+      const herbs = seg ? seg.herbs.slice() : [];
+      if (seg && seg.special && seg.special.length) herbs.push(seg.special[(ri - seg.from) % seg.special.length]);   // 特色药材按境界轮着用
+      const n = Math.max(1, Math.round((B.HERB_N || 11) * T));   // 每种药材数量 = 11 × T
       return { stone: Math.floor(B.STONE_BASE * T * Math.pow(B.STONE_RATE, T)),
         herbs: herbs.map(name => ({ name, n })) };
     },
