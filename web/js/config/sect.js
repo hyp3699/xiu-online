@@ -36,11 +36,12 @@ CFG.sect = {
     tasks: [
       { name: "打扫山门",     rank: 0, time: 5,   contrib: 5,   stone: 5 },
       { name: "护送商队",     rank: 1, time: 5,  contrib: 8,  stone: 8 },
-      { name: "镇守灵脉",     rank: 2, time: 5,  contrib: 12,  stone: 12 },
-      { name: "斩杀魔修",     rank: 3, time: 5,  contrib: 16,  stone: 16 },
-      { name: "传功讲道",     rank: 4, time: 5,  contrib: 20, stone: 20 },
-      { name: "镇压魔窟",     rank: 5, time: 5,  contrib: 25, stone: 25 },
-      { name: "统御宗门",     rank: 6, time: 5, contrib: 30, stone: 30 },
+      // 真传弟子 ~ 宗主 贡献、灵石各 +1~+5（用户定 2026-11-17）
+      { name: "镇守灵脉",     rank: 2, time: 5,  contrib: 13,  stone: 13 },
+      { name: "斩杀魔修",     rank: 3, time: 5,  contrib: 18,  stone: 18 },
+      { name: "传功讲道",     rank: 4, time: 5,  contrib: 23, stone: 23 },
+      { name: "镇压魔窟",     rank: 5, time: 5,  contrib: 29, stone: 29 },
+      { name: "统御宗门",     rank: 6, time: 5, contrib: 35, stone: 35 },
     ],
   },
   // 修炼室：pct 是 1~2 星基础修为修炼速度 +%（不改这个表）；实际值 = 基础 + 两星加成：
