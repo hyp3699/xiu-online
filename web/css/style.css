@@ -1503,3 +1503,12 @@ html .rgmap .rgs.q-dong.cur{background:radial-gradient(ellipse at 80% 50%,rgba(2
 .fmfull .rgmap{flex:1 1 auto;aspect-ratio:auto;height:auto;min-height:100%;border-radius:0}
 .fm-name{position:absolute;left:12px;top:8px;z-index:3;color:#ffe7a6;font-size:20px;font-weight:700;text-shadow:0 0 4px #000,0 1px 4px #000;pointer-events:none}
 .room-grid.sv-pickrow{grid-template-columns:1fr;margin:8px 0 0}
+
+/* 识海空间：圆形星空弹窗（用户定 2026-11-17） */
+.modal-box.ss-sea-box{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;max-width:none;width:auto;overflow:visible}
+.ss-sea{display:flex;align-items:center;justify-content:center}
+.ss-sea-c{position:relative;width:min(86vw,420px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 50% 50%,rgba(120,90,220,.35),rgba(7,6,13,.2) 60%),url(../img/sw_bg.webp) center/cover,#07060d;box-shadow:0 0 40px rgba(140,110,255,.55),inset 0 0 50px rgba(0,0,0,.8);border:1px solid rgba(180,160,255,.45);overflow:hidden}
+.ss-book{position:absolute;width:19%;aspect-ratio:1;transform:translate(-50%,-50%);padding:0;border:0!important;background:transparent!important;box-shadow:none!important;animation:ss-bk 3.2s ease-in-out infinite;filter:drop-shadow(0 0 8px rgba(200,180,255,.8))}
+.ss-book img{width:100%;height:100%;object-fit:contain}
+.ss-book i{display:block;width:40%;height:40%;margin:30%;border-radius:50%;background:#e6dcff}
+@keyframes ss-bk{0%,100%{margin-top:0}50%{margin-top:-6px}}

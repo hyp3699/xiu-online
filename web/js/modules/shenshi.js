@@ -170,11 +170,19 @@ G.module({
         <div class="stats"><div><span>${g.UNIT || "层数"}</span>${lv} / ${g.MAX}</div><div><span>当前效果</span>${lv ? this.ssGfEff(g, lv) : "无"}</div></div>
         ${full ? `<p class="desc">已修炼圆满。</p>` : `<div class="row small"><span>下一${g.UNIT || "层"}</span><span>${this.ssGfEff(g, lv + 1)}</span></div>
         ${cost ? `<div class="ssgf-cost">${cost}</div>` : ""}${lock ? `<p class="desc q5">神识强度达到 ${g.UNLOCK} 才能修炼。</p>` : ""}`}
-        <div class="btns">${full ? "" : `<button class="primary" onclick="G.ssGfUp('${g.id}')" ${ok ? "" : "disabled"}>修炼</button>`}<button onclick="G.closeModal()">关闭</button></div>`);
+        <div class="btns">${full ? "" : `<button class="primary" onclick="G.ssGfUp('${g.id}')" ${ok ? "" : "disabled"}>修炼</button>`}<button onclick="G.ssGfClose()">关闭</button></div>`);
     },
-    openShenshi(on) { this.cultView = on ? "shenshi" : ""; this.ssSea = false; this.render(); },
+    openShenshi(on) { this.cultView = on ? "shenshi" : ""; this.render(); },
     // 识海空间：神识页点人物图片进入，神识功法都在这里（用户定 2026-11-17）
-    openSsSea(on) { this.ssSea = !!on; this.render(); this.viewScroll && this.viewScroll(0); },
+    // 识海空间：神识页点人物图片弹出圆形星空，只显示每本神识功法的书（不显示字），点书看信息、修炼（用户定 2026-11-17）
+    openSsSea() {
+      const L = CFG.shenshi.GONGFA || [], n = L.length || 1;
+      const books = L.map((g, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / n, x = 50 + 34 * Math.cos(a), y = 50 + 34 * Math.sin(a);
+        return `<button class="ss-book" style="left:${x.toFixed(1)}%;top:${y.toFixed(1)}%;animation-delay:${(i * 0.5).toFixed(1)}s" onclick="G._ssSeaRet=1;G.openSsGf('${g.id}')" aria-label="${g.name}">${g.ICON ? `<img src="${DATA.iconImg(g.ICON)}" alt="">` : "<i></i>"}</button>`; }).join("");
+      this._ssSeaRet = 0;
+      this.modal(`<div class="ss-sea" onclick="if(event.target===this)G.closeModal()"><div class="ss-sea-c">${books}</div></div>`, "ss-sea-box");
+    },
+    ssGfClose() { if (this._ssSeaRet) this.openSsSea(); else this.closeModal(); },
   },
 });
 
@@ -191,19 +199,10 @@ G.shenshiView = function () {
   const dots = (CFG.shenshi.GONGFA || []).slice(0, 6).map((g, i) => { const [x, y] = POS[i];
     return `<button class="ys-dot" style="left:${x}%;top:${y}%;animation-delay:${(i * 0.4).toFixed(1)}s" onclick="G.openSsGf('${g.id}')" aria-label="${g.name}">${g.ICON ? `<img src="${DATA.iconImg(g.ICON)}" alt="">` : "<i></i>"}</button>`; }).join("");   // 书的图片（用户定 2026-11-16）
   const wisps = [8, 22, 36, 64, 78, 90, 15, 85].map((x, i) => `<i style="left:${x}%;animation-delay:${(i * 0.9).toFixed(1)}s"></i>`).join("");
-  if (this.ssSea) {   // 识海空间：人物 + 神识功法光点，下面列出全部神识功法（点开修炼）
-    const rows = (CFG.shenshi.GONGFA || []).map(g => { const lv = this.ssGfLv(g.id);
-      return `<div class="line" onclick="G.openSsGf('${g.id}')" style="cursor:pointer"><div>${g.ICON ? `<img src="${DATA.iconImg(g.ICON)}" alt="" style="width:22px;height:22px;vertical-align:middle;margin-right:4px">` : ""}《${g.name}》<span class="tag gf-lv">${lv} / ${g.MAX}</span><small>${lv ? this.ssGfEff(g, lv) : "未修炼"}</small></div><button class="sm" onclick="event.stopPropagation();G.openSsGf('${g.id}')">修炼</button></div>`; }).join("");
-    return `<div class="card ys-card"><h3>识海空间</h3>
-    <div class="ys-stage"><div class="ys-pow"><span>神识强度</span><b>${U.fmt(s.ssPow || 0)}</b></div>
-      <div class="ys-wisps">${wisps}</div><div class="ys-aura"></div>
-      <div class="ys-hbox"><img class="ys-hero" src="${this.heroImg("ys")}?v=${DATA.IMG_V}" alt=""><div class="ys-dots">${dots}</div></div></div></div>
-  <div class="card"><h3>神识功法</h3>${rows}<div class="btns"><button onclick="G.openSsSea(false)">返回</button></div></div>`;
-  }
   return `<div class="card ys-card">
     <div class="ys-stage${fx}"><div class="ys-pow"><span>神识强度</span><b>${U.fmt(s.ssPow || 0)}</b></div>
       <div class="ys-wisps">${wisps}</div><div class="ys-aura"></div>
-      <div class="ys-hbox" onclick="G.openSsSea(true)" style="cursor:pointer"><img class="ys-hero" src="${this.heroImg("ys")}?v=${DATA.IMG_V}" alt="识海空间"></div></div>
+      <div class="ys-hbox" onclick="G.openSsSea()" style="cursor:pointer"><img class="ys-hero" src="${this.heroImg("ys")}?v=${DATA.IMG_V}" alt="识海空间"></div></div>
     <div class="ys-need"><img src="${DATA.smIcon("yd")}" alt=""><b class="${have >= need ? "" : "q5"}">${U.fmt(have)}/${U.fmt(need)}</b></div>
     <div class="btns"><button class="primary" onclick="G.yangshen()" ${have >= need ? "" : "disabled"}>养神</button></div></div>
   <div class="card ls-card"><h3>灵识点</h3>
