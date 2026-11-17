@@ -435,7 +435,6 @@ G.module({
       if (!this.lkEnter(a)) return this.modal(`<img class="item-img" src="${DATA.iconImg("stone")}" alt=""><h2>${DATA.maps[a].name} · 灵矿</h2><p class="desc">需先通过东西南北四域历练。</p><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
       if (!this.lkOwned(a)) { const m = this.lkBoss(a);   // 没占领：显示守卫和挑战
         return this.modal(`<img class="item-img" src="${DATA.iconImg("stone")}" alt=""><h2>${DATA.maps[a].name} · 灵矿</h2><p class="desc">灵矿有守卫把守，打败它才能占领灵矿（升级、派道童、产出灵石）。</p>
-          <div class="stats"><div><span>首领</span>${m.name}</div><div><span>气血</span>${U.fmt(Math.round(m.hp))}</div><div><span>攻击</span>${U.fmt(Math.round(m.atk))}</div><div><span>防御</span>${U.fmt(Math.round(m.def))}</div><div><span>速度</span>${U.fmt(Math.round(m.speed))}</div></div>
           <div class="btns"><button class="primary" onclick="G.lkFight(${a})">挑战</button><button onclick="G.closeModal()">关闭</button></div>`); }
       const K = DATA.LK(), lv = this.lkLv(a), full = lv >= K.MAX, mats = full ? [] : DATA.lkMats(a, lv + 1), sv = this.lkSv(a);
       const cell = (src, have, need, name) => `<div class="cpk-mat${have >= need ? "" : " lack"}"><img src="${src}" alt=""><b>${name}</b><span>${U.fmt(have)}/${U.fmt(need)}</span></div>`;

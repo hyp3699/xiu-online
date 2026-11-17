@@ -1494,3 +1494,4 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .fmfull .rgmapc,html.bg-light .fmfull .rgmapc{flex:1 1 auto;margin:0;padding:0;border:0;border-radius:0;box-shadow:none;background:none;display:flex}
 .fmfull .rgmap{flex:1 1 auto;aspect-ratio:auto;height:auto;min-height:100%;border-radius:0}
 .fm-name{position:absolute;left:12px;top:8px;z-index:3;color:#ffe7a6;font-size:20px;font-weight:700;text-shadow:0 0 4px #000,0 1px 4px #000;pointer-events:none}
+.room-grid.sv-pickrow{grid-template-columns:1fr;margin:8px 0 0}

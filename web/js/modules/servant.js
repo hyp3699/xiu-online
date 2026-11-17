@@ -149,5 +149,5 @@ G.caveViews.servant = function () {
   const jobs = Object.keys(C.JOB).map(k => `<button onclick="G.openSvJob('${k}')">${C.JOB[k].name}<small>${this.svJobTotal(k)}</small></button>`).join("");
   return `<div class="card"><h3>${DATA.caveName("servant")}<small>道童 ${n} / ${C.MAX}</small></h3>
     ${rows}
-    </div><div class="room-grid sv-jobs">${pickBtn}${jobs}</div>`;
+    <div class="room-grid sv-pickrow">${pickBtn}</div></div><div class="room-grid sv-jobs">${jobs}</div>`;   // 选拔道童放在道童列表下面（用户 2026-11-17）
 };
