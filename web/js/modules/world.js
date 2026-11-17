@@ -3064,6 +3064,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
         const gxTag = this.xjGxOf ? `<div class="xs-gx">贡献<b>${U.fmt(this.xjGxOf(sel))}</b></div>` : "";   // 本图贡献：显示在天宫图片左边
         return `<div class="mpage${shen ? "" : " mfit"}" style="background-image:url(img/map/bg_${wid}.webp)"><div class="xscene xs-${wid}"><div class="xs-name">${DATA.maps[sel].name}</div><div class="tgrow">${gxTag}${ico("tg", "tg")}</div><div class="xsrow">${ico("xj")}${ico("shop", "mid")}${ico("gd")}</div></div>` + (this.regionsCard(sel, true)) + this.exOverlay() + mb + "</div>";   // 四界：不显示生命法力 / 探索中；东西南北四域直接显示在下面（灵地、悟道碑在地图卷轴左下角）
       }
+      if (sel !== "mj" && this.lkMap(sel)) return `<div class="mpage mfit fmfull">${this.regionsCard(sel, true)}<div class="fm-name">${DATA.maps[sel].name}</div>${this.exOverlay()}${mb}</div>`;   // 凡界整幅地图铺满屏幕，不显示生命法力 / 探索中、不留边框（用户 2026-11-17）
       return pg(mback + bars + status + (sel === "mj" ? this.mijingView() : this.regionsCard(sel)));
     }
 

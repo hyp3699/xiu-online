@@ -1489,3 +1489,8 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .rglk img{display:none}
 .rglk b{color:#ffe7a6;font-size:13px;line-height:1.1;text-shadow:0 0 3px #000,0 1px 3px #000}
 .rglk small{color:#f3e6c6;font-size:11px;line-height:1.1;text-shadow:0 0 3px #000}
+/* 凡界整幅地图铺满屏幕、无边框（用户 2026-11-17） */
+.mpage.fmfull{padding:0;position:relative;height:calc(100% + 20px)}
+.fmfull .rgmapc,html.bg-light .fmfull .rgmapc{flex:1 1 auto;margin:0;padding:0;border:0;border-radius:0;box-shadow:none;background:none;display:flex}
+.fmfull .rgmap{flex:1 1 auto;aspect-ratio:auto;height:auto;min-height:100%;border-radius:0}
+.fm-name{position:absolute;left:12px;top:8px;z-index:3;color:#ffe7a6;font-size:20px;font-weight:700;text-shadow:0 0 4px #000,0 1px 4px #000;pointer-events:none}
