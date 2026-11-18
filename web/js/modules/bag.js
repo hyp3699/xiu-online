@@ -28,7 +28,7 @@ G.module({
     bm: null,                                                 // 本命法宝 { e: 法宝, t: 炼成时间 }（config/benming.js）
     bmJob: null,                                              // 正在炼成本命的法宝 { e, end }
     bmLearn: false,                                           // 是否学会本命法宝炼制图纸（仙界第 1 图功德司买图纸，背包里学习）
-    mailbox: [],                                              // 传音：背包放不下的物品 [{ id, it: 背包物品, at: 暂存时间 }]，10 天未领自动清除
+    mailbox: [],                                              // 传音：背包放不下的物品 [{ id, it: 背包物品, at: 暂存时间 }]，30 天未领自动清除
   }),
 
   api: {
@@ -116,21 +116,21 @@ G.module({
     },
     // 一格最多叠几个（config/bag.js）
     stackMax(it) { const S = CFG.stack; return S.ONE.includes(it.t) || (it.t === "sm" && S.ONE_SM.includes(it.k)) ? 1 : it.t === "sm" && (S.BIG_SM || []).includes(it.k) ? 1e12 : S.MAX; },
-    // ---------- 传音：背包放不下的物品先放这里，10 天未领自动清除 ----------
-    MAILBOX_DAYS: 10,
+    // ---------- 传音：背包放不下的物品先放这里，30 天未领自动清除 ----------
+    MAILBOX_DAYS: 30,   // 用户定 2026-11-18（原 10）
     MAILBOX_MAX: 300,   // 传音最多几件
     mailboxDue(it) { return (it && it.at || 0) + this.MAILBOX_DAYS * 86400000; },
     mailboxList() { return Array.isArray(this.s.mailbox) ? this.s.mailbox : (this.s.mailbox = []); },
-    // 清掉已过期（暂存满 10 天）的条目，返回清掉数；只在确实有过期项时才遍历
+    // 清掉已过期（暂存满 30 天）的条目，返回清掉数；只在确实有过期项时才遍历
     mailboxPrune(now) {
       const list = this.mailboxList(); if (!list.length) return 0;
       now = now || this.now(); let n = 0;
       for (let i = list.length - 1; i >= 0; i--) if (now >= this.mailboxDue(list[i])) { list.splice(i, 1); n++; }
       if (list.length > this.MAILBOX_MAX) { n += list.length - this.MAILBOX_MAX; list.splice(0, list.length - this.MAILBOX_MAX); }   // 旧存档超上限的也削掉
-      if (n && !this.silent) this.log(`传音里 ${n} 件物品超过 10 天未领，已自动清除。`, "sys");
+      if (n && !this.silent) this.log(`传音里 ${n} 件物品超过 ${this.MAILBOX_DAYS} 天未领，已自动清除。`, "sys");
       return n;
     },
-    // 自动产出进传音：同来源同物品、还没领也没过期的合并成一件（数量相加、重新计 10 天）
+    // 自动产出进传音：同来源同物品、还没领也没过期的合并成一件（数量相加、重新计 30 天）
     mailMerge(it, src) {
       if (!it || !(it.n > 0)) return; const now = this.now(), key = x => [x.t, x.k, x.name, x.g, x.ft, x.type].join("|"), kk = key(it);
       const e = this.mailboxList().find(x => x && x.src === src && x.it && key(x.it) === kk && now < this.mailboxDue(x));
@@ -142,7 +142,7 @@ G.module({
       const e = { id: DATA.newUid(), it, at: this.now() }; if (src) e.src = String(src); list.push(e);
       // 上限 MAILBOX_MAX 件，超出丢最早的：原来只增不减，存档超过 4MB 后服务器拒绝保存，账号进不去
       const MAX = this.MAILBOX_MAX; if (list.length > MAX) { const k = list.length - MAX; list.splice(0, k); if (!this.silent) this.log(`传音已满（最多 ${MAX} 件），最早的 ${k} 件已清除。`, "bad"); }
-      if (!quiet && !this.silent) this.log("背包已满，已暂存到传音，10 天内领取。", "bad");
+      if (!quiet && !this.silent) this.log(`背包已满，已暂存到传音，${this.MAILBOX_DAYS} 天内领取。`, "bad");
       return true;
     },
     // 单件物品：能进背包就进背包，否则进传音；返回 "bag" / "mail"
@@ -166,7 +166,7 @@ G.module({
         if (noMail) {   // 领取时专用：前面已做原子预检，理论上走不到这里；走到这里也一分不动，不算成功
           return false;
         }
-        while (n > 0) { const k = Math.min(n, max); this.mailboxAdd(make(k), true); n -= k; } if (!this.silent) this.log("背包已满，剩余物品已暂存到传音，10 天内领取。", "bad");
+        while (n > 0) { const k = Math.min(n, max); this.mailboxAdd(make(k), true); n -= k; } if (!this.silent) this.log(`背包已满，剩余物品已暂存到传音，${this.MAILBOX_DAYS} 天内领取。`, "bad");
       }
       return true;
     },

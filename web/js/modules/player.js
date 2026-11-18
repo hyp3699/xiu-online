@@ -33,7 +33,7 @@ G.module({
     const R = this.regen(false);   // 平时恢复：每 10 秒 % 上限
     if (s.hp < st.hp) s.hp = Math.min(st.hp, s.hp + st.hp * R.hp / 100);
     if (s.mana < st.mana) s.mana = Math.min(st.mana, s.mana + st.mana * R.mana / 100);
-    if (Array.isArray(s.mailbox) && s.mailbox.length && this.mailboxPrune) this.mailboxPrune();   // 传音 10 天到期清理
+    if (Array.isArray(s.mailbox) && s.mailbox.length && this.mailboxPrune) this.mailboxPrune();   // 传音 30 天到期清理
     this.realmRwCheck();   // 境界奖励（含以前没发的补发）
     this.yearRwCheck();    // 修炼年数奖励
     if (!s.oriSs && this.oriSsFix) this.oriSsFix();   // 出身「残魂附体」神识强度
@@ -54,7 +54,7 @@ G.module({
         if (v("merit") > 0) this.mailboxAdd({ t: "cur", k: "merit", n: v("merit") }, true, src);
       }
       s.rrw = r;
-      if (!this.silent) this.log(r - done > 1 ? `境界奖励已补发到传音（${DATA.realmLabel(done + 1)} ~ ${DATA.realmLabel(r)}），10 天内领取。` : `到达${DATA.realmLabel(r)}，境界奖励已发到传音，10 天内领取。`, "gold");
+      if (!this.silent) this.log(r - done > 1 ? `境界奖励已补发到传音（${DATA.realmLabel(done + 1)} ~ ${DATA.realmLabel(r)}），${this.MAILBOX_DAYS || 30} 天内领取。` : `到达${DATA.realmLabel(r)}，境界奖励已发到传音，${this.MAILBOX_DAYS || 30} 天内领取。`, "gold");
     },
     // 修炼年数奖励（config/player.js YEAR_RW）：发奖的年数列表（升序）
     yearRwList() { const out = [], Y = CFG.player.YEAR_RW || {}; for (const k of ["A", "B"]) { const c = Y[k]; if (c && c.step > 0) for (let y = c.from; y <= c.to; y += c.step) out.push([y, c.rw]); } return out.sort((a, b) => a[0] - b[0]); },
@@ -75,7 +75,7 @@ G.module({
         if (rw.yuanli > 0) this.mailboxAdd({ t: "cur", k: "yuanli", n: rw.yuanli }, true, src);
       }
       s.yrw = L[L.length - 1][0];
-      if (!this.silent) this.log(`修炼满 ${U.fmt(s.yrw)} 年，奖励已发到传音，10 天内领取。`, "gold");
+      if (!this.silent) this.log(`修炼满 ${U.fmt(s.yrw)} 年，奖励已发到传音，${this.MAILBOX_DAYS || 30} 天内领取。`, "gold");
     },
     r() { return Math.floor(this.s.L / DATA.LAYERS); },          // 当前大境界序号
     layer() { return this.s.L % DATA.LAYERS; },

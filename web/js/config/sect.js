@@ -33,15 +33,15 @@ CFG.sect = {
   ],
   // 事务堂（自动循环，离线继续）：rank 最低职务序号  time 每次分钟  contrib / stone 每次奖励 × 职务倍率（不随宗门星级）
   affair: {
-    tasks: [
-      { name: "打扫山门",     rank: 0, time: 5,   contrib: 5,   stone: 5 },
-      { name: "护送商队",     rank: 1, time: 5,  contrib: 8,  stone: 8 },
+    tasks: [   // 灵石 ×2（用户定 2026-11-18：+100%）
+      { name: "打扫山门",     rank: 0, time: 5,   contrib: 5,   stone: 10 },
+      { name: "护送商队",     rank: 1, time: 5,  contrib: 8,  stone: 16 },
       // 真传弟子 ~ 宗主 贡献、灵石各 +1~+5（用户定 2026-11-17）
-      { name: "镇守灵脉",     rank: 2, time: 5,  contrib: 13,  stone: 13 },
-      { name: "斩杀魔修",     rank: 3, time: 5,  contrib: 18,  stone: 18 },
-      { name: "传功讲道",     rank: 4, time: 5,  contrib: 23, stone: 23 },
-      { name: "镇压魔窟",     rank: 5, time: 5,  contrib: 29, stone: 29 },
-      { name: "统御宗门",     rank: 6, time: 5, contrib: 35, stone: 35 },
+      { name: "镇守灵脉",     rank: 2, time: 5,  contrib: 13,  stone: 26 },
+      { name: "斩杀魔修",     rank: 3, time: 5,  contrib: 18,  stone: 36 },
+      { name: "传功讲道",     rank: 4, time: 5,  contrib: 23, stone: 46 },
+      { name: "镇压魔窟",     rank: 5, time: 5,  contrib: 29, stone: 58 },
+      { name: "统御宗门",     rank: 6, time: 5, contrib: 35, stone: 70 },
     ],
   },
   // 修炼室：pct 是 1~2 星基础修为修炼速度 +%（不改这个表）；实际值 = 基础 + 两星加成：
@@ -95,11 +95,11 @@ CFG.sect.trial = {
   RING: [0, 1, 2, -1, -1, -1, -1, -1, -1, -1],   // 戒指：0 破军 1 磐石 2 长生 3 灵犀 4 疾风 5 鹰眼 6 幻影 7 烈阳 8 玄武，-1 = 不给
   floor: {
     contrib: [1, 1, 1, 1, 1, 1, 2, 2, 2, 2],   // 贡献 = contrib × 层数
-    stone: 1,                                 // 灵石 = stone × 星级倍率 × 层数
+    stone: 10,                                // 灵石 = stone × 星级倍率 × 层数（用户定 2026-11-18：+900%，原 1）
     // 药材、矿石：总层数平均分成 MAT_SEG 段，第 n 段每层各给 MAT_BASE × 星级 × n 个（每层随机一种）
     //   例：1 星 100 层分 20 段（每段 5 层），1~5 层各 3 个，6~10 层各 6 个……96~100 层各 60 个；2 星第 1 段 6 个
     MAT_SEG: 20,
-    MAT_BASE: 3,
+    MAT_BASE: 6,     // 用户定 2026-11-18：+100%，原 3
     FAN_STAR: 5,     // 1 ~ FAN_STAR 星给凡界药材矿石，以上星级给四界通用药材矿石（不给各界特色）
     // 火髓：总层数平均分成 FIRE_SEG 段，第 n 段每层给 FIRE_BASE × 星级 × n 个
     //   例：1 星 100 层分 10 段，1~10 层各 1 个……91~100 层各 10 个；2 星第 1 段 2 个
