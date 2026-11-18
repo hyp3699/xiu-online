@@ -1163,8 +1163,9 @@ G.module({
       let zfEl = null;   // 灵果：lgD 该系属性伤害直接加；lgR 受到该系属性伤害直接减   // 灵果：该系属性伤害直接加   // 阵法室按次收费：D = 本次伤害（已算完其他倍率），实力测试（TEST）不扣灵气
       // K = 伤害加成（经脉 × 神纹/灵根/神识相加），先乘进去再减对方防御、抗性（用户定 2026-11-18）
       const fabaoDmg = (fb, D = m, K = 1) => {
-        let d = Math.max(MIN(st), EL(fb.atk * atkK() * fb.pct / 100 * K, D, fb.el, myL, fb.ign));   // 神通加的攻击也生效
-        let ex = 0; for (const x of fb.extra) ex += d * x.pct / 100;   // 附加伤害：主伤害 × %
+        const raw = fb.atk * atkK() * fb.pct / 100, d = Math.max(MIN(st), EL(raw * K, D, fb.el, myL, fb.ign));   // 神通加的攻击也生效
+        const d0 = K === 1 ? d : Math.max(MIN(st), EL(raw, D, fb.el, myL, fb.ign));   // 附加伤害按不乘加成的主伤害算（用户定 2026-11-18）
+        let ex = 0; for (const x of fb.extra) ex += d0 * x.pct / 100;   // 附加伤害：主伤害 × %
         return d + ex + (fb.addDmg || 0);   // v152 强化附加伤害（固定数字）；法宝融合已取消，不再有融合加成
       };
       // 战斗设置（回合、出手方式、保命、继续探索）只对 探索 / 出窍 / 历练（含秘境）生效（opt.useSet）；
