@@ -910,7 +910,7 @@ G.module({
     stBattleSp(st) {
       const C = this.ysStCfg();
       return this.stEqList().filter(id => !this.stIsPas(id)).map(id => { const d = this.stDef(id), el = DATA.elById[d.el]; if (!el) return null;
-        return { kind: "st", stn: d, id: "st:" + id, name: d.name, el: { id: el.id, name: el.name }, atk: st.atk, pct: this.stPct(id), mul: 1, mana: Math.round(st.mana * (C.MANA_PCT || 0) / 100), uses: C.USES || 1, jyDmg: this.stJyDmg(id), fuPct: 0 }; }).filter(Boolean);
+        return { kind: "st", stn: d, id: "st:" + id, name: d.name, el: { id: el.id, name: el.name }, atk: st.atk, pct: this.stPct(id), mul: (+CFG.gongfa.SPELL_MUL || 1) * (+CFG.gongfa.EFFECT_PCT || 1),   /* 神通算法术类：法术总倍率也乘（用户定 2026-11-18） */ mana: Math.round(st.mana * (C.MANA_PCT || 0) / 100), uses: C.USES || 1, jyDmg: this.stJyDmg(id), fuPct: 0 }; }).filter(Boolean);
     },
     // 出战的被动神通 [{ fx, m 修炼倍率 }]
     stBattlePas() { return this.stEqList().filter(id => this.stIsPas(id)).map(id => ({ fx: this.stDef(id).fx || {}, v: this.stPsVal(id), name: this.stName(id) })); },
