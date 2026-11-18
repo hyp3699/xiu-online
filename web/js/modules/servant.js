@@ -58,25 +58,26 @@ G.module({
     },
     svEffTxt(job, v, flat, y) { if (job === "lk") { const F = (DATA.worldMapIdx || {}).fan || []; return `管理 ${F.reduce((t, a) => t + this.lkSvIdxs(a).length, 0)} 位道童 · ${F.filter(a => this.lkOutA(a) > 0).length} / ${F.length} 座灵矿产出`; } if (job === "ling") return `种植速度 +${U.num(v)}%，产量 +${U.num(y || 0)}%`; return job === "zhen" ? `${v ? `聚灵 +${U.num(v)}%，` : ""}固定聚灵 +${U.fmt(flat || 0)}` : `${job === "cult" || job === "dan" || job === "qi" || job === "ling" ? "+" : "−"}${U.num(v)}%`; },
     svJobTotal(job) { if (job === "lk") return this.svEffTxt("lk"); return job === "zhen" ? `聚灵 +${U.num(this.gatherServant() + this.servantFlat())}` : this.svEffTxt(job, this.servantPct(job), 0, this.servantPct(job, "YIELD_")); },   // 差事按钮：阵法辅助显示所有道童合计增加的聚灵（每 10 秒）
+    svFull() { const m = +CFG.servant.MAX || 0; return m > 0 && this.s.servants.length >= m; },   // MAX 0 = 不限数量（用户定 2026-11-18）
     servantPct(job, f = "") { return (this.s.servants || []).filter(d => d.job === job).reduce((t, d) => t + this.svEff(d, job, f), 0); },
     svStartPick() {
       const s = this.s, C = CFG.servant, p = s.svPick;
       if (p && !p.end) return this.openSvPick();
       if (p) return;
-      if (s.servants.length >= C.MAX) return this.log("道童已满。", "sys");
+      if (this.svFull()) return this.log("道童已满。", "sys");
       if (s.stone < C.PICK_COST) return this.log("灵石不足。", "sys");
       s.stone -= C.PICK_COST; s.svPick = { end: this.now() + C.PICK_SEC * 1000 };
       this.log("开始选拔道童。", "good"); this.after();
     },
     openSvPick() {
-      const p = this.s.svPick, full = this.s.servants.length >= CFG.servant.MAX;
+      const p = this.s.svPick, full = this.svFull();
       this.modal(`<h2>选拔结果</h2><div class="sv-pick"><img src="${this.svImg(p)}" alt=""><div><b>${this.svName(p)}</b><br>资质 ${this.svQName(p)} · 五行 ${CFG.servant.EL[p.el]}</div></div>
         <div class="btns"><button class="primary" onclick="G.svAccept(true)" ${full ? "disabled" : ""}>${full ? "道童已满" : "收下"}</button><button onclick="G.svAccept(false)">遣散</button></div>`);
     },
     svAccept(keep) {
       const s = this.s, p = s.svPick; if (!p || p.end) return;
       if (keep) {
-        if (s.servants.length >= CFG.servant.MAX) return this.log("道童已满。", "sys");
+        if (this.svFull()) return this.log("道童已满。", "sys");
         s.servants.push({ uid: "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), q: this.svQ(p), el: p.el, av: p.av || 0, name: p.name || this.svRandName(p.av || 0), lv: 1, job: null, paid: this.bjDay() });
         this.log(`收下${this.svName(p)}。`, "good");
       }
@@ -149,11 +150,11 @@ G.caveViews.servant = function () {
   const s = this.s, C = CFG.servant, p = s.svPick, n = s.servants.length;
   const rows = s.servants.map((d, i) => { const o = this.svOwed(d);
     return `<div class="sv-row"><img src="${this.svImg(d)}" alt=""><div class="sv-nm">${this.svName(d)}<small>${d.job ? C.JOB[d.job].name : "空闲"}${o ? ` · <span class="q5">欠俸 ${o} 天</span>` : ""}</small></div><b class="sv-el sv-${d.el}">${C.EL[d.el]}</b><span>资质${this.svQName(d)}</span><span>等级${d.lv}级</span><button class="sm" onclick="G.openSv(${i})">管理</button></div>`; }).join("");
-  const pickBtn = !p ? `<button class="primary" onclick="G.svStartPick()" ${s.stone < C.PICK_COST || n >= C.MAX ? "disabled" : ""}>选拔道童<small>${n >= C.MAX ? "道童已满" : U.fmt(C.PICK_COST) + " 灵石 · 天品 " + U.num(this.svPickW()[0]) + "%"}</small></button>`
+  const pickBtn = !p ? `<button class="primary" onclick="G.svStartPick()" ${s.stone < C.PICK_COST || this.svFull() ? "disabled" : ""}>选拔道童<small>${this.svFull() ? "道童已满" : U.fmt(C.PICK_COST) + " 灵石 · 天品 " + U.num(this.svPickW()[0]) + "%"}</small></button>`
     : p.end ? `<button disabled>选拔道童<small>${U.cd(Math.max(0, (p.end - this.now()) / 1000))}</small></button>`
     : `<button class="primary" onclick="G.openSvPick()">选拔道童<small>已选出</small></button>`;
   const jobs = Object.keys(C.JOB).map(k => `<button onclick="G.openSvJob('${k}')">${C.JOB[k].name}</button>`).join("");
-  return `<div class="card"><h3>${DATA.caveName("servant")}<small>道童 ${n} / ${C.MAX}</small></h3>
+  return `<div class="card"><h3>${DATA.caveName("servant")}<small>道童 ${n}${+C.MAX > 0 ? ` / ${C.MAX}` : ""}</small></h3>
     ${rows}
     <div class="room-grid sv-pickrow">${pickBtn}</div></div><div class="room-grid sv-jobs">${jobs}</div>`;   // 选拔道童放在道童列表下面（用户 2026-11-17）
 };
