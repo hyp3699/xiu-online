@@ -132,16 +132,17 @@ G.module({
       const name = DATA.matName(kind, g);
       return this.s.bag.reduce((a, it) => a + (it && it.t === "mat" && it.kind === kind && it.name === name && !(free && it.lk) ? it.n : 0), 0);
     },
-    takeMat(kind, g, n, free) {
-      n = Math.floor(+n); if (!(n >= 1)) return;
-      if (kind === "sm") return void this.takeSm(g, n);
+    takeMat(kind, g, n, free) {   // 原子扣除：不够就一件不扣，返回 false
+      n = Math.floor(+n); if (!(n >= 1)) return true;
+      if (this.countMat(kind, g, free) < n) return false;
+      if (kind === "sm") { this.takeSm(g, n); return true; }
       if (kind === "cu") {   // 自定义物品按名字扣
         for (let i = this.s.bag.length - 1; i >= 0 && n > 0; i--) {
           const it = this.s.bag[i];
           if (!it || it.t !== "cu" || it.name !== g) continue;
           const k = Math.min(n, it.n); this.removeAt(i, k); n -= k;
         }
-        return;
+        return true;
       }
       const name = DATA.matName(kind, g);
       for (let i = this.s.bag.length - 1; i >= 0 && n > 0; i--) {
@@ -149,6 +150,7 @@ G.module({
         if (!it || it.t !== "mat" || it.kind !== kind || it.name !== name || (free && it.lk)) continue;
         const k = Math.min(n, it.n); this.removeAt(i, k); n -= k;
       }
+      return true;
     },
     // 测试模式（调试人物）：炼器、精炼、炼丹、灵珠、本命法宝都不消耗材料（够不够一律算够，也不扣、不退）
     craftFree() { return DATA.isTest(); },

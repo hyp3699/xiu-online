@@ -403,7 +403,7 @@ function validateValue(value, depth = 0, action = "") {
     if (!Number.isFinite(value) || !Number.isInteger(value) || Math.abs(value) > 1e12) throw new Error("操作参数无效");
     // 逐件循环类操作的数量参数第二道防线：buy(i,n)/bmFuse(j,n)/buyMat/exchangeMat/buySgDan/buyWdFruit/sjBuyMat/sjBuyItem/exchangeSeed/ssSwap/matSwap/buyRingSm/buyLingshi 的 n 在引擎里还会 clamp（≤9999，bmFuse 另 ≤持有量），
     // 但这里先拦住超大数，避免单条请求在引擎里逐件循环卡死事件循环；其它操作（如 cultSetSave 的阈值）不受影响。
-    if ((action === "buy" || action === "bmFuse" || action === "buyMat" || action === "exchangeMat" || action === "buySgDan" || action === "buyWdFruit" || action === "sjBuyMat" || action === "sjBuyItem" || action === "exchangeSeed" || action === "ssSwap" || action === "matSwap" || action === "buyRingSm" || action === "buyLingshi") && value > 9999) throw new Error("操作参数无效");
+    if ((action === "buy" || action === "bmFuse" || action === "buyMat" || action === "exchangeMat" || action === "buySgDan" || action === "buyWdFruit" || action === "sjBuyMat" || action === "sjBuyItem" || action === "exchangeSeed" || action === "ssSwap" || action === "matSwap" || action === "buyRingSm" || action === "buyLingshi" || action === "buyLsFrag") && value > 9999) throw new Error("操作参数无效");
     if (value < 0 && !(value === -1 && NEGATIVE_ONE_ACTIONS.has(action))) throw new Error("操作参数无效");
     return;
   }

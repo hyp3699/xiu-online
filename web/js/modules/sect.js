@@ -200,7 +200,7 @@ G.module({
       const s = this.s, it = s.bag[i]; if (!it || it.t !== "ql") return;
       s.qlEaten = s.qlEaten || {};
       const used = s.qlEaten[it.sect] || 0; n = Math.min(Math.floor(+n), it.n, DATA.qlLimit(it.sect) - used);
-      if (n <= 0) return this.log(`${DATA.qlName(it.sect)}已达服用上限。`, "sys");
+      if (!(n > 0)) return this.log(`${DATA.qlName(it.sect)}已达服用上限。`, "sys");
       s.qlEaten[it.sect] = used + n;
       const v = DATA.qlVals(it.sect);
       this.log(`服下${DATA.qlName(it.sect)} ×${n}，${Object.keys(v).map(k => `${DATA.QL_LABEL[k] || k} +${U.num(v[k] * n)}`).join("、")}。`, "good");
