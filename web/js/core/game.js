@@ -196,8 +196,30 @@ const G = {
   //   老存档第一次读时接手旧的不带编号的键（读完删掉）；新存档（sidNew）从不接手。
   newSid() { return Date.now().toString(36) + Math.floor(Math.random() * 1e9).toString(36); },
   saveKey(k) { const s = this.s; return s && s.sid ? k + "@" + s.sid : k; },
+  // 修复串档（2026-11-18）：按存档分开那次（11-17），本机旧的不分存档设置被「先打开的存档」整份接走，可能是新存档接走了老存档的。
+  //   每个存档记下自己的创建时间（xiu_born@编号）；老存档（没有 sidNew）打开时，如果自己这项是空的，而本机恰好只有另一个更晚创建的老存档有这项，就拿回来（那边删掉）。每项每台设备只修一次。
+  LS_FIX_KEYS: ["xiu_runhide_ex", "xiu_runhide_cq", "xiu_hide_dan", "xiu_hide_qi", "xiu_gf_pref", "xiu_gf_pref2", "xiu_sp_pref", "xiu_bg"],
+  lsFixLegacy() {
+    const s = this.s, born = typeof API !== "undefined" && API.born; if (!s || !s.sid || !born || this._lsFixed === s.sid) return;
+    try {
+      localStorage.setItem("xiu_born@" + s.sid, String(born)); if (!s.sidNew) localStorage.setItem("xiu_pre@" + s.sid, "1");
+      if (s.sidNew) { this._lsFixed = s.sid; return; }
+      const pre = [];   // 本机所有老存档（修复前就有的）编号
+      for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i); if (key && key.startsWith("xiu_pre@")) pre.push(key.slice(8)); }
+      for (const k of this.LS_FIX_KEYS) {
+        if (localStorage.getItem("xiu_lsfix_" + k)) continue;
+        const own = localStorage.getItem(k + "@" + s.sid), oth = pre.filter(id => id !== s.sid && localStorage.getItem(k + "@" + id) !== null);
+        if (pre.length < 2 || !pre.every(id => localStorage.getItem("xiu_born@" + id))) continue;   // 另一个存档还没打开过：等它记下创建时间再判断
+        const earliest = pre.every(id => id === s.sid || +localStorage.getItem("xiu_born@" + id) > born);
+        if (earliest && own === null && oth.length === 1) { const v = localStorage.getItem(k + "@" + oth[0]); localStorage.setItem(k + "@" + s.sid, v); localStorage.removeItem(k + "@" + oth[0]); }
+        localStorage.setItem("xiu_lsfix_" + k, "1");
+      }
+      this._lsFixed = s.sid; this._gfPref = null; this._spPref = null;
+    } catch (e) {}
+  },
   saveLsGet(k) {
     if (typeof localStorage === "undefined") return null;
+    this.lsFixLegacy();
     try { const nk = this.saveKey(k); let v = localStorage.getItem(nk);
       if (v === null && nk !== k && this.s && !this.s.sidNew) { const old = localStorage.getItem(k); if (old !== null) { localStorage.setItem(nk, old); localStorage.removeItem(k); v = old; } }
       return v; } catch (e) { return null; }

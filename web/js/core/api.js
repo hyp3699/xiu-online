@@ -467,6 +467,7 @@ const API = {
     let message;
     try { message = JSON.parse(raw); } catch { return; }
     if (message.type === "snapshot") {
+      if (message.born) this.born = message.born;   // 人物创建时间（修复串档用）
       const ok = this.applyState(message);
       if (this._resumeWait && message.state) this.resumeDone();   // 切回前台后服务器推回了结算好的完整状态
       if (this._resumePendingAway && message.state) { this._resumePendingAway = false; if (typeof G !== "undefined" && G.awayCheck) G.awayCheck(); } // 超时兜底时基线未动：完整状态到了再补算离开收益
