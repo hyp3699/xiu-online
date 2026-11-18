@@ -987,20 +987,20 @@ G.module({
       }
     } else if (tab === "room") {
       const FC = CFG.sect.freeRoom, fc = s.freeCult || {}, fcOn = this.freeCultOn(), fcLeft = fc.left > 0, fcDone = !fcLeft && this.freeUsed(fc) >= FC.daily;
-      h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "room", "修炼室")}<small>加快修炼 · 进入先扣一次贡献，之后每分钟扣一次</small></h3>
+      h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "room", "修炼室")}<small>加快修炼 · 进入先扣一次贡献，之后每 ${Math.round(this.roomBillMs() / 1000)} 秒扣一次</small></h3>
         <div class="line"><div>${FC.name}<span class="tag">+${U.num(this.freeCultPct())}%</span><small>${fcLeft ? `本次剩余 ${fc.left} 次修炼` : `每天 ${FC.daily} 次 · 每次 ${FC.times} 次修炼 · 不消耗贡献`}</small></div>
           <button class="sm ${fcOn ? "on" : ""}" onclick="G.enterFreeRoom()" ${fcDone ? "disabled" : ""}>${fcOn ? "使用中" : fcDone ? "今日已用" : "进入"}</button></div>` + DATA.rooms.map((r, i) => {
         const on = s.room === i, lock = !on && this.roomLocked(i);
-        return `<div class="line"><div>${r.name}<span class="tag">+${U.num(this.roomPct(i))}%</span>${r.rank ? `<span class="tag">${DATA.ranks[r.rank].name}专用</span>` : ""}<small>每分钟 ${U.fmt(this.roomCost(i))} 贡献${on ? (this.freeCultOn() ? " · 免费修炼室使用中，暂不扣" : ` · ${this.roomNextSec("room")} 秒后再次扣贡献`) : ""}</small></div>
+        return `<div class="line"><div>${r.name}<span class="tag">+${U.num(this.roomPct(i))}%</span>${r.rank ? `<span class="tag">${DATA.ranks[r.rank].name}专用</span>` : ""}<small>每 ${Math.round(this.roomBillMs() / 1000)} 秒 ${U.fmt(this.roomCost(i))} 贡献${on ? (this.freeCultOn() ? " · 免费修炼室使用中，暂不扣" : ` · ${this.roomNextSec("room")} 秒后再次扣贡献`) : ""}</small></div>
           <button class="sm ${on ? "on" : ""}" onclick="G.enterRoom(${i})" ${lock ? "disabled" : ""}>${on ? "使用中" : lock ? "职务不足" : "进入"}</button></div>`;
       }).join("") + `</div>`;
     } else if (tab === "gfroom") {
       const FG = CFG.sect.freeGfRoom, fg = s.freeGf || {}, fgOn = this.freeGfOn(), fgDone = !fgOn && this.freeUsed(fg) >= FG.daily;
-      h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "gfroom", "练功房")}<small>减少功法修炼时间 · 进入先扣一次贡献，之后每分钟扣一次</small></h3>
+      h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "gfroom", "练功房")}<small>减少功法修炼时间 · 进入先扣一次贡献，之后每 ${Math.round(this.roomBillMs() / 1000)} 秒扣一次</small></h3>
         <div class="line"><div>${FG.name}<span class="tag">修炼时间 -${U.num(this.freeGfPct())}%</span><small>${fgOn ? `剩余 ${U.cd(Math.ceil((fg.end - this.now()) / 1000))}` : `每天 ${FG.daily} 次 · 每次 ${FG.minutes} 分钟 · 不消耗贡献`}</small></div>
           <button class="sm ${fgOn ? "on" : ""}" onclick="G.enterFreeGfRoom()" ${fgOn || fgDone ? "disabled" : ""}>${fgOn ? "使用中" : fgDone ? "今日已用" : "进入"}</button></div>` + DATA.gfRooms.map((r, i) => {
         const on = s.gfRoom === i, lock = !on && this.gfRoomLocked(i);
-        return `<div class="line"><div>${r.name}<span class="tag">修炼时间 -${U.num(this.gfRoomPct(i))}%</span>${r.rank ? `<span class="tag">${DATA.ranks[r.rank].name}专用</span>` : ""}<small>每分钟 ${U.fmt(this.gfRoomCost(i))} 贡献${on ? ` · ${this.roomNextSec("gfRoom")} 秒后再次扣贡献` : ""}</small></div>
+        return `<div class="line"><div>${r.name}<span class="tag">修炼时间 -${U.num(this.gfRoomPct(i))}%</span>${r.rank ? `<span class="tag">${DATA.ranks[r.rank].name}专用</span>` : ""}<small>每 ${Math.round(this.roomBillMs() / 1000)} 秒 ${U.fmt(this.gfRoomCost(i))} 贡献${on ? ` · ${this.roomNextSec("gfRoom")} 秒后再次扣贡献` : ""}</small></div>
           <button class="sm ${on ? "on" : ""}" onclick="G.enterGfRoom(${i})" ${lock ? "disabled" : ""}>${on ? "使用中" : lock ? "职务不足" : "进入"}</button></div>`;
       }).join("") + `<p class="desc">待在练功房就按分钟扣贡献（没在修炼也扣），贡献不够自动离开；功法修炼时间缩短，消耗的修为不变。</p></div>`;
     } else if (tab === "pool") {

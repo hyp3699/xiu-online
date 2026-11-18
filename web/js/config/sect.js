@@ -124,7 +124,7 @@ CFG.sect.trial = {
 //   旧算法 mul = 100 ÷ (100 − pct) 已废弃）  下面是 1~2 星基础值，3~4 星 +10、5~6 星 +20、
 //   7~8 星 +30、9~10 星 +40（见 modules/sect.js gfRoomPct 的星级加成）
 //   cost 每次扣的贡献（不乘倍率；进入时先扣一次，之后每 ROOM_BILL_SEC 秒扣一次，不管在不在修炼）  rank 需要职务序号
-CFG.sect.ROOM_BILL_SEC = 60;   // 修炼室 / 练功房多少秒扣一次贡献
+CFG.sect.ROOM_BILL_SEC = 120;   // 修炼室 / 练功房多少秒扣一次贡献
 CFG.sect.gfRooms = [
   { name: "下品练功房", pct: 30, cost: 1 },
   { name: "中品练功房", pct: 50, cost: 2 },
