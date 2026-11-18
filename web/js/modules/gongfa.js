@@ -201,17 +201,18 @@ G.module({
     // 所有已学功法的加成合计（法术不算）
     gongfaBonus() {
       const b = { def: 0, atk: 0, hp: 0, cultivate: 0, speed: 0, hit: 0, dodge: 0, mana: 0, body: 0, res: {} };   // body：炼体秘诀加的肉身修炼速度 // res：真诀加的各系抗性
+      const raw = { res: {} };   // 不含灵根的功法原值：主神纹 % 按原值加（灵根 % 与神纹 % 相加，不相乘，用户定 2026-11-18）
       for (const id in this.s.gongfa) {
         if (DATA.isSpell(id)) continue;
         const info = DATA.gongfaInfo(id, this.s.gongfa[id]);
         if (!info) continue;
         const lgOn = !(info.kind === "mf" || info.noEl || !info.el), lgK = (st) => lgOn ? this.lingenSpd(st, info.el.id) : 1;
         const v = info.value * lgK(info.type.stat);  // 灵根加成：修炼速度类走 GONGFA，其他功法走 OTHER（用户定 2026-11-14）
-        if (info.type.stat === "res") b.res[info.el.id] = (b.res[info.el.id] || 0) + v;
-        else b[info.type.stat] += v;
-        if (info.type.stat2) b[info.type.stat2] += info.value2 * lgK(info.type.stat2);
+        if (info.type.stat === "res") { b.res[info.el.id] = (b.res[info.el.id] || 0) + v; raw.res[info.el.id] = (raw.res[info.el.id] || 0) + info.value; }
+        else { b[info.type.stat] += v; raw[info.type.stat] = (raw[info.type.stat] || 0) + info.value; }
+        if (info.type.stat2) { b[info.type.stat2] += info.value2 * lgK(info.type.stat2); raw[info.type.stat2] = (raw[info.type.stat2] || 0) + info.value2; }
       }
-      if (this.sjSwBonus) { const w = this.sjSwBonus(); for (const k in w.gf) if (k in b) b[k] *= 1 + w.gf[k] / 100; for (const e in w.gfRes) if (b.res[e]) b.res[e] *= 1 + w.gfRes[e] / 100; }   // 主神纹：功法提供的属性 +%
+      if (this.sjSwBonus) { const w = this.sjSwBonus(); for (const k in w.gf) if (k in b && k !== "res") b[k] += (raw[k] || 0) * w.gf[k] / 100; for (const e in w.gfRes) if (raw.res[e]) b.res[e] = (b.res[e] || 0) + raw.res[e] * w.gfRes[e] / 100; }   // 主神纹：功法原值 × %（与灵根 % 相加）
       return b;
     },
     hasGongfa(id) { return !!this.s.gongfa[id]; },
