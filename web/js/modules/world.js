@@ -1137,16 +1137,16 @@ G.module({
       const atkK = () => B0.atk > 0 ? st.atk / B0.atk : 1;   // 神通加的攻击（主动增益 / 被动累加）对法术、法宝也生效：按攻击变化比例放大
       const mE = () => {
         if (!m.deb && !Object.keys(mD).length && !Object.keys(mB).length && !Object.keys(mG).length) return m;
-        const o = Object.assign({}, m), k = x => (mD[x] ? 1 - mD[x].p / 100 : 1) * (mB[x] ? 1 + mB[x].p / 100 : 1);   // 你给的减益 × 怪物神通增益
+        const o = Object.assign({}, m), k = (x, e = 0) => Math.max(0, 1 - (mD[x] ? mD[x].p / 100 : 0) + (mB[x] ? mB[x].p / 100 : 0) - e / 100);   // 你给的减益、怪物神通增益、鼎减益 % 相加（用户定 2026-11-18）
         for (const x of ["atk", "def", "hit", "dodge", "speed"]) if (mG[x]) o[x] += mG[x];   // 怪物被动神通累加
-        if (m.deb) { o.speed *= 1 - m.deb.speed / 100; o.hit *= 1 - m.deb.hit / 100; o.dodge *= 1 - m.deb.dodge / 100; }
-        o.speed *= k("speed"); o.hit *= k("hit"); o.dodge *= k("dodge"); o.atk *= k("atk"); o.def *= k("def");
+        const dB = m.deb || {};
+        o.speed *= k("speed", dB.speed || 0); o.hit *= k("hit", dB.hit || 0); o.dodge *= k("dodge", dB.dodge || 0); o.atk *= k("atk"); o.def *= k("def");
         const rk = [...new Set([...Object.keys(mD), ...Object.keys(mB)])].filter(x => x.startsWith("res_")); if (rk.length) { o.res = Object.assign({}, m.res || {}); rk.forEach(x => { const e = x.slice(4); o.res[e] = (o.res[e] || 0) * k(x); }); }
         return o;
       };
-      const applyMe = () => { const g = k => (B0[k] + (psG[k] || 0)) * (1 + (meB[k] ? meB[k].p : 0) / 100) * (1 - (pD[k] ? pD[k].p : 0) / 100);   // 怪物神通减益也在这里乘
+      const applyMe = () => { const g = k => (B0[k] + (psG[k] || 0)) * Math.max(0, 1 + ((meB[k] ? meB[k].p : 0) - (pD[k] ? pD[k].p : 0)) / 100);   // 自身增益、怪物神通减益 % 相加（用户定 2026-11-18）
         st.atk = g("atk"); st.def = g("def"); st.hit = g("hit"); st.dodge = g("dodge"); st.speed = g("speed");
-        for (const e in B0.res) st.res[e] = B0.res[e] * (1 + (meB["res_" + e] ? meB["res_" + e].p : 0) / 100) * (1 - (pD["res_" + e] ? pD["res_" + e].p : 0) / 100); };
+        for (const e in B0.res) st.res[e] = B0.res[e] * Math.max(0, 1 + ((meB["res_" + e] ? meB["res_" + e].p : 0) - (pD["res_" + e] ? pD["res_" + e].p : 0)) / 100); };
       let shield = null;
       // v25：炼制法宝也能祭出（金木水火土雷属性伤害，消耗法力）
       const bmFb = this.bmInfo ? this.bmInfo() : null;   // 本命法宝（bag.js）：单独一格，排在法宝栏后面
@@ -1191,7 +1191,7 @@ G.module({
         usedN[j] = (usedN[j] || 0) + 1;
         s.mana -= cost;
         if (a.k === 1) { const sp = a.sp, F = sp.stn && sp.stn.fx || {}, up = sp.stn ? (F.t === "pshield" && mShield ? 1 + F.p / 100 : F.t === "hp50" && mhp > m.hp * 0.5 ? 1 + F.p / 100 : 1) : 1;   // 神通：破盾 / 对手生命高于一半 增伤
-          let d = roll(st, mE(), (X, c) => Math.max(MIN(st), EL((((sp.stn ? st.atk : sp.atk * atkK()) * (sp.pct + (sp.fuPct || 0)) / 100 * sp.mul + (sp.jyDmg || 0)) * dmgAdd(jmUp(sp.el.id), swSp, lgSp(sp.el), ssSp) * up) * c, X, sp.el.id, myL)), 1, j, !!sp.stn);
+          let d = roll(st, mE(), (X, c) => Math.max(MIN(st), EL((((sp.stn ? st.atk : sp.atk * atkK()) * (sp.pct + (sp.fuPct || 0)) / 100 * sp.mul + (sp.jyDmg || 0)) * dmgAdd(jmUp(sp.el.id), swSp, lgSp(sp.el), ssSp, up)) * c, X, sp.el.id, myL)), 1, j, !!sp.stn);
           if (d > 0) d += lgD(sp.el.id);   // 灵果属性伤害：最后直接加，不吃任何加成、不被防御抗性减   // 融合：+% 加进法术% 里；法术吃灵根法术伤害%；经脉该系属性伤害 +%（神通固定 99% 命中）
           if (sp.stn) { if (act.f !== 1) stFx(sp.stn, d, up > 1); return d; }   // 神通附加效果（没闪避才触发）
           if (!opt.test) { const xd = CFG.gongfa.XD_GAIN === undefined ? 1 : CFG.gongfa.XD_GAIN; if (xd > 0) { const X = this.s.spXd = this.s.spXd || {}; X[sp.el.id] = (X[sp.el.id] || 0) + xd; act.x = (act.x || 0) | 256; } }   // v239 法术心得
@@ -1201,7 +1201,7 @@ G.module({
         if (isBm && txP > 0 && Math.random() * 100 < txP) txGo = true;
         if (fb.shield) { shield = Object.assign({ el: fb.el }, fb.shield, { def: st.def * (fb.shield.defPct || 0) / 100, hp: st.hp * (fb.shield.hpPct || 0) / 100 + (fb.shield.hpAdd || 0) });   // 盾防御 = 祭盾时全部防御 × %
           act = { k: 3, sp: j, f: 0 }; return 0; }
-        let d = roll(fb.hit || fb.critAdd || fb.crit ? Object.assign({}, st, { hit: st.hit + (fb.hit || 0), crit: st.crit + (fb.critAdd || 0), critMul: fb.crit || 0 }) : st, mE(), (X, c) => fabaoDmg(fb, X, pjK * dmgAdd(jmUp(fb.el), ssFb, swSp, lgSp(fb.el)), c), 2, j);   // 主神纹、灵根的伤害加成对法宝（含本命）也有效（用户定 2026-11-18）   // 经脉该系属性伤害 +%   // 刀 / 锤专属：本次攻击额外命中、暴击
+        let d = roll(fb.hit || fb.critAdd || fb.crit ? Object.assign({}, st, { hit: st.hit + (fb.hit || 0), crit: st.crit + (fb.critAdd || 0), critMul: fb.crit || 0 }) : st, mE(), (X, c) => fabaoDmg(fb, X, dmgAdd(pjK, jmUp(fb.el), ssFb, swSp, lgSp(fb.el)), c), 2, j);   // 主神纹、灵根的伤害加成对法宝（含本命）也有效（用户定 2026-11-18）   // 经脉该系属性伤害 +%   // 刀 / 锤专属：本次攻击额外命中、暴击
         if (d > 0) d += lgD(fb.el);   // 灵果属性伤害：最后直接加，不吃任何加成、不被防御抗性减
         if (act.f !== 1) {
           if (fb.ding) { m.deb = { speed: fb.ding.speed, hit: fb.ding.hit, dodge: fb.ding.dodge, left: fb.ding.rounds }; act.x = 2; }
@@ -1283,8 +1283,10 @@ G.module({
       // 出手后的伤害修正：血煞增伤、金蝉自降、对方金蝉免疫；返回修正后的伤害
       const after = (d, p, hpNow, hpMax, myJc, tgtJc) => {
         if (!(d > 0) || act.k >= 3) return d;
-        if (p.xs > 0) { const r = hpNow / hpMax; d *= 1 + p.xs / 100 * (r * 100 <= (XS.FULL_AT || 0) ? 1 : Math.max(0, 1 - r)); }
-        if (myJc) d *= 1 - p.jcC / 100;
+        let k = 0;   // 血煞增伤、金蝉自降 % 相加（用户定 2026-11-18）
+        if (p.xs > 0) { const r = hpNow / hpMax; k += p.xs / 100 * (r * 100 <= (XS.FULL_AT || 0) ? 1 : Math.max(0, 1 - r)); }
+        if (myJc) k -= p.jcC / 100;
+        if (k) d *= Math.max(0, 1 + k);
         if (tgtJc && act.f !== 1) { d = 0; act.x = (act.x || 0) | 128; }
         return d;
       };
@@ -1293,6 +1295,7 @@ G.module({
       const hp0 = s.hp, mana0 = s.mana; let meFirst = st.speed * spMe >= m.speed * spMob;
       // 怪物出手：先判法术，再判法宝（都按 防御×RES_RATE + 该系抗性 减免），都没有就普通攻击
       let mSp = 0, mFb = 0;
+      const mUpK = (el, up = 1) => Math.max(0, up + (tf("lingxing") ? (TL.LINGXING || 0) / 100 : 0) + (tf(el + "ling") ? (TL.EL_LING ?? 18) / 100 : 0) + jmDn(el) - 1);   // 灵性、X灵、经脉腿部减伤 % 相加（用户定 2026-11-18）
       const mCast = (k, el, force) => {
         const c = m[k], mA = mE().atk, P = c && c.mana || [0, 1], cost = c ? (m.manaBr || 0) * P[0] * (P[1] === undefined ? 1 : P[1]) * (m.manaK ?? 1) : 0;   // 耗法力 = 修为突破法力 × 比例 × 倍率 × 境界倍率
         if (!c || m.mana < cost || (!force && Math.random() * 100 >= c.chance)) return -1;
@@ -1300,7 +1303,7 @@ G.module({
         if (!el) el = (U.pick(DATA.elements) || {}).id;   // 怪物没有本属性：每次随机一系（用户定 2026-11-15）
         const d = roll(mE(), st, X => Math.max(MIN(m), el ? EL(mA * c.pct / 100, X, el, mL) : ATK(mA * c.pct / 100, X, mL)), k === "spell" ? 1 : 2);
         act.e = el;
-        if (!el || d <= 0) return d; const dd = d * (tf("lingxing") ? 1 + (TL.LINGXING || 0) / 100 : 1) * (tf(el + "ling") ? 1 + (TL.EL_LING ?? 18) / 100 : 1) * jmDn(el); return Math.max(0, dd - lgR(el, dd));   // 灵果减伤：最后直接减，不吃任何加成   // 天赋灵性：金木水火土雷属性伤害都增加；天赋金灵等：该系法术 / 法宝伤害增加；经脉腿部：受到该系伤害 −%
+        if (!el || d <= 0) return d; const dd = d * mUpK(el); return Math.max(0, dd - lgR(el, dd));   // 灵果减伤：最后直接减，不吃任何加成   // 天赋灵性：金木水火土雷属性伤害都增加；天赋金灵等：该系法术 / 法宝伤害增加；经脉腿部：受到该系伤害 −%
       };
       // 怪物主动神通：还有没用完的就先放（按配置顺序，每种每场 USES 次），sp = 第几种（战斗过程里怪物法术 sp 是 -1，靠这个区分）
       const mStCast = () => {
@@ -1308,8 +1311,8 @@ G.module({
         mStN[j] = (mStN[j] || 0) + 1;
         const D = mStA[j].d, F = D.fx || {}, el = D.el, A = mE(), pct = (SC.PCT || 100) + mStA[j].lv * (SC.LV_PCT || 0);
         const up = F.t === "pshield" && shield ? 1 + F.p / 100 : F.t === "hp50" && php > st.hp * 0.5 ? 1 + F.p / 100 : 1;
-        let d = roll(A, st, X => Math.max(MIN(m), EL(A.atk * pct / 100, X, el, mL)) * up, 1, j, true);
-        if (d > 0) { const dd = d * (tf("lingxing") ? 1 + (TL.LINGXING || 0) / 100 : 1) * (tf(el + "ling") ? 1 + (TL.EL_LING ?? 18) / 100 : 1) * jmDn(el); d = Math.max(0, dd - lgR(el, dd)); }   // X灵：该系神通伤害也加   // 灵果减伤最后直接减   // 同怪物法术：天赋灵性、经脉腿部
+        let d = roll(A, st, X => Math.max(MIN(m), EL(A.atk * pct / 100, X, el, mL)), 1, j, true);
+        if (d > 0) { const dd = d * mUpK(el, up); d = Math.max(0, dd - lgR(el, dd)); }   // X灵：该系神通伤害也加   // 灵果减伤最后直接减   // 同怪物法术：天赋灵性、经脉腿部
         if (act.f !== 1) mStFx(D, d, up > 1);
         return d;
       };
@@ -1363,15 +1366,17 @@ G.module({
         altD = mShield ? Object.assign({}, mE(), { def: def0 * (pj ? 1 - pMe.pjI / 100 : 1) }) : null;
         let d = myHit(); m.def = def0; altD = null;
         if (psG.eld && (act.k === 1 || act.k === 2) && d > 0) d += psG.eld;   // 被动神通：属性伤害 +点
+        let dK = 0;
         if ((act.k === 1 || act.k === 2) && act.f !== 1 && d > 0) {   // 天赋 X系吸收：该系法术 / 法宝伤害 −XISHOU%（用户定 2026-11-15，原为全免疫）
           const a = acts[act.sp], el = a ? (act.k === 1 ? a.sp.el.id : a.fb.el) : "";
-          if (el && tf("xishou_" + el)) d *= Math.max(0, 1 - ((CFG.battle.TALENT || {}).XISHOU ?? 75) / 100);
+          if (el && tf("xishou_" + el)) dK -= ((CFG.battle.TALENT || {}).XISHOU ?? 75) / 100;
           const KE = (CFG.battle.TALENT || {}).EL_KE || {};
-          if (el && Object.keys(KE).some(e => KE[e] === el && tf(e + "ling"))) d *= 1 + ((CFG.battle.TALENT || {}).EL_LING_KE ?? 12) / 100;   // X灵：受到克它那系的伤害增加（火克金…）
-          if (el && tf(el + "ling")) d *= Math.max(0, 1 - ((CFG.battle.TALENT || {}).EL_LING_RED ?? 9) / 100);   // 天赋金灵等：受到该系伤害减少
-          if (el && m.elRed && m.elRed[el]) d *= Math.max(0, 1 - m.elRed[el] / 100);   // 试炼塔守关者：某几系伤害减少（config/mobs.js tower.EL_RED）
+          if (el && Object.keys(KE).some(e => KE[e] === el && tf(e + "ling"))) dK += ((CFG.battle.TALENT || {}).EL_LING_KE ?? 12) / 100;   // X灵：受到克它那系的伤害增加（火克金…）
+          if (el && tf(el + "ling")) dK -= ((CFG.battle.TALENT || {}).EL_LING_RED ?? 9) / 100;   // 天赋金灵等：受到该系伤害减少
+          if (el && m.elRed && m.elRed[el]) dK -= m.elRed[el] / 100;   // 试炼塔守关者：某几系伤害减少（config/mobs.js tower.EL_RED）
         }
-        if (act.k <= 2 && act.f !== 1 && d > 0) { const r = +(act.k === 0 ? CFG.mobs.普通伤害减免 : CFG.mobs.属性伤害减免) || 0; if (r) d *= Math.max(0, 1 - r / 100); }   // 怪物普通 / 属性伤害减免（负数 = 增伤，config/mobs.js）
+        if (act.k <= 2 && act.f !== 1 && d > 0) { const r = +(act.k === 0 ? CFG.mobs.普通伤害减免 : CFG.mobs.属性伤害减免) || 0; if (r) dK -= r / 100; }   // 怪物普通 / 属性伤害减免（负数 = 增伤，config/mobs.js）
+        if (dK) d *= Math.max(0, 1 + dK);   // 吸收、克制、同系减、试炼塔、怪物减免 % 相加（用户定 2026-11-18）
         if (lx) act.x = (act.x || 0) | 8;
         if (txF) act.x = (act.x || 0) | 4096;   // 通玄：上一下本命法宝没占回合
         d = after(d, pMe, php, st.hp, meJc, mobJc);
