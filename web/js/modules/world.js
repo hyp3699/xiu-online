@@ -1161,12 +1161,12 @@ G.module({
       // 法宝伤害：攻击 × 伤害%，按「防御×RES_RATE + 该系抗性 − 无视抗性」减免；再加附加伤害 = 主伤害 × %
       const lgBB = this.lgBonus ? this.lgBonus() : { dmg: {}, dr: {} }, lgB = lgBB.dmg || {}, lgDr = lgBB.dr || {}, lgD = el => lgB[el && el.id || el] || 0, lgR = (el, D) => { zfEl = el; return lgDr[el && el.id || el] || 0; };   // 主动阵法不在这里减：记下属性，等保底伤害、境界伤害都加完后在 him() 里减，最低 1 点（用户定 2026-11-14）
       let zfEl = null;   // 灵果：lgD 该系属性伤害直接加；lgR 受到该系属性伤害直接减   // 灵果：该系属性伤害直接加   // 阵法室按次收费：D = 本次伤害（已算完其他倍率），实力测试（TEST）不扣灵气
-      // K = 伤害加成（经脉 × 神纹/灵根/神识相加），先乘进去再减对方防御、抗性（用户定 2026-11-18）
+      // K = 伤害加成（经脉 × 神纹/灵根/神识相加）；法宝伤害 = 基础% × K + 附加%（附加 = 基础% × 词条%，不乘 K），加在一起后再减对方防御、抗性（用户定 2026-11-18）
       const fabaoDmg = (fb, D = m, K = 1) => {
-        const raw = fb.atk * atkK() * fb.pct / 100, d = Math.max(MIN(st), EL(raw * K, D, fb.el, myL, fb.ign));   // 神通加的攻击也生效
-        const d0 = K === 1 ? d : Math.max(MIN(st), EL(raw, D, fb.el, myL, fb.ign));   // 附加伤害按不乘加成的主伤害算（用户定 2026-11-18）
-        let ex = 0; for (const x of fb.extra) ex += d0 * x.pct / 100;   // 附加伤害：主伤害 × %
-        return d + ex + (fb.addDmg || 0);   // v152 强化附加伤害（固定数字）；法宝融合已取消，不再有融合加成
+        const raw = fb.atk * atkK() * fb.pct / 100;   // 神通加的攻击也生效
+        let exP = 0; for (const x of fb.extra) exP += x.pct / 100;   // 附加伤害 %：主伤害（基础%）× 词条%
+        const d = Math.max(MIN(st), EL(raw * K + raw * exP, D, fb.el, myL, fb.ign));
+        return d + (fb.addDmg || 0);   // v152 强化附加伤害（固定数字）；法宝融合已取消，不再有融合加成
       };
       // 战斗设置（回合、出手方式、保命、继续探索）只对 探索 / 出窍 / 历练（含秘境）生效（opt.useSet）；
       // 法术、法宝、神通列表（顺序 order、不使用 off）对所有战斗生效
