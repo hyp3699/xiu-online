@@ -196,24 +196,17 @@ const G = {
   //   不再接手旧的不带编号的键（会串到新存档，用户 2026-11-18）。
   newSid() { return Date.now().toString(36) + Math.floor(Math.random() * 1e9).toString(36); },
   saveKey(k) { const s = this.s; return s && s.sid ? k + "@" + s.sid : k; },
-  // 删档时一起删掉这个存档在本机的设置（用户 2026-11-18：一个账号只有一个存档，删了才能开新的）；旧的不分存档的键也删掉，新存档不会接手
-  LS_PREFIX: ["xiu_runhide_", "xiu_hide_", "xiu_gf_pref", "xiu_sp_pref", "xiu_bg", "xiuAway_", "xiu_hero"],
-  clearSaveLs() {
-    if (typeof localStorage === "undefined") return;
-    try { const sid = this.s && this.s.sid, del = [];
-      for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (!k || !this.LS_PREFIX.some(p => k.startsWith(p))) continue;
-        if (k.startsWith("xiuAway_") || !k.includes("@") || (sid && k.endsWith("@" + sid))) del.push(k); }
-      del.forEach(k => localStorage.removeItem(k)); } catch (e) {}
-  },
+  // 存档设置（隐藏丹方 / 配方、隐藏探索出窍地图、功法法术排序、背景）全部存在服务器存档 s.ui 里，不存手机（用户 2026-11-18）；删档就一起没了
+  UI_KEYS: ["xiu_runhide_", "xiu_hide_", "xiu_gf_pref", "xiu_sp_pref", "xiu_bg"],
+  uiKeyOk(k) { return typeof k === "string" && k.length <= 40 && this.UI_KEYS.some(p => k.startsWith(p)); },
   saveLsGet(k) {
-    if (typeof localStorage === "undefined") return null;
-    try { if (!localStorage.getItem("xiu_lsclr1")) { localStorage.setItem("xiu_lsclr1", "1"); const del = [];   // 一次性清掉本机串过来的旧设置（2026-11-18）
-      for (let i = 0; i < localStorage.length; i++) { const x = localStorage.key(i); if (x && this.LS_PREFIX.some(p => x.startsWith(p))) del.push(x); }
-      del.forEach(x => localStorage.removeItem(x)); this._gfPref = null; this._spPref = null; } } catch (e) {}
-    try { const nk = this.saveKey(k); let v = localStorage.getItem(nk);
-      return v; } catch (e) { return null; }
+    if (typeof localStorage !== "undefined") try { if (!localStorage.getItem("xiu_lsclr2")) { localStorage.setItem("xiu_lsclr2", "1"); const del = [];   // 手机里以前存的旧设置一次性清掉
+      for (let i = 0; i < localStorage.length; i++) { const x = localStorage.key(i); if (x && (this.UI_KEYS.some(p => x.startsWith(p)) || x === "xiu_hero")) del.push(x); }
+      del.forEach(x => localStorage.removeItem(x)); } } catch (e) {}
+    const u = this.s && this.s.ui; return u && typeof u[k] === "string" ? u[k] : null;
   },
-  saveLsSet(k, v) { if (typeof localStorage === "undefined") return; try { const nk = this.saveKey(k); v === null ? localStorage.removeItem(nk) : localStorage.setItem(nk, v); if (nk !== k) localStorage.removeItem(k); } catch (e) {} },
+  saveLsSet(k, v) { if (!this.s || !this.uiKeyOk(k)) return; const u = this.s.ui = this.s.ui || {}; if (v === null || v === undefined) delete u[k]; else u[k] = String(v); this.setUiPref(k, v === undefined ? null : v); },   // 先改本地显示，再发给服务器
+  setUiPref(k, v) { if (!this.s || !this.uiKeyOk(k)) return false; const u = this.s.ui = this.s.ui || {}; if (v === null || v === undefined) delete u[k]; else { v = String(v); if (v.length > 20000) return false; u[k] = v; } return true; },
   awaySnap() {
     const s = this.s; if (!s || typeof localStorage === "undefined") return;
     try { localStorage.setItem(this.awayKey(), JSON.stringify({ t: Date.now(), exp: s.exp || 0, stone: s.stone || 0, ling: s.ling || 0, contrib: s.contrib || 0, kills: s.kills || 0, bag: this.bagCount() })); } catch (e) {}

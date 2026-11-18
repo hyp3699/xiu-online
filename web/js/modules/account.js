@@ -66,7 +66,7 @@ G.module({
     async restart() {
       if (!(await this.ask("确定删除这个账号的存档，从头开始？"))) return;
       this._stopped = true;
-      API.resetCharacter().then(() => { if (this.clearSaveLs) this.clearSaveLs(); location.reload(); }).catch(e => { this._stopped = false; this.modal(`<h2>重置失败</h2><p>${e.message}</p><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`); });
+      API.resetCharacter().then(() => location.reload()).catch(e => { this._stopped = false; this.modal(`<h2>重置失败</h2><p>${e.message}</p><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`); });
     },
 
     // 创建角色（不再随机灵根；灵根在「灵根」页用灵石提升）
