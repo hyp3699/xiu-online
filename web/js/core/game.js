@@ -116,7 +116,7 @@ const G = {
   },
   // 存档缺字段时，用模块默认值补上（以后加新功能不会坏档）
   migrate(s) {
-    if (!s.sid) s.sid = this.newSid();   // 老存档补存档编号（sidNew 不设：可以接手本机旧的不分存档的设置）
+    if (!s.sid) s.sid = this.newSid();   // 老存档补存档编号
     this.oreV2(s);   // 要在 nmMigrate 之前：矿石序号变了
     DATA.nmMigrate(s);   // 存档里的旧名字 → config/names.js 的新名字
     if (!s.ssGfS6) {   // 凝神观想诀 3 段（36 层 ×1/×2/×3）→ 6 段（18 层 ×1~×6）（用户定 2026-11-16）：层数不变，神识强度按新旧加成差补
@@ -193,35 +193,24 @@ const G = {
   AWAY_MIN_SEC: 60,
   awayKey() { return "xiuAway_" + ((this.s && (this.s.sid || this.s.name || this.s.id)) || ""); },
   // 本机存的「每个存档自己的」设置（隐藏丹方 / 配方、隐藏探索记录等）：键后加 @存档编号，换存档 / 删档重来不会串。
-  //   老存档第一次读时接手旧的不带编号的键（读完删掉）；新存档（sidNew）从不接手。
+  //   不再接手旧的不带编号的键（会串到新存档，用户 2026-11-18）。
   newSid() { return Date.now().toString(36) + Math.floor(Math.random() * 1e9).toString(36); },
   saveKey(k) { const s = this.s; return s && s.sid ? k + "@" + s.sid : k; },
-  // 修复串档（2026-11-18）：按存档分开那次（11-17），本机旧的不分存档设置被「先打开的存档」整份接走，可能是新存档接走了老存档的。
-  //   每个存档记下自己的创建时间（xiu_born@编号）；老存档（没有 sidNew）打开时，如果自己这项是空的，而本机恰好只有另一个更晚创建的老存档有这项，就拿回来（那边删掉）。每项每台设备只修一次。
-  LS_FIX_KEYS: ["xiu_runhide_ex", "xiu_runhide_cq", "xiu_hide_dan", "xiu_hide_qi", "xiu_gf_pref", "xiu_gf_pref2", "xiu_sp_pref", "xiu_bg"],
-  lsFixLegacy() {
-    const s = this.s, born = typeof API !== "undefined" && API.born; if (!s || !s.sid || !born || this._lsFixed === s.sid) return;
-    try {
-      localStorage.setItem("xiu_born@" + s.sid, String(born)); if (!s.sidNew) localStorage.setItem("xiu_pre@" + s.sid, "1");
-      if (s.sidNew) { this._lsFixed = s.sid; return; }
-      const pre = [];   // 本机所有老存档（修复前就有的）编号
-      for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i); if (key && key.startsWith("xiu_pre@")) pre.push(key.slice(8)); }
-      for (const k of this.LS_FIX_KEYS) {
-        if (localStorage.getItem("xiu_lsfix_" + k)) continue;
-        const own = localStorage.getItem(k + "@" + s.sid), oth = pre.filter(id => id !== s.sid && localStorage.getItem(k + "@" + id) !== null);
-        if (pre.length < 2 || !pre.every(id => localStorage.getItem("xiu_born@" + id))) continue;   // 另一个存档还没打开过：等它记下创建时间再判断
-        const earliest = pre.every(id => id === s.sid || +localStorage.getItem("xiu_born@" + id) > born);
-        if (earliest && own === null && oth.length === 1) { const v = localStorage.getItem(k + "@" + oth[0]); localStorage.setItem(k + "@" + s.sid, v); localStorage.removeItem(k + "@" + oth[0]); }
-        localStorage.setItem("xiu_lsfix_" + k, "1");
-      }
-      this._lsFixed = s.sid; this._gfPref = null; this._spPref = null;
-    } catch (e) {}
+  // 删档时一起删掉这个存档在本机的设置（用户 2026-11-18：一个账号只有一个存档，删了才能开新的）；旧的不分存档的键也删掉，新存档不会接手
+  LS_PREFIX: ["xiu_runhide_", "xiu_hide_", "xiu_gf_pref", "xiu_sp_pref", "xiu_bg", "xiuAway_", "xiu_hero"],
+  clearSaveLs() {
+    if (typeof localStorage === "undefined") return;
+    try { const sid = this.s && this.s.sid, del = [];
+      for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (!k || !this.LS_PREFIX.some(p => k.startsWith(p))) continue;
+        if (k.startsWith("xiuAway_") || !k.includes("@") || (sid && k.endsWith("@" + sid))) del.push(k); }
+      del.forEach(k => localStorage.removeItem(k)); } catch (e) {}
   },
   saveLsGet(k) {
     if (typeof localStorage === "undefined") return null;
-    this.lsFixLegacy();
+    try { if (!localStorage.getItem("xiu_lsclr1")) { localStorage.setItem("xiu_lsclr1", "1"); const del = [];   // 一次性清掉本机串过来的旧设置（2026-11-18）
+      for (let i = 0; i < localStorage.length; i++) { const x = localStorage.key(i); if (x && this.LS_PREFIX.some(p => x.startsWith(p))) del.push(x); }
+      del.forEach(x => localStorage.removeItem(x)); this._gfPref = null; this._spPref = null; } } catch (e) {}
     try { const nk = this.saveKey(k); let v = localStorage.getItem(nk);
-      if (v === null && nk !== k && this.s && !this.s.sidNew) { const old = localStorage.getItem(k); if (old !== null) { localStorage.setItem(nk, old); localStorage.removeItem(k); v = old; } }
       return v; } catch (e) { return null; }
   },
   saveLsSet(k, v) { if (typeof localStorage === "undefined") return; try { const nk = this.saveKey(k); v === null ? localStorage.removeItem(nk) : localStorage.setItem(nk, v); if (nk !== k) localStorage.removeItem(k); } catch (e) {} },

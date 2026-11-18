@@ -1007,8 +1007,7 @@ function pushState(client, now, logs = [], force = false, full = false, snap = n
     if (!force && !logs.length && !pre && now - client.lastPush < PUSH_IDLE_MS) { if (snap) { delete snap.histQ; delete snap.exHist; client.lastSent = snap; } return; }
   }
   client.lastPush = now;
-  const born = full ? (() => { try { return q.byId.get(client.userId)?.created_at || 0; } catch { return 0; } })() : 0;   // 人物创建时间：客户端修复串档用（2026-11-18）
-  send(client.socket, { type: "snapshot", serverNow: now, revision: client.revision, logs, ...(born ? { born } : {}), ...statePayload(client, full, snap, pre) });
+  send(client.socket, { type: "snapshot", serverNow: now, revision: client.revision, logs, ...statePayload(client, full, snap, pre) });
 }
 // ---- 每小时自动备份数据库（存档、账号、礼包码），保留最近 48 份 ----
 // 备份在 数据目录/backup/xiu-年月日-时分.sqlite3（北京时间）；最新一份按管理员设置的间隔上传到 GitHub 私有仓库（见下面 ghUpload）
