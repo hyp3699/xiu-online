@@ -939,6 +939,7 @@ G.module({
     // 元婴出窍 / 自动探索 列表：所有能出窍 / 探索的地图（已历练通过的区域），可隐藏（存在本机）
     runHidden(k) { try { return JSON.parse(this.saveLsGet("xiu_runhide_" + k) || "[]") || []; } catch (e) { return []; } },   // 按存档分开（用户 2026-11-17）
     hideRun(k, key) { const h = this.runHidden(k), i = h.indexOf(key); if (i >= 0) h.splice(i, 1); else h.push(key); this.saveLsSet("xiu_runhide_" + k, JSON.stringify(h)); this.openRunList(k); },
+    showAllRun(k) { this.saveLsSet("xiu_runhide_" + k, "[]"); this.openRunList(k); },   // 一键取消本存档全部隐藏（用户 2026-11-18：旧设置被新存档接手）
     toggleRunHid(k) { this.runShowHid = !this.runShowHid; this.openRunList(k); },
     openRunList(k) {
       const s = this.s, cq = k === "cq", hid = this.runHidden(k), rows = [];
@@ -953,7 +954,7 @@ G.module({
       const show = rows.filter(x => this.runShowHid || !hid.includes(x.key)), nh = rows.filter(x => hid.includes(x.key)).length, dis = cq && !s.cqLearn;
       this.modal(`<h2>${cq ? "元婴出窍" : "自动探索"}</h2>
         ${dis ? `<p class="desc" style="text-align:center">尚未学会元婴出窍。</p>` : ""}
-        <div class="row small" style="align-items:center"><span>${cq ? `今日已出窍 ${U.fmt(this.cqMaxRuns() - this.cqLeftToday())} / ${U.fmt(this.cqMaxRuns())} 次` : `可探索 ${rows.length} 处${nh ? ` · 已隐藏 ${nh} 处` : ""}`}</span>${nh ? `<button class="sm pill" onclick="G.toggleRunHid('${k}')">${this.runShowHid ? "收起已隐藏" : "显示已隐藏"}</button>` : ""}</div>
+        <div class="row small" style="align-items:center"><span>${cq ? `今日已出窍 ${U.fmt(this.cqMaxRuns() - this.cqLeftToday())} / ${U.fmt(this.cqMaxRuns())} 次` : `可探索 ${rows.length} 处${nh ? ` · 已隐藏 ${nh} 处` : ""}`}</span>${nh ? `<button class="sm pill" onclick="G.toggleRunHid('${k}')">${this.runShowHid ? "收起已隐藏" : "显示已隐藏"}</button><button class="sm pill" onclick="G.showAllRun('${k}')">全部取消隐藏</button>` : ""}</div>
         <div class="runlist">${show.map(x => `<div class="line${hid.includes(x.key) ? " dimrow" : ""}"><div>${x.name}</div><div><button class="sm pill${x.run ? " on" : ""}" onclick="${x.act}" ${dis && !x.run ? "disabled" : ""}>${x.run ? "停止" : cq ? "出窍" : "探索"}</button><button class="sm pill" onclick="G.hideRun('${k}','${x.key}')">${hid.includes(x.key) ? "显示" : "隐藏"}</button></div></div>`).join("") || `<p class="desc" style="text-align:center">${rows.length ? "都隐藏了。" : "还没有可以" + (cq ? "出窍" : "探索") + "的地图（先历练通过区域）。"}</p>`}</div>
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
