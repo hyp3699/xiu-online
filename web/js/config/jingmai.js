@@ -78,7 +78,8 @@ CFG.jingmai = {
       { name: "关元", x: 200, y: 365, xue: [["华泉", "res_shui"], ["华海", "res_mu"], ["华关", "res_jin"], ["华府", "def"], ["华门", "mana"], ["华池", "atk"], ["华庭", "res_huo"], ["华堂", "res_lei"], ["华宫", "res_tu"], ["华台", "hp"]] },
     ] },
     // 左手 6 个：每 2 个一种属性伤害 +%（金 金 木 木 水 水）
-    { name: "阴维脉", color: "#b890ff", elDmg: [["jin", 8], ["jin", 8], ["mu", 8], ["mu", 8], ["shui", 8], ["shui", 8]], nodes: [
+    // elDmg 每系 2×18 = 36%（用户定 2026-11-18，原 16%）
+    { name: "阴维脉", color: "#b890ff", elDmg: [["jin", 18], ["jin", 18], ["mu", 18], ["mu", 18], ["shui", 18], ["shui", 18]], nodes: [
       { name: "天池", x: 148, y: 222, xue: [["青泉", "res_shui"], ["青海", "mana"], ["青关", "res_mu"], ["青府", "res_jin"], ["青门", "atk"], ["青池", "res_lei"], ["青庭", "res_tu"], ["青堂", "def"], ["青宫", "hp"], ["青台", "res_huo"]] },
       { name: "期门", x: 128, y: 258, xue: [["赤泉", "hp"], ["赤海", "res_lei"], ["赤关", "mana"], ["赤府", "res_jin"], ["赤门", "def"], ["赤池", "res_tu"], ["赤庭", "res_huo"], ["赤堂", "res_mu"], ["赤宫", "atk"], ["赤台", "res_shui"]] },
       { name: "腹哀", x: 108, y: 293, xue: [["白泉", "res_shui"], ["白海", "def"], ["白关", "res_jin"], ["白府", "hp"], ["白门", "res_mu"], ["白池", "atk"], ["白庭", "res_lei"], ["白堂", "mana"], ["白宫", "res_huo"], ["白台", "res_tu"]] },
@@ -87,7 +88,7 @@ CFG.jingmai = {
       { name: "筑宾", x: 45, y: 352, xue: [["阳泉", "hp"], ["阳海", "def"], ["阳关", "res_jin"], ["阳府", "mana"], ["阳门", "atk"], ["阳池", "res_huo"], ["阳庭", "res_lei"], ["阳堂", "res_shui"], ["阳宫", "res_mu"], ["阳台", "res_tu"]] },
     ] },
     // 右手 6 个：每 2 个一种属性伤害 +%（火 火 土 土 雷 雷）
-    { name: "阳维脉", color: "#70c8ff", elDmg: [["huo", 8], ["huo", 8], ["tu", 8], ["tu", 8], ["lei", 8], ["lei", 8]], nodes: [
+    { name: "阳维脉", color: "#70c8ff", elDmg: [["huo", 18], ["huo", 18], ["tu", 18], ["tu", 18], ["lei", 18], ["lei", 18]], nodes: [
       { name: "肩井", x: 252, y: 222, xue: [["阴泉", "hp"], ["阴海", "res_tu"], ["阴关", "res_mu"], ["阴府", "atk"], ["阴门", "res_jin"], ["阴池", "res_lei"], ["阴庭", "res_shui"], ["阴堂", "def"], ["阴宫", "mana"], ["阴台", "res_huo"]] },
       { name: "天髎", x: 272, y: 258, xue: [["中泉", "res_mu"], ["中海", "mana"], ["中关", "hp"], ["中府", "res_lei"], ["中门", "def"], ["中池", "res_tu"], ["中庭", "res_shui"], ["中堂", "res_jin"], ["中宫", "res_huo"], ["中台", "atk"]] },
       { name: "臑俞", x: 292, y: 293, xue: [["承泉", "res_tu"], ["承海", "hp"], ["承关", "res_jin"], ["承府", "mana"], ["承门", "res_shui"], ["承池", "res_mu"], ["承庭", "res_huo"], ["承堂", "atk"], ["承宫", "res_lei"], ["承台", "def"]] },

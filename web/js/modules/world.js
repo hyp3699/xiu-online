@@ -1161,8 +1161,9 @@ G.module({
       // 法宝伤害：攻击 × 伤害%，按「防御×RES_RATE + 该系抗性 − 无视抗性」减免；再加附加伤害 = 主伤害 × %
       const lgBB = this.lgBonus ? this.lgBonus() : { dmg: {}, dr: {} }, lgB = lgBB.dmg || {}, lgDr = lgBB.dr || {}, lgD = el => lgB[el && el.id || el] || 0, lgR = (el, D) => { zfEl = el; return lgDr[el && el.id || el] || 0; };   // 主动阵法不在这里减：记下属性，等保底伤害、境界伤害都加完后在 him() 里减，最低 1 点（用户定 2026-11-14）
       let zfEl = null;   // 灵果：lgD 该系属性伤害直接加；lgR 受到该系属性伤害直接减   // 灵果：该系属性伤害直接加   // 阵法室按次收费：D = 本次伤害（已算完其他倍率），实力测试（TEST）不扣灵气
-      const fabaoDmg = (fb, D = m) => {
-        let d = Math.max(MIN(st), EL(fb.atk * atkK() * fb.pct / 100, D, fb.el, myL, fb.ign));   // 神通加的攻击也生效
+      // K = 伤害加成（经脉 × 神纹/灵根/神识相加），先乘进去再减对方防御、抗性（用户定 2026-11-18）
+      const fabaoDmg = (fb, D = m, K = 1) => {
+        let d = Math.max(MIN(st), EL(fb.atk * atkK() * fb.pct / 100 * K, D, fb.el, myL, fb.ign));   // 神通加的攻击也生效
         let ex = 0; for (const x of fb.extra) ex += d * x.pct / 100;   // 附加伤害：主伤害 × %
         return d + ex + (fb.addDmg || 0);   // v152 强化附加伤害（固定数字）；法宝融合已取消，不再有融合加成
       };
@@ -1189,7 +1190,7 @@ G.module({
         usedN[j] = (usedN[j] || 0) + 1;
         s.mana -= cost;
         if (a.k === 1) { const sp = a.sp, F = sp.stn && sp.stn.fx || {}, up = sp.stn ? (F.t === "pshield" && mShield ? 1 + F.p / 100 : F.t === "hp50" && mhp > m.hp * 0.5 ? 1 + F.p / 100 : 1) : 1;   // 神通：破盾 / 对手生命高于一半 增伤
-          let d = roll(st, mE(), X => Math.max(MIN(st), EL((sp.stn ? st.atk : sp.atk * atkK()) * (sp.pct + (sp.fuPct || 0)) / 100 * sp.mul + (sp.jyDmg || 0), X, sp.el.id, myL)) * jmUp(sp.el.id) * dmgAdd(swSp, lgSp(sp.el), ssSp) * up, 1, j, !!sp.stn);   // 融合：+% 加进法术% 里；法术吃灵根法术伤害%；经脉该系属性伤害 +%（神通固定 99% 命中）
+          let d = roll(st, mE(), X => Math.max(MIN(st), EL(((sp.stn ? st.atk : sp.atk * atkK()) * (sp.pct + (sp.fuPct || 0)) / 100 * sp.mul + (sp.jyDmg || 0)) * jmUp(sp.el.id) * dmgAdd(swSp, lgSp(sp.el), ssSp) * up, X, sp.el.id, myL)), 1, j, !!sp.stn);   // 融合：+% 加进法术% 里；法术吃灵根法术伤害%；经脉该系属性伤害 +%（神通固定 99% 命中）
           if (d > 0) d += lgD(sp.el.id);   // 灵果属性伤害：最后直接加，不吃任何加成
           if (sp.stn) { if (act.f !== 1) stFx(sp.stn, d, up > 1); return d; }   // 神通附加效果（没闪避才触发）
           if (!opt.test) { const xd = CFG.gongfa.XD_GAIN === undefined ? 1 : CFG.gongfa.XD_GAIN; if (xd > 0) { const X = this.s.spXd = this.s.spXd || {}; X[sp.el.id] = (X[sp.el.id] || 0) + xd; act.x = (act.x || 0) | 256; } }   // v239 法术心得
@@ -1199,7 +1200,7 @@ G.module({
         if (isBm && txP > 0 && Math.random() * 100 < txP) txGo = true;
         if (fb.shield) { shield = Object.assign({ el: fb.el }, fb.shield, { def: st.def * (fb.shield.defPct || 0) / 100, hp: st.hp * (fb.shield.hpPct || 0) / 100 + (fb.shield.hpAdd || 0) });   // 盾防御 = 祭盾时全部防御 × %
           act = { k: 3, sp: j, f: 0 }; return 0; }
-        let d = roll(fb.hit || fb.critAdd ? Object.assign({}, st, { hit: st.hit + (fb.hit || 0), crit: st.crit + (fb.critAdd || 0) }) : st, mE(), X => fabaoDmg(fb, X) * jmUp(fb.el) * pjK * dmgAdd(ssFb, swSp, lgSp(fb.el)), 2, j);   // 主神纹、灵根的伤害加成对法宝（含本命）也有效（用户定 2026-11-18）   // 经脉该系属性伤害 +%   // 刀 / 锤专属：本次攻击额外命中、暴击
+        let d = roll(fb.hit || fb.critAdd ? Object.assign({}, st, { hit: st.hit + (fb.hit || 0), crit: st.crit + (fb.critAdd || 0) }) : st, mE(), X => fabaoDmg(fb, X, jmUp(fb.el) * pjK * dmgAdd(ssFb, swSp, lgSp(fb.el))), 2, j);   // 主神纹、灵根的伤害加成对法宝（含本命）也有效（用户定 2026-11-18）   // 经脉该系属性伤害 +%   // 刀 / 锤专属：本次攻击额外命中、暴击
         if (act.f === 2 && fb.crit) d *= fb.crit / 100 / BT.CRIT_MULT;   // 锤：暴击伤害 %（代替普通暴击倍率）
         if (d > 0) d += lgD(fb.el);   // 灵果属性伤害：最后直接加，不吃任何加成
         if (act.f !== 1) {
@@ -1228,7 +1229,7 @@ G.module({
         else if (F.t === "drain") { const v = (m.mana || 0) * F.p / 100; if (v > 0) { m.mana -= v; act.st = `{T}法力减少 ${U.fmt(v)}`; } }
         else if (boosted) act.st = F.t === "pshield" ? `对护盾额外造成 ${F.p}% 伤害` : `对手生命高于一半，伤害提升 ${F.p}%`;
       };
-      const est = a => a.k === 1 ? Math.max(MIN(st), EL((a.sp.stn ? st.atk : a.sp.atk * atkK()) * (a.sp.pct + (a.sp.fuPct || 0)) / 100 * a.sp.mul + (a.sp.jyDmg || 0), m, a.sp.el.id, myL)) * jmUp(a.sp.el.id) * dmgAdd(swSp, lgSp(a.sp.el), ssSp) + lgD(a.sp.el.id) : a.fb.shield ? -1 : fabaoDmg(a.fb) * jmUp(a.fb.el) * dmgAdd(ssFb, swSp, lgSp(a.fb.el)) + lgD(a.fb.el);
+      const est = a => a.k === 1 ? Math.max(MIN(st), EL(((a.sp.stn ? st.atk : a.sp.atk * atkK()) * (a.sp.pct + (a.sp.fuPct || 0)) / 100 * a.sp.mul + (a.sp.jyDmg || 0)) * jmUp(a.sp.el.id) * dmgAdd(swSp, lgSp(a.sp.el), ssSp), m, a.sp.el.id, myL)) + lgD(a.sp.el.id) : a.fb.shield ? -1 : fabaoDmg(a.fb, m, jmUp(a.fb.el) * dmgAdd(ssFb, swSp, lgSp(a.fb.el))) + lgD(a.fb.el);
       const costOf = a => a.k === 1 ? a.sp.mana : a.fb.mana;
       const jOf = key => acts.findIndex(a => a.key === key);
       const ordIdx = key => { const i = (BS.order || []).indexOf(key); return i < 0 ? 999 + jOf(key) : i; };
