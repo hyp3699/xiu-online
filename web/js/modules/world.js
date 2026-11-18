@@ -1178,7 +1178,7 @@ G.module({
       let res2 = false;
       const ssG = k => this.ssGfSum ? this.ssGfSum(k) : 0, ssSpM = Math.max(0, 1 - ssG("spMana") / 100), ssFbM = Math.max(0, 1 - ssG("fbMana") / 100), ssFb = 1 + ssG("fbDmg") / 100;   // 神识功法《御法凝神篇》《驭宝通灵诀》（用户定 2026-11-17）
       const ssSp = 1 + ssG("spDmg") / 100, swSp = 1 + (this.sjSwBonus ? this.sjSwBonus().spDmg || 0 : 0) / 100;   // 神通算法术类：主神纹法术伤害、灵根本系法术伤害、神识功法都加（用户定 2026-11-18）；本命法宝本来就按法宝算   // 主神纹：法术伤害 +%
-      const dmgAdd = (...ms) => 1 + ms.reduce((n, x) => n + x - 1, 0);   // 主神纹、灵根、神识功法的伤害 % 相加，不相乘（用户定 2026-11-18）
+      const dmgAdd = (...ms) => 1 + ms.reduce((n, x) => n + x - 1, 0);   // 经脉、主神纹、灵根、神识功法的伤害 % 相加，不相乘（用户定 2026-11-18）
       const lgSp = el => this.lingenSp ? this.lingenSp(el && el.id || el) : 1;   // 灵根：本系法术伤害 +%（用户定 2026-11-14）
       const jmUp = el => 1 + (this.jmElDmg ? this.jmElDmg(el) : 0) / 100, jmDn = el => 1 - (this.jmElCut ? this.jmElCut(el) : 0) / 100;   // 经脉：手部 +% / 腿部 −%（config/jingmai.js elDmg / elCut）
       const cast = (j, res) => {
@@ -1190,7 +1190,7 @@ G.module({
         usedN[j] = (usedN[j] || 0) + 1;
         s.mana -= cost;
         if (a.k === 1) { const sp = a.sp, F = sp.stn && sp.stn.fx || {}, up = sp.stn ? (F.t === "pshield" && mShield ? 1 + F.p / 100 : F.t === "hp50" && mhp > m.hp * 0.5 ? 1 + F.p / 100 : 1) : 1;   // 神通：破盾 / 对手生命高于一半 增伤
-          let d = roll(st, mE(), X => Math.max(MIN(st), EL(((sp.stn ? st.atk : sp.atk * atkK()) * (sp.pct + (sp.fuPct || 0)) / 100 * sp.mul + (sp.jyDmg || 0)) * jmUp(sp.el.id) * dmgAdd(swSp, lgSp(sp.el), ssSp) * up, X, sp.el.id, myL)), 1, j, !!sp.stn);   // 融合：+% 加进法术% 里；法术吃灵根法术伤害%；经脉该系属性伤害 +%（神通固定 99% 命中）
+          let d = roll(st, mE(), X => Math.max(MIN(st), EL(((sp.stn ? st.atk : sp.atk * atkK()) * (sp.pct + (sp.fuPct || 0)) / 100 * sp.mul + (sp.jyDmg || 0)) * dmgAdd(jmUp(sp.el.id), swSp, lgSp(sp.el), ssSp) * up, X, sp.el.id, myL)), 1, j, !!sp.stn);   // 融合：+% 加进法术% 里；法术吃灵根法术伤害%；经脉该系属性伤害 +%（神通固定 99% 命中）
           if (d > 0) d += lgD(sp.el.id);   // 灵果属性伤害：最后直接加，不吃任何加成
           if (sp.stn) { if (act.f !== 1) stFx(sp.stn, d, up > 1); return d; }   // 神通附加效果（没闪避才触发）
           if (!opt.test) { const xd = CFG.gongfa.XD_GAIN === undefined ? 1 : CFG.gongfa.XD_GAIN; if (xd > 0) { const X = this.s.spXd = this.s.spXd || {}; X[sp.el.id] = (X[sp.el.id] || 0) + xd; act.x = (act.x || 0) | 256; } }   // v239 法术心得
@@ -1200,7 +1200,7 @@ G.module({
         if (isBm && txP > 0 && Math.random() * 100 < txP) txGo = true;
         if (fb.shield) { shield = Object.assign({ el: fb.el }, fb.shield, { def: st.def * (fb.shield.defPct || 0) / 100, hp: st.hp * (fb.shield.hpPct || 0) / 100 + (fb.shield.hpAdd || 0) });   // 盾防御 = 祭盾时全部防御 × %
           act = { k: 3, sp: j, f: 0 }; return 0; }
-        let d = roll(fb.hit || fb.critAdd ? Object.assign({}, st, { hit: st.hit + (fb.hit || 0), crit: st.crit + (fb.critAdd || 0) }) : st, mE(), X => fabaoDmg(fb, X, jmUp(fb.el) * pjK * dmgAdd(ssFb, swSp, lgSp(fb.el))), 2, j);   // 主神纹、灵根的伤害加成对法宝（含本命）也有效（用户定 2026-11-18）   // 经脉该系属性伤害 +%   // 刀 / 锤专属：本次攻击额外命中、暴击
+        let d = roll(fb.hit || fb.critAdd ? Object.assign({}, st, { hit: st.hit + (fb.hit || 0), crit: st.crit + (fb.critAdd || 0) }) : st, mE(), X => fabaoDmg(fb, X, pjK * dmgAdd(jmUp(fb.el), ssFb, swSp, lgSp(fb.el))), 2, j);   // 主神纹、灵根的伤害加成对法宝（含本命）也有效（用户定 2026-11-18）   // 经脉该系属性伤害 +%   // 刀 / 锤专属：本次攻击额外命中、暴击
         if (act.f === 2 && fb.crit) d *= fb.crit / 100 / BT.CRIT_MULT;   // 锤：暴击伤害 %（代替普通暴击倍率）
         if (d > 0) d += lgD(fb.el);   // 灵果属性伤害：最后直接加，不吃任何加成
         if (act.f !== 1) {
@@ -1229,7 +1229,7 @@ G.module({
         else if (F.t === "drain") { const v = (m.mana || 0) * F.p / 100; if (v > 0) { m.mana -= v; act.st = `{T}法力减少 ${U.fmt(v)}`; } }
         else if (boosted) act.st = F.t === "pshield" ? `对护盾额外造成 ${F.p}% 伤害` : `对手生命高于一半，伤害提升 ${F.p}%`;
       };
-      const est = a => a.k === 1 ? Math.max(MIN(st), EL(((a.sp.stn ? st.atk : a.sp.atk * atkK()) * (a.sp.pct + (a.sp.fuPct || 0)) / 100 * a.sp.mul + (a.sp.jyDmg || 0)) * jmUp(a.sp.el.id) * dmgAdd(swSp, lgSp(a.sp.el), ssSp), m, a.sp.el.id, myL)) + lgD(a.sp.el.id) : a.fb.shield ? -1 : fabaoDmg(a.fb, m, jmUp(a.fb.el) * dmgAdd(ssFb, swSp, lgSp(a.fb.el))) + lgD(a.fb.el);
+      const est = a => a.k === 1 ? Math.max(MIN(st), EL(((a.sp.stn ? st.atk : a.sp.atk * atkK()) * (a.sp.pct + (a.sp.fuPct || 0)) / 100 * a.sp.mul + (a.sp.jyDmg || 0)) * dmgAdd(jmUp(a.sp.el.id), swSp, lgSp(a.sp.el), ssSp), m, a.sp.el.id, myL)) + lgD(a.sp.el.id) : a.fb.shield ? -1 : fabaoDmg(a.fb, m, dmgAdd(jmUp(a.fb.el), ssFb, swSp, lgSp(a.fb.el))) + lgD(a.fb.el);
       const costOf = a => a.k === 1 ? a.sp.mana : a.fb.mana;
       const jOf = key => acts.findIndex(a => a.key === key);
       const ordIdx = key => { const i = (BS.order || []).indexOf(key); return i < 0 ? 999 + jOf(key) : i; };
@@ -2652,7 +2652,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
     // 秘境 / 灵地怪物：属性在 js/data/mobs.js 按 config/mobs.js 生成
     makeMjMob(i, kind, k) {
       if (k === "ys") { const d = this.mjDef(i, k); return this.makeMob(d.a, DATA.regionCount - 1, kind); }   // 宗门秘境：所在地图北域的怪
-      const d = this.mjDef(i, k), b = DATA.mobMeet(d, kind), wn = k === "ld" && d && d.w ? ((DATA.worlds.find(o => o.id === d.w) || {}).name || "凡界") : "秘境", v = (x, k) => x * DATA.mobRnd(k, wn);   // 灵地按所在界，凡界秘境按「秘境」
+      const d = this.mjDef(i, k), b = DATA.mobMeet(d, kind), wn = k === "ld" && d && d.w ? ((DATA.worlds.find(o => o.id === d.w) || {}).name || "凡界") : k === "ys" ? DATA.mobWn(d.a) : DATA.mobWn(d && d.find ? d.find.map : d && d.drops), v = (x, k) => x * DATA.mobRnd(k, wn);   // 灵地按所在界，凡界秘境按「秘境」
       const pick = kind === "boss" ? -1 : Math.floor(Math.random() * d.monsters.length), name = kind === "boss" ? d.bossName : (kind === "elite" ? "精英·" : "") + d.monsters[pick];
       const img = `${k === "ld" ? "ld" : "mj"}${i}_${pick + 1}`;   // 秘境 / 灵地怪物图：img/mob/mj第几处_序号.webp（0 = 首领，1~4 = monsters 顺序），灵地 ld 开头
       return this.addMagic({ name, img, rw: wn, Lm: d.L, kind, boss: kind === "boss", elite: kind === "elite", elKey: kind === "boss" ? `${k === "ld" ? "ld" : "mj"}:${i}` : "",
