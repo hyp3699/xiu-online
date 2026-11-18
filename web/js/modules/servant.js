@@ -122,7 +122,9 @@ G.module({
         return this.modal(`<h2>${J.name}</h2>${rows}
           <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
       }
-      const slots = J.els.map(el => { const i = L.findIndex(d => d.job === job && d.el === el);
+      const slotEl = J.N ? (() => { const on = L.map((d, i) => [d, i]).filter(([d]) => d.job === job); return Array.from({ length: J.N }, (_, k) => on[k] ? [on[k][0].el, on[k][1]] : [J.els[0], -1]); })()   // 有 N：同一五行可派 N 个
+        : J.els.map(el => [el, L.findIndex(d => d.job === job && d.el === el)]);
+      const slots = slotEl.map(([el, i]) => {
         return `<div class="line"><div>${C.EL[el]}${i >= 0 ? `：${this.svName(L[i])} ${L[i].lv}级` : "：空"}</div>${i >= 0 ? `<button class="sm" onclick="G.svSetJob(${i},null,'${job}')">撤回</button>` : ""}</div>`; }).join("");
       const cand = L.map((d, i) => [d, i]).filter(([d]) => J.els.includes(d.el) && d.job !== job);
       this.modal(`<h2>${J.name}<small> ${this.svJobTotal(job)}</small></h2>${slots}
@@ -134,7 +136,9 @@ G.module({
       const L = this.s.servants, d = L[i]; if (!d) return;
       if (job === "lk") return this.log("驻守灵矿请在灵矿里选择道童。", "sys");
       if (d.job === "lk" && this.lkSettle) { this.lkSettle(true); delete d.lkA; }   // 原来管灵矿：先结算再改差事
-      if (job) L.forEach(x => { if (x.job === job && x.el === d.el) x.job = null; });
+      const J = job && CFG.servant.JOB[job];
+      if (J && J.N) { if (d.job !== job && L.filter(x => x.job === job).length >= J.N) return this.log(`${J.name}最多派 ${J.N} 个道童。`, "sys"); }   // 辅助修炼：最多 N 个
+      else if (job) L.forEach(x => { if (x.job === job && x.el === d.el) x.job = null; });
       d.job = job; this.after(); this.openSvJob(back);
     },
   },

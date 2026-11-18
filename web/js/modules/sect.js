@@ -82,7 +82,7 @@ G.module({
     roomOver() { const C = CFG.sect, st = (this.sectInfo() || {}).star || 1, base = (C.REQ_REALM || [])[st - 1], span = +C.ROOM_REALM_SPAN || 2;
       if (base === undefined || this.s.mortal) return 0; return Math.max(0, Math.floor((this.r() - Math.max(0, base)) / span)); },   // 境界高出几档
     roomEff(p) { return Math.max(0, p - this.roomOver() * (+CFG.sect.ROOM_REALM_CUT || 0)); },   // 每高一档直接减 ROOM_REALM_CUT 个百分点（用户定），最低 0
-    roomPct(i) { return this.roomEff(DATA.rooms[i].pct + 30 * this.starStep()); },   // 修炼室：每两星直接 +30 点，不再 × 星数；× 境界效率
+    roomPct(i) { return this.roomEff(DATA.rooms[i].pct); },   // 修炼室：1~10 星宗门一样（用户定 2026-11-18，原每两星 +30），境界每高一档 −ROOM_REALM_CUT
     roomCost(i) { return DATA.rooms[i].cost; },   // v99：写多少就是多少，不乘星级
     roomLocked(i) { return (DATA.rooms[i].rank || 0) > this.s.rank; },
     gfStarBonus() { return 10 * this.starStep(); },   // 练功房：每两星 +10（3~4 星 +10 … 9~10 星 +40）
@@ -312,7 +312,7 @@ G.module({
     setAffairTab(t) { this.affairTab = t; this.render(); },
 
     /* ---------- 免费修炼室 / 免费练功房（config/sect.js 的 freeRoom / freeGfRoom） ---------- */
-    freeCultPct() { const p = CFG.sect.freeRoom.pct; return p ? this.roomEff(p + 30 * this.starStep()) : this.roomPct(0); },
+    freeCultPct() { const p = CFG.sect.freeRoom.pct; return p ? this.roomEff(p) : this.roomPct(0); },
     freeGfPct() { const p = CFG.sect.freeGfRoom.pct; return p ? this.roomEff(p + this.gfStarBonus()) : this.gfRoomPct(0); },
     freeCultOn() { const f = this.s.freeCult; return !!(this.s.sect && f && f.on && f.left > 0); },
     freeGfOn() { const f = this.s.freeGf; return !!(this.s.sect && f && this.now() < f.end); },

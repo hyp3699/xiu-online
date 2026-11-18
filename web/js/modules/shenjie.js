@@ -176,7 +176,8 @@ G.module({
     // 重天倍率：第一重天 1 倍 → 最后一重天 ZY_LAST 倍
     sjZyK(z) { const n = Math.max(1, (DATA.worldMapIdx.shen || []).length - 1); return 1 + Math.min(1, this.sjWi(z.a) / n) * ((this.sjC().ZY_LAST || 3) - 1); },
     // 每级 %：按重天倍率分（第一重天 1 份、最后一重天 ZY_LAST 份），10 重天同一种全满合计 ZY_PCT[种类]%
-    sjZyStep(z) { const C = this.sjC(), M = DATA.worldMapIdx.shen || [], sum = M.reduce((t, a) => t + this.sjZyK({ a }), 0) || 1; return (((C.ZY_PCT || {})[z.k]) ?? (C.ZY_PCT_MAX || 27)) * this.sjZyK(z) / (sum * (C.ZY_MAX || 36)); },
+    sjZyStep(z) { const C = this.sjC(); if ((C.ZY_MAP_PCT || {})[z.k] != null) return C.ZY_MAP_PCT[z.k] / (C.ZY_MAX || 36);   // 修炼 / 炼体真意：每重天固定
+      const M = DATA.worldMapIdx.shen || [], sum = M.reduce((t, a) => t + this.sjZyK({ a }), 0) || 1; return (((C.ZY_PCT || {})[z.k]) ?? (C.ZY_PCT_MAX || 27)) * this.sjZyK(z) / (sum * (C.ZY_MAX || 36)); },
     sjZyVal(z, lv) { return Math.round(this.sjZyStep(z) * (lv == null ? z.lv : lv) * 1000) / 1000; },   // 这条真意加的 %
     // 每条真意（第几重天 × 哪种）固定用 2 种神像物品：全部 10 重天 × 10 种依次取 8 选 2 的组合，挑用得最少的，打乱顺序（固定种子），每种物品用的次数一样多
     sjZyItems(z) {
@@ -194,7 +195,7 @@ G.module({
         }
         this._zyItem = { key: L.join() + "|" + K.length + "|" + nM, out };
       }
-      const idx = this.sjWi(z.a) * K.length + Math.max(0, K.indexOf(z.k)), p = this._zyItem.out[idx % this._zyItem.out.length];
+      const B = 10, ki = Math.max(0, K.indexOf(z.k)), idx = ki < B ? this.sjWi(z.a) * B + ki : nM * B + this.sjWi(z.a) * (K.length - B) + (ki - B), p = this._zyItem.out[idx % this._zyItem.out.length];
       return p.map(i => L[i]);
     },
     sjZyCost(z) { const C = this.sjC(), L = z.lv + 1, k = this.sjZyK(z); return { yl: Math.round((C.ZY_YL || 3600) * L * k), stone: Math.round((C.ZY_STONE || 36000) * L * k), items: this.sjZyItems(z).map(x => ({ k: x, n: (C.ZY_ITEM_N || 0) * L })) }; },
@@ -505,7 +506,7 @@ G.module({
     // 修炼真意弹窗：需要的物品（带图片）+ 升级后效果
     openSjZy(i) {
       const J = this.sjS(), C = this.sjC(), M = C.ZY_MAX || 36, z = J.zy[+i]; if (!z) return;
-      const nm = `境界${this.sjAttrName(z.k)}`, cur = `${nm} +${this.sjZyVal(z).toFixed(2)}%`;
+      const nm = z.k === "cult" ? "修为修炼速度" : z.k === "body" ? "炼体速度" : `境界${this.sjAttrName(z.k)}`, cur = `${nm} +${this.sjZyVal(z).toFixed(2)}%`;
       if (z.lv >= M) return this.modal(`<h2>${this.sjZyName(z.k)}<small> ${z.lv} / ${M} 级</small></h2><div class="card"><h3>当前效果</h3><div class="line"><div>${cur}</div></div></div><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
       const c = this.sjZyCost(z), s = this.s, ln = (img, n, h, need) => `<div class="line"><div>${DATA.li(img)}${n}</div><b class="${h >= need ? "" : "c-red"}">${U.fmt(h)} / ${U.fmt(need)}</b></div>`;
       const rows = ln(DATA.iconImg("yuanli"), "愿力", s.yuanli, c.yl) + ln(DATA.iconImg("stone"), "灵石", s.stone, c.stone) + c.items.map(x => ln(DATA.smIcon(x.k), DATA.smName(x.k), this.smCount(x.k), x.n)).join("");

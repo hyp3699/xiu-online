@@ -28,6 +28,7 @@ G.module({
     jmUsed() { let c = 0; const N = this.jmNodes().length; for (let i = 0; i < N; i++) if (this.jmStarted(i)) c++; return c; },
     jmReq(node) { const d = this.jmNodes()[node], a = d && d.m.realm; return Array.isArray(a) && a[d.j] !== undefined ? +a[d.j] : -1; },   // 开启需要的境界，-1 = 不限
     jmCutOf(node) { const d = this.jmNodes()[node], a = d && d.m.gfCut; return Array.isArray(a) ? +a[d.j] || 0 : +a || 0; },   // 冲满后功法修炼时间 −%
+    jmSpdPct() { const N = this.jmNodes().length, X = this.jmXN(); let n = 0; for (let i = 0; i < N; i++) if (this.jmCur(i) >= X) n++; return n * (+(CFG.jingmai || {}).NODE_SPD_PCT || 0); },   // 冲满光点：修为、炼体速度 +%
     jmGfCut() { return this.jmMemo("gfcut", () => this.jmGfCut0()); },
     jmGfCut0() { const N = this.jmNodes().length; let t = 0; for (let i = 0; i < N; i++) if (this.jmCur(i) >= this.jmXN()) t += this.jmCutOf(i); return t; },   // 已冲满光点合计
     jmElOf(node, key) { const d = this.jmNodes()[node], a = d && d.m[key], e = Array.isArray(a) ? a[d.j] : null; return Array.isArray(e) && e[0] ? [e[0], +e[1] || 0] : null; },   // [属性, %]
@@ -163,6 +164,7 @@ G.jmCostBar = function () {
 G.jmSumTxt = function () {
   const en = id => (DATA.elById[id] || {}).name || id, t = [], c = this.jmGfCut(), d = this.jmEl("elDmg"), r = this.jmEl("elCut");
   if (c) t.push(`功法修炼时间 -${U.num(c)}%`);
+  const sp = this.jmSpdPct(); if (sp) t.push(`修炼、炼体速度 +${U.num(sp)}%`);
   for (const k in d) t.push(`${en(k)}伤害 +${U.num(d[k])}%`);
   for (const k in r) t.push(`受${en(k)}伤害 -${U.num(Math.min(100, r[k]))}%`);
   return t.length ? `<p class="desc jm-info" style="text-align:center">经脉：${t.join(" · ")}</p>` : "";
@@ -184,6 +186,7 @@ G.jmNodeStats = function (node) {
   const X = this.s.jmx || {}; let sc = 0, sb = 0; for (let x = 0; x < this.jmXN(); x++) { const v = X[node * this.jmXN() + x]; if (v) { sc += +v[0] || 0; sb += +v[1] || 0; } }
   if (sc) t.push(["修炼速度", U.fmt(sc)]); if (sb) t.push(["练体速度", U.fmt(sb)]);
   if (this.jmCur(node) >= this.jmXN()) { const en = id => (DATA.elById[id] || {}).name || id, c = this.jmCutOf(node), ed = this.jmElOf(node, "elDmg"), ec = this.jmElOf(node, "elCut");
+    { const p = +(CFG.jingmai || {}).NODE_SPD_PCT || 0; if (p) t.push(["修炼、炼体速度", `+${U.num(p)}%`]); }
     if (c) t.push(["功法修炼时间", `-${U.num(c)}%`]); if (ed) t.push([`${en(ed[0])}属性伤害`, `${U.num(ed[1])}%`]); if (ec) t.push([`受到${en(ec[0])}属性伤害`, `-${U.num(ec[1])}%`]); }
   if (!t.length) return "";
   return `<div class="jm-nst"><div class="jm-nst-t">已增加属性</div><div class="jm-nst-g">${t.map(([a, b]) => `<span>${a} <b>${b}</b></span>`).join("")}</div></div>`;

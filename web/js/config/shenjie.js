@@ -117,12 +117,13 @@ CFG.shenjie = {
   DC_ZY: 12,                     // 每感悟满几次随机得一种真意（0 级）
 
   // 真意：防御 / 攻击 / 生命 / 法力 + 六系抗性（res_金 等），共 10 种
-  ZY_KINDS: ["def", "atk", "hp", "mana", "res_jin", "res_mu", "res_shui", "res_huo", "res_tu", "res_lei"],
-  ZY_NAME: { def: "防御", atk: "攻击", hp: "生命", mana: "法力" },   // 抗性真意名字 = 属性名 + 「抗」（如 火抗真意）
+  ZY_KINDS: ["def", "atk", "hp", "mana", "res_jin", "res_mu", "res_shui", "res_huo", "res_tu", "res_lei", "cult", "body"],   // cult 修炼真意 / body 炼体真意（用户定 2026-11-18，加修为 / 炼体修炼速度 %）
+  ZY_NAME: { def: "防御", atk: "攻击", hp: "生命", mana: "法力", cult: "修炼", body: "炼体" },   // 抗性真意名字 = 属性名 + 「抗」（如 火抗真意）
   ZY_MAX: 36,                    // 每种最高几级（得到时 0 级）
   ZY_PCT_MAX: 27,                // 未在 ZY_PCT 里列出的种类用这个（原 52 → 39 → 27）
   // 每种真意 10 重天全满合计 +%（用户定 2026-11-13）：攻防 36、生命 49、法力 39、每系抗性 31；按重天倍率 ZY_LAST 分（第一重天 1 份、最后一重天 3 份）
   ZY_PCT: { atk: 36, def: 36, hp: 49, mana: 39, res_jin: 31, res_mu: 31, res_shui: 31, res_huo: 31, res_tu: 31, res_lei: 31 },
+  ZY_MAP_PCT: { cult: 9, body: 9 },   // 这几种不分重天倍率：每重天满级固定 +%（10 重天合计 90%，用户定 2026-11-18）
   ZY_YL: 3600,                   // 升到第 L 级：愿力 3600 × L × 重天倍率
   ZY_STONE: 36000,               // 升到第 L 级：灵石 36000 × L × 重天倍率
   ZY_ITEM_N: 81,                 // 修炼真意还要 2 种神像物品（SX_ITEM 里，每条真意固定 2 种，10 重天全部真意平均分配），升到第 L 级每种 81 × L 个（用户定 2026-11-12）

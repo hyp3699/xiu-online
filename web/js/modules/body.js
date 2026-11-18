@@ -60,10 +60,10 @@ G.module({
       // 修为修炼在跑时由 cultivate.tick() 扣次数 / 贡献；只开肉身时由 body tick 自己扣（bodyRoomCharge），不会白嫖。
       const room = this.roomActive() ? (this.freeCultOn && this.freeCultOn() ? this.freeCultPct() : s.room >= 0 && s.sect && this.roomPct ? this.roomPct(s.room) : 0) : 0;
       const arr = this.arrayFactor ? Math.max(0, (this.arrayFactor() - 1) * 100) : 0;   // 聚灵阵效率 %，同修为修炼
-      const mfPct = M.bodySpeedPct || 0, svPct = this.servantPct ? this.servantPct("cult") : 0, pct = mfPct + svPct + room + arr;   // 炼体秘法圆满额外 % + 道童辅助修炼 % + 修炼室 % + 聚灵阵 %
+      const mfPct = M.bodySpeedPct || 0, svPct = this.servantPct ? this.servantPct("cult") : 0, jmPct = this.jmSpdPct ? this.jmSpdPct() : 0, zyPct = this.sjPct ? this.sjPct().body || 0 : 0, pct = mfPct + svPct + room + arr + jmPct + zyPct;   // + 经脉光点冲满 % + 神界炼体真意 %   // 炼体秘法圆满额外 % + 道童辅助修炼 % + 修炼室 % + 聚灵阵 %
       const jm = this.jmFull ? this.jmFull().body : 0;   // 经脉穴位冲满：直接加数值（jingmai.js）
       const xw = DATA.crossSpeed(s.mortal ? 0 : s.L + 1);   // 修为突破加肉身修炼速度（config/realm.js CROSS_SPEED）
-      return { base, gf, gfB, lgB, sjB, mf, xw, mfPct, svPct, ori: this.oriSum ? this.oriSum("bodyPct") + this.oriSum("cultPct") : 0, room, arr, pct, jm, total: Math.floor(((base + gf + mf + xw) * (1 + pct / 100) + jm) * 100) / 100 };   // 保留两位小数：速度很小时修炼室等百分比加成也能生效
+      return { base, gf, gfB, lgB, sjB, mf, xw, mfPct, svPct, jmPct, zyPct, ori: this.oriSum ? this.oriSum("bodyPct") + this.oriSum("cultPct") : 0, room, arr, pct, jm, total: Math.floor(((base + gf + mf + xw) * (1 + pct / 100) + jm) * 100) / 100 };   // 保留两位小数：速度很小时修炼室等百分比加成也能生效
     },
     // 突破到第 T 层的消耗
     bodyCost(T) {
