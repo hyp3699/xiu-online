@@ -18,17 +18,17 @@ test("灵果：服用永久加属性，无上限；修为 / 气血速度加数�
   G.addSeed(D.LG_BASE + 3, 1); assert.equal(G.sellPrice(s.bag.find(x => x && x.t === "seed")), 100);
 });
 
-test("灵果种植：72 小时、扣 240 万灵气和 1 颗种子，收获 1~3 颗进传音", () => {
+test("灵果种植：81 小时、扣 240 万灵气和 1 颗种子，收获 1~3 颗进传音", () => {
   const { G, D, s } = mk(); s.stone = 1e9; s.ling = 3e6;
   const g = D.LG_BASE + 5; G.addSeed(g, 2); [0, 1, 2].forEach(g => G.addMat("ore", D.ores[g], g, 5000)); G.openField(); G.plantField(0, g);
   assert.equal(s.fields[0].g, g); assert.equal(s.ling, 600000); assert.equal(G.seedCount(g), 1);
-  assert.equal(D.growTime(g), 72 * 3600000);
+  assert.equal(D.growTime(g), 81 * 3600000);
   s.ling = 3e6; s.fields[0].start -= G.fieldTime(g) + 1000; G.tickAll(false);
   const got = G.mailboxList().filter(x => x && x.it && x.it.t === "lg" && x.it.k === 5).reduce((t, x) => t + x.it.n, 0);   // 灵药园产出进传音（2026-11-17）
   assert.ok(got >= 1 && got <= 3); assert.equal(G.seedCount(g), 0);
 });
 
-test("灵果种子：秘境掉落（金丹以上、每人每天每种最多 2）；隐世宗门 18 个各一种，每天一次扣 10 好感", () => {
+test("灵果种子：秘境掉落（金丹以上、每人每天每种最多 1）；隐世宗门 18 个各一种，每天一次扣 30 好感", () => {
   const { G, D, C, s } = mk();
   C.garden.LINGGUO.DROP_PCT = 100;
   const lo = C.mijing.list.findIndex(d => (d.realm || 0) < 2), hi = C.mijing.list.findIndex(d => (d.realm || 0) >= 2);
@@ -37,7 +37,7 @@ test("灵果种子：秘境掉落（金丹以上、每人每天每种最多 2）
   assert.equal(total, 18 * C.garden.LINGGUO.DROP_DAY_MAX); assert.ok(Object.values(s.lgDrop.n).every(n => n === C.garden.LINGGUO.DROP_DAY_MAX));
   C.garden.LINGGUO.DROP_PCT = 15;
   const map = s.lgYs; assert.equal(Object.keys(map).length, 18); assert.equal(new Set(Object.values(map)).size, 18);
-  const id = Object.keys(map)[0]; G.ysFound = () => true; s.ysFav = { [id]: 25 };
+  const id = Object.keys(map)[0]; G.ysFound = () => true; s.ysFav = { [id]: 65 };
   G.ysBuyLgSeed(id); G.ysBuyLgSeed(id);
-  assert.equal(G.seedCount(D.LG_BASE + map[id]), 1); assert.equal(s.ysFav[id], 15);
+  assert.equal(G.seedCount(D.LG_BASE + map[id]), 1); assert.equal(s.ysFav[id], 35);
 });

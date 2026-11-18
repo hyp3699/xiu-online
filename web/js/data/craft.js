@@ -112,7 +112,7 @@ DATA.isLg = g => g >= DATA.LG_BASE;
 DATA.lgDef = i => (DATA.LG().list || [])[i];
 DATA.lgN = () => (DATA.LG().list || []).length;
 DATA.lgImg = i => `img/lg/${i}.png?v=${DATA.IMG_V}`;
-DATA.lgLab = k => k.startsWith("dmg_") ? ((DATA.elById[k.slice(4)] || {}).name || "") + "系属性伤害" : k.startsWith("dr_") ? ((DATA.elById[k.slice(3)] || {}).name || "") + "系属性减伤"
+DATA.lgLab = k => k.startsWith("dmg_") ? "增加" + ((DATA.elById[k.slice(4)] || {}).name || "") + "系真实伤害" : k.startsWith("dr_") ? "减少" + ((DATA.elById[k.slice(3)] || {}).name || "") + "系真实伤害"
   : { atk: "攻击", def: "防御", hp: "生命", mana: "法力", cult: "修为修炼速度", body: "气血修炼速度" }[k] || k;
 DATA.herbGrow = g => { if (DATA.isLg(g)) { const L = DATA.LG(); return DATA.lgDef(g - DATA.LG_BASE) ? { grow: L.GROW || 4320, ling: L.LING || 0, yield: [1, 3], lg: 1 } : undefined; } const h = _GA.herbs[DATA.herbs[g]]; if (!h || h.ling != null) return h; return Object.assign({}, h, { ling: h.div ? Math.round((h.yield || [0])[0] * DATA.matPrice("herb", g) * ((DATA.array || {}).STONE_LING || 0) / h.div) : 0 }); };   // 种植灵气 = 最低产量 × 售价 × 1 灵石灵气 ÷ div；没写 div 的药材灵气按 0 算，不返回 undefined（否则扣灵气会变 NaN）
 DATA.cropName = g => DATA.isLg(g) ? (DATA.lgDef(g - DATA.LG_BASE) || {}).name || "灵果" : DATA.herbs[g];
