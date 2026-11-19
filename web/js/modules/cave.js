@@ -67,6 +67,7 @@ G.module({
     zqEff() { const Z = CFG.zhenqi, o = { gather: 0, cut: 0 }; if (!Z) return o;
       for (const z of this.s.zqSlot || []) if (z) { o.gather += this.zqOne(z.ft, Z.GATHER_PCT || []); o.cut += this.zqOne(z.ft, Z.LING_CUT || []); }
       o.cut = Math.min(100, o.cut); return o; },
+    zqTxt(ft) { const Z = CFG.zhenqi; return `聚灵 +${U.dec(this.zqOne(ft, Z.GATHER_PCT || []))}% · 灵气消耗 −${U.dec(this.zqOne(ft, Z.LING_CUT || []))}%`; },   // 一面阵旗的效果
     zqLingK() { return 1 - this.zqEff().cut / 100; },   // 灵气消耗乘这个
     gatherLz() { return (this.s.lzSlot || []).reduce((t, z) => t + (z ? z.v : 0), 0); },   // 灵珠格聚灵
     lingCap() { const sp = this.speed(); return Math.max(100, sp.gather * DATA.LING_CAP_GATHER + sp.total * DATA.LING_CAP_SPEED); },
@@ -169,12 +170,12 @@ G.module({
     zqSlots() { const s = this.s, N = CFG.zhenqi.SLOTS; if (!Array.isArray(s.zqSlot)) s.zqSlot = []; while (s.zqSlot.length < N) s.zqSlot.push(null); return s.zqSlot; },
     openZq(i) {
       const Z = CFG.zhenqi, z = this.zqSlots()[i];
-      if (z) return this.modal(`<h2>${DATA.li(DATA.smIcon("zq", z.ft))}${DATA.zqNm(z.ft)}<small> ${DATA.zqTier(z.ft)}</small></h2><p>${Z.DESC}</p>
+      if (z) return this.modal(`<h2>${DATA.li(DATA.smIcon("zq", z.ft))}${DATA.zqNm(z.ft)}<small> ${DATA.zqTier(z.ft)}</small></h2><p>${Z.DESC}</p><p class="c-green">${this.zqTxt(z.ft)}</p>
         <div class="btns"><button onclick="G.zqTake(${i})">取下</button><button onclick="G.closeModal()">关闭</button></div>`);
       const T = Z.TIERS * Z.GRADES.length, own = [];
       for (let ft = Z.NAMES.length * T - 1; ft >= 0; ft--) { const n = this.smCount("zq", ft); if (n > 0) own.push([ft, n]); }
       own.sort((a, b) => DATA.zqT(b[0]) - DATA.zqT(a[0]) || DATA.zqEl(a[0]) - DATA.zqEl(b[0]));   // 高阶在前
-      this.modal(`<h2>阵旗格</h2>${own.length ? own.map(([ft, n]) => `<div class="line"><div>${DATA.li(DATA.smIcon("zq", ft))}${DATA.zqNm(ft)}<small>${DATA.zqTier(ft)} · 拥有 ${n}</small></div>
+      this.modal(`<h2>阵旗格</h2>${own.length ? own.map(([ft, n]) => `<div class="line"><div>${DATA.li(DATA.smIcon("zq", ft))}${DATA.zqNm(ft)}<small>${DATA.zqTier(ft)} · 拥有 ${n}<br>${this.zqTxt(ft)}</small></div>
         <button class="sm primary" onclick="G.zqPut(${i},${ft})">放入</button></div>`).join("") : "<p>背包里没有阵旗。</p>"}
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
@@ -233,7 +234,7 @@ G.module({
       <div class="card"><div class="btns"><button onclick="G.openLingStone()">兑换灵石</button><button onclick="G.openBuyLing()">补充灵气</button></div></div>
       <div class="card"><h3>灵珠<small>聚灵 +${U.fmt(this.gatherLz())}</small></h3><div class="lz-grid">${s.lzSlot.map((z, i) => `<button class="lz-cell${z ? " has" : ""}" onclick="G.lzOpen(${i})">${z
         ? `<img class="lz-glow" src="${DATA.smIcon("lz", z.ft)}" alt=""><small>${DATA.smName("lz", z.ft)}</small><small>+${U.fmt(z.v)}</small>` : "<small>空</small>"}</button>`).join("")}</div></div>
-      <div class="card"><h3>阵旗</h3><div class="lz-grid">${this.zqSlots().map((z, i) => `<button class="lz-cell${z ? " has" : ""}" onclick="G.openZq(${i})">${z
+      <div class="card"><h3>阵旗${(e => e.gather > 0 || e.cut > 0 ? `<small>聚灵 +${U.dec(e.gather)}% · 灵气消耗 −${U.dec(e.cut)}%</small>` : "")(this.zqEff())}</h3><div class="lz-grid">${this.zqSlots().map((z, i) => `<button class="lz-cell${z ? " has" : ""}" onclick="G.openZq(${i})">${z
         ? `<img src="${DATA.smIcon("zq", z.ft)}" alt=""><small>${DATA.zqNm(z.ft)}</small><small>${DATA.zqTier(z.ft)}</small>` : "<small>空</small>"}</button>`).join("")}</div></div>`;
   },
 });

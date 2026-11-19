@@ -780,7 +780,7 @@ G.module({
       } else if (it.t === "seed") {
         h += `<p>${DATA.cropName(it.g)}的种子。洞府灵药园每种一季（含自动续种）消耗 ${this.plantSeedN ? this.plantSeedN() : 1} 颗。</p><div class="btns">${sell}</div>`;
       } else if (it.t === "sm") {
-        h += `<p>${(CFG.mijing.items[it.k] || {}).desc || ""}</p><div class="btns">${sell}</div>`;
+        h += `<p>${(CFG.mijing.items[it.k] || {}).desc || ""}</p>${it.k === "zq" && this.zqTxt ? `<p class="c-green">${this.zqTxt(it.ft || 0)}</p>` : ""}<div class="btns">${sell}</div>`;
       } else if (it.t === "book") {
         const B = CFG.start.book, has = this.hasGongfa(DATA.START_GF);
         h += `<p>秘诀 · 修炼速度每层 +${U.num(B.SPEED)} · 共 ${B.MAX} 层${has ? "<br><span class='q5'>已学会。</span>" : ""}</p>
