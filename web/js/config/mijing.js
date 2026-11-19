@@ -27,7 +27,7 @@ CFG.mijing = {
 
   // 秘境专用材料：name 名字  sell 出售价（灵石）  desc 说明  names 各属性名字（顺序固定，对应图标序号）
   items: {
-    kj:   { name: "空间晶核", sell: 10, desc: "炼制空间石的专用材料。" },
+    kj:   { name: "空间晶核", sell: 10000, desc: "炼制空间石的专用材料。" },
     // 耀石：金 木 水 火 土 雷，装备 / 戒指用任意一种，法宝要同属性（用量见 config/forge.js）
     ys:   { name: "耀石", names: ["金耀石", "木耀石", "水耀石", "火耀石", "土耀石", "雷耀石"], sell: 10,
             desc: "装备、戒指、法宝炼制和强化的专用矿石。" },
@@ -63,7 +63,7 @@ CFG.mijing = {
     { name: "灵泉洞天", find: { map: 0, chance: 5 }, drops: 0,
       bossName: "碧水蛟", monsters: ["灵泉水妖", "碧鳞鱼精", "水灵", "青藤妖"],
       extra: {
-        boss: [{ item: "耀石", chance: 100, n: [10, 20] }, { item: "灵晶", chance: 100, n: [2, 5] }, { item: "火髓", chance: 100, n: [6, 16] }, { item: "空间晶核", chance: 5, n: [0, 1] }],
+        boss: [{ item: "耀石", chance: 100, n: [10, 20] }, { item: "灵晶", chance: 100, n: [2, 5] }, { item: "火髓", chance: 100, n: [6, 16] }, { item: "空间晶核", chance: 100, n: [1, 1] }],
       } },
     { name: "苍梧原", find: { map: 1, chance: 5 }, drops: 1,
       bossName: "苍梧石精", monsters: ["石傀儡", "山魈", "石甲蜥", "噬灵鼠"],
