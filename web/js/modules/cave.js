@@ -24,6 +24,7 @@ G.module({
 
   // 每 10 秒聚集灵气
   tick() {
+    if (this.lmTick) this.lmTick();   // 隐世宗门灵脉：恢复灵气、租借按小时扣好感（world.js）
     if (this.zfTick) this.zfTick();   // 阵法室：属性阵修炼到时结算（formation.js；主动阵战斗按次收费，运转另按 10 秒扣 zfKeep）
     const cap = this.lingCap(); if (this.s.ling < cap) this.s.ling = Math.min(cap, this.s.ling + this.speed().gather);   // v207 上限只挡聚灵，上限变低时不删已有灵气
     if (this.zfKeepTick) this.zfKeepTick();   // 主动阵法运转消耗（每 10 秒，formation.js zfKeep）
@@ -56,6 +57,7 @@ G.module({
         ${(u => line("修为修炼", U.num(u.exp)) + line("肉身修炼", U.num(u.body)) + line("功法修炼", U.num(u.gf)))(this.lingUseParts())}
         ${(o => o.gf + o.exp + o.body > 0 ? line("神识功法《敛息归元诀》", "减少消耗 " + U.num(o.gf + o.exp + o.body)) : "")(this.lxShare ? this.lxShare() : { gf: 0, exp: 0, body: 0 })}
         ${line("阵法运转", U.num(this.zfKeep ? this.zfKeep() : 0))}
+        ${this.lmActive && this.lmActive() ? line("租借灵脉灵气", U.num(Math.floor(this.lmAvail())), "先扣灵脉，不够再扣聚灵阵灵气") : ""}
         ${(e => e.cut > 0 ? line("阵旗", `消耗 −${U.dec(e.cut)}%`, "其他减免算完后再减，以上各项已减") : "")(this.zqEff())}
         ${line("<b>消耗合计</b>", (u => u ? "−" + U.num(u) : "0")(this.lingUse() + (this.zfKeep ? this.zfKeep() : 0)))}
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);

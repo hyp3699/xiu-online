@@ -111,7 +111,8 @@
       const HP = st.hp, MP = st.mana, CAP = this.lingCap(), GATH = sp.gather;
       // 功法修炼
       const gs = s.gfStudy, STEP = DATA.STUDY_STEP * 1000;
-      if (gs && gs.ling !== 1) return 0;   // v246 旧存档还没转成灵气：逐个结算
+      if (gs && gs.ling !== 1) return 0;
+      if (this.lmActive && this.lmActive()) return 0;   // 租借了灵脉：灵气先扣灵脉，逐个结算   // v246 旧存档还没转成灵气：逐个结算
       const GR = gs ? this.gfRoomNow(DATA.skillInfo(gs.id, s.gongfa[gs.id] || 1)) : null, RU = this.gfRoomUnits();
       // 修为修炼
       const cultOn = this.isCultivating() && this.hasMijue() && !this.exBlocksCult();
