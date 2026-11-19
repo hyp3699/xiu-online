@@ -1207,6 +1207,7 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .cpk-rate{color:var(--t-gold2)!important;text-align:center;margin:0!important}
 .cpk-mats{display:flex;flex-wrap:nowrap;gap:4px;justify-content:center}
 .cpk-mat{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;padding:4px 2px;background:var(--c-cell);border:1px solid var(--c-edge);border-radius:6px;font-size:11px}
+.lm-cost{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
 .cpk-mat img{width:100%;max-width:40px;aspect-ratio:1;height:auto;object-fit:contain}
 .cpk-mat b{color:var(--t-sub2);font-weight:normal;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cpk-mat span{color:var(--t-good);font-size:10px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}

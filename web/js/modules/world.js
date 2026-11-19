@@ -527,66 +527,62 @@ G.module({
     },
     lmHas(id) { return id in this.lmMap(); },
     lmEl(id) { return +this.lmMap()[id] || 0; },
-    lmMax() { return Math.max(1, Math.floor(+this.lmCfg().MAX || 10)); },
-    lmCap(lv) { const C = this.lmCfg(); return DATA.geoStep(C.CAP_FIRST || 1e7, C.CAP_LAST || 1e9, lv - 1, this.lmMax()); },
-    lmRegen(lv) { return this.lmCap(lv) * (+this.lmCfg().REGEN_PCT || 0) / 100; },   // 每小时恢复
-    lmRent(lv) { const R = this.lmCfg().RENT_FAV || [1]; return Math.max(0, +(R[lv - 1] ?? R[R.length - 1]) || 0); },   // 每小时扣好感
-    lmGet(id) {   // 没有记录时按 1 阶满灵气建一条
-      const s = this.s; if (!s.lm || typeof s.lm !== "object") s.lm = {};
-      let o = s.lm[id]; if (!o || typeof o !== "object") o = s.lm[id] = { lv: 1, ling: this.lmCap(1), t: this.now(), on: false, rt: 0 };
-      o.lv = Math.max(1, Math.min(this.lmMax(), Math.floor(+o.lv) || 1)); return o;
-    },
-    lmView(id) { const o = ((this.s.lm || {})[id]) || null; return o || { lv: 1, ling: this.lmCap(1), on: false }; },   // 只读（界面用，不建记录）
+    lmW(id) { return (this.ysById(id) || {}).w || "fan"; },
+    lmMax() { return Math.max(1, Math.floor(+this.lmCfg().MAX || 13)); },
+    lmCap(id, lv) { return Math.max(0, lv) * (+(this.lmCfg().CAP_PER || {})[this.lmW(id)] || 0); },   // 灵气上限 = 阶 × 每阶（废品 0 阶 = 0）
+    lmRegen(id, lv) { return this.lmCap(id, lv) * (+this.lmCfg().REGEN_PCT || 0) / 100; },   // 每小时恢复
+    lmPrice(id) { return Math.max(0, +(this.lmCfg().BUY_FAV || {})[this.lmW(id)] || 0); },
+    lmOwn(id) { const o = (this.s.lm || {})[id]; return !!(o && o.own && this.lmHas(id)); },
+    lmLv(id) { return this.lmOwn(id) ? Math.max(0, Math.min(this.lmMax(), Math.floor(+this.s.lm[id].lv) || 0)) : 0; },
     lmTick() {
-      this.lmEnsure(); const now = this.now(), H = 3600000;
-      for (const id in this.lmMap()) { const o = this.lmGet(id), cap = this.lmCap(o.lv), dt = now - (+o.t || now);
-        if (dt > 0) o.ling = Math.min(cap, Math.max(0, +o.ling || 0) + this.lmRegen(o.lv) * dt / H);
-        if (o.ling > cap) o.ling = cap;   // 满了不涨，不删（升阶后上限只会更高）
-        o.t = now;
-        if (o.on) { if (!this.ysFound(id)) { o.on = false; continue; }
-          let n = 0; while (o.on && now - o.rt >= H && n++ < 1000) { const c = this.lmRent(o.lv);
-            if (this.ysFav(id) < c) { o.on = false; this.log(`${(this.ysById(id) || {}).name || ""}好感度不足，灵脉已归还。`, "sys"); break; }
-            this.ysFavPay(id, c); o.rt += H; } } }
+      this.lmEnsure(); const s = this.s, now = this.now(), H = 3600000;
+      if (!s.lm || typeof s.lm !== "object") return;
+      for (const id in s.lm) { const o = s.lm[id];
+        if (!o || !o.own || !this.lmHas(id)) { delete s.lm[id]; continue; }   // 旧版租借记录 / 不再分到的宗门：删掉
+        const lv = this.lmLv(id), cap = this.lmCap(id, lv), dt = now - (+o.t || now);
+        if (dt > 0) o.ling = Math.min(cap, Math.max(0, +o.ling || 0) + this.lmRegen(id, lv) * dt / H);
+        if (o.ling > cap) o.ling = cap; o.t = now; }
     },
-    lmActive() { const L = this.s.lm || {}; for (const id in L) if (L[id] && L[id].on && this.lmHas(id)) return true; return false; },
-    lmAvail() { const L = this.s.lm || {}; let t = 0; for (const id in L) if (L[id] && L[id].on && this.lmHas(id)) t += Math.max(0, +L[id].ling || 0); return t; },
-    // 要扣 need 点灵气之前调用：先从租借中的灵脉搬过来（加到 s.ling，随后照常扣），返回搬了多少
+    lmActive() { for (const id in this.s.lm || {}) if (this.lmLv(id) >= 1) return true; return false; },
+    lmAvail() { let t = 0; for (const id in this.s.lm || {}) if (this.lmLv(id) >= 1) t += Math.max(0, +this.s.lm[id].ling || 0); return t; },
+    // 要扣 need 点灵气之前调用：先从自己的灵脉（1 阶起，废品没效果）搬过来（加到 s.ling，随后照常扣），返回搬了多少
     lmFeed(need) {
       need = Math.max(0, +need || 0); if (!need || !this.s.lm) return 0; let got = 0;
-      for (const id in this.lmMap()) { const o = this.s.lm[id]; if (!o || !o.on) continue; const x = Math.min(need - got, Math.max(0, +o.ling || 0)); if (x > 0) { o.ling -= x; got += x; } if (got >= need) break; }
+      for (const id in this.s.lm) { if (this.lmLv(id) < 1) continue; const o = this.s.lm[id], x = Math.min(need - got, Math.max(0, +o.ling || 0)); if (x > 0) { o.ling -= x; got += x; } if (got >= need) break; }
       if (got > 0) this.s.ling = (this.s.ling || 0) + got; return got;
     },
-    lmRentOn(id) {
-      if (!this.lmHas(id) || !this.ysFound(id)) return; const o = this.lmGet(id); if (o.on) return;
-      const c = this.lmRent(o.lv); if (this.ysFav(id) < c) return this.log(`好感度不足，需要 ${U.fmt(c)}。`, "sys");
-      this.ysFavPay(id, c); o.on = true; o.rt = this.now(); this.log(`租下${this.ysById(id).name}灵脉，每小时扣好感度 ${U.fmt(c)}。`, "good"); this.after();
+    lmBuy(id) {
+      if (!this.lmHas(id) || !this.ysFound(id) || this.lmOwn(id)) return;
+      const c = this.lmPrice(id); if (this.ysFav(id) < c) return this.log(`好感度不足，需要 ${U.fmt(c)}。`, "sys");
+      this.ysFavPay(id, c); if (!this.s.lm || typeof this.s.lm !== "object") this.s.lm = {};
+      this.s.lm[id] = { own: 1, lv: 0, ling: 0, t: this.now() }; this.log(`买下${this.ysById(id).name}灵脉（废品）。`, "good"); this.after();
     },
-    lmRentOff(id) { const o = (this.s.lm || {})[id]; if (!o || !o.on) return; o.on = false; this.log(`已归还${(this.ysById(id) || {}).name || ""}灵脉。`, "sys"); this.after(); },
-    lmUpCost(id, lv) {   // lv 阶升到 lv+1 阶
-      const C = this.lmCfg(), I = CFG.mijing.items, M = this.lmMax(), to = lv + 1, el = this.lmEl(id);
+    lmUpCost(id, lv) {   // lv 阶升到 lv+1 阶（0 = 废品）：凡界从 FIRST 线性到 LAST，再乘本界 MUL
+      const C = this.lmCfg(), I = CFG.mijing.items, M = this.lmMax(), to = lv + 1, el = this.lmEl(id), k = +(C.MUL || {})[this.lmW(id)] || 1;
       const band = (C.ORES || []).find(b => to <= b.to) || (C.ORES || [])[(C.ORES || []).length - 1] || { names: [] };
-      const n = DATA.geoStep(C.ORE_FIRST || 1000, C.ORE_LAST || 30000, lv - 1, M - 1), ly = DATA.geoStep(C.LY_FIRST || 10, C.LY_LAST || 300, lv - 1, M - 1);
-      const hasLj = !!I.lj.names[el];   // 雷没有灵晶：雷灵脉只要雷灵元，数量 ×2
-      return { mats: DATA.parseMats(band.names.map(x => [x, n])), sm: [{ k: "ly", ft: el, n: hasLj ? ly : ly * 2, name: I.ly.names[el] }, ...(hasLj ? [{ k: "lj", ft: el, n: ly, name: I.lj.names[el] }] : [])] };
+      const lin = (f, l) => Math.round((f + (l - f) * (M > 1 ? (to - 1) / (M - 1) : 1)) * k);
+      const n = lin(C.ORE_FIRST || 13000, C.ORE_LAST || 130000), ly = lin(C.LY_FIRST || 100, C.LY_LAST || 1300);
+      return { mats: DATA.parseMats(band.names.map(x => [x, n])), sm: [{ k: "ly", ft: el, n: ly, name: I.ly.names[el] }, ...(I.lj.names[el] ? [{ k: "lj", ft: el, n: ly, name: I.lj.names[el] }] : [])] };
     },
     lmCanUp(c) { return DATA.isTest() || (this.hasMats(c.mats) && c.sm.every(x => this.smCount(x.k, x.ft) >= x.n)); },
     lmUp(id) {
-      if (!this.lmHas(id) || !this.ysFound(id)) return; const o = this.lmGet(id);
-      if (o.lv >= this.lmMax()) return this.log("灵脉已满阶。", "sys");
-      const c = this.lmUpCost(id, o.lv); if (!this.lmCanUp(c)) return this.log("材料不足。", "sys");
+      if (!this.lmOwn(id) || !this.ysFound(id)) return; const o = this.s.lm[id], lv = this.lmLv(id);
+      if (lv >= this.lmMax()) return this.log("灵脉已满阶。", "sys");
+      const c = this.lmUpCost(id, lv); if (!this.lmCanUp(c)) return this.log("材料不足。", "sys");
       if (!DATA.isTest()) { c.mats.forEach(m => this.takeMat(m.kind, m.g, m.n, false, m.ft)); c.sm.forEach(x => this.takeSm(x.k, x.n, x.ft)); }
-      o.lv++; this.log(`${this.ysById(id).name}灵脉升到 ${DATA.cnNum ? DATA.cnNum(o.lv) : o.lv} 阶，灵气上限 ${U.fmt(this.lmCap(o.lv))}。`, "good"); this.after();
+      o.lv = lv + 1; this.log(`${this.ysById(id).name}灵脉升到 ${DATA.cnNum(o.lv)} 阶，灵气上限 ${U.fmt(this.lmCap(id, o.lv))}。`, "good"); this.after();
     },
     lmHtml(id) {
-      const o = this.lmView(id), cap = this.lmCap(o.lv), M = this.lmMax(), rent = this.lmRent(o.lv), I = CFG.mijing.items, el = this.lmEl(id);
-      const line = (a, b) => `<div class="line"><div>${a}</div><div>${b}</div></div>`;
-      let up = "";
-      if (o.lv < M) { const c = this.lmUpCost(id, o.lv), cell = (src, have, need, name) => `<div class="cpk-mat${have >= need ? "" : " lack"}"><img src="${src}" alt=""><b>${name}</b><span>${U.fmt(have)}/${U.fmt(need)}</span></div>`;
-        up = `<p class="zf-cost-t">升到 ${DATA.cnNum(o.lv + 1)} 阶（灵气上限 ${U.fmt(this.lmCap(o.lv + 1))}）</p><div class="cpk-mats zf-cost">${c.mats.map(m => cell(DATA.matImg(m.kind, m.g), this.countMat(m.kind, m.g, false, m.ft), m.n, DATA.matFull(m.kind, m.g))).join("")}${c.sm.map(x => cell(DATA.smIcon(x.k, x.ft), this.smCount(x.k, x.ft), x.n, x.name)).join("")}</div>`;
-        up += `<div class="btns"><button onclick="G.lmUp('${id}')" ${this.lmCanUp(c) ? "" : "disabled"}>升阶</button></div>`; }
-      return `${line("灵脉", `${(I.ly.names[el] || "").slice(0, 1)}属性 · ${DATA.cnNum(o.lv)} 阶${o.lv >= M ? "（满阶）" : ""}`)}${line("灵气", `${U.fmt(Math.floor(o.ling || 0))} / ${U.fmt(cap)}`)}${line("每小时恢复", U.fmt(Math.round(this.lmRegen(o.lv))))}${line("租借", o.on ? `<span class="c-green">租借中</span> · 每小时 −${U.fmt(rent)} 好感` : `每小时 ${U.fmt(rent)} 好感`)}
-        <p class="desc">租借后，修炼、炼体、功法修炼、阵法运转先消耗灵脉灵气，不够再消耗聚灵阵灵气。</p>
-        <div class="btns">${o.on ? `<button onclick="G.lmRentOff('${id}')">归还</button>` : `<button class="primary" onclick="G.lmRentOn('${id}')" ${this.ysFav(id) >= rent ? "" : "disabled"}>租借</button>`}</div>${up}`;
+      const I = CFG.mijing.items, el = this.lmEl(id), line = (a, b) => `<div class="line"><div>${a}</div><div>${b}</div></div>`, nm = `${(I.ly.names[el] || "").slice(0, 1)}属性灵脉`;
+      if (!this.lmOwn(id)) { const c = this.lmPrice(id);
+        return `${line(nm, "未购买")}<div class="btns"><button class="primary" onclick="G.lmBuy('${id}')" ${this.ysFav(id) >= c ? "" : "disabled"}>购买（${U.fmt(c)} 好感）</button></div>`; }
+      const o = this.s.lm[id], lv = this.lmLv(id), M = this.lmMax(), cap = this.lmCap(id, lv);
+      let h = line(nm, lv ? `${DATA.cnNum(lv)} 阶${lv >= M ? "（满阶）" : ""}` : "废品");
+      if (lv) h += line("灵气", `${U.fmt(Math.floor(o.ling || 0))} / ${U.fmt(cap)}`) + line("每小时恢复", U.fmt(Math.round(this.lmRegen(id, lv))));
+      if (lv < M) { const c = this.lmUpCost(id, lv), cell = (src, have, need, name) => `<div class="cpk-mat${have >= need ? "" : " lack"}"><img src="${src}" alt=""><b>${name}</b><span>${U.fmt(have)}/${U.fmt(need)}</span></div>`;
+        h += `<p class="zf-cost-t">升到 ${DATA.cnNum(lv + 1)} 阶（灵气上限 ${U.fmt(this.lmCap(id, lv + 1))}）</p><div class="cpk-mats zf-cost lm-cost">${c.mats.map(m => cell(DATA.matImg(m.kind, m.g), this.countMat(m.kind, m.g, false, m.ft), m.n, DATA.matFull(m.kind, m.g))).join("")}${c.sm.map(x => cell(DATA.smIcon(x.k, x.ft), this.smCount(x.k, x.ft), x.n, x.name)).join("")}</div>`;
+        h += `<div class="btns"><button class="primary" onclick="G.lmUp('${id}')" ${this.lmCanUp(c) ? "" : "disabled"}>升阶</button></div>`; }
+      return h;
     },
     // 事务堂任务：每天（北京时间）刷新，本宗门所在界的药材 / 矿石
     ysTasks(id) {
