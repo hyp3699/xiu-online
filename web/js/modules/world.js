@@ -296,7 +296,7 @@ G.module({
       if (this.gridMerged(a) && !this.gridJie(r)) return this.gridViewM(a, r, wid);
       const s = this.s, N = this.gridN(r), g = (s.grids || {})[a + "_" + r], d = s.gridDay && s.gridDay.day === this.bjDay() ? s.gridDay : { n: 0, last: "" }, jie = this.gridJie(r);
       const D = this.gridDaily(), full = !jie && d.n >= D, cells = [];
-      const lit = new Set(g ? (Array.isArray(g.v) ? g.v : Number.isInteger(g.p) ? [g.p] : []) : []), cur =   // 测试模式也只亮走过的格子（用户定 2026-11-12）
+      const lit = new Set(DATA.isTest() && !jie ? [...Array(N * N).keys()] : g ? (Array.isArray(g.v) ? g.v : Number.isInteger(g.p) ? [g.p] : []) : []), cur =   // 测试号：地图格子全亮，不用游历（用户定 2026-11-19，界格子仍按走过的）
         g && Number.isInteger(g.p) ? g.p : Math.floor(N * N / 2);
       const ys = this.ysAt(a, r);   // 隐世宗门：发现后格子上显示宗门模型，点进去
       for (let i = 0; i < N * N; i++) { const on = lit.has(i);
@@ -322,7 +322,7 @@ G.module({
       const s = this.s, N = this.gridN(0), M = 2 * N, d = s.gridDay && s.gridDay.day === this.bjDay() ? s.gridDay : { n: 0, last: "" };
       const D = this.gridDaily(), full = d.n >= D, cells = [], RN = DATA.regionCount;
       const G0 = [...Array(RN).keys()].map(r => (s.grids || {})[a + "_" + r]), open = G0.map((g, r) => this.gridOpen(a, r)), ys = G0.map((g, r) => this.ysAt(a, r));
-      const lit = G0.map(g => new Set(g ? (Array.isArray(g.v) ? g.v : Number.isInteger(g.p) ? [g.p] : []) : []));
+      const lit = G0.map(g => new Set(DATA.isTest() ? [...Array(N * N).keys()] : g ? (Array.isArray(g.v) ? g.v : Number.isInteger(g.p) ? [g.p] : []) : []));   // 测试号全亮
       const lr0 = (s.gridLR || {})[a], lr = Number.isInteger(lr0) && lr0 >= 0 && lr0 < RN ? lr0 : r0, gl = G0[lr];
       const glob = (r, i) => { const q = this.gridQuad(r); return ((q >> 1) * N + Math.floor(i / N)) * M + (q & 1) * N + i % N; };
       const cur = gl && Number.isInteger(gl.p) && open[lr] ? glob(lr, gl.p) : (N - 1) * M + N - 1, lv = this.lkLv(a);
