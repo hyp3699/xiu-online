@@ -219,8 +219,8 @@ G.module({
 
     // 聚灵阵
     const cap = this.lingCap(), max = a.lv >= DATA.array.MAX, f = this.arrayFactor();
-    return rooms + `<div class="card"><h3>${DATA.caveName("array")} · ${a.lv} 级</h3>
-      <div class="row small jl-row"><span>聚灵中（每 10 秒 +${U.num(this.gatherAmount())} 灵气）${(u => u > 0 ? `　修炼消耗 <b class="c-red">-${U.num(u)}</b>` : "")(this.lingUse() + (this.zfKeep ? this.zfKeep() : 0))}</span><div class="jl-btns"><button class="sm jl-add" onclick="G.openLmSw()">灵脉</button><button class="sm jl-add" onclick="G.openGatherInfo()">聚灵加成</button></div></div>
+    return rooms + `<div class="card"><h3 class="jl-h">${DATA.caveName("array")} · ${a.lv} 级<button class="sm jl-add jl-lm" onclick="G.openLmSw()">灵脉</button></h3>
+      <div class="row small"><span>聚灵中（每 10 秒 +${U.num(this.gatherAmount())} 灵气）${(u => u > 0 ? `　修炼消耗 <b class="c-red">-${U.num(u)}</b>` : "")(this.lingUse() + (this.zfKeep ? this.zfKeep() : 0))}</span><button class="sm jl-add" onclick="G.openGatherInfo()">聚灵加成</button></div>
       <div class="bar tick"><div id="gather-bar"></div></div>
       <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
       <div class="bar ling"><div style="width:${Math.min(100, s.ling / cap * 100)}%"></div></div>
