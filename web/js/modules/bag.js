@@ -331,10 +331,22 @@ G.module({
       if (it.t === "fu") return this.matsValue(DATA.furnaceMats(it.kind, it.g));
       if (it.t === "dan") return DATA.recipes[it.type] ? this.matsValue(DATA.danRecipe(it.type, it.g)) : -1;
       if (it.t === "pill") { const g = it.g - DATA.pillGrade(it.type, 0); return DATA.isSpeedRecipe(it.type) && g >= 0 && (DATA.recipes[it.type].herbs || [])[g] ? this.matsValue(DATA.danRecipe(it.type, g)) : -1; }
+      if (it.t === "sm" && it.k === "zq" && CFG.zhenqi) {   // 阵旗跟法宝一样：从凡品一阶炼到这一阶所耗矿石出售价合计（再 × CRAFT_SELL）
+        const ft = Math.max(0, it.ft || 0), T = CFG.zhenqi.TIERS * CFG.zhenqi.GRADES.length, b = Math.floor(ft / T) * T; let v = 0;
+        for (let f = b; f <= ft; f++) v += this.matsValue(this.zqMats(f)); return v; }
       if (it.t === "sm") { for (const t in DATA.recipes) if (DATA.recipeItem(t) === it.k) return this.matsValue(DATA.danRecipe(t, 0)); }
       return -1;   // 不是炼制物品
     },
-    sellPrice(it) {
+    sellPrice(it) { const p = this.sellPriceRaw(it); return p > 0 ? p : this.sellFallback(it); },
+    // 没有出售价的物品兜底（config/items.js CFG.price.FALLBACK_SELL），保证背包里每样东西都能卖掉
+    sellFallback(it) {
+      if (it.t === "bmbp" || it.t === "cur") return 0;
+      const P = CFG.price, F = P.FALLBACK_SELL || {}, nm = String(this.itemName(it) || ""), N = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
+      let v = F[it.t] ?? F.def ?? 10; if (nm.includes("神品")) v *= 3; else if (nm.includes("仙品")) v *= 2;
+      const m = nm.match(/(十|[一二三四五六七八九]十?[一二三四五六七八九]?)阶/); if (m) { const t = m[1]; const n = t === "十" ? 10 : t.length === 1 ? N.indexOf(t) + 1 : t[0] === "十" ? 10 + N.indexOf(t[1]) + 1 : (N.indexOf(t[0]) + 1) * 10 + (t[2] ? N.indexOf(t[2]) + 1 : 0); v += n * 2; }
+      return Math.max(1, Math.min(P.FALLBACK_MAX || 100, Math.floor(v)));
+    },
+    sellPriceRaw(it) {
       if (it.t === "seed") return DATA.seedSell(it.g);
       if (it.t === "lg") return DATA.LG().SELL ?? 100;   // 灵果（config/garden.js LINGGUO.SELL）   // 种子 = 药材出售价 × config/garden.js SEED_SELL_MUL
       if (it.t === "eq" && !it.e.attrs) return 0;
