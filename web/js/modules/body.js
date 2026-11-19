@@ -24,12 +24,12 @@ G.module({
     }
     const sp = this.bodySpeed().total, rate = Math.max(0.0001, B.LING_RATE || 1), red = this.wdRed("body");   // red：神魂之道减掉的灵气消耗
     // 灵气不够且开了聚灵阵自动补充：用灵石补（和修为修炼一样）；补到灵气上限为止，不超过 lingCap()（同 tick 里修为修炼先补，这里按剩余容量算）
-    if (this.lmFeed) this.lmFeed(sp * rate - red);   // 灵脉灵气先用
-    if (s.ling < sp * rate - red && s.array && s.array.autoRefill && s.stone >= 1) {
+    const lmOk = sp > 0 && this.lmPay ? this.lmPay(Math.max(0, sp * rate - this.wdRed0("body"))) : false;   // 灵脉：够就整份先扣灵脉（不吃阵旗）
+    if (!lmOk && s.ling < sp * rate - red && s.array && s.array.autoRefill && s.stone >= 1) {
       const per = this.lingPerStone(), cap = this.lingCap(), pay = Math.min(Math.ceil((sp * rate - red - s.ling) / per), this.refillStone(), Math.max(0, Math.ceil((cap - s.ling) / per)));
       if (pay > 0) { s.stone -= pay; s.ling = Math.min(cap, s.ling + pay * per); }
     }
-    const per = Math.max(0, sp * rate - red) / Math.max(1e-9, sp), gain = per > 0 ? Math.min(sp, Math.floor(s.ling / per)) : sp;   // 每点肉身修为的灵气，按比例
+    const per = lmOk ? 0 : Math.max(0, sp * rate - red) / Math.max(1e-9, sp), gain = per > 0 ? Math.min(sp, Math.floor(s.ling / per)) : sp;   // 每点肉身修为的灵气，按比例
     if (freeEnd) { s.freeCult.left = 0; s.freeCult.on = false; this.dirty(); this.log(`${CFG.sect.freeRoom.name}次数已用完。`, "sys"); }
     if (gain <= 0) {   // 没有灵气，本次肉身修炼不生效：免费修炼室这次不算用过（与修为修炼一致）
       if (freeSpent) { if (freeEnd) { s.freeCult.left = 1; s.freeCult.on = true; this.log("本次未修炼，免费修炼室次数已返还。", "sys"); } else s.freeCult.left++; }

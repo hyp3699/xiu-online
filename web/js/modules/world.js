@@ -543,14 +543,17 @@ G.module({
         const lv = this.lmLv(id), cap = this.lmCap(id, lv), dt = now - (+o.t || now);
         if (dt > 0) o.ling = Math.min(cap, Math.max(0, +o.ling || 0) + this.lmRegen(id, lv) * dt / H);
         if (o.ling > cap) o.ling = cap; o.t = now; }
+      if (s.lmOn && !this.lmOnId()) s.lmOn = null;
     },
-    lmActive() { for (const id in this.s.lm || {}) if (this.lmLv(id) >= 1) return true; return false; },
-    lmAvail() { let t = 0; for (const id in this.s.lm || {}) if (this.lmLv(id) >= 1) t += Math.max(0, +this.s.lm[id].ling || 0); return t; },
-    // 要扣 need 点灵气之前调用：先从自己的灵脉（1 阶起，废品没效果）搬过来（加到 s.ling，随后照常扣），返回搬了多少
-    lmFeed(need) {
-      need = Math.max(0, +need || 0); if (!need || !this.s.lm) return 0; let got = 0;
-      for (const id in this.s.lm) { if (this.lmLv(id) < 1) continue; const o = this.s.lm[id], x = Math.min(need - got, Math.max(0, +o.ling || 0)); if (x > 0) { o.ling -= x; got += x; } if (got >= need) break; }
-      if (got > 0) this.s.ling = (this.s.ling || 0) + got; return got;
+    lmOnId() { const id = this.s.lmOn; return id && this.lmLv(id) >= 1 ? id : null; },   // 开着的那条（只能开一条，1 阶起）
+    lmActive() { return !!this.lmOnId(); },
+    lmAvail() { const id = this.lmOnId(); return id ? Math.max(0, +this.s.lm[id].ling || 0) : 0; },
+    // 扣 need 点灵气：开着的灵脉够就整份扣灵脉返回 true；不够返回 false（这次全部走聚灵阵灵气）
+    lmPay(need) { need = +need || 0; const id = this.lmOnId(); if (!id || !(need > 0)) return false; const o = this.s.lm[id]; if ((+o.ling || 0) < need) return false; o.ling -= need; return true; },
+    lmSw(id) {
+      if (this.s.lmOn === id) { this.s.lmOn = null; this.log(`${(this.ysById(id) || {}).name || ""}灵脉已关闭。`, "sys"); return this.after(); }
+      if (this.lmLv(id) < 1) return this.log("灵脉升到一阶才能开启。", "sys");
+      this.s.lmOn = id; this.log(`开启${this.ysById(id).name}灵脉。`, "good"); this.after();
     },
     lmBuy(id) {
       if (!this.lmHas(id) || !this.ysFound(id) || this.lmOwn(id)) return;
@@ -578,11 +581,13 @@ G.module({
       if (!this.lmOwn(id)) { const c = this.lmPrice(id);
         return `${line(nm, "未购买")}<div class="btns"><button class="primary" onclick="G.lmBuy('${id}')" ${this.ysFav(id) >= c ? "" : "disabled"}>购买（${U.fmt(c)} 好感）</button></div>`; }
       const o = this.s.lm[id], lv = this.lmLv(id), M = this.lmMax(), cap = this.lmCap(id, lv);
-      let h = line(nm, lv ? `${DATA.cnNum(lv)} 阶${lv >= M ? "（满阶）" : ""}` : "废品");
+      const on = this.s.lmOn === id, sw = `<button onclick="G.lmSw('${id}')" ${lv >= 1 || on ? "" : "disabled"}>${on ? "关闭" : "开启"}</button>`;
+      let h = line(nm, (lv ? `${DATA.cnNum(lv)} 阶${lv >= M ? "（满阶）" : ""}` : "废品") + (on ? ` · <span class="c-green">开启中</span>` : ""));
       if (lv) h += line("灵气", `${U.fmt(Math.floor(o.ling || 0))} / ${U.fmt(cap)}`) + line("每年恢复", U.fmt(Math.round(this.lmRegen(id, lv))));
       if (lv < M) { const c = this.lmUpCost(id, lv), cell = (src, have, need, name) => `<div class="cpk-mat${have >= need ? "" : " lack"}"><img src="${src}" alt=""><b>${name}</b><span>${U.fmt(have)}/${U.fmt(need)}</span></div>`;
         h += `<p class="zf-cost-t">升到 ${DATA.cnNum(lv + 1)} 阶（灵气上限 ${U.fmt(this.lmCap(id, lv + 1))}）</p><div class="cpk-mats zf-cost lm-cost">${c.mats.map(m => cell(DATA.matImg(m.kind, m.g), this.countMat(m.kind, m.g, false, m.ft), m.n, DATA.matFull(m.kind, m.g))).join("")}${c.sm.map(x => cell(DATA.smIcon(x.k, x.ft), this.smCount(x.k, x.ft), x.n, x.name)).join("")}</div>`;
-        h += `<div class="btns"><button class="primary" onclick="G.lmUp('${id}')" ${this.lmCanUp(c) ? "" : "disabled"}>升阶</button></div>`; }
+        h += `<div class="btns"><button class="primary" onclick="G.lmUp('${id}')" ${this.lmCanUp(c) ? "" : "disabled"}>升阶</button>${sw}</div>`; }
+      else h += `<div class="btns">${sw}</div>`;
       return h;
     },
     // 事务堂任务：每天（北京时间）刷新，本宗门所在界的药材 / 矿石

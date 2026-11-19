@@ -125,7 +125,7 @@ G.module({
       return out;
     },
     // 功法修炼每 5 秒单位灵气（减少量按每 10 秒的数字，单位是一半）；alone=true：列表里单独估算（整份减少量都给它）
-    ssGfPer(per, alone) { return Math.max(0, per - (alone ? this.ssGfSum("ling") : this.lxShare().gf) / 2) * (this.zqLingK ? this.zqLingK() : 1); },   // 阵旗减消耗最后乘   // 功法修炼每 5 秒单位灵气（《敛息归元诀》按每 10 秒的数字减，单位是一半）
+    ssGfPer(per, alone, noZq) { return Math.max(0, per - (alone ? this.ssGfSum("ling") : this.lxShare().gf) / 2) * (!noZq && this.zqLingK ? this.zqLingK() : 1); },   // noZq：灵脉灵气不吃阵旗   // 阵旗减消耗最后乘   // 功法修炼每 5 秒单位灵气（《敛息归元诀》按每 10 秒的数字减，单位是一半）
     // 第 k 层的消耗（没写 = 不要）：stone 灵石，sm 专用材料 [[键, 数量]]（养神丹 yd、元魂果 yhg、凝魂芝 nhz）
     ssGfCost(k, g) {
       const mk = (st, yd, yhg, nhz) => ({ stone: Math.max(0, st || 0), sm: [["yd", yd], ["yhg", yhg], ["nhz", nhz]].filter(x => x[1] > 0) });

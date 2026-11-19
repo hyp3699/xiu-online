@@ -57,7 +57,7 @@ G.module({
         ${(u => line("修为修炼", U.num(u.exp)) + line("肉身修炼", U.num(u.body)) + line("功法修炼", U.num(u.gf)))(this.lingUseParts())}
         ${(o => o.gf + o.exp + o.body > 0 ? line("神识功法《敛息归元诀》", "减少消耗 " + U.num(o.gf + o.exp + o.body)) : "")(this.lxShare ? this.lxShare() : { gf: 0, exp: 0, body: 0 })}
         ${line("阵法运转", U.num(this.zfKeep ? this.zfKeep() : 0))}
-        ${this.lmActive && this.lmActive() ? line("租借灵脉灵气", U.num(Math.floor(this.lmAvail())), "先扣灵脉，不够再扣聚灵阵灵气") : ""}
+        ${this.lmActive && this.lmActive() ? line("开启的灵脉灵气", U.num(Math.floor(this.lmAvail())), "够就先整份扣灵脉（不吃阵旗），不够扣聚灵阵灵气") : ""}
         ${(e => e.cut > 0 ? line("阵旗", `消耗 −${U.dec(e.cut)}%`, "其他减免算完后再减，以上各项已减") : "")(this.zqEff())}
         ${line("<b>消耗合计</b>", (u => u ? "−" + U.num(u) : "0")(this.lingUse() + (this.zfKeep ? this.zfKeep() : 0)))}
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);

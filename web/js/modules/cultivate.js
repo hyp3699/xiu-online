@@ -55,8 +55,9 @@ G.module({
     if (freeExhausted) s.freeCult.left = 1;
     const sp = this.speed().total, red = this.wdRed("exp");   // red：神魂之道减掉的灵气消耗
     if (freeExhausted) { s.freeCult.left = 0; s.freeCult.on = false; this.dirty(); }
-    if (this.lmFeed) this.lmFeed(sp - red);   // 灵脉：租借中的灵脉灵气先用（搬进 s.ling 再照常扣）
-    if (s.ling < sp - red && s.array.autoRefill && s.stone >= 1) {
+    // 灵脉：开着的灵脉灵气够这 10 秒（不吃阵旗减消耗）就先整份扣灵脉，不扣聚灵阵灵气；不够就整份走聚灵阵
+    const lmOk = sp > 0 && this.lmPay ? this.lmPay(Math.max(0, sp - this.wdRed0("exp"))) : false;
+    if (!lmOk && s.ling < sp - red && s.array.autoRefill && s.stone >= 1) {
       const rate = this.lingPerStone(), cap = this.lingCap();
       // 与手动 buyLing 一致：补到灵气上限为止（cap − 当前灵气），结果再钳到 cap；同 tick 里功法先补、肉身后补，后者按剩余容量算
       const pay = Math.min(Math.ceil((sp - red - s.ling) / rate), this.refillStone(), Math.max(0, Math.ceil((cap - s.ling) / rate)));
@@ -65,7 +66,7 @@ G.module({
 
     // 4. 灵气转修为
     // 每点修为的灵气 = (速度 − 减少量) ÷ 速度；灵气不够时按比例只修一部分（没灵气就修不了）
-    const per = Math.max(0, sp - red) / Math.max(1e-9, sp), gain = per > 0 ? Math.min(sp, Math.floor(s.ling / per)) : sp;
+    const per = lmOk ? 0 : Math.max(0, sp - red) / Math.max(1e-9, sp), gain = per > 0 ? Math.min(sp, Math.floor(s.ling / per)) : sp;
     if (gain <= 0) {           // 没有灵气，本次修炼不生效：免费修炼室这次不算用过
       if (freeSpent) s.freeCult.left++;
       if (freeExhausted) { s.freeCult.left = 1; s.freeCult.on = true; this.log("本次未修炼，免费修炼室次数已返还。", "sys"); }
@@ -89,7 +90,7 @@ G.module({
     // 有灵气（或开了自动补充且有灵石）才能修炼
     // 探索、历练中不能修炼；元婴出窍探索时可以继续修炼
     exBlocksCult() { return !!(this.s.explore && !this.s.explore.cq); },
-    canCultivate() { return this.hasMijue() && !this.exBlocksCult() && (this.s.ling >= 1 || (this.lmAvail && this.lmAvail() >= 1) || (this.s.array.autoRefill && this.refillStone() >= 1) || this.wdRed("exp") >= this.speed().total); },
+    canCultivate() { return this.hasMijue() && !this.exBlocksCult() && (this.s.ling >= 1 || (this.lmAvail && this.lmAvail() >= Math.max(1, this.speed().total - this.wdRed0("exp"))) || (this.s.array.autoRefill && this.refillStone() >= 1) || this.wdRed("exp") >= this.speed().total); },
     // 不能修炼的原因（能修炼返回空）
     cultivateBlock() {
       if (!this.hasMijue()) return "未学秘诀，无法修炼（门派功法殿学习）";
@@ -120,7 +121,7 @@ G.module({
     /* ---------- 修炼设置：灵石不够自动去探索，够了回来修炼 ---------- */
     // 修炼页左右圆钮外圈：生命 / 法力百分比（0~100）
     orbPct(k) { const m = this.stats()[k] || 0; return m > 0 ? Math.max(0, Math.min(100, Math.round(this.s[k] / m * 1000) / 10)) : 0; },
-    cultLack() { return this.s.ling + (this.lmAvail ? this.lmAvail() : 0) < this.speed().total - this.wdRed("exp"); },   // 灵气不够修炼一次
+    cultLack() { return this.s.ling < this.speed().total - this.wdRed("exp") && !(this.lmAvail && this.lmAvail() >= this.speed().total - this.wdRed0("exp")); },   // 灵气不够修炼一次
     cultTargets() {   // [[值, 名称]]：历练通过的区域
       const out = [];
       DATA.maps.forEach((m, a) => {

@@ -40,14 +40,16 @@ G.module({
       st.at += fin ? rem * STEP : steps * 2 * STEP;
       // 灵气（秘法还要灵石）够几次就走几次；灵气不够且开了自动补充：用灵石补（秘法要的灵石先留够）；补到灵气上限为止，不超过 lingCap()（同 tick 里功法最先补，修为 / 肉身后补时按剩余容量算）
       const sp = (st.stone || 0) * mul, want = Math.min(2 * steps, rem);
-      if (this.lmFeed) this.lmFeed(Math.max(0, sp ? Math.min(want, Math.floor(s.stone / sp)) : want) * per);   // 灵脉灵气先用（秘法灵石不够的部分不搬）
-      if (s.ling < want * per && s.array && s.array.autoRefill) { const keep = sp ? want * sp : 0, rate = this.lingPerStone(), cap = this.lingCap(), pay = Math.min(Math.ceil((want * per - s.ling) / rate), Math.floor(s.stone - keep - this.stoneKeep()), Math.max(0, Math.ceil((cap - s.ling) / rate)));
+      // 灵脉：这次要走的单位（秘法灵石够的部分）整份灵气先扣灵脉（不吃阵旗），够才用；不够整份走聚灵阵
+      const lmN = Math.max(0, sp ? Math.min(want, Math.floor(s.stone / sp)) : want), lmPer = this.ssGfPer(st.per * mul, false, true);
+      const lmOk = lmN > 0 && lmPer > 0 && this.lmPay ? this.lmPay(lmN * lmPer) : false;
+      if (!lmOk && s.ling < want * per && s.array && s.array.autoRefill) { const keep = sp ? want * sp : 0, rate = this.lingPerStone(), cap = this.lingCap(), pay = Math.min(Math.ceil((want * per - s.ling) / rate), Math.floor(s.stone - keep - this.stoneKeep()), Math.max(0, Math.ceil((cap - s.ling) / rate)));
         if (pay > 0) { s.stone -= pay; s.ling = Math.min(cap, s.ling + pay * rate); } }
       // 灵石为负时 Math.floor(负数 / sp) 为负，can 为负会倒扣灵气 / 倒加进度：
       // 先钳到 0，灵石不够就暂停，不再推进。
-      let can = Math.max(0, Math.min(want, per > 0 ? Math.floor(s.ling / per) : Infinity, sp ? Math.floor(s.stone / sp) : Infinity));   // per 可能被《敛息归元诀》减到 0：灵气 0 时 0/0 = NaN
+      let can = lmOk ? lmN : Math.max(0, Math.min(want, per > 0 ? Math.floor(s.ling / per) : Infinity, sp ? Math.floor(s.stone / sp) : Infinity));   // per 可能被《敛息归元诀》减到 0：灵气 0 时 0/0 = NaN
       if (can < rem && can % 2) can--;   // 只按整 10 秒走（最后一次除外）
-      s.ling -= can * per; st.spent += can * per; st.done = can >= rem ? st.total : Math.min(st.total, st.done + can * STEP * mul);
+      if (lmOk) st.spent += can * lmPer; else { s.ling -= can * per; st.spent += can * per; } st.done = can >= rem ? st.total : Math.min(st.total, st.done + can * STEP * mul);
       if (sp) {   // 秘法灵石：按已走的 5 秒单位四舍五入累计，这层走完正好扣满 sc
         const C = st.sc || Math.round(st.stone * Math.ceil(st.total / STEP)); st.su = (st.su || 0) + can * mul;
         const tgt = st.done >= st.total ? C : Math.min(C, Math.round(st.stone * st.su)), pay = Math.max(0, tgt - (st.spentStone || 0));
