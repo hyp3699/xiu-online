@@ -54,7 +54,7 @@ G.module({
         const C = st.sc || Math.round(st.stone * Math.ceil(st.total / STEP)); st.su = (st.su || 0) + can * mul;
         const tgt = st.done >= st.total ? C : Math.min(C, Math.round(st.stone * st.su)), pay = Math.max(0, tgt - (st.spentStone || 0));
         s.stone -= pay; st.spentStone = (st.spentStone || 0) + pay; }
-      // 练功房贡献改为按分钟扣（modules/sect.js roomBill）
+      // 练功房贡献每 ROOM_BILL_SEC 秒扣（modules/sect.js roomBill）
       st.stalled = can < want && st.done < st.total;   // 灵气 / 灵石不够，暂停
       if (st.done < st.total) { if (!st.stalled && can > 0) continue; break; }   // 还差最后一段且已到点：接着结算
       // 完成，升一层

@@ -70,8 +70,8 @@
       const a = s.affair;
       if (s.sect && a && a.task !== undefined && a.task >= 0) { const t = DATA.affairs[a.task]; if (!t) return -Infinity; ev.push(a.start + t.time * 60000); }
       if (s.freeGf && s.sect && last < s.freeGf.end) ev.push(s.freeGf.end);
-      // 修炼室 / 练功房按分钟扣贡献：到点逐个结算（旧存档还没起算的先逐个结算一次）
-      // 贡献够就不再每分钟停一次：fastRun 里按同样的规则逐分钟扣（用户定 2026-11-16 付费房事件合并），贡献不够那一刻才算事件
+      // 修炼室 / 练功房每 ROOM_BILL_SEC 秒扣贡献：到点逐个结算（旧存档还没起算的先逐个结算一次）
+      // 贡献够就不再每分钟停一次：fastRun 里按同样的规则逐次扣（用户定 2026-11-16 付费房事件合并），贡献不够那一刻才算事件
       for (const k of ["room", "gfRoom"]) if (s.sect && s[k] >= 0) { if (!s[k + "At"]) return -Infinity; if (!(k === "room" ? DATA.rooms : DATA.gfRooms)[s[k]]) return -Infinity; }
       // 星君官位俸禄
       const H = (CFG.xingjun.HOUR || 3600) * 1000;
@@ -193,7 +193,7 @@
         // 5. cultivate：修为修炼
         let ended = false;
         if (cultOn) {
-          if (freeOn) { if (--fl <= 0) return false; }   // 免费修炼室次数用完：事件（付费修炼室按分钟扣贡献，见 fastNextEvent）
+          if (freeOn) { if (--fl <= 0) return false; }   // 免费修炼室次数用完：事件（付费修炼室按时扣贡献，见 fastNextEvent）
           if (L < SP - RED && refill && sn >= 1) { const pay = Math.min(Math.ceil((SP - RED - L) / RATE), Math.floor(sn - KEEP), Math.max(0, Math.ceil((CAP - L) / RATE))); if (pay > 0) { sn -= pay; L = Math.min(CAP, L + pay * RATE); } }   // 自动补灵气封顶到 lingCap（同 cultivate.tick）
           const PER = Math.max(0, SP - RED) / Math.max(1e-9, SP), gain = PER > 0 ? Math.min(SP, Math.floor(L / PER)) : SP;
           if (gain <= 0) { if (!lk) lk = true; fl++; }   // 与 cultivate.tick 一致：灵气耗尽的 tick 不扣免费修炼室次数

@@ -437,7 +437,7 @@ G.module({
     },
 
     /* ---------- 练功房 ---------- */
-    /* 修炼室 / 练功房按分钟扣贡献：进入时先扣一次，之后每 ROOM_BILL_SEC 秒扣一次（离线也补扣），贡献不够就离开 */
+    /* 修炼室 / 练功房按时扣贡献：进入时先扣一次，之后每 ROOM_BILL_SEC 秒扣一次（离线也补扣），贡献不够就离开 */
     roomBillMs() { return (CFG.sect.ROOM_BILL_SEC || 60) * 1000; },
     roomPay(k, i) {   // k = "room" / "gfRoom"：进入时先扣一次；不够返回 false
       const s = this.s, c = k === "room" ? this.roomCost(i) : this.gfRoomCost(i);
@@ -1012,7 +1012,7 @@ G.module({
         const on = s.gfRoom === i, lock = !on && this.gfRoomLocked(i);
         return `<div class="line"><div>${r.name}<span class="tag">修炼时间 -${U.num(this.gfRoomPct(i))}%</span>${r.rank ? `<span class="tag">${DATA.ranks[r.rank].name}专用</span>` : ""}<small>每 ${Math.round(this.roomBillMs() / 1000)} 秒 ${U.fmt(this.gfRoomCost(i))} 贡献${on ? ` · ${this.roomNextSec("gfRoom")} 秒后再次扣贡献` : ""}</small></div>
           <button class="sm ${on ? "on" : ""}" onclick="G.enterGfRoom(${i})" ${lock ? "disabled" : ""}>${on ? "使用中" : lock ? "职务不足" : "进入"}</button></div>`;
-      }).join("") + `<p class="desc">待在练功房就按分钟扣贡献（没在修炼也扣），贡献不够自动离开；功法修炼时间缩短，消耗的修为不变。</p></div>`;
+      }).join("") + `<p class="desc">待在练功房就每 ${Math.round(this.roomBillMs() / 1000)} 秒扣一次贡献（没在修炼也扣），贡献不够自动离开；功法修炼时间缩短，消耗的修为不变。</p></div>`;
     } else if (tab === "pool") {
       const P = CFG.sect.pool, p = s.pool, on = this.poolOn(), done = !on && this.poolUsed() >= P.DAILY;
       h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "pool", P.name)}<small>每天 ${P.DAILY} 次 · 每次 ${P.MINUTES} 分钟</small></h3>` + P.list.map((d, i) => {

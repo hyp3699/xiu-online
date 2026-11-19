@@ -57,7 +57,7 @@ G.module({
         ${(u => line("修为修炼", U.num(u.exp)) + line("肉身修炼", U.num(u.body)) + line("功法修炼", U.num(u.gf)))(this.lingUseParts())}
         ${(o => o.gf + o.exp + o.body > 0 ? line("神识功法《敛息归元诀》", "减少消耗 " + U.num(o.gf + o.exp + o.body)) : "")(this.lxShare ? this.lxShare() : { gf: 0, exp: 0, body: 0 })}
         ${line("阵法运转", U.num(this.zfKeep ? this.zfKeep() : 0))}
-        ${this.lmActive && this.lmActive() ? line("开启的灵脉灵气", U.num(Math.floor(this.lmAvail())), "够就先整份扣灵脉（不吃阵旗），不够扣聚灵阵灵气") : ""}
+        ${this.lmActive && this.lmActive() ? line("开启的灵脉灵气", U.num(Math.floor(this.lmAvail())), "只抵扣修为、肉身、功法修炼：够就整份扣灵脉（不吃阵旗），不够扣聚灵阵灵气") : ""}
         ${(e => e.cut > 0 ? line("阵旗", `消耗 −${U.dec(e.cut)}%`, "其他减免算完后再减，以上各项已减") : "")(this.zqEff())}
         ${line("<b>消耗合计</b>", (u => u ? "−" + U.num(u) : "0")(this.lingUse() + (this.zfKeep ? this.zfKeep() : 0)))}
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
@@ -220,7 +220,7 @@ G.module({
     // 聚灵阵
     const cap = this.lingCap(), max = a.lv >= DATA.array.MAX, f = this.arrayFactor();
     return rooms + `<div class="card"><h3>${DATA.caveName("array")} · ${a.lv} 级</h3>
-      <div class="row small"><span>聚灵中（每 10 秒 +${U.num(this.gatherAmount())} 灵气）${(u => u > 0 ? `　修炼消耗 <b class="c-red">-${U.num(u)}</b>` : "")(this.lingUse() + (this.zfKeep ? this.zfKeep() : 0))}</span><button class="sm jl-add" onclick="G.openGatherInfo()">聚灵加成</button></div>
+      <div class="row small"><span>聚灵中（每 10 秒 +${U.num(this.gatherAmount())} 灵气）${(u => u > 0 ? `　修炼消耗 <b class="c-red">-${U.num(u)}</b>` : "")(this.lingUse() + (this.zfKeep ? this.zfKeep() : 0))}</span><div class="jl-btns"><button class="sm jl-add" onclick="G.openLmSw()">灵脉</button><button class="sm jl-add" onclick="G.openGatherInfo()">聚灵加成</button></div></div>
       <div class="bar tick"><div id="gather-bar"></div></div>
       <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>
       <div class="bar ling"><div style="width:${Math.min(100, s.ling / cap * 100)}%"></div></div>

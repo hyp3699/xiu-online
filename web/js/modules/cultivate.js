@@ -49,7 +49,7 @@ G.module({
     if (this.freeCultOn()) {
       if (--s.freeCult.left <= 0) { s.freeCult.left = 0; freeExhausted = true; this.dirty(); this.log(`${CFG.sect.freeRoom.name}次数已用完。`, "sys"); }
       freeSpent = true;
-    }   // 付费修炼室按分钟扣贡献（modules/sect.js roomBill）
+    }   // 付费修炼室每 ROOM_BILL_SEC 秒扣贡献（modules/sect.js roomBill）
 
     // 3. 灵气不足且开了自动补充：用灵石补
     if (freeExhausted) s.freeCult.left = 1;
