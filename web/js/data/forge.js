@@ -79,7 +79,7 @@ DATA.smByName = name => {
   for (const k in I) if (!DATA.SM_GRADED.includes(k) && I[k].name === name) return { k };
   return null;
 };
-DATA.smIcon = (k, ft) => k === "zq" ? DATA.iconImg(`zq${DATA.zqEl(ft)}_${DATA.zqG(ft)}`) : DATA.SM_GRADED.includes(k) ? DATA.iconImg("sm_" + k + Math.max(0, ft || 0)) : DATA.iconImg("sm_" + k);
+DATA.smIcon = (k, ft) => k === "zq" ? `img/icons/zq${DATA.zqEl(ft)}_${DATA.zqG(ft)}.webp?v=${DATA.IMG_V}` : DATA.SM_GRADED.includes(k) ? DATA.iconImg("sm_" + k + Math.max(0, ft || 0)) : DATA.iconImg("sm_" + k);   // 阵旗图是 webp：仙品、神品是带流光、闪光的动图（项目 art/zqfx.py 生成）
 // 掉落记账的键：k / k:ft
 DATA.smKey = (k, ft) => k + (ft === undefined ? "" : ":" + ft);
 DATA.smParse = key => { const [k, f] = key.split(":"); return { k, ft: f === undefined ? undefined : +f }; };
@@ -322,7 +322,7 @@ DATA.fabaoInfo = (e, own) => {
  *   img/icons/pill_丹药id.png 修炼丹、dan_类型.png 属性丹、fu_dan / fu_qi.png 炉子、ss.png 空间石
  *   fbs形状_属性.png 法宝（7 种形状 × 6 种属性）、sm_ys属性.png 耀石、mifa.png 秘法、seed.png 种子、stone.png 灵石、cu_misc.png 自定义物品
  *   hx.png 火髓、bp.png 图纸 */
-DATA.IMG_V = 97;
+DATA.IMG_V = 98;
 DATA.matImg = (kind, g) => `img/mats/${kind}${g}.png?v=${DATA.IMG_V}`;
 DATA.SEED_IMG = [...Array(20).keys()];   // 有种子图的药材序号（img/mats/seed序号.png）
 DATA.seedImg = g => DATA.isLg && DATA.isLg(g) ? `img/lg/seed${g - DATA.LG_BASE}.png?v=${DATA.IMG_V}` : DATA.SEED_IMG.includes(g) ? `img/mats/seed${g}.png?v=${DATA.IMG_V}` : DATA.matImg("herb", g);
