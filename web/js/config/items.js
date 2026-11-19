@@ -49,13 +49,13 @@ CFG.matsOther = {
  * pct 修炼速度加成 %（各品质相同）；dur 持续修炼次数；price 基准价（灵石）：出售价 = floor(price × PILL_PRICE_STEP^品质序号) × PILL_SELL，向下取整
  *   坊市买价以 content/items.js 的 ITEMS.shop 的 price 为准（没写才按 price 算）
  * 药力未尽再服：加成取较大，次数累加。xian: true = 仙界丹，只能在 6~10 星门派炼丹房学丹方炼制，秘境不掉 */
-CFG.pills = {
-  juqi:    { name: "聚气丹", pct: 10, dur: 180, price: 10 },
-  juling:  { name: "聚灵丹", pct: 20, dur: 180, price: 30 },
-  peiyuan: { name: "培元丹", pct: 40, dur: 180, price: 60 },
+CFG.pills = {   // 修炼速度丹药 pct：30 / 50 / 90（用户定 2026-11-19，原 10/20/40、30/60/120）
+  juqi:    { name: "聚气丹", pct: 30, dur: 180, price: 10 },
+  juling:  { name: "聚灵丹", pct: 50, dur: 180, price: 30 },
+  peiyuan: { name: "培元丹", pct: 90, dur: 180, price: 60 },
   taixu:    { name: "太虚悟道丹", pct: 30,  dur: 180, price: 100, xian: true },
-  jiuxuan:  { name: "九转玄灵丹", pct: 60,  dur: 180, price: 150, xian: true },
-  hongmeng: { name: "鸿蒙紫极丹", pct: 120, dur: 180, price: 200, xian: true },
+  jiuxuan:  { name: "九转玄灵丹", pct: 50,  dur: 180, price: 150, xian: true },
+  hongmeng: { name: "鸿蒙紫极丹", pct: 90,  dur: 180, price: 200, xian: true },
 };
 
 CFG.price = {
