@@ -626,8 +626,8 @@ G.module({
 
     /* ---------- 门派炼器室：学习装备图谱 / 空间石 ---------- */
     // 戒指图纸 key：v26 起 ring:种类:阶（v25 的 ring:阶 = 该阶所有种类）
-    forgeKey(kind, g, slot) { return kind === "lz" || kind === "zq" ? `${kind}:${slot}` : kind === "eq" ? `eq:${slot}:${g}` : kind === "ring" ? (slot === undefined ? `ring:${g}` : `ring:${slot}:${g}`) : `ss:${g}`; },
-    forgeKeyName(key) { const p = key.split(":"), k = p[0]; return k === "zq" ? CFG.zhenqi.NAMES[+p[1]] + "图纸" : k === "lz" ? DATA.smName("lz", +p[1]) + "图纸" : k === "eq" ? DATA.forgeEqName(p[1], +p[2]) + "图谱" : k === "ring" ? (p.length > 2 ? DATA.ringBpName(+p[2], +p[1]) : DATA.ringBpName(+p[1])) : DATA.stoneName(+p[1]) + "炼法"; },
+    forgeKey(kind, g, slot) { return kind === "zq" ? `zqt:${slot}` : kind === "lz" ? `lz:${slot}` : kind === "eq" ? `eq:${slot}:${g}` : kind === "ring" ? (slot === undefined ? `ring:${g}` : `ring:${slot}:${g}`) : `ss:${g}`; },
+    forgeKeyName(key) { const p = key.split(":"), k = p[0]; return k === "zqt" ? DATA.smName("zq", +p[1]) + "图纸" : k === "lz" ? DATA.smName("lz", +p[1]) + "图纸" : k === "eq" ? DATA.forgeEqName(p[1], +p[2]) + "图谱" : k === "ring" ? (p.length > 2 ? DATA.ringBpName(+p[2], +p[1]) : DATA.ringBpName(+p[1])) : DATA.stoneName(+p[1]) + "炼法"; },
     ringKnown(r, g) { const K = this.s.forgeKnown; return K.includes(`ring:${r}:${g}`) || K.includes(`ring:${g}`); },
     /* ---------- 灵犀 / 烈阳 / 玄武戒：图纸、专用材料兑换（config/forge.js 的 ring.SPECIAL）
      *   src "sect"：宗门宝库，贡献（宗门星级 ≥ STAR）；src "ys"：隐世宗门 ys 的炼器室，好感度（ysId 要对得上） */
@@ -728,13 +728,15 @@ G.module({
     // v173 背包图纸学习时间（毫秒）：config/gongfa.js LEARN_Q 的 BP_MIN / RBP_MIN，不写 = 同阶装备图谱学习时间
     bagLearnMs(k, g) { const a = (CFG.gongfa.LEARN_Q || {})[k], T = CFG.forge.equip.learnTime; const v = a && a[g] !== undefined ? a[g] : T[Math.min(T.length - 1, Math.max(0, g))]; return (v || 0) * 60000; },
     // 学习花费 { c 贡献, min 分钟 }（灵珠图纸不分阶，见 config/array.js 的 CFG.lingzhu）
-    forgeLearnOf(kind, g) { if (kind === "zq") return { c: CFG.zhenqi.LEARN_COST, min: CFG.zhenqi.LEARN_TIME }; if (kind === "lz") return { c: CFG.lingzhu.LEARN_COST, min: CFG.lingzhu.LEARN_TIME }; const C = kind === "eq" ? CFG.forge.equip : CFG.forge.stone; return { c: C.learnCost[g], min: C.learnTime[g] }; },
+    forgeLearnOf(kind, g) { if (kind === "zq") return { c: (CFG.zhenqi.BP_FAN[DATA.zqN(g)] || [0, 0])[1], min: CFG.zhenqi.LEARN_TIME }; if (kind === "lz") return { c: CFG.lingzhu.LEARN_COST, min: CFG.lingzhu.LEARN_TIME }; const C = kind === "eq" ? CFG.forge.equip : CFG.forge.stone; return { c: C.learnCost[g], min: C.learnTime[g] }; },
     learnForge(kind, g, slot) {
+      if (kind === "zq") slot = g;   // 阵旗：g = slot = ft
       const s = this.s, key = this.forgeKey(kind, g, slot), L = this.forgeLearnOf(kind, g), c = L.c;
       if (s.forgeKnown.includes(key)) return;
       if (!this.lqCan("forge", key)) return;   // v173 学习队列
       if (kind !== "lz" && !this.sectInfo()) return this.log("尚未加入门派。", "sys");
-      if (kind === "zq") { const st = CFG.zhenqi.BP_STAR[+slot]; if (!(st > 0)) return; if (this.sectInfo().star !== st) return this.log(`${CFG.zhenqi.NAMES[+slot]}图纸只能在 ${st} 星宗门兑换。`, "sys"); }
+      if (kind === "zq") { g = Math.floor(+g); slot = g; const B = CFG.zhenqi.BP_FAN[DATA.zqN(g)]; if (!(g >= 0) || DATA.zqEl(g) >= CFG.zhenqi.NAMES.length || DATA.zqG(g) !== 0 || !B) return;   // 凡品图纸：宗门宝库，B[0] 星及以上宗门
+        if (this.sectInfo().star < B[0]) return this.log(`需要 ${B[0]} 星及以上门派才能兑换。`, "sys"); if (s.forgeKnown.includes(this.forgeKey("zq", 0, g))) return; }
       if (kind !== "lz" && kind !== "zq" && g >= this.sectInfo().star) return this.log(`需要 ${g + 1} 星及以上门派才能学习。`, "sys");
       if (s.contrib < c) return this.log("贡献不足。", "sys");
       s.contrib -= c; this.lqAdd("forge", { key, k: "forge", ms: L.min * 60000 }); this.after();
@@ -742,12 +744,33 @@ G.module({
     /* ---------- 灵珠：洞府炼器室炼制（三种矿石 + 对应灵晶，进炼器队列，每颗 CFG.lingzhu.TIME 分钟，必定成功） ---------- */
     lzMats() { return DATA.parseMats(CFG.lingzhu.ORE); },
     /* ---------- 阵旗：洞府炼器室炼制（对应界三种矿石，进炼器队列，必定成功，不需炼器炉；见 config/array.js CFG.zhenqi） ---------- */
+    // 仙品 / 神品图纸：仙界、神界第 n 张图的坊市（神市）卖该品 n 阶，灵石 + 本界贡献（CFG.zhenqi.BP_XIAN / BP_SHEN）
+    zqJsTier(a) { const m = DATA.maps[a], G2 = m && { xian: 1, shen: 2 }[m.w]; if (!G2) return null; const n = DATA.maps.filter(x => x.w === m.w).indexOf(m);
+      return n >= 0 && n < CFG.zhenqi.TIERS ? { g: G2, n } : null; },
+    zqJsCost(a) { const t = this.zqJsTier(a); if (!t) return null; const B = t.g === 1 ? CFG.zhenqi.BP_XIAN : CFG.zhenqi.BP_SHEN; return { stone: B.STONE + t.n * B.STONE_STEP, gx: B.GX + t.n * B.GX_STEP }; },
+    zqJsFt(a, el) { const t = this.zqJsTier(a), Z = CFG.zhenqi; return el * Z.TIERS * Z.GRADES.length + t.g * Z.TIERS + t.n; },
+    buyZqBp(a, el) {
+      const s = this.s, Z = CFG.zhenqi; a = Math.floor(+a); el = Math.floor(+el); const c = this.zqJsCost(a);
+      if (!c || !(el >= 0 && el < Z.NAMES.length)) return;
+      const ft = this.zqJsFt(a, el), key = this.forgeKey("zq", 0, ft);
+      if (s.forgeKnown.includes(key) || !this.lqCan("forge", key)) return;
+      if (s.stone < c.stone) return this.log("灵石不足。", "sys");
+      if (this.xjGxOf(a) < c.gx) return this.log(`${this.xjGxName(a)}不足。`, "sys");
+      s.stone -= c.stone; this.xjGxAdd(a, -c.gx); this.lqAdd("forge", { key, k: "forge", ms: Z.LEARN_TIME * 60000 }); this.after();
+    },
+    zqJsCard(a) {
+      const c = this.zqJsCost(a); if (!c) return ""; const s = this.s, Z = CFG.zhenqi, poor = s.stone < c.stone || this.xjGxOf(a) < c.gx;
+      const rows = Z.NAMES.map((n, el) => { const ft = this.zqJsFt(a, el), key = this.forgeKey("zq", 0, ft), has = s.forgeKnown.includes(key);
+        return [has, `<div class="line"><div>${DATA.li(DATA.smIcon("zq", ft))}${DATA.smName("zq", ft)}图纸<small>${U.fmt(c.stone)} 灵石 + ${U.fmt(c.gx)} ${this.xjGxName(a)} · 学习 ${U.dur(Z.LEARN_TIME * 60)}</small></div>
+          ${has ? `<button class="sm" disabled>已学会</button>` : this.lqBtn("forge", key, `G.buyZqBp(${a},${el})`, poor)}</div>`]; });
+      return this.lqBar("forge") + U.doneCards([{ head: `<h3>阵旗图纸<small>灵石 ${U.fmt(s.stone)} · ${this.xjGxName(a)} ${U.fmt(this.xjGxOf(a))}</small></h3>`, rows }]);
+    },
     zqPrev(ft) { return DATA.zqT(ft) > 0 ? ft - 1 : -1; },
     zqMats(ft) { const Z = CFG.zhenqi, n = Z.ORE_BASE + DATA.zqN(ft) * Z.ORE_STEP; return DATA.parseMats(Z.ORE[DATA.zqG(ft)].map(o => [o, n])); },
     craftZq(ft) {
       const Z = CFG.zhenqi, s = this.s; ft = Math.floor(+ft);
       if (!(ft >= 0 && ft < Z.NAMES.length * Z.TIERS * Z.GRADES.length)) return;
-      if (!s.forgeKnown.includes(this.forgeKey("zq", 0, DATA.zqEl(ft)))) return;
+      if (!s.forgeKnown.includes(this.forgeKey("zq", 0, ft))) return;   // 每阶一张图纸
       if (s.forgeJob && s.forgeQueue.length >= CFG.furnace.QUEUE) return this.log(`队列已满（最多 ${CFG.furnace.QUEUE} 个）。`, "sys");
       if (!(s.furnaceUse.qi >= 0)) return this.log("没有装炼器炉。", "sys");
       const mats = this.zqMats(ft), pv = this.zqPrev(ft);   // 升阶：要一面上一阶同种阵旗（凡品一阶不用）
@@ -1025,10 +1048,10 @@ Object.assign(G, {
       tag: "灵珠", name: DATA.smName("lz", ft), sub: `聚灵+${U.fmt(LZ.BASE)}`, icon: DATA.li(DATA.smIcon("lz", ft), "lz-glow"), mats: lzMats, sm: [{ k: "lj", n: LZ.JING, ft }], per: this.forgePer("lz", 0), rate: 1 }); });
     // 阵旗（进炼器队列，必定成功，不需炼器炉）：学会哪种图纸就列出该种 30 阶
     const ZQ = CFG.zhenqi, ZT = ZQ.TIERS * ZQ.GRADES.length;
-    ZQ.NAMES.forEach((n, el) => { if (!s.forgeKnown.includes(this.forgeKey("zq", 0, el))) return;
-      for (let t = 0; t < ZT; t++) { const ft = el * ZT + t, mats = this.zqMats(ft), per = this.forgePer("zq", ft), pv = this.zqPrev(ft), sm = pv >= 0 ? [{ k: "zq", n: 1, ft: pv }] : [], rate = this.forgeRate("zq", ft);
+    ZQ.NAMES.forEach((n, el) => {
+      for (let t = 0; t < ZT; t++) { const ft = el * ZT + t; if (!s.forgeKnown.includes(this.forgeKey("zq", 0, ft))) continue; const mats = this.zqMats(ft), per = this.forgePer("zq", ft), pv = this.zqPrev(ft), sm = pv >= 0 ? [{ k: "zq", n: 1, ft: pv }] : [], rate = this.forgeRate("zq", ft);
         out.push({ key: `zq:${ft}`, info: `<div>${DATA.li(DATA.smIcon("zq", ft))}${n}<span class="tag">${DATA.zqTier(ft)}</span><small>${this.matsText(mats)}${sm.length ? "、" + this.smText(sm) : ""} · ${U.dur(per / 1000)} · 成功率 ${Math.round(rate * 100)}%</small></div>`, ok: this.hasMats(mats) && this.smHave(sm), call: `G.craftZq(${ft})`, btn: "炼制",
-          tag: "阵旗", name: n, sub: DATA.zqTier(ft), icon: DATA.li(DATA.smIcon("zq", ft)), mats, sm, per, rate }); } });
+          tag: "阵旗", name: `${n} ${DATA.zqTier(ft)}`, sub: DATA.zqTier(ft), icon: DATA.li(DATA.smIcon("zq", ft)), mats, sm, per, rate }); } });
     return out;
   },
   openForgeList() {

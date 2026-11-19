@@ -3016,7 +3016,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
         <button class="sm" onclick="G.openWdFruit(${a})" ${(s.merit || 0) < c ? "disabled" : ""}>购买</button></div></div>`)(this.wdFruitCost(a)) : "";
       if (part === "misc") {   // 杂物：坊市 = 炼丹 / 炼器 / 聚灵心得；功德司 = 悟道果、本命法宝图纸（神界愿力祠另有愿力兑换）
         const misc = gd ? (shenW ? this.sjShopCard(a) : "") + fruit + this.bmMifaCard(a) : `<div class="card">${this.xdRows("js", a, "dan")}</div><div class="card">${this.xdRows("js", a, "qi")}</div><div class="card">${this.xdRows("js", a, "jl")}</div>`;
-        return (misc || `<div class="card"><p class="desc">暂无货品。</p></div>`) + (gd ? U.doneCard([this.bmMifaRow(a)]) : "");
+        return (misc || `<div class="card"><p class="desc">暂无货品。</p></div>`) + (gd ? U.doneCard([this.bmMifaRow(a)]) : this.zqJsCard(a));   // 仙界坊市 / 神界神市：阵旗图纸
       }
       if (part === "rec") return this.lqBar("dan") + (todo(recs) ? `<div class="card"><h3>丹方</h3>${todo(recs)}</div>` : `<div class="card"><p class="desc">${recs.length ? "丹方都兑换了。" : "暂无丹方。"}</p></div>`) + U.doneCard(recs);
       if (part === "dan") return dans ? `<div class="card"><h3>上古丹<small>${cn} ${U.fmt(cur)}</small></h3>${dans}</div>` : `<div class="card"><p class="desc">暂无丹药。</p></div>`;

@@ -142,6 +142,7 @@ const G = {
       const o = this.s, n = Math.floor(+s.lingye); this.s = s; try { this.addSm("lingye", n); } finally { this.s = o; } }
     if ("lingye" in s) delete s.lingye;
     {   // v261 灵珠初始聚灵 10 → 1000：已放入的灵珠补上差值（强化部分不变），只补一次
+      if (Array.isArray(s.forgeKnown) && s.forgeKnown.some(k => /^zq:\d$/.test(k))) s.forgeKnown = s.forgeKnown.map(k => /^zq:\d$/.test(k) ? `zqt:${+k.slice(3) * 30}` : k);   // 阵旗图纸改成每阶一张（2026-11-19）：旧的整种图纸换成凡品一阶
       if (!s.lzB1000 && Array.isArray(s.lzSlot)) s.lzSlot.forEach(z => { if (z && Number.isFinite(z.v)) z.v += 990; });
       s.lzB1000 = true; }
     {   // 2026-11-12 灵珠初始 1000 → 3000、每强化 +3 → +24：已放入的按强化次数重算（老灵珠没记次数：(聚灵 − 1000) ÷ 3），只算一次
