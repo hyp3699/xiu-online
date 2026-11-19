@@ -503,6 +503,14 @@ G.module({
     cqRefund(n) { const s = this.s; if (n > 0 && s.cqDay === this.bjDay()) s.cqUsed = Math.max(0, (s.cqUsed || 0) - n); },   // 跨天了就不用退（已经重置）
     // 杂物页货单：content/items.js 的 ITEMS.treasury
     treasuryList() { return ITEMS.treasury; },
+    // 阵旗图纸（config/array.js CFG.zhenqi.BP_STAR）：每种只在对应星级的宗门宝库杂物里兑换，高星宗门不能换低星的；学习走炼器学习队列
+    zqBpCards() {
+      const Z = CFG.zhenqi, x = this.sectInfo(), s = this.s; if (!Z || !x) return [];
+      const rows = Z.NAMES.map((n, el) => [n, el]).filter(([, el]) => Z.BP_STAR[el] === x.star).map(([n, el]) => { const key = this.forgeKey("zq", 0, el), has = s.forgeKnown.includes(key);
+        return [has, `<div class="line"><div>${DATA.li(DATA.smIcon("zq", el * Z.TIERS * Z.GRADES.length))}${n}图纸<small>学会后在洞府炼器炉炼制${n}（凡品、仙品、神品各 1~${Z.TIERS} 阶）· 学习 ${U.dur(Z.LEARN_TIME * 60)} · ${U.fmt(Z.LEARN_COST)} 贡献</small></div>
+          ${has ? `<button class="sm" disabled>已学会</button>` : this.lqBtn("forge", key, `G.learnForge('zq',0,${el})`, s.contrib < Z.LEARN_COST)}</div>`]; });
+      return rows.length ? [{ head: `<h3>阵旗图纸<small>以贡献兑换</small></h3>`, rows }] : [];
+    },
     treasuryName(it) {
       if (it.item) return it.item;
       if (it.kind === "furnace") return DATA.furnaceName(it.fk, it.g);
@@ -1051,7 +1059,7 @@ G.module({
           const img = it.kind === "furnace" ? DATA.furnaceIcon(it.fk) : it.kind === "pill" ? DATA.pillIcon(it.type) : DATA.iconImg("stone");
           return [0, `<div class="line"><div>${DATA.li(img)}${this.treasuryName(it)}<small>${desc}${U.fmt(c)} 贡献</small></div>
             <button class="sm" onclick="G.exchange(${i})" ${lock || s.contrib < c ? "disabled" : ""}>${lock ? `${it.star}星宗门可兑换` : "兑换"}</button></div>`];
-        }) }]);   // 已学会的放最后一张「已学会」卡
+        }) }, ...this.zqBpCards()]);   // 已学会的放最后一张「已学会」卡；阵旗图纸只在对应星级宗门显示
       } else if (tt === "seed") {
         h += `<div class="card"><h3>灵药种子<small>种一季用一颗</small></h3>` + this.seedList().map(({ g, lock }) => { const n = DATA.herbs[g], c = DATA.seedCost(g), has = false;
           return `<div class="line"><div>${DATA.li(DATA.seedImg(g))}${n}种子<small>${U.fmt(c)} 贡献 · 已有 ${U.fmt(this.seedCount(g))}</small></div>

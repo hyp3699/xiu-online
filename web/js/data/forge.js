@@ -55,9 +55,14 @@ DATA.fabaoName = (ft, g, def) => { const L = (CFG.names.fabaoName || {})[ft]; re
 // 秘境专用材料（config/mijing.js 的 items）：背包里 { t: "sm", k, ft, n }，k = kj 空间晶核 / lu 养神露 / ys 耀石（ft = 属性序号 0~5）
 //   ft = -1 表示「任意一种耀石」（装备、戒指炼制和强化用；扣的时候先扣最多的那种）
 //   lj 灵晶、lz 灵珠也分属性（ft = 0~4 金木水火土）；灵珠的设置在 config/array.js 的 CFG.lingzhu
+if (CFG.zhenqi) { const Z = CFG.zhenqi, T = Z.TIERS * Z.GRADES.length;   // 阵旗：ft = 属性 × 30 + 阶
+  DATA.zqEl = ft => Math.floor((ft || 0) / T); DATA.zqT = ft => (ft || 0) % T; DATA.zqG = ft => Math.floor(DATA.zqT(ft) / Z.TIERS); DATA.zqN = ft => DATA.zqT(ft) % Z.TIERS;   // zqN：本品第几阶（0 起）
+  DATA.zqTier = ft => Z.GRADES[DATA.zqG(ft)] + "一二三四五六七八九十"[DATA.zqN(ft)] + "阶";
+  DATA.zqNm = ft => Z.NAMES[DATA.zqEl(ft)];
+  CFG.mijing.items.zq = { name: "阵旗", names: Z.NAMES.flatMap((n, e) => Array.from({ length: T }, (_, t) => `${n}·${DATA.zqTier(e * T + t)}`)), sell: Z.SELL, desc: Z.DESC }; }
 if (CFG.lingzhu) CFG.mijing.items.lz = { name: "灵珠", names: CFG.lingzhu.NAMES, sell: CFG.lingzhu.SELL, desc: CFG.lingzhu.DESC };
 if (!CFG.mijing.items.ly) CFG.mijing.items.ly = { name: "灵元", names: ["金灵元", "木灵元", "水灵元", "火灵元", "土灵元", "雷灵元"], sell: 5, desc: "升级道童、灵根的材料。" };   // 管理员改过 mijing.js 也有
-DATA.SM_GRADED = ["ys", "lj", "lz", "ly"];
+DATA.SM_GRADED = ["ys", "lj", "lz", "ly", "zq"];
 // 等比数列：第 i 次（0 起，共 n 次）= first × (last / first)^(i / (n − 1))，每次涨的倍率相同（道童、灵根升级用）
 // 幂曲线：first + (last − first) × (i ÷ (n−1))^pow（pow 越大前期越便宜、后期越陡）
 DATA.powStep = (first, last, i, n, pow) => n <= 1 ? last : Math.round(first + (last - first) * Math.pow(Math.min(Math.max(i, 0), n - 1) / (n - 1), pow));
@@ -74,7 +79,7 @@ DATA.smByName = name => {
   for (const k in I) if (!DATA.SM_GRADED.includes(k) && I[k].name === name) return { k };
   return null;
 };
-DATA.smIcon = (k, ft) => DATA.SM_GRADED.includes(k) ? DATA.iconImg("sm_" + k + Math.max(0, ft || 0)) : DATA.iconImg("sm_" + k);
+DATA.smIcon = (k, ft) => k === "zq" ? DATA.iconImg(`zq${DATA.zqEl(ft)}_${DATA.zqG(ft)}`) : DATA.SM_GRADED.includes(k) ? DATA.iconImg("sm_" + k + Math.max(0, ft || 0)) : DATA.iconImg("sm_" + k);
 // 掉落记账的键：k / k:ft
 DATA.smKey = (k, ft) => k + (ft === undefined ? "" : ":" + ft);
 DATA.smParse = key => { const [k, f] = key.split(":"); return { k, ft: f === undefined ? undefined : +f }; };

@@ -2199,7 +2199,7 @@ G.module({
       const kn = r => Array.isArray(r) ? U.rand(r[0], r[1]) : (r || 0), few = (L, r) => { const a = L.slice(), n = kn(r); if (!n || n >= a.length) return a; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a.slice(0, n); };
       const pool = DATA.mapPool(this.matPoolMap(x));
       x.mpK = { herb: few(pool.herb || [], T.KINDS), ore: few(pool.ore || [], T.KINDS), el: {} };
-      for (const k of DATA.SM_GRADED) { const nk = ((CFG.mijing.items[k] || {}).names || DATA.elements).length; x.mpK.el[k] = few([...Array(nk).keys()], CFG.mijing.EL_KINDS); }
+      for (const k of DATA.SM_GRADED) { if (k === "zq") continue; const nk = ((CFG.mijing.items[k] || {}).names || DATA.elements).length; x.mpK.el[k] = few([...Array(nk).keys()], CFG.mijing.EL_KINDS); }
       // 灵元：凡界秘境一次合计 LINGYUAN.N 个，随机分到各怪物步（普通、精英、首领）
       x.lyp = {};
       if (x.mj !== undefined && !x.mk) {
