@@ -766,7 +766,8 @@ G.module({
       return this.lqBar("forge") + U.doneCards([{ head: `<h3>阵旗图纸<small>灵石 ${U.fmt(s.stone)} · ${this.xjGxName(a)} ${U.fmt(this.xjGxOf(a))}</small></h3>`, rows }]);
     },
     zqPrev(ft) { return DATA.zqT(ft) > 0 ? ft - 1 : -1; },
-    zqMats(ft) { const Z = CFG.zhenqi, n = Z.ORE_BASE + DATA.zqN(ft) * Z.ORE_STEP; return DATA.parseMats(Z.ORE[DATA.zqG(ft)].map(o => [o, n])); },
+    zqMats(ft) { const Z = CFG.zhenqi, I = CFG.mijing.items, el = DATA.zqEl(ft), n = Z.ORE_BASE + DATA.zqN(ft) * Z.ORE_STEP, e = (Z.EL_BASE || 0) + DATA.zqN(ft) * (Z.EL_STEP || 0);
+      return DATA.parseMats([...Z.ORE[DATA.zqG(ft)].map(o => [o, n]), ...(e > 0 ? [[I.ly.names[el], e], [I.lj.names[el], e]] : [])]); },   // 矿石 + 本属性灵元、灵晶
     craftZq(ft) {
       const Z = CFG.zhenqi, s = this.s; ft = Math.floor(+ft);
       if (!(ft >= 0 && ft < Z.NAMES.length * Z.TIERS * Z.GRADES.length)) return;
