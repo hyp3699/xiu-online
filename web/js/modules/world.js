@@ -464,7 +464,7 @@ G.module({
       const K = DATA.LK(), lv = this.lkLv(a), full = lv >= K.MAX, mats = full ? [] : DATA.lkMats(a, lv + 1), n = this.lkSvIdxs(a).length, N = DATA.lkSvN(), bo = this.lkBonus(a);
       const cell = (src, have, need, name) => `<div class="cpk-mat${have >= need ? "" : " lack"}"><img src="${src}" alt=""><b>${name}</b><span>${U.fmt(have)}/${U.fmt(need)}</span></div>`;
       const ok = DATA.isTest() || this.hasMats(mats), open = this.gridOpen(a, 0);
-      const cost = full ? `<p class="desc">已满级。</p>` : `<p class="zf-cost-t">升到 ${lv + 1} 级消耗</p><div class="cpk-mats zf-cost">${mats.map(m => cell(DATA.matImg(m.kind, m.g), this.countMat(m.kind, m.g), m.n, DATA.matFull(m.kind, m.g))).join("")}</div>`;
+      const cost = full ? `<p class="desc">已满级。</p>` : `<p class="zf-cost-t">升到 ${lv + 1} 级消耗</p><div class="cpk-mats zf-cost">${mats.map(m => cell(DATA.matImg(m.kind, m.g), this.countMat(m.kind, m.g, false, m.ft), m.n, DATA.matFull(m.kind, m.g))).join("")}</div>`;
       this.modal(`<img class="item-img" src="${DATA.iconImg("stone")}" alt=""><h2>${DATA.maps[a].name} · 灵矿 ${lv} 级</h2><div class="stats"><div><span>道童加成</span>${n ? `+${U.num(bo)}%` : "—"}</div><div><span>每日产出</span>${n ? `${U.fmt(Math.round(this.lkOutA(a)))} 灵石` : `<span class="q5">未派道童，不产出</span>`}</div></div>
         <h3 style="margin-top:8px">管理道童 ${n} / ${N}</h3>${this.lkSlotsHtml(a, "")}
         <p class="desc">至少派 1 个道童才产出。</p>
@@ -517,7 +517,13 @@ G.module({
       for (const w in N) { const pool = L.filter(y => y.w === w), have = pool.filter(y => y.id in s.lmYs), want = Math.min(pool.length, Math.max(0, Math.floor(+N[w]) || 0));
         while (have.length > want) delete s.lmYs[have.pop().id];
         const rest = pool.filter(y => !(y.id in s.lmYs));
-        while (have.length < want && rest.length) { const y = rest.splice(U.rand(0, rest.length - 1), 1)[0]; s.lmYs[y.id] = EL[U.rand(0, EL.length - 1)]; have.push(y); } }
+        while (have.length < want && rest.length) { const y = rest.splice(U.rand(0, rest.length - 1), 1)[0]; s.lmYs[y.id] = -1; have.push(y); } }
+      // 属性各不相同（6 条 = 金木水火土雷各一）：有重复 / 不在 EL 里就整组重新打乱分配
+      const ids = Object.keys(s.lmYs), v = ids.map(id => s.lmYs[id]);
+      if (ids.length <= EL.length && (v.some(x => !EL.includes(x)) || new Set(v).size !== v.length)) {
+        const a = EL.slice(); for (let i = a.length - 1; i > 0; i--) { const j = U.rand(0, i); [a[i], a[j]] = [a[j], a[i]]; }
+        ids.forEach((id, i) => { s.lmYs[id] = a[i]; }); }
+      else ids.forEach(id => { if (!EL.includes(s.lmYs[id])) s.lmYs[id] = EL[U.rand(0, EL.length - 1)]; });
     },
     lmHas(id) { return id in this.lmMap(); },
     lmEl(id) { return +this.lmMap()[id] || 0; },
@@ -560,14 +566,15 @@ G.module({
       const C = this.lmCfg(), I = CFG.mijing.items, M = this.lmMax(), to = lv + 1, el = this.lmEl(id);
       const band = (C.ORES || []).find(b => to <= b.to) || (C.ORES || [])[(C.ORES || []).length - 1] || { names: [] };
       const n = DATA.geoStep(C.ORE_FIRST || 1000, C.ORE_LAST || 30000, lv - 1, M - 1), ly = DATA.geoStep(C.LY_FIRST || 10, C.LY_LAST || 300, lv - 1, M - 1);
-      return { mats: DATA.parseMats(band.names.map(x => [x, n])), sm: [{ k: "ly", ft: el, n: ly, name: I.ly.names[el] }, { k: "lj", ft: el, n: ly, name: I.lj.names[el] }] };
+      const hasLj = !!I.lj.names[el];   // 雷没有灵晶：雷灵脉只要雷灵元，数量 ×2
+      return { mats: DATA.parseMats(band.names.map(x => [x, n])), sm: [{ k: "ly", ft: el, n: hasLj ? ly : ly * 2, name: I.ly.names[el] }, ...(hasLj ? [{ k: "lj", ft: el, n: ly, name: I.lj.names[el] }] : [])] };
     },
     lmCanUp(c) { return DATA.isTest() || (this.hasMats(c.mats) && c.sm.every(x => this.smCount(x.k, x.ft) >= x.n)); },
     lmUp(id) {
       if (!this.lmHas(id) || !this.ysFound(id)) return; const o = this.lmGet(id);
       if (o.lv >= this.lmMax()) return this.log("灵脉已满阶。", "sys");
       const c = this.lmUpCost(id, o.lv); if (!this.lmCanUp(c)) return this.log("材料不足。", "sys");
-      if (!DATA.isTest()) { c.mats.forEach(m => this.takeMat(m.kind, m.g, m.n)); c.sm.forEach(x => this.takeSm(x.k, x.n, x.ft)); }
+      if (!DATA.isTest()) { c.mats.forEach(m => this.takeMat(m.kind, m.g, m.n, false, m.ft)); c.sm.forEach(x => this.takeSm(x.k, x.n, x.ft)); }
       o.lv++; this.log(`${this.ysById(id).name}灵脉升到 ${DATA.cnNum ? DATA.cnNum(o.lv) : o.lv} 阶，灵气上限 ${U.fmt(this.lmCap(o.lv))}。`, "good"); this.after();
     },
     lmHtml(id) {
@@ -575,7 +582,7 @@ G.module({
       const line = (a, b) => `<div class="line"><div>${a}</div><div>${b}</div></div>`;
       let up = "";
       if (o.lv < M) { const c = this.lmUpCost(id, o.lv), cell = (src, have, need, name) => `<div class="cpk-mat${have >= need ? "" : " lack"}"><img src="${src}" alt=""><b>${name}</b><span>${U.fmt(have)}/${U.fmt(need)}</span></div>`;
-        up = `<p class="zf-cost-t">升到 ${DATA.cnNum(o.lv + 1)} 阶（灵气上限 ${U.fmt(this.lmCap(o.lv + 1))}）</p><div class="cpk-mats zf-cost">${c.mats.map(m => cell(DATA.matImg(m.kind, m.g), this.countMat(m.kind, m.g), m.n, DATA.matFull(m.kind, m.g))).join("")}${c.sm.map(x => cell(DATA.smIcon(x.k, x.ft), this.smCount(x.k, x.ft), x.n, x.name)).join("")}</div>`;
+        up = `<p class="zf-cost-t">升到 ${DATA.cnNum(o.lv + 1)} 阶（灵气上限 ${U.fmt(this.lmCap(o.lv + 1))}）</p><div class="cpk-mats zf-cost">${c.mats.map(m => cell(DATA.matImg(m.kind, m.g), this.countMat(m.kind, m.g, false, m.ft), m.n, DATA.matFull(m.kind, m.g))).join("")}${c.sm.map(x => cell(DATA.smIcon(x.k, x.ft), this.smCount(x.k, x.ft), x.n, x.name)).join("")}</div>`;
         up += `<div class="btns"><button onclick="G.lmUp('${id}')" ${this.lmCanUp(c) ? "" : "disabled"}>升阶</button></div>`; }
       return `${line("灵脉", `${(I.ly.names[el] || "").slice(0, 1)}属性 · ${DATA.cnNum(o.lv)} 阶${o.lv >= M ? "（满阶）" : ""}`)}${line("灵气", `${U.fmt(Math.floor(o.ling || 0))} / ${U.fmt(cap)}`)}${line("每小时恢复", U.fmt(Math.round(this.lmRegen(o.lv))))}${line("租借", o.on ? `<span class="c-green">租借中</span> · 每小时 −${U.fmt(rent)} 好感` : `每小时 ${U.fmt(rent)} 好感`)}
         <p class="desc">租借后，修炼、炼体、功法修炼、阵法运转先消耗灵脉灵气，不够再消耗聚灵阵灵气。</p>

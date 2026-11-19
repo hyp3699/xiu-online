@@ -78,7 +78,7 @@ G.module({
         herbs: herbs.map(name => ({ name, n })) };
     },
     // 按名字数 / 扣药材（凡界药材或 content/items.js 的自定义物品）
-    herbCount(name) { const m = DATA.matByName[name]; if (m) return this.countMat(m.kind, m.g); return this.s.bag.reduce((a, it) => a + (it && it.t === "cu" && it.name === name ? it.n : 0), 0); },
+    herbCount(name) { const m = DATA.matByName[name]; if (m) return this.countMat(m.kind, m.g, false, m.ft); return this.s.bag.reduce((a, it) => a + (it && it.t === "cu" && it.name === name ? it.n : 0), 0); },
     herbTake(name, n) {
       n = Math.floor(+n); if (!(n >= 1)) return;
       const m = DATA.matByName[name]; if (m) return this.takeMat(m.kind, m.g, n);

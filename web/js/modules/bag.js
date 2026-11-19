@@ -475,7 +475,7 @@ G.module({
       const e = this.bmPick(src, i); if (!e) return this.log(`法宝需要${this.bmReqTxt()}。`, "sys");
       const mats = this.bmMats(); if (!this.hasMats(mats)) return this.log("矿石不足。", "sys");
       if (src === "bag") s.bag[Math.floor(+i)] = null; else s.fabao[Math.floor(+i)] = null;
-      const paid = this.craftFree() ? [] : mats; paid.forEach(m => this.takeMat(m.kind, m.g, m.n));   // 测试模式不扣矿石
+      const paid = this.craftFree() ? [] : mats; paid.forEach(m => this.takeMat(m.kind, m.g, m.n, false, m.ft));   // 测试模式不扣矿石
       s.bmJob = { e, mats: paid, end: this.now() + B.MIN * 60000 };   // mats：取消时按实际扣的退
       this.log(`开始把${this.itemName({ t: "eq", e })}炼成${B.NAME}，${B.MIN} 分钟后炼成。`, "good"); this.dirty(); this.after();
     },

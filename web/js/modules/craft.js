@@ -126,16 +126,16 @@ G.module({
 
     /* ---------- 材料 ---------- */
     // free = true：不算加锁的格子（宗门兑换用，加锁的物品不能拿去换）
-    countMat(kind, g, free) {
-      if (kind === "sm") return this.smCount(g);   // 秘境专用材料（养神露）
+    countMat(kind, g, free, ft) {   // ft：分属性的秘境材料（灵元、灵晶等）按属性数，parseMats 带出来的 m.ft
+      if (kind === "sm") return this.smCount(g, ft);   // 秘境专用材料（养神露）
       if (kind === "cu") return this.s.bag.reduce((a, it) => a + (it && it.t === "cu" && it.name === g ? it.n : 0), 0);   // 自定义物品，g = 物品名
       const name = DATA.matName(kind, g);
       return this.s.bag.reduce((a, it) => a + (it && it.t === "mat" && it.kind === kind && it.name === name && !(free && it.lk) ? it.n : 0), 0);
     },
-    takeMat(kind, g, n, free) {   // 原子扣除：不够就一件不扣，返回 false
+    takeMat(kind, g, n, free, ft) {   // 原子扣除：不够就一件不扣，返回 false
       n = Math.floor(+n); if (!(n >= 1)) return true;
-      if (this.countMat(kind, g, free) < n) return false;
-      if (kind === "sm") { this.takeSm(g, n); return true; }
+      if (this.countMat(kind, g, free, ft) < n) return false;
+      if (kind === "sm") { this.takeSm(g, n, ft); return true; }
       if (kind === "cu") {   // 自定义物品按名字扣
         for (let i = this.s.bag.length - 1; i >= 0 && n > 0; i--) {
           const it = this.s.bag[i];
@@ -154,9 +154,9 @@ G.module({
     },
     // 测试模式（调试人物）：炼器、精炼、炼丹、灵珠、本命法宝都不消耗材料（够不够一律算够，也不扣、不退）
     craftFree() { return DATA.isTest(); },
-    hasMats(list, times = 1) { return this.craftFree() || list.every(m => this.countMat(m.kind, m.g) >= m.n * times); },
+    hasMats(list, times = 1) { return this.craftFree() || list.every(m => this.countMat(m.kind, m.g, false, m.ft) >= m.n * times); },
     matsText(list, times = 1) {
-      return list.map(m => { const have = this.countMat(m.kind, m.g), need = m.n * times;
+      return list.map(m => { const have = this.countMat(m.kind, m.g, false, m.ft), need = m.n * times;
         return `<span class="${have >= need ? "" : "q5"}">${DATA.matFull(m.kind, m.g)} ${U.fmt(have)}/${U.fmt(need)}</span>`; }).join("、");
     },
     giveBack(list, times = 1) { list.forEach(m => m.kind === "sm" ? this.addSm(m.g, m.n * times, m.ft) : this.addMat(m.kind, DATA.matName(m.kind, m.g), m.g, m.n * times)); },   // 秘境材料走 addSm 才能保留 ft（分属性），否则退回的分属性材料会混成一堆
@@ -328,7 +328,7 @@ G.module({
       j.done = (j.done || 0) + 1; j.ok = undefined; this.dirty();
       let go = !DATA.rjTop(e);
       if (go && !j.free) { const mats = DATA.refineMats(e), sm = DATA.refineSm(e);
-        if (this.hasMats(mats) && this.smHave(sm)) { const got = []; mats.forEach(m => this.takeMat(m.kind, m.g, m.n)); sm.forEach(x => { const g2 = this.takeSm(x.k, x.n, x.ft); if (g2) got.push(...g2); }); j.sm = got; }
+        if (this.hasMats(mats) && this.smHave(sm)) { const got = []; mats.forEach(m => this.takeMat(m.kind, m.g, m.n, false, m.ft)); sm.forEach(x => { const g2 = this.takeSm(x.k, x.n, x.ft); if (g2) got.push(...g2); }); j.sm = got; }
         else { go = false; this.log(`材料不足，${nm()}的连续精炼停止。`, "sys"); } }
       if (!go) { j.stop = 1; return false; }
       j.end += this.forgePer("rf", e.g); return true;
@@ -436,7 +436,7 @@ G.module({
       else if (kind === "ring" && g > 0) { pi = this.prevEquipIndex("ring", g, job.r); if (pi < 0) return this.log(`需要一枚${DATA.ringName(job.r, g - 1)}。`, "sys"); }
       if (pi >= 0) { job.prev = s.bag[pi].e; s.bag[pi] = null; }   // 固定格子：上一阶装备拿走后该格留空，不往前挪
       else if (pe) { job.prev = pe; this.rfTake(pe); this._cache = null; }   // 选的那件（含身上穿的）拿走；出炉、失败、取消都放回背包
-      job.sm = []; if (this.craftFree()) job.free = 1; else { mats.forEach(m => this.takeMat(m.kind, m.g, m.n));
+      job.sm = []; if (this.craftFree()) job.free = 1; else { mats.forEach(m => this.takeMat(m.kind, m.g, m.n, false, m.ft));
         sm.forEach(x => { const got = this.takeSm(x.k, x.n, x.ft); if (got) job.sm.push(...got); }); }   // 记下实际扣的（取消时按这个退）
       if (s.forgeJob) { q.push(job); this.log(`${this.jobName(job)}加入队列。`, "sys"); }
       else { s.forgeJob = Object.assign(job, { end: this.now() + this.forgePer(kind, g) }); this.log(`开始炼制${this.jobName(job)}。`, "good"); }
@@ -482,7 +482,7 @@ G.module({
     forgeMax(kind, g, slot, ft, el, ys) {
       const s = this.s, job = { kind, g }; if (kind === "ring") job.r = +slot; else if (slot) job.slot = slot; if (slot === "fabao") { job.ft = +ft; job.el = el; } else if (this.ysArg(ys) >= 0) job.ys = this.ysArg(ys);
       let max = (s.forgeJob ? 0 : 1) + CFG.furnace.QUEUE - s.forgeQueue.length;
-      if (!this.craftFree()) { for (const m of this.jobMats(job)) max = Math.min(max, Math.floor(this.countMat(m.kind, m.g) / m.n));
+      if (!this.craftFree()) { for (const m of this.jobMats(job)) max = Math.min(max, Math.floor(this.countMat(m.kind, m.g, false, m.ft) / m.n));
         for (const x of this.jobSm(job)) max = Math.min(max, Math.floor(this.smCount(x.k, x.ft) / x.n)); }
       if (kind === "ring" && (!DATA.ringOK(job.r) || (g < 1 && !DATA.ringSp(job.r)))) return 0;
       if ((kind === "eq" || kind === "ring") && g > 0) {
@@ -611,7 +611,7 @@ G.module({
       if (!this.hasMats(mats)) return this.log("矿石不足。", "sys");
       if (!this.smHave(sm)) return this.log(`缺少${sm.filter(x => this.smCount(x.k, x.ft) < x.n).map(x => DATA.smName(x.k, x.ft)).join("、")}（秘境、灵地掉落）。`, "sys");
       const free = this.craftFree(), gotSm = [];
-      if (!free) { mats.forEach(m => this.takeMat(m.kind, m.g, m.n)); sm.forEach(x => { const got = this.takeSm(x.k, x.n, x.ft); if (got) gotSm.push(...got); }); }
+      if (!free) { mats.forEach(m => this.takeMat(m.kind, m.g, m.n, false, m.ft)); sm.forEach(x => { const got = this.takeSm(x.k, x.n, x.ft); if (got) gotSm.push(...got); }); }
       if (!this.rfTake(e)) {   // 扣完材料后再按 uid 拿走；拿不到就不建炉、退回材料
         if (!free) { this.giveBack(mats); gotSm.forEach(x => this.addSm(x.k, x.n, x.ft)); }
         return this.log("精炼失败：那件已不在，材料已退回。", "sys");
@@ -779,7 +779,7 @@ G.module({
       if (!this.craftFree() && (!this.hasMats(mats) || (pv >= 0 && this.smCount("zq", pv) < 1))) return this.log("材料不足。", "sys");
       const job = { kind: "zq", g: ft, ft, sm: [] };   // g = ft：排队出炉时 forgePer(kind, g) 按阶算时间
       if (this.craftFree()) job.free = 1;
-      else { mats.forEach(m => this.takeMat(m.kind, m.g, m.n)); if (pv >= 0) { const got = this.takeSm("zq", 1, pv); if (got) job.sm.push(...got); } }
+      else { mats.forEach(m => this.takeMat(m.kind, m.g, m.n, false, m.ft)); if (pv >= 0) { const got = this.takeSm("zq", 1, pv); if (got) job.sm.push(...got); } }
       if (s.forgeJob) { s.forgeQueue.push(job); this.log(`${this.jobName(job)}加入队列。`, "sys"); }
       else { s.forgeJob = Object.assign(job, { end: this.now() + this.forgePer("zq", ft) }); this.log(`开始炼制${this.jobName(job)}。`, "good"); }
       this.after();
@@ -792,7 +792,7 @@ G.module({
       if (!this.hasMats(mats) || (!this.craftFree() && this.smCount("lj", ft) < C.JING)) return this.log("材料不足。", "sys");
       const job = { kind: "lz", g: 0, ft, sm: [] };
       if (this.craftFree()) job.free = 1;
-      else { mats.forEach(m => this.takeMat(m.kind, m.g, m.n)); const got = this.takeSm("lj", C.JING, ft); if (got) job.sm.push(...got); }
+      else { mats.forEach(m => this.takeMat(m.kind, m.g, m.n, false, m.ft)); const got = this.takeSm("lj", C.JING, ft); if (got) job.sm.push(...got); }
       if (s.forgeJob) { s.forgeQueue.push(job); this.log(`${this.jobName(job)}加入队列。`, "sys"); }
       else { s.forgeJob = Object.assign(job, { end: this.now() + this.forgePer("lz", 0) }); this.log(`开始炼制${this.jobName(job)}。`, "good"); }
       this.after();
@@ -835,11 +835,11 @@ G.module({
       if (s.furnaceUse[fk] < 0) return this.log(`炼丹必须装有炼丹炉。`, "sys");
       // n = 0 表示用现有药材能炼多少炼多少（这个 0 哨兵要保留，不能一刀切成 n>=1）
       let max = CFG.alchemy.MAX_BATCH;
-      if (!this.craftFree()) for (const m of rec) max = Math.min(max, Math.floor(this.countMat(m.kind, m.g) / m.n));
+      if (!this.craftFree()) for (const m of rec) max = Math.min(max, Math.floor(this.countMat(m.kind, m.g, false, m.ft) / m.n));
       n = Math.floor(+n || 0); if (n < 0) return this.log("药材不足。", "sys");
       n = n ? Math.min(n, max) : max;
       if (n <= 0) return this.log("药材不足。", "sys");
-      if (!this.craftFree()) rec.forEach(m => this.takeMat(m.kind, m.g, m.n * n));
+      if (!this.craftFree()) rec.forEach(m => this.takeMat(m.kind, m.g, m.n * n, false, m.ft));
       if (s.alchJob) { s.alchQueue.push({ type, g, n, mats: rec }); this.log(`${DATA.danName(type, g)} ×${n} 加入炼丹队列。`, "sys"); return this.after(); }
       const per = this.danPer(type, g);
       s.alchJob = { type, g, n, done: 0, per, next: this.now() + per, mats: rec };
@@ -980,7 +980,7 @@ Object.assign(G, {
     const L = this.danKnown().filter(x => !this.isHidden("dan", x.key)).map(x => {
       const rec = DATA.danRecipe(x.t, x.g), furn = s.furnaceUse[this.danFurn(DATA.danFu(x.t))] >= 0, e = this.danEatTxt(x.t, x.g);
       let max = full || !furn ? 0 : CFG.alchemy.MAX_BATCH;
-      if (!this.craftFree()) for (const m of rec) max = Math.min(max, Math.floor(this.countMat(m.kind, m.g) / m.n));
+      if (!this.craftFree()) for (const m of rec) max = Math.min(max, Math.floor(this.countMat(m.kind, m.g, false, m.ft) / m.n));
       return { key: x.key, tag: DATA.recipeItem(x.t) ? "" : DATA.JIE[x.g], name: DATA.danName(x.t, x.g).replace(DATA.JIE[x.g], "") || DATA.danName(x.t, x.g), sub: e.replace("已服 ", ""), icon: DATA.danImg(DATA.danIcon(x.t), DATA.danCls(x.t, x.g), "li"),
         full: DATA.dans[x.t] && DATA.danLimit(x.t, x.g) > 0 && this.danLeft(x.t, x.g) <= 0,   // 已达服用上限：格子里标红色斜体「已满」
         desc: DATA.recipeEffect(x.t, x.g), mats: rec, sm: [], per: this.danPer(x.t, x.g), rate: this.danRate(x.t, x.g), max, run: n => this.startAlch(x.t, x.g, n),
@@ -1099,7 +1099,7 @@ Object.assign(G, {
     const mat = (src, have, need, name) => `<div class="cpk-mat${have >= need ? "" : " lack"}">${src ? `<img src="${src}" alt="" loading="lazy">` : ""}<b>${name}</b><span>${U.fmt(have)}/${U.fmt(need)}</span></div>`;
     let foot = "";
     if (cur) {
-      const n = cur.noQty ? 1 : st.n, mats = (cur.mats || []).map(m => mat(m.kind === "sm" ? DATA.smIcon(m.g, m.ft) : DATA.matImg(m.kind, m.g), this.countMat(m.kind, m.g), m.n * n, DATA.matFull(m.kind, m.g)))
+      const n = cur.noQty ? 1 : st.n, mats = (cur.mats || []).map(m => mat(m.kind === "sm" ? DATA.smIcon(m.g, m.ft) : DATA.matImg(m.kind, m.g), this.countMat(m.kind, m.g, false, m.ft), m.n * n, DATA.matFull(m.kind, m.g)))
         .concat((cur.sm || []).map(x => mat(DATA.smIcon(x.k, x.ft), this.smCount(x.k, x.ft), x.n * n, x.txt || DATA.smName(x.k, x.ft))));
       // 下方：第一行 名字（框外） | 成功率；第二行 图片框（图居中）| 材料…开始按钮（图片框上下和右栏对齐）
       foot = `<div class="cpk-foot"><b class="cpk-name">${cur.name}</b><p class="cpk-rate">成功率：${this.ratePct(cur.rate)}</p>

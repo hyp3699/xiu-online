@@ -62,11 +62,11 @@ G.module({
       if (DATA.isTest()) return true;
       if (this.s.stone < c.stone) { this.log(`灵石不足，需要 ${U.fmt(c.stone)}。`, "sys"); return false; }
       if (!this.hasMats(c.mats)) { this.log("矿石不足。", "sys"); return false; }
-      this.s.stone -= c.stone; c.mats.forEach(m => this.takeMat(m.kind, m.g, m.n)); return true;
+      this.s.stone -= c.stone; c.mats.forEach(m => this.takeMat(m.kind, m.g, m.n, false, m.ft)); return true;
     },
     zfCostHtml(c, title = "升级消耗") {
       const cell = (src, have, need, name) => `<div class="cpk-mat${have >= need ? "" : " lack"}"><img src="${src}" alt=""><b>${name}</b><span>${U.fmt(have)}/${U.fmt(need)}</span></div>`;
-      return `<p class="zf-cost-t">${title}</p><div class="cpk-mats zf-cost">${c.mats.map(m => cell(DATA.matImg(m.kind, m.g), this.countMat(m.kind, m.g), m.n, DATA.matFull(m.kind, m.g))).join("")}${cell(DATA.iconImg("stone"), this.s.stone, c.stone, "灵石")}</div>`;
+      return `<p class="zf-cost-t">${title}</p><div class="cpk-mats zf-cost">${c.mats.map(m => cell(DATA.matImg(m.kind, m.g), this.countMat(m.kind, m.g, false, m.ft), m.n, DATA.matFull(m.kind, m.g))).join("")}${cell(DATA.iconImg("stone"), this.s.stone, c.stone, "灵石")}</div>`;
     },
     zfCanPay(c) { return DATA.isTest() || (this.s.stone >= c.stone && this.hasMats(c.mats)); },
     // 运转消耗：开着的主动阵每 10 秒合计扣多少灵气（config/zhenfa.js ACT.KEEP，用户定 2026-11-13）

@@ -140,7 +140,7 @@ G.module({
       const cell = (src, have, need, name) => `<div class="cpk-mat${have >= need ? "" : " lack"}"><img src="${src}" alt=""><b>${name}</b><span>${U.fmt(have)}/${U.fmt(need)}</span></div>`;
       const lc = full ? 0 : DATA.landCost(lv + 1), mats = full ? [] : DATA.landMats(i, lv + 1), ly = this.smCount("lingye");
       const ok = DATA.isTest() || (ly >= lc && this.hasMats(mats));
-      const cost = full ? `<p class="desc">已满级。</p>` : `<p class="zf-cost-t">升到 ${lv + 1} 级消耗</p><div class="cpk-mats zf-cost">${cell(DATA.smIcon("lingye"), ly, lc, DATA.smName("lingye"))}${mats.map(m => cell(DATA.matImg(m.kind, m.g), this.countMat(m.kind, m.g), m.n, DATA.matFull(m.kind, m.g))).join("")}</div>`;
+      const cost = full ? `<p class="desc">已满级。</p>` : `<p class="zf-cost-t">升到 ${lv + 1} 级消耗</p><div class="cpk-mats zf-cost">${cell(DATA.smIcon("lingye"), ly, lc, DATA.smName("lingye"))}${mats.map(m => cell(DATA.matImg(m.kind, m.g), this.countMat(m.kind, m.g, false, m.ft), m.n, DATA.matFull(m.kind, m.g))).join("")}</div>`;
       this.modal(`<h2>第 ${i + 1} 块灵田 · ${lv} 级</h2><div class="stats"><div><span>生长速度</span>+${U.num(DATA.landPct(lv))}%${full ? "" : ` → +${U.num(DATA.landPct(lv + 1))}%`}</div><div><span>产量</span>+${U.num(DATA.landYieldPct(lv))}%${full ? "" : ` → +${U.num(DATA.landYieldPct(lv + 1))}%`}</div></div>${cost}
         <div class="btns">${full ? "" : `<button class="primary" onclick="G.fieldLandUp(${i});G.openLandUpOne(${i},${+pg || 0})" ${ok ? "" : "disabled"}>升级</button>`}<button onclick="G.openLandUp(${+pg || 0})">返回</button></div>`);
     },
