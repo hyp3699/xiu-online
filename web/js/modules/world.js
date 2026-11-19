@@ -530,15 +530,22 @@ G.module({
     lmW(id) { return (this.ysById(id) || {}).w || "fan"; },
     lmMax() { return Math.max(1, Math.floor(+this.lmCfg().MAX || 13)); },
     lmCap(id, lv) { return Math.max(0, lv) * (+(this.lmCfg().CAP_PER || {})[this.lmW(id)] || 0); },   // 灵气上限 = 阶 × 每阶（废品 0 阶 = 0）
-    lmRegen(id, lv) { const R = this.lmCfg().REGEN_PCT, p = typeof R === "object" && R ? +R[this.lmW(id)] || 0 : +R || 0; return this.lmCap(id, lv) * Math.max(0, lv) * p / 100; },   // 每游戏年（现实 1 小时）恢复 = 上限 × 阶 × 每阶%
+    lmRegenRaw(w, lv) { const C = this.lmCfg(), R = C.REGEN_PCT, p = typeof R === "object" && R ? +R[w] || 0 : +R || 0; return Math.max(0, lv) * (+(C.CAP_PER || {})[w] || 0) * Math.max(0, lv) * p / 100; },
+    lmRegenK() {   // 全部满阶合计每 10 秒恢复超过 REGEN_MAX 时的缩小比例
+      const C = this.lmCfg(); if (this._lmK && this._lmK.src === C) return this._lmK.k;
+      const M = this.lmMax(), N = C.N || {}; let t = 0; for (const w in N) t += Math.max(0, +N[w] || 0) * this.lmRegenRaw(w, M) / 360;
+      const k = C.REGEN_MAX > 0 && t > C.REGEN_MAX ? C.REGEN_MAX / t : 1; this._lmK = { src: C, k }; return k;
+    },
+    lmRegen(id, lv) { return this.lmRegenRaw(this.lmW(id), lv) * this.lmRegenK(); },   // 每游戏年（现实 1 小时）恢复 = 上限 × 阶 × 每阶%
     lmPrice(id) { return Math.max(0, +(this.lmCfg().BUY_FAV || {})[this.lmW(id)] || 0); },
     lmOwn(id) { const o = (this.s.lm || {})[id]; return !!(o && o.own && this.lmHas(id)); },
     lmLv(id) { return this.lmOwn(id) ? Math.max(0, Math.min(this.lmMax(), Math.floor(+this.s.lm[id].lv) || 0)) : 0; },
     lmTick() {
-      this.lmEnsure(); const s = this.s, now = this.now(), H = 3600000; s.lmFed = 0;   // 每 10 秒从灵脉扣的灵气合计（上限 FEED_MAX）
+      this.lmEnsure(); const s = this.s, now = this.now(), H = 3600000;
       if (!s.lm || typeof s.lm !== "object") return;
       for (const id in s.lm) { const o = s.lm[id];
         if (!o || !o.own || !this.lmHas(id)) { delete s.lm[id]; continue; }   // 旧版租借记录 / 不再分到的宗门：删掉
+        if ("lmFed" in s) delete s.lmFed;   // 上一版的每 10 秒计数，已不用
         const lv = this.lmLv(id), cap = this.lmCap(id, lv), dt = now - (+o.t || now);
         if (dt > 0) o.ling = Math.min(cap, Math.max(0, +o.ling || 0) + this.lmRegen(id, lv) * dt / H);
         if (o.ling > cap) o.ling = cap; o.t = now; }
@@ -547,9 +554,9 @@ G.module({
     lmAvail() { let t = 0; for (const id in this.s.lm || {}) if (this.lmLv(id) >= 1) t += Math.max(0, +this.s.lm[id].ling || 0); return t; },
     // 要扣 need 点灵气之前调用：先从自己的灵脉（1 阶起，废品没效果）搬过来（加到 s.ling，随后照常扣），返回搬了多少
     lmFeed(need) {
-      const FM = +this.lmCfg().FEED_MAX || Infinity; need = Math.min(Math.max(0, +need || 0), Math.max(0, FM - (+this.s.lmFed || 0))); if (!need || !this.s.lm) return 0; let got = 0;
+      need = Math.max(0, +need || 0); if (!need || !this.s.lm) return 0; let got = 0;
       for (const id in this.s.lm) { if (this.lmLv(id) < 1) continue; const o = this.s.lm[id], x = Math.min(need - got, Math.max(0, +o.ling || 0)); if (x > 0) { o.ling -= x; got += x; } if (got >= need) break; }
-      if (got > 0) { this.s.ling = (this.s.ling || 0) + got; this.s.lmFed = (+this.s.lmFed || 0) + got; } return got;
+      if (got > 0) this.s.ling = (this.s.ling || 0) + got; return got;
     },
     lmBuy(id) {
       if (!this.lmHas(id) || !this.ysFound(id) || this.lmOwn(id)) return;
