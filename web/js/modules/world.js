@@ -579,10 +579,10 @@ G.module({
     // 聚灵阵页「灵脉」按钮：列出买下的灵脉，开关（只能开一条）
     openLmSw() {
       const ids = Object.keys(this.s.lm || {}).filter(id => this.lmOwn(id)), I = CFG.mijing.items;
-      this.modal(`<h2>灵脉<small> 只能开启一条</small></h2>${ids.length ? ids.map(id => { const lv = this.lmLv(id), on = this.s.lmOn === id, o = this.s.lm[id];
+      this.modal(`<h2>灵脉</h2>${ids.length ? ids.map(id => { const lv = this.lmLv(id), on = this.s.lmOn === id, o = this.s.lm[id];
         return `<div class="line"><div>${(this.ysById(id) || {}).name || ""} · ${(I.ly.names[this.lmEl(id)] || "").slice(0, 1)}属性灵脉<small>${lv ? `${DATA.cnNum(lv)} 阶 · 灵气 ${U.fmt(Math.floor(o.ling || 0))} / ${U.fmt(this.lmCap(id, lv))}` : "废品"}${on ? ` · <span class="c-green">开启中</span>` : ""}</small></div>
-          <button class="sm${on ? "" : " primary"}" onclick="G.lmSw('${id}')" ${lv >= 1 || on ? "" : "disabled"}>${on ? "关闭" : "开启"}</button></div>`; }).join("") : "<p>还没有灵脉，可在隐世宗门购买。</p>"}
-        <p class="desc">只抵扣修为修炼、肉身修炼、功法修炼的灵气。</p><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+          <button class="sm${on ? "" : " primary"}" onclick="G.lmSw('${id}')" ${lv >= 1 || on ? "" : "disabled"}>${on ? "关闭" : "开启"}</button></div>`; }).join("") : ""}
+        <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
     lmHtml(id) {
       const I = CFG.mijing.items, el = this.lmEl(id), line = (a, b) => `<div class="line"><div>${a}</div><div>${b}</div></div>`, nm = `${(I.ly.names[el] || "").slice(0, 1)}属性灵脉`;
