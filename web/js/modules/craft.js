@@ -311,7 +311,7 @@ G.module({
       return src ? `<img class="job-ico" src="${src}" alt="" loading="lazy">` : ""; },
     jobName(q) { return q.kind === "lz" || q.kind === "zq" ? DATA.smName(q.kind, q.ft) : q.kind === "rf" ? "精炼" + this.itemName({ t: "eq", e: q.item }) + ((q.n || 1) > 1 ? `（第 ${Math.min(q.n, (q.done || 0) + 1)}/${q.n} 次）` : "") : q.kind === "eq" ? (q.slot === "fabao" && q.ft !== undefined ? DATA.XING[q.g] + "·" + (DATA.elById[q.el] ? DATA.elById[q.el].name + "·" : "") + DATA.fabaoName(q.ft, q.g) : DATA.forgeEqName(q.slot, q.g)) : q.kind === "ss" ? DATA.stoneName(q.g) : q.kind === "ring" ? DATA.ringName(q.r, q.g) : DATA.furnaceName(q.kind, q.g); },
     // 炼器：仙炉（炼丹仙炉 / 炼器仙炉）算 11~20 阶；炉子：仙炉装了炼器仙炉算 11~20 阶，否则用炼器炉 1~10 阶。可跨阶，成功率每差一阶 ±5%
-    forgeTotal(kind, g) { return g; },   // 炼器只有 1~10 星：炼丹仙炉、炼丹神炉 N 阶也按 N 星算
+    forgeTotal(kind, g) { return kind === "zq" ? DATA.zqN(g) : g; },   // 阵旗按本品第几阶算（一阶 = 一星），g 是 ft   // 炼器只有 1~10 星：炼丹仙炉、炼丹神炉 N 阶也按 N 星算
     forgeRate(kind, g) {
       if (DATA.isTest()) return 1;
       const C = CFG.craftsman, fu = this.s.furnaceUse || {}, T = this.forgeTotal(kind, g), f = fu.qi >= 0 ? fu.qi : -1;
@@ -334,7 +334,13 @@ G.module({
       j.end += this.forgePer("rf", e.g); return true;
     },
     finishForge(j) {
-      if (j.kind === "zq") { if (!this.addSm("zq", 1, j.ft)) return false; j.ok = true; this.log(`炼成${DATA.smName("zq", j.ft)}。`, "gold"); return true; }   // 阵旗必定成功，不加炼器经验
+      if (j.kind === "zq") {   // 阵旗：跟法宝一样判成功率、加炼器经验；失败扣矿石、退回上一阶阵旗
+        if (j.ok === undefined) { j.ok = DATA.isTest() || Math.random() < this.forgeRate("zq", j.g); this.addCraftExp("qi", this.itemExp("qi", this.forgeTotal("zq", j.g), j.ok)); this.dirty(); }
+        if (j.ok) { if (!this.addSm("zq", 1, j.ft)) return false; this.log(`炼成${DATA.smName("zq", j.ft)}。`, "gold"); }
+        else { const pv = (j.sm || [])[0]; if (pv && !this.addSm("zq", pv.n || 1, pv.ft)) return false; j.sm = [];
+          this.log(`炼制${DATA.smName("zq", j.ft)}失败，矿石已耗尽${pv ? `，${DATA.smName("zq", pv.ft)}退回` : ""}。`, "bad"); }
+        this.craftRec("forgeLog", { at: j.end, name: DATA.smName("zq", j.ft), ok: j.ok ? 1 : 0 });
+        return true; }   // 阵旗必定成功，不加炼器经验
       if (j.kind === "lz") { if (!this.addSm("lz", 1, j.ft)) return false; j.ok = true; this.log(`炼成${DATA.smName("lz", j.ft)}。`, "gold"); return true; }   // 灵珠必定成功，不加炼器经验
       if (j.stop) { const e = j.item; if (!this.rfLive(e.uid)) this.addEquip(e); this.dirty(); return true; }   // 连续精炼提前停：只退回那件
       // 成功率判定（只判一次，背包满等待时不重复判定、不重复加经验）
@@ -736,16 +742,19 @@ G.module({
     /* ---------- 灵珠：洞府炼器室炼制（三种矿石 + 对应灵晶，进炼器队列，每颗 CFG.lingzhu.TIME 分钟，必定成功） ---------- */
     lzMats() { return DATA.parseMats(CFG.lingzhu.ORE); },
     /* ---------- 阵旗：洞府炼器室炼制（对应界三种矿石，进炼器队列，必定成功，不需炼器炉；见 config/array.js CFG.zhenqi） ---------- */
+    zqPrev(ft) { return DATA.zqT(ft) > 0 ? ft - 1 : -1; },
     zqMats(ft) { const Z = CFG.zhenqi, n = Z.ORE_BASE + DATA.zqN(ft) * Z.ORE_STEP; return DATA.parseMats(Z.ORE[DATA.zqG(ft)].map(o => [o, n])); },
     craftZq(ft) {
       const Z = CFG.zhenqi, s = this.s; ft = Math.floor(+ft);
       if (!(ft >= 0 && ft < Z.NAMES.length * Z.TIERS * Z.GRADES.length)) return;
       if (!s.forgeKnown.includes(this.forgeKey("zq", 0, DATA.zqEl(ft)))) return;
       if (s.forgeJob && s.forgeQueue.length >= CFG.furnace.QUEUE) return this.log(`队列已满（最多 ${CFG.furnace.QUEUE} 个）。`, "sys");
-      const mats = this.zqMats(ft);
-      if (!this.craftFree() && !this.hasMats(mats)) return this.log("材料不足。", "sys");
+      if (!(s.furnaceUse.qi >= 0)) return this.log("没有装炼器炉。", "sys");
+      const mats = this.zqMats(ft), pv = this.zqPrev(ft);   // 升阶：要一面上一阶同种阵旗（凡品一阶不用）
+      if (!this.craftFree() && (!this.hasMats(mats) || (pv >= 0 && this.smCount("zq", pv) < 1))) return this.log("材料不足。", "sys");
       const job = { kind: "zq", g: ft, ft, sm: [] };   // g = ft：排队出炉时 forgePer(kind, g) 按阶算时间
-      if (this.craftFree()) job.free = 1; else mats.forEach(m => this.takeMat(m.kind, m.g, m.n));
+      if (this.craftFree()) job.free = 1;
+      else { mats.forEach(m => this.takeMat(m.kind, m.g, m.n)); if (pv >= 0) { const got = this.takeSm("zq", 1, pv); if (got) job.sm.push(...got); } }
       if (s.forgeJob) { s.forgeQueue.push(job); this.log(`${this.jobName(job)}加入队列。`, "sys"); }
       else { s.forgeJob = Object.assign(job, { end: this.now() + this.forgePer("zq", ft) }); this.log(`开始炼制${this.jobName(job)}。`, "good"); }
       this.after();
@@ -1017,16 +1026,17 @@ Object.assign(G, {
     // 阵旗（进炼器队列，必定成功，不需炼器炉）：学会哪种图纸就列出该种 30 阶
     const ZQ = CFG.zhenqi, ZT = ZQ.TIERS * ZQ.GRADES.length;
     ZQ.NAMES.forEach((n, el) => { if (!s.forgeKnown.includes(this.forgeKey("zq", 0, el))) return;
-      for (let t = 0; t < ZT; t++) { const ft = el * ZT + t, mats = this.zqMats(ft), per = this.forgePer("zq", ft);
-        out.push({ key: `zq:${ft}`, info: `<div>${DATA.li(DATA.smIcon("zq", ft))}${n}<span class="tag">${DATA.zqTier(ft)}</span><small>${this.matsText(mats)} · ${U.dur(per / 1000)}</small></div>`, ok: this.hasMats(mats), call: `G.craftZq(${ft})`, btn: "炼制",
-          tag: "阵旗", name: n, sub: DATA.zqTier(ft), icon: DATA.li(DATA.smIcon("zq", ft)), mats, sm: [], per, rate: 1 }); } });
+      for (let t = 0; t < ZT; t++) { const ft = el * ZT + t, mats = this.zqMats(ft), per = this.forgePer("zq", ft), pv = this.zqPrev(ft), sm = pv >= 0 ? [{ k: "zq", n: 1, ft: pv }] : [], rate = this.forgeRate("zq", ft);
+        out.push({ key: `zq:${ft}`, info: `<div>${DATA.li(DATA.smIcon("zq", ft))}${n}<span class="tag">${DATA.zqTier(ft)}</span><small>${this.matsText(mats)}${sm.length ? "、" + this.smText(sm) : ""} · ${U.dur(per / 1000)} · 成功率 ${Math.round(rate * 100)}%</small></div>`, ok: this.hasMats(mats) && this.smHave(sm), call: `G.craftZq(${ft})`, btn: "炼制",
+          tag: "阵旗", name: n, sub: DATA.zqTier(ft), icon: DATA.li(DATA.smIcon("zq", ft)), mats, sm, per, rate }); } });
     return out;
   },
   openForgeList() {
     const s = this.s, full = !!(s.forgeJob && s.forgeQueue.length >= CFG.furnace.QUEUE), has = s.furnaceUse.qi >= 0;
     const L = this.forgeItems().filter(x => !this.isHidden("qi", x.key)).map(x => {
       if (x.next) return Object.assign(x, { max: x.ok ? 1 : 0, noQty: 1, run: () => this.cpCall(x.call) });
-      if (x.key.startsWith("lz:") || x.key.startsWith("zq:")) return Object.assign(x, { max: x.ok && !full ? 1 : 0, noQty: 1, note: full ? "炼器队列已满" : "", run: () => this.cpCall(x.call) });
+      if (x.key.startsWith("zq:")) return Object.assign(x, { max: x.ok && !full && has ? 1 : 0, noQty: 1, note: !has ? "没有装炼器炉" : full ? "炼器队列已满" : "", run: () => this.cpCall(x.call) });   // 阵旗要炼器炉
+      if (x.key.startsWith("lz:")) return Object.assign(x, { max: x.ok && !full ? 1 : 0, noQty: 1, note: full ? "炼器队列已满" : "", run: () => this.cpCall(x.call) });
       const [k, g, sl] = x.fa, ys = x.ys ? this.ysSel(x.ys) : -1;
       const max = has && !full ? this.forgeMax(k, g, sl, undefined, undefined, ys) : 0;
       const yn = x.ys ? ((x.sm || []).find(m => m.k === "ys") || {}).n || 0 : 0;
