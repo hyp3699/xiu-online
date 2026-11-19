@@ -19,7 +19,7 @@ G.module({
     ling: CFG.start.ling,                                     // 当前灵气
     array: { lv: 0, on: true, autoRefill: false }, // 聚灵阵（初始 0 级）
     lzSlot: Array(CFG.lingzhu.SLOTS).fill(null),     // 聚灵阵灵珠格：{ ft 属性序号, v 聚灵 }，null = 空
-    zqSlot: Array((CFG.zhenqi || {}).SLOTS || 5).fill(null),   // 聚灵阵阵旗格：{ ft }（ft = 属性 × 30 + 阶），null = 空；效果待定
+    zqSlot: Array((CFG.zhenqi || {}).SLOTS || 5).fill(null),   // 聚灵阵阵旗格：{ ft }（ft = 属性 × 30 + 阶），null = 空；效果见 zqEff
   }),
 
   // 每 10 秒聚集灵气
@@ -35,7 +35,8 @@ G.module({
     arrayFactor() { return DATA.array.factor(this.s.array.lv); },
     arrayGfCut() { return DATA.array.gfStudy ? DATA.array.gfStudy((this.s.array || {}).lv || 0) : 0; },   // 聚灵阵每 30 级减少功法修炼时间 %
     // 每 10 秒聚灵量（只由等级决定，开关不影响）
-    gatherAmount() { return DATA.array.gather(this.s.array.lv) + this.gatherLz() + this.gatherServant() + DATA.array.flat(this.s.array.lv) + (this.servantFlat ? this.servantFlat() : 0) + (this.xdJlGather ? this.xdJlGather() : 0); },   // + 四界坊市聚灵阵心得（固定）   // 固定聚灵最后加，不吃道童等加成
+    gatherAmount() { return this.gatherRaw() * (1 + this.zqEff().gather / 100); },   // 阵旗聚灵 % 乘在合计上
+    gatherRaw() { return DATA.array.gather(this.s.array.lv) + this.gatherLz() + this.gatherServant() + DATA.array.flat(this.s.array.lv) + (this.servantFlat ? this.servantFlat() : 0) + (this.xdJlGather ? this.xdJlGather() : 0); },   // + 四界坊市聚灵阵心得（固定）   // 固定聚灵最后加，不吃道童等加成
     gatherServant() { return (DATA.array.gather(this.s.array.lv) + this.gatherLz()) * (this.servantPct ? this.servantPct("zhen") : 0) / 100; },   // 道童阵法辅助：聚灵 +%
     // 聚灵加成明细弹窗（聚灵阵页「聚灵加成」按钮）
     openGatherInfo() {
@@ -49,14 +50,22 @@ G.module({
         ${line(`${DATA.caveName("array")}固定聚灵`, "+" + U.num(fl))}
         ${line("道童固定聚灵", "+" + U.num(sf))}
         ${(n => n > 0 ? line("聚灵阵心得", "+" + U.num(n)) : "")(this.xdJlGather ? this.xdJlGather() : 0)}
+        ${(e => e.gather > 0 ? line("阵旗", "×" + U.dec(1 + e.gather / 100, 3), `聚灵合计 +${U.dec(e.gather)}%（乘在合计上）`) : "")(this.zqEff())}
         ${line("<b>聚灵合计</b>", "+" + U.num(this.gatherAmount()))}
         <h3 style="margin-top:12px">灵气消耗</h3>
         ${(u => line("修为修炼", U.num(u.exp)) + line("肉身修炼", U.num(u.body)) + line("功法修炼", U.num(u.gf)))(this.lingUseParts())}
         ${(o => o.gf + o.exp + o.body > 0 ? line("神识功法《敛息归元诀》", "减少消耗 " + U.num(o.gf + o.exp + o.body)) : "")(this.lxShare ? this.lxShare() : { gf: 0, exp: 0, body: 0 })}
         ${line("阵法运转", U.num(this.zfKeep ? this.zfKeep() : 0))}
+        ${(e => e.cut > 0 ? line("阵旗", `消耗 −${U.dec(e.cut)}%`, "其他减免算完后再减，以上各项已减") : "")(this.zqEff())}
         ${line("<b>消耗合计</b>", (u => u ? "−" + U.num(u) : "0")(this.lingUse() + (this.zfKeep ? this.zfKeep() : 0)))}
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
+    // 阵旗效果（config/array.js CFG.zhenqi GATHER_PCT / LING_CUT）：{ gather 聚灵 %, cut 灵气消耗减少 % }
+    zqOne(ft, arr) { const Z = CFG.zhenqi, g = DATA.zqG(ft), n = DATA.zqN(ft) + 1; let v = 0; for (let k = 0; k < g; k++) v += Z.CARRY ? (arr[k] || 0) * Z.TIERS : 0; return v + (arr[g] || 0) * n; },
+    zqEff() { const Z = CFG.zhenqi, o = { gather: 0, cut: 0 }; if (!Z) return o;
+      for (const z of this.s.zqSlot || []) if (z) { o.gather += this.zqOne(z.ft, Z.GATHER_PCT || []); o.cut += this.zqOne(z.ft, Z.LING_CUT || []); }
+      o.cut = Math.min(100, o.cut); return o; },
+    zqLingK() { return 1 - this.zqEff().cut / 100; },   // 灵气消耗乘这个
     gatherLz() { return (this.s.lzSlot || []).reduce((t, z) => t + (z ? z.v : 0), 0); },   // 灵珠格聚灵
     lingCap() { const sp = this.speed(); return Math.max(100, sp.gather * DATA.LING_CAP_GATHER + sp.total * DATA.LING_CAP_SPEED); },
     // v247 每 10 秒修炼消耗的灵气：修为修炼 + 肉身修炼 + 功法修炼（只算正在进行的）
