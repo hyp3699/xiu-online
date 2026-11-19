@@ -530,13 +530,7 @@ G.module({
     lmW(id) { return (this.ysById(id) || {}).w || "fan"; },
     lmMax() { return Math.max(1, Math.floor(+this.lmCfg().MAX || 13)); },
     lmCap(id, lv) { return Math.max(0, lv) * (+(this.lmCfg().CAP_PER || {})[this.lmW(id)] || 0); },   // 灵气上限 = 阶 × 每阶（废品 0 阶 = 0）
-    lmRegenRaw(w, lv) { const C = this.lmCfg(), R = C.REGEN_PCT, p = typeof R === "object" && R ? +R[w] || 0 : +R || 0; return Math.max(0, lv) * (+(C.CAP_PER || {})[w] || 0) * Math.max(0, lv) * p / 100; },
-    lmRegenK() {   // 全部满阶合计每 10 秒恢复超过 REGEN_MAX 时的缩小比例
-      const C = this.lmCfg(); if (this._lmK && this._lmK.src === C) return this._lmK.k;
-      const M = this.lmMax(), N = C.N || {}; let t = 0; for (const w in N) t += Math.max(0, +N[w] || 0) * this.lmRegenRaw(w, M) / 360;
-      const k = C.REGEN_MAX > 0 && t > C.REGEN_MAX ? C.REGEN_MAX / t : 1; this._lmK = { src: C, k }; return k;
-    },
-    lmRegen(id, lv) { return this.lmRegenRaw(this.lmW(id), lv) * this.lmRegenK(); },   // 每游戏年（现实 1 小时）恢复 = 上限 × 阶 × 每阶%
+    lmRegen(id, lv) { return Math.max(0, lv) * Math.max(0, +(this.lmCfg().REGEN || {})[this.lmW(id)] || 0); },   // 每游戏年（现实 1 小时）恢复固定值 = 阶 × REGEN[界]
     lmPrice(id) { return Math.max(0, +(this.lmCfg().BUY_FAV || {})[this.lmW(id)] || 0); },
     lmOwn(id) { const o = (this.s.lm || {})[id]; return !!(o && o.own && this.lmHas(id)); },
     lmLv(id) { return this.lmOwn(id) ? Math.max(0, Math.min(this.lmMax(), Math.floor(+this.s.lm[id].lv) || 0)) : 0; },
