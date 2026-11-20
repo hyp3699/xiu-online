@@ -564,7 +564,12 @@ const server = http.createServer(async (req, res) => {
       await readBody(req);
       db.prepare("DELETE FROM saves WHERE user_id=?").run(user.id);
       db.prepare("DELETE FROM hist WHERE user_id=?").run(user.id);
-      db.prepare("DELETE FROM receipts WHERE user_id=?").run(user.id); receipts.delete(user.id);   // 旧存档的操作收据也清掉，新存档不沿用（2026-11-17）
+      db.prepare("DELETE FROM receipts WHERE user_id=?").run(user.id); receipts.delete(user.id);
+      // 删档后出身点礼包码可以再兑换一次（出身点只给新角色用，旧的建角色时已清零；用户定 2026-11-20）
+      for (const r of db.prepare("SELECT u.code, g.payload FROM gift_uses u JOIN gifts g ON g.code=u.code WHERE u.user_id=?").all(user.id)) {
+        let ori = false; try { ori = (JSON.parse(r.payload).items || []).some(it => it && it.c === "ori"); } catch {}
+        if (ori) db.prepare("DELETE FROM gift_uses WHERE code=? AND user_id=?").run(r.code, user.id);
+      }   // 旧存档的操作收据也清掉，新存档不沿用（2026-11-17）
       const online = clients.get(user.id);
       if (online) { clients.delete(user.id); online.socket.close(4004, "角色已重置"); }
       dropEngine(user.id);
