@@ -314,6 +314,8 @@ const API = {
 
   // 需要玩家确认的操作：先在本地弹确认框，取消就不发给服务器（服务器端 confirm 一律视为确定）
   CONFIRMS: {
+    breakthrough: () => !G.s.trib && G.canBreak() && G.needTrib() ? "这次突破要渡雷劫，确定开始渡劫？" : "",   // 用户定 2026-11-20
+    startTrib: () => !G.s.trib && G.canBreak() && G.needTrib() ? "这次突破要渡雷劫，确定开始渡劫？" : "",
     leaveSect: () => G.s.sect && G.s.contrib >= G.leaveCost() ? `叛出门派将扣除贡献 ${U.fmt(G.leaveCost())}、清空职务（已学功法保留），确定？` : "",
     svFire: () => "遣散这个道童？",
     svStartPick: () => !G.s.svPick && !G.svFull() && G.s.stone >= CFG.servant.PICK_COST ? `花费 ${U.fmt(CFG.servant.PICK_COST)} 灵石选拔道童（${CFG.servant.PICK_SEC} 秒出结果），确定？` : "",
