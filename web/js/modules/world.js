@@ -530,8 +530,8 @@ G.module({
     },
     ysRankHtml(id) {
       const R = this.ysRankCfg(), r = this.ysRank(id), N = (R.NAMES || []).length;
-      const rows = (R.NAMES || []).map((nm, k) => `<div class="line"><div>${k < r ? `<span class="q5">${nm}</span>` : nm}<small>事务堂好感度 +${(R.TASK_ADD || [])[k] || 0} · 消耗好感度 ${((R.DISC || [])[k] || 100) / 10} 折</small></div>${k < r ? `<span class="q5">${k === r - 1 ? "当前" : "已晋升"}</span>` : k === r
-        ? `<button class="sm" onclick="G.ysRankUp('${id}')" ${this.ysFav(id) >= ((R.FAV || [])[k] || 0) && (DATA.isTest() || (this.s.stone || 0) >= ((R.STONE || [])[k] || 0)) ? "" : "disabled"}>晋升</button>` : ""}</div>${k === r ? `<small class="c-green">晋升需要好感度 ${U.fmt((R.FAV || [])[k] || 0)}、灵石 ${U.fmt((R.STONE || [])[k] || 0)}</small>` : ""}`).join("");
+      const rows = (R.NAMES || []).map((nm, k) => `<div class="line"><div>${k < r ? `<span class="q5">${nm}</span>` : nm}<small>事务堂好感度 +${(R.TASK_ADD || [])[k] || 0} · 消耗好感度 ${((R.DISC || [])[k] || 100) / 10} 折</small>${k === r ? `<small class="c-green">晋升需要好感度 ${U.fmt((R.FAV || [])[k] || 0)}、灵石 ${U.fmt((R.STONE || [])[k] || 0)}</small>` : ""}</div>${k < r ? `<span class="q5">${k === r - 1 ? "当前" : "已晋升"}</span>` : k === r
+        ? `<button class="sm" onclick="G.ysRankUp('${id}')" ${this.ysFav(id) >= ((R.FAV || [])[k] || 0) && (DATA.isTest() || (this.s.stone || 0) >= ((R.STONE || [])[k] || 0)) ? "" : "disabled"}>晋升</button>` : ""}</div>`).join("");
       return `<p>当前职位：<b>${this.ysRankName(id)}</b></p>${rows}`;
     },
     ysFavPay(id, c) { if (DATA.isTest()) return; if (!this.s.ysFav || typeof this.s.ysFav !== "object") this.s.ysFav = {}; this.s.ysFav[id] = this.ysFavRaw(id) - c; },
