@@ -27,6 +27,24 @@ G.module({
     oriTip(id) { const o = this.oriList().find(x => x.id === id), b = $("#modal-box"); if (!o || !b) return; const old = b.querySelector(".ori-tip"); if (old) old.remove();
       const d = document.createElement("div"); d.className = "ori-tip"; d.onclick = e => { if (e.target === d) d.remove(); };
       d.innerHTML = `<div class="ori-tip-box"><h3>${o.name}</h3><p>${o.desc || ""}</p><div class="btns"><button onclick="this.closest('.ori-tip').remove()">关闭</button></div></div>`; b.appendChild(d); },
+    // ---------- 寿元（CFG.origin.SY）：存档 sy = { at 开启时间, cut 扣掉的年数, dead 死亡时间 } ----------
+    syOn(s = this.s) { return !!(s && s.sy); },
+    syDead(s = this.s) { return !!(s && s.sy && s.sy.dead); },
+    syLife() { const L = ((CFG.origin || {}).SY || {}).LIFE || [], r = this.r(); return r < L.length ? +L[r] || Infinity : Infinity; },   // 只看修为境界
+    syYearMs() { return (+CFG.player.YEAR_MIN || 60) * 60000; },
+    syAge(t = this.now()) { const y = this.s.sy; return (+((CFG.origin || {}).SY || {}).AGE0 || 0) + Math.max(0, t - y.at) / this.syYearMs() + (+y.cut || 0); },
+    syDeathAt() { const y = this.s.sy, life = this.syLife(); if (!y || y.dead || !isFinite(life)) return Infinity; return y.at + (life - (+((CFG.origin || {}).SY || {}).AGE0 || 0) - (+y.cut || 0)) * this.syYearMs(); },
+    syStart() {   // 创建角色时开启：送灵石、背包格子
+      const s = this.s, C = (CFG.origin || {}).SY || {};
+      s.sy = { at: this.now(), cut: 0 }; s.stone += +C.STONE || 0; s.bagCap += +C.BAG || 0; this.dirty();
+      this.log(`开启寿元：灵石 +${U.fmt(+C.STONE || 0)}，背包 +${+C.BAG || 0} 格。`, "gold");
+    },
+    syCut(y, why) { const s = this.s; if (!this.syOn() || this.syDead() || !(y > 0)) return; s.sy.cut = (+s.sy.cut || 0) + y; this.log(`${why}，寿元 -${y >= 1 ? y + " 年" : Math.round(y * 12) + " 个月"}。`, "bad"); this.syCheck(); },
+    syCheck(t = this.now()) { const s = this.s; if (!this.syOn() || this.syDead()) return false; if (this.syAge(t) < this.syLife()) return false; s.sy.dead = t; this.log("寿元已尽，人物已死亡。", "bad"); this.dirty(); return true; },
+    syText() { if (!this.syOn()) return ""; const life = this.syLife(); return `${Math.floor(this.syAge())} 岁 / ${isFinite(life) ? U.fmt(life) + " 岁" : "无限"}`; },
+    // 死亡画面：只提示 + 删档按钮（不自动删档）
+    syDeadView() { if (this._syShown && $("#modal-box .sy-dead")) return; this._syShown = true; this._lockModal = true;
+      this.modal(`<div class="sy-dead"><h2>寿元到了</h2><p>${this.s.name} 寿元已尽，人物已死亡。</p><div class="btns"><button class="primary" onclick="G._lockModal=false;G.restart()">删档</button></div></div>`); },
     oriNames(s = this.s) { return this.oriOf(s).map(o => o.name).join("、"); },
     // 清洗客户端传来的选择：只要存在的 id，不重复，最多 PICK 个
     oriClean(ids) {
@@ -83,7 +101,7 @@ G.module({
     oriPaint() {
       const box = $("#ori-box"); if (!box) return;
       const a = this._oriSel || [], P = this.oriPick();
-      box.innerHTML = `<div class="ori-pk"><span class="desc">选择出身（${a.length} / ${P}）</span><button class="ori-rs-btn" onclick="G.introPn('gift')">增加出身点</button></div>` + this.oriList().map(o => {
+      box.innerHTML = `<div class="ori-pk"><span class="desc">选择出身（${a.length} / ${P}）</span><span class="ori-pk-r"><button class="ori-rs-btn${this._oriSy ? " primary" : ""}" onclick="G._oriSy=!G._oriSy;G.oriPaint()">${this._oriSy ? "已开启寿元" : "开启寿元"}</button><button class="ori-rs-btn" onclick="G.introPn('gift')">增加出身点</button></span></div>` + this.oriList().map(o => {
         const on = a.includes(o.id), off = !on && a.length >= P;
         return `<div class="ori-it${on ? " on" : ""}${off ? " off" : ""}" onclick="G.oriToggle('${o.id}')"><b>${o.name}</b><small>${o.desc || ""}</small></div>`;
       }).join("");

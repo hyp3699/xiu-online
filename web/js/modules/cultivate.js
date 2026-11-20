@@ -296,6 +296,7 @@ G.module({
           <div><span>命中</span>${st.hit < 100 ? U.num(st.hit) : U.int(st.hit)}</div><div><span>闪避</span>${st.dodge < 100 ? U.num(st.dodge) : U.int(st.dodge)}</div>
           <div><span>速度</span>${U.int(st.speed)}</div><div><span>暴击</span>${st.crit.toFixed(1)}%</div>
           ${DATA.elements.map(e => `<div><span>${e.name}抗</span>${U.int(st.res[e.id])}</div>`).join("")}
+          ${this.syOn && this.syOn() ? `<div style="grid-column:1/-1"><span>寿元</span><b style="font-weight:normal">${this.syText()}</b></div>` : ""}
           <div style="grid-column:1/3"><span>修炼速度</span><b style="font-weight:normal">${U.int(sp.total)}<i class="pf-sl">  /  </i>10秒</b></div>
           <div style="grid-column:1/-1;height:3em;border:0;padding:0"></div>
           <div><span>功德</span>${U.fmt(s.merit || 0)}</div><div><span>愿力</span>${U.fmt(s.yuanli || 0)}</div>

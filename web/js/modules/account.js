@@ -74,7 +74,7 @@ G.module({
     // keep = 弹窗被别的弹窗（确认框、数据修改、创建失败）盖掉后重开：保留已选出身、道号、打开的面板
     intro(keep) {
       this._lockModal = true; this._introOn = true;
-      if (!keep) { this._oriSel = []; this._introName = ""; this._introPn = ""; }
+      if (!keep) { this._oriSy = false; this._oriSel = []; this._introName = ""; this._introPn = ""; }
       if (this._oriExtra === undefined) { this._oriExtra = 0; API.req("ori/extra").then(j => { this._oriExtra = Math.max(0, +j.n || 0); this.oriPaint(); }).catch(() => {}); }
       const esc = x => String(x || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
       this.modal(`<div class="ori-head"><h2>踏入仙途</h2>${API.isAdmin ? `<button class="ori-rs-btn" onclick="G.introPn('adm')">管理员</button>` : ""}</div>
@@ -92,7 +92,8 @@ G.module({
         const name = ($("#name-input").value || "").trim() || "无名散修";
         { const left = this.oriPick() - (this._oriSel || []).length; if (left > 0 && !(await this.ask(`还有 ${left} 个出身没选，开始后不能再选。确定开始修仙？`))) return; }   // 没用完先确认（用户定 2026-11-16）
         try {
-          this.s = await API.createCharacter(name, this._oriSel);
+          if (this._oriSy && !(await this.ask(`开启寿元后岁数到上限人物会死亡，只能删档。确定开启？`))) return;
+          this.s = await API.createCharacter(name, this._oriSel, !!this._oriSy);
           this._introOn = false; this._lockModal = false; this.closeModal(); document.body.classList.remove("nologin");
           this.dirty(); this.start();
         } catch (e) { this.modal(`<h2>创建失败</h2><p>${e.message}</p><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`); }

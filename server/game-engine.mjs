@@ -249,7 +249,7 @@ export class GameEngine {
     this.G._simNow = this.clock.now;
   }
 
-  createState(name, now = Date.now(), ori = [], oriExtra = 0) {
+  createState(name, now = Date.now(), ori = [], oriExtra = 0, sy = false) {
     this.seedRandom();
     this.setNow(now);
     const state = this.G.newSave(String(name));
@@ -259,7 +259,9 @@ export class GameEngine {
     state.hp = stats.hp;
     state.mana = stats.mana;
     if (oriExtra > 0) state.oriExtra = Math.floor(oriExtra);   // 礼包码加的出身点
-    if (this.G.oriApply) { this.G.oriApply(ori); const st2 = this.G.stats(); state.hp = st2.hp; state.mana = st2.mana; }   // 出身（config/start.js CFG.origin）
+    if (this.G.oriApply) { this.G.oriApply(ori); const st2 = this.G.stats(); state.hp = st2.hp; state.mana = st2.mana; }
+    if (sy && this.G.syStart) this.G.syStart();   // 开启寿元（config/start.js CFG.origin.SY）
+    // 出身（config/start.js CFG.origin）
     this.G.log(`${state.name}，自此踏上仙途。赠你聚气丹三枚、${this.CFG.start.book ? this.CFG.start.book.name : "练气诀"}一本。`, "gold");
     this.G.log("提示：修炼页开启“自动修炼”，服务器会继续进行修炼和离线结算。", "sys");
     state.last = this.clock.now;
@@ -292,6 +294,10 @@ export class GameEngine {
     this.logs = [];
     this.battles = [];
     const s = this.G.s;
+    // 寿元：死了不再结算；这次要算到死亡时刻为止（之后人物死亡）
+    const realNow = this.clock.now;
+    if (s.sy && s.sy.dead) { s.last = realNow; return { state: safeClone(s), logs: [], serverNow: realNow, processedTicks: 0, truncated: false, nextDue: realNow + 3600_000 }; }
+    if (s.sy && typeof this.G.syDeathAt === "function") { const d = this.G.syDeathAt(); if (d < realNow) this.setNow(Math.max(Math.min(Number(s.last) || realNow, realNow), Math.floor(d))); }
     const last = Math.min(Number(s.last) || this.clock.now, this.clock.now);
     const totalDue = Math.floor(Math.max(0, this.clock.now - last) / TICK_MS);
     let due = Math.min(totalDue, MAX_TICKS_PER_ADVANCE, Math.max(1, Math.floor(maxTicks) || MAX_TICKS_PER_ADVANCE));
@@ -325,7 +331,9 @@ export class GameEngine {
     // 再对齐到现在会把还没算的离线时间直接丢掉（离线超过 1 天只算第 1 天、剩下 29 天永久丢失）。
     if (!truncated) s.last = this.clock.now - ((this.clock.now - last) % TICK_MS);
     this.G._simNow = this.clock.now;
-    return { state: safeClone(s), logs: safeClone(this.logs), serverNow: this.clock.now, processedTicks: due, truncated, nextDue: this.nextDue(s) };
+    if (s.sy && typeof this.G.syCheck === "function" && this.G.syCheck()) { s.last = realNow; s.explore = null; s.cq = null; }   // 寿元到了：人物死亡，停在这里
+    if (this.clock.now !== realNow) { this.setNow(realNow); }
+    return { state: safeClone(s), logs: safeClone(this.logs), serverNow: this.clock.now, processedTicks: due, truncated: truncated || (!s.sy?.dead && s.last < realNow - TICK_MS), nextDue: this.nextDue(s) };
   }
 
   // 停机不补算：把存档里属于停机窗口 [hb, now] 的时间锚点整体平移 shift = now - hb，
@@ -433,6 +441,7 @@ export class GameEngine {
     // battles 在 advance 之前清空：一次响应里的多场战斗（本次 advance 的探索/渡劫 + 本次操作）都保留。
     this.battles = [];
     const advanced = this.advance(state, now, maxTicks);
+    if (this.G.s && this.G.s.sy && this.G.s.sy.dead) throw new Error("寿元已尽，人物已死亡");
     const method = this.G[action];
     if (typeof method !== "function") throw new Error("未知操作");
     if (action.startsWith("_") || ["init", "start", "loop", "runTicks", "offline", "tickAll", "migrate", "newSave"].includes(action)) throw new Error("不允许调用该操作");

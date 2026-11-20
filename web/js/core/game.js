@@ -314,6 +314,7 @@ const G = {
   render() {
     const s = this.s; if (!s && this._introOn && this._introPn === "adm" && this.introAdmPaint && !this.silent) { try { this.introAdmPaint(); } catch (e) { console.error(e); } return; }   // 还没创建角色：出身页的管理员面板
     if (!s || this.silent) return;
+    if (s.sy && s.sy.dead && this.syDeadView) { this.syDeadView(); return; }   // 寿元已尽：只显示死亡提示 + 删档
     if (this._btHoldView()) { this._renderDeferred = true; return; }   // 战斗还没播完：页面保持战前（关闭战斗时 closeBattle 会重绘）
     $("#p-name").textContent = s.name;
     $("#p-realm").textContent = this.realmName();

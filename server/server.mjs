@@ -556,7 +556,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       if (q.save.get(user.id)) return error(res, 409, "角色已经创建");
       const name = [...String(body.name || "无名散修").trim().replace(/[^\p{L}\p{N}_·-]/gu, "")].slice(0, 12).join("") || "无名散修";
-      const data = getEngine(user.id).createState(name, Date.now(), Array.isArray(body.ori) ? body.ori.slice(0, 200).map(String) : [], oriExtraOf(user.id)); persist(user.id, data);
+      const data = getEngine(user.id).createState(name, Date.now(), Array.isArray(body.ori) ? body.ori.slice(0, 200).map(String) : [], oriExtraOf(user.id), !!body.sy); persist(user.id, data);
       db.prepare("DELETE FROM settings WHERE key=?").run(`ori_extra:${user.id}`);   // 出身点创建角色时用掉，删档重来不保留（用户定 2026-11-16）
       return sendJson(res, 201, { data, serverNow: Date.now() });
     }
@@ -947,6 +947,7 @@ wss.on("connection", (socket, session) => {
     try {
       const action = String(msg.action || ""), args = msg.args;
       if (!ACTIONS.has(action)) throw new Error("此操作未授权");
+      if (client.state && client.state.sy && client.state.sy.dead) throw new Error("寿元已尽，人物已死亡");
       if (!Array.isArray(args) || args.length > 20) throw new Error("操作参数无效");
       validateValue(args, 0, action);
       const t0 = performance.now();
@@ -1202,6 +1203,7 @@ function offlineSettle() {
     if (offlineBad.has(id)) { if (Date.now() - offlineBad.get(id) < 30 * 60_000) continue; offlineBad.delete(id); }
     try {
       const st = getState(id); if (!st) continue;
+      if (st.sy && st.sy.dead) continue;   // 寿元已尽：后台不再结算
       const o = timedAdvance(getEngine(id), st, Date.now(), `offline u${id}`);
       if (o.processedTicks > 0) { persist(id, o.state); n++; }
       if (o.truncated) offlineBacklog = true;
