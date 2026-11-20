@@ -501,6 +501,10 @@ G.module({
     cqLeftToday() { const s = this.s; return Math.max(0, this.cqMaxRuns() - (s.cqDay === this.bjDay() ? s.cqUsed || 0 : 0)); },
     cqUse(n) { const s = this.s; if (s.cqDay !== this.bjDay()) { s.cqDay = this.bjDay(); s.cqUsed = 0; } s.cqUsed += n; },
     cqRefund(n) { const s = this.s; if (n > 0 && s.cqDay === this.bjDay()) s.cqUsed = Math.max(0, (s.cqUsed || 0) - n); },   // 跨天了就不用退（已经重置）
+    // 延寿丹已服用颗数：s.syPill = { 星级序号: 颗数 }（旧存档是数组，每项算 1 颗）
+    syPillMap() { const s = this.s; if (Array.isArray(s.syPill)) { const m = {}; for (const v of s.syPill) m[v] = (m[v] || 0) + 1; s.syPill = m; } return s.syPill = s.syPill || {}; },
+    syPillN(v) { return +this.syPillMap()[v] || 0; },
+    syPillMax() { return +((CFG.origin || {}).SY || {}).PILL_MAX || 1; },
     // 杂物页货单：content/items.js 的 ITEMS.treasury
     treasuryList() { return ITEMS.treasury; },
     // 凡品阵旗图纸（config/array.js CFG.zhenqi.BP_FAN）：每种每阶一张，BP_FAN[阶][0] 星及以上宗门可兑换，没到星级的不显示；学习走炼器学习队列
@@ -529,8 +533,8 @@ G.module({
       if (!it || !this.sectInfo() || this.s.contrib < c || (it.star || 1) > this.sectInfo().star) return;
       if (it.kind === "sy") {   // 延寿丹：直接服用，加寿元上限；每颗只能换一次
         const P = (((CFG.origin || {}).SY || {}).PILLS || [])[it.v], s = this.s;
-        if (!P || !this.syOn() || this.syDead() || (s.syPill || []).includes(it.v) || P[0] > this.sectInfo().star) return;
-        s.contrib -= c; (s.syPill = s.syPill || []).push(it.v); s.sy.ext = (+s.sy.ext || 0) + P[1];
+        if (!P || !this.syOn() || this.syDead() || this.syPillN(it.v) >= this.syPillMax() || P[0] !== this.sectInfo().star) return;
+        s.contrib -= c; const m = this.syPillMap(); m[it.v] = (m[it.v] || 0) + 1; s.sy.ext = (+s.sy.ext || 0) + P[1];
         this.log(`服下${P[0]}星${(CFG.origin.SY.PILL_NAME || "延寿丹")}，寿元 +${P[1]} 年。`, "good");
         return this.after();
       }
@@ -1039,9 +1043,9 @@ G.module({
           if (!it) return [0, ""];
           if (it.kind === "sy") {   // 延寿丹：开启寿元、宗门星级够、没换过才显示
             const P = (((CFG.origin || {}).SY || {}).PILLS || [])[it.v];
-            if (!P || !this.syOn || !this.syOn() || (s.syPill || []).includes(it.v) || P[0] > x.star) return [0, ""];
+            if (!P || !this.syOn || !this.syOn() || this.syPillN(it.v) >= this.syPillMax() || P[0] !== x.star) return [0, ""];
             const c = P[2];
-            return [0, `<div class="line"><div>${DATA.li(DATA.pillIcon("juqi"))}${P[0]}星${CFG.origin.SY.PILL_NAME || "延寿丹"}<small>寿元 +${P[1]} 年 · ${U.fmt(c)} 贡献 · 只能兑换一次</small></div>
+            return [0, `<div class="line"><div>${DATA.li(DATA.iconImg("dan_yanshou"))}${P[0]}星${CFG.origin.SY.PILL_NAME || "延寿丹"}<small>寿元 +${P[1]} 年 · ${U.fmt(c)} 贡献 · 已服用 ${this.syPillN(it.v)}/${this.syPillMax()}</small></div>
               <button class="sm" onclick="G.exchange(${i})" ${s.contrib < c ? "disabled" : ""}>兑换</button></div>`];
           }
           if (it.kind === "chuqiao") {
