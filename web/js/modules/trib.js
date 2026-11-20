@@ -215,7 +215,7 @@ G.module({
         <div class="tj-amb"></div>
         <div class="tj-mid">${mid || ""}</div>
         <div class="tj-cd" id="tj-cd"></div>
-        <div class="tj-hero" id="tj-hero"><div class="tj-aura"></div><img src="${this.heroId && this.heroId() ? this.heroImg("ys") : "img/trib_hero.webp"}?v=${v}" alt=""></div>
+        <div class="tj-hero" id="tj-hero"><div class="tj-aura"></div><img src="${this.heroImg("ys")}?v=${v}" alt=""></div>
       </div>`;
     },
     tribRunHtml() {

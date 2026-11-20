@@ -7,8 +7,7 @@ body{color:var(--t-main);font-family:"Songti SC","Noto Serif SC","Source Han Ser
 .top-line{display:flex;justify-content:space-between;align-items:center;gap:8px}
 /* 道号左边的人物头像（点开人物属性） */
 .top-ava{flex:none;width:42px;height:42px;padding:0;border:1px solid var(--c-edge);border-radius:50%;overflow:hidden;cursor:pointer;
-  background-image:url(../img/wd_hero.webp?v=1),radial-gradient(circle at 50% 40%,#3a2f46,#1b1713);
-  background-size:300% auto,cover;background-position:50% 0,center;background-repeat:no-repeat}
+  background:radial-gradient(circle at 50% 40%,#3a2f46,#1b1713) center/cover no-repeat}
 .top-id{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;line-height:1.2}
 .top-line b{color:var(--t-gold);font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #p-realm{color:var(--t-gold2);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

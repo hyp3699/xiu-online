@@ -246,8 +246,9 @@ G.module({
     // 从修炼页进去的坊市，返回时回到修炼页（world.js backFromShop）
     openFanShop() { this.tab = "fshop"; this.render(); this.viewScroll && this.viewScroll(0); },   // 凡界坊市是独立页面，不再借世界页（不动世界页的地图 / 卷轴状态，用户定 2026-11-17）
     /* ---------- 人物形象：存在角色存档（服务器 s.hero，换设备也生效），修炼页、神识、悟道室、头像、战斗页（img/bt_形象.webp）一起换 ---------- */
-    HEROES: [["", "默认（男修）"], ["f1", "仙子 · 粉裳"], ["f2", "仙子 · 红裳"], ["f3", "魅影 · 黑纱"], ["f4", "狐仙 · 绯蕾"], ["f5", "冰仙 · 蓝蕾"], ["f6", "金冠 · 白衣"], ["f7", "月仙 · 银蓝"], ["f8", "桃仙 · 粉霞"], ["f9", "紫宸 · 仙后"], ["f10", "魅姬 · 黑蕾"], ["f11", "雪莲 · 金纱"], ["f12", "白莲 · 素纱"], ["f13", "魔后 · 赤纱"], ["f14", "星灵 · 幻纱"], ["f15", "金凤 · 鹅黄"]],
-    heroId() { let k = this.s && typeof this.s.hero === "string" ? this.s.hero : ""; if (!(this.s && "hero" in this.s)) try { k = localStorage.getItem("xiu_hero") || ""; } catch (e) {} return this.HEROES.some(h => h[0] === k) ? k : ""; },
+    HEROES: [["f1", "仙子 · 粉裳"], ["f2", "仙子 · 红裳"], ["f3", "魅影 · 黑纱"], ["f4", "狐仙 · 绯蕾"], ["f5", "冰仙 · 蓝蕾"], ["f6", "金冠 · 白衣"], ["f7", "月仙 · 银蓝"], ["f8", "桃仙 · 粉霞"], ["f9", "紫宸 · 仙后"], ["f10", "魅姬 · 黑蕾"], ["f11", "雪莲 · 金纱"], ["f12", "白莲 · 素纱"], ["f13", "魔后 · 赤纱"], ["f14", "星灵 · 幻纱"], ["f15", "金凤 · 鹅黄"]],
+    heroId() { let k = this.s && typeof this.s.hero === "string" ? this.s.hero : ""; if (!(this.s && "hero" in this.s)) try { k = localStorage.getItem("xiu_hero") || ""; } catch (e) {} return this.HEROES.some(h => h[0] === k) ? k : this.HERO_DEF; },
+    HERO_DEF: "f15",   // 默认形象：金凤 · 鹅黄（男修已删，用户定 2026-11-20）
     // 每位仙子另外 3 套服装：img/hero_形象_s1~s3.webp（打坐）、img/bt_形象_s1~s3.webp（战斗），0 = 原装
     HERO_SKINS: {
       f1: ["翠竹 · 青衣", "云鹤 · 黛蓝", "金桂 · 杏黄"], f2: ["雪梅 · 冰蓝", "金莲 · 孔雀蓝", "玄龙 · 赤焰"], f3: ["星月 · 夜蓝", "彼岸 · 绛红", "霜华 · 素白"],
@@ -262,21 +263,19 @@ G.module({
     // where：ys 修炼页 / 神识，wd 悟道室，ava 头像
     heroImg(where) {
       const k = this.heroId();
-      if (k) return where === "ava" ? `img/ava_${k}.webp` : `img/hero_${this.heroFile(k)}.webp`;
-      return where === "ys" ? "img/ys_hero.webp" : "img/wd_hero.webp";
+      return where === "ava" ? `img/ava_${k}.webp` : `img/hero_${this.heroFile(k)}.webp`;
     },
     applyHeroAva() {
       const a = typeof document !== "undefined" && document.querySelector(".top-ava"); if (!a) return;
       const src = this.heroImg("ava"); if (a.dataset.hero === src) return;
       a.dataset.hero = src;
-      if (!this.heroId()) { a.style.backgroundImage = a.style.backgroundSize = a.style.backgroundPosition = ""; return; }   // 默认：用 style.css 里的头像裁切
       a.style.backgroundImage = `url(${src}?v=${DATA.IMG_V})`; a.style.backgroundSize = "cover"; a.style.backgroundPosition = "center";
     },
-    setHero(k) { k = this.HEROES.some(h => h[0] === k) ? k : ""; if (this.s) this.s.hero = k; try { k ? localStorage.setItem("xiu_hero", k) : localStorage.removeItem("xiu_hero"); } catch (e) {} this.applyHeroAva(); this.render(); },
+    setHero(k) { k = this.HEROES.some(h => h[0] === k) ? k : this.HERO_DEF; if (this.s) this.s.hero = k; try { k ? localStorage.setItem("xiu_hero", k) : localStorage.removeItem("xiu_hero"); } catch (e) {} this.applyHeroAva(); this.render(); },
     heroCard() {
       const cur = this.heroId();
       return `<div class="card"><h3>人物形象<small>修炼、神识、悟道室一起更换 · 保存在角色存档</small></h3><div class="hero-grid">${this.HEROES.map(([k, n]) =>
-        `<button class="hero-sw${k === cur ? " on" : ""}" onclick="G.setHero('${k}')"><img src="${k ? `img/hero_${this.heroFile(k)}.webp` : "img/ys_hero.webp"}?v=${DATA.IMG_V}" alt=""><span>${n}</span></button>`).join("")}</div>${this.heroSkinRow(cur)}</div>`;
+        `<button class="hero-sw${k === cur ? " on" : ""}" onclick="G.setHero('${k}')"><img src="img/hero_${this.heroFile(k)}.webp?v=${DATA.IMG_V}" alt=""><span>${n}</span></button>`).join("")}</div>${this.heroSkinRow(cur)}</div>`;
     },
     heroSkinRow(k) {
       const L = this.HERO_SKINS[k]; if (!k || !L || !L.length) return "";

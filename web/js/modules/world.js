@@ -1691,7 +1691,7 @@ G.module({
           <div class="btv-hp l"><div class="btv-bar"><i id="bt-hp0"></i></div><span id="bt-hpt0"></span><div class="btv-mp"><i id="bt-mp0"></i></div></div>
           <div class="btv-zhan">战</div>
           <div class="btv-hp r"><div class="btv-bar"><i id="bt-hp1"></i></div><span id="bt-hpt1"></span><div class="btv-mp"><i id="bt-mp1"></i></div></div>
-          <div class="btv-u l" id="bt-u0" onclick="G.btMobInfo(0)">${this.heroId && this.heroId() ? `<div class="btv-hero bth-f"><img class="btv-body" src="img/bt_${this.heroFile ? this.heroFile() : this.heroId()}.webp?v=${v}" alt=""></div>` : `<div class="btv-hero"><img class="btv-body" src="img/bt_hero.webp?v=${v}" alt=""><div class="btv-arm"><img class="btv-sword" src="img/bt_sword.webp?v=${v}" alt=""><img class="btv-hand" src="img/bt_hand.webp?v=${v}" alt=""></div></div>`}${this.btZfRing(b)}</div>
+          <div class="btv-u l" id="bt-u0" onclick="G.btMobInfo(0)"><div class="btv-hero bth-f"><img class="btv-body" src="img/bt_${this.heroFile()}.webp?v=${v}" alt=""></div>${this.btZfRing(b)}</div>
           <div class="btv-u r${b.glow ? " glow" : ""}" id="bt-u1" onclick="G.btMobInfo(1)"><img src="${mi.src}" onerror="this.onerror=null;this.src='${mi.alt}'" alt=""></div>
           <div class="btv-fx" id="bt-fx"></div>
           <div class="btv-info" id="bt-info" style="display:none" onclick="G.btMobInfo()"></div>
