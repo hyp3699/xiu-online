@@ -65,7 +65,7 @@ DATA.brSum = (rows, n, tag) => {
 //   第一个境界 = 1 星宗门功法每层 × (1 + FIRST_PCT[属性]%)（可负数；也可写一个数 = 全部属性一样；没写的属性照表原值）；
 //   以后各境界不再对标功法：第 r 境界 = 第一个 × (表r / 表0)^p，p 二分求出让全部境界合计 = 宗门功法 TOTAL × TOTAL_PCT%
 DATA._autoRows = {};
-DATA.autoRows = body => {
+DATA.autoRows0 = body => {
   const A = _R.AUTO, rows = body ? _R.BODY_GAIN : _R.GAIN; if (!A || !+A.on || !DATA.gfUnit) return rows;
   const tag = body ? "rs" : "xw"; if (DATA._autoRows[tag]) return DATA._autoRows[tag];
   const FP0 = body ? A.BODY_FIRST_PCT : A.XW_FIRST_PCT, FP = typeof FP0 === "object" && FP0 ? FP0 : new Proxy({}, { get: () => +FP0 || 0 }), TP0 = body ? A.BODY_TOTAL_PCT : A.XW_TOTAL_PCT, tpOf = k => typeof TP0 === "object" && TP0 ? +TP0[k] || 0 : +TP0 || 0;
@@ -85,6 +85,26 @@ DATA.autoRows = body => {
     for (let r = 0; r < N; r++) out[r][1][k] = v0 * Math.pow(ratio[r], p);
   }
   return DATA._autoRows[tag] = out;
+};
+// 肉身占比（config/realm.js BODY_SHARE，用户定 2026-11-20）：第 r 个大境界十层时，肉身突破属性 / (修为 + 肉身) = FIRST + STEP × r %（法力只修为加）
+//   肉身每个境界每层 = 按修为这一境界合计反推（修为第 r 境界合计 X_r，肉身合计 B_r = X_r × p ÷ (100 − p)）
+DATA.autoRows = body => {
+  const S = _R.BODY_SHARE; if (!body || !S || !(+S.FIRST > 0)) return DATA.autoRows0(body);
+  if (DATA._autoRows.rsShare) return DATA._autoRows.rsShare;
+  const xr = DATA.autoRows0(false), br = DATA.autoRows0(true), N = DATA.realms.length, LY = DATA.LAYERS;
+  const fmOf = (FM, r) => FM === undefined ? 1 : Array.isArray(FM) ? (FM.length ? +(FM[Math.min(r, FM.length - 1)] ?? 1) : 1) : +FM;
+  const out = []; let X = {}, B = {};
+  for (let r = 0; r < N; r++) {
+    const gx = (DATA.brRow(xr, r) || [0, {}])[1] || {}, gb = (DATA.brRow(br, r) || [0, {}])[1] || {}, o = {};
+    if (gb.cultivate !== undefined) o.cultivate = gb.cultivate;
+    const p = Math.min(99, +S.FIRST + (+S.STEP || 0) * r);
+    for (const k in gx) { if (k === "cultivate" || k === "mana") continue;
+      X[k] = (X[k] || 0) + (+gx[k] || 0) * (LY - 1 + fmOf(_R.FIRST_MULT, r));
+      const Bn = X[k] * p / (100 - p); o[k] = Math.max(0, Bn - (B[k] || 0)) / (LY - 1 + fmOf(_R.BODY_FIRST_MULT, r)); B[k] = Bn; }
+    out.push([r, o]);
+  }
+  if (!(_R.AUTO && +_R.AUTO.on) || DATA._autoRows.xw) DATA._autoRows.rsShare = out;
+  return out;
 };
 // 第 T 层（总层序）突破某项属性加多少：含大境界第一层 × FIRST_MULT 和总倍率（突破随机 brRoll 用）
 DATA.brLayerGain = (body, T, k) => {
