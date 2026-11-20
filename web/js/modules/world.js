@@ -700,7 +700,7 @@ G.module({
     ysLgSeedRow(id) {
       const k = this.lgYsMap()[id]; if (k === undefined || !DATA.lgDef(k)) return "";
       const L = DATA.LG(), fav = this.ysDisc(id, L.YS_FAV ?? 10), lim = L.YS_DAY ?? 1, got = this.lgYsGot(id), g = DATA.LG_BASE + k, d = DATA.lgDef(k);
-      return `<div class="line"><div>${DATA.li(DATA.seedImg(g))}${DATA.seedName(g)}<small>${DATA.lgLab(d.k)} +${U.fmt(d.v)} · 今日 ${got}/${lim}</small></div><button class="sm" onclick="G.ysBuyLgSeed('${id}')" ${got >= lim || this.ysFav(id) < fav ? "disabled" : ""}>${got >= lim ? "已兑换" : `${fav} 好感`}</button></div>`;
+      return `<div class="line"><div>${DATA.li(DATA.seedImg(g))}${DATA.seedName(g)}<small>${DATA.lgLab(d.k)} +${U.fmt(d.v)} · 今日 ${got}/${lim} · ${U.fmt(fav)} 好感</small></div><button class="sm" onclick="G.ysBuyLgSeed('${id}')" ${got >= lim || this.ysFav(id) < fav ? "disabled" : ""}>${got >= lim ? "已兑换" : "兑换"}</button></div>`;
     },
     // 购买 / 兑换统一弹窗输入数量（同宗门宝库，用户定 2026-11-15）
     openYsDan(id, k) {
@@ -837,7 +837,7 @@ G.module({
       if (pid === "dan") {
         const D = this.ysDanCfg(), fav = this.ysFav(id);
         const rows = (D.LIST || []).map(d => { const got = this.ysDanGotN(id, d.k), left = D.MAX - got, m = Math.min(10, left);
-          return `<div class="line"><div>${DATA.li(`img/ysdan/${d.k}.webp`)}${d.name}<small>${this.ysDanLab(d.k)} +${U.fmt(D.VAL)} · 已兑换 ${got}/${D.MAX}</small></div>${left > 0
+          return `<div class="line"><div>${DATA.li(`img/ysdan/${d.k}.webp`)}${d.name}<small>${this.ysDanLab(d.k)} +${U.fmt(D.VAL)} · 已兑换 ${got}/${D.MAX} · ${U.fmt(this.ysDisc(id, D.FAV))} 好感</small></div>${left > 0
             ? `<button class="sm" onclick="G.openYsDan('${id}','${d.k}')" ${fav < this.ysDisc(id, D.FAV) ? "disabled" : ""}>兑换</button>`
             : `<span class="q5">已满</span>`}</div>`; }).join("");
         return this.modal(`${head}${this.ysLgSeedRow(id)}${rows}${this.ysXdRows(id, "dan")}${close}`);
