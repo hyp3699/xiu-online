@@ -848,7 +848,6 @@ G.module({
         if (this.ysFav(id) < need && !this.ysHallFree(id)) return this.modal(`${head}<p>好感度达到 ${U.fmt(need)} 才能进入宗门大殿。</p>${close}`);
         this.closeModal(); this.ysHall = id; this.render(); this.viewScroll(0); return;
       }
-      if (pid === "rank") return this.modal(`${head}${this.ysRankHtml(id)}${close}`);
       if (pid === "lm") return this.lmHas(id) ? this.modal(`${head}${this.lmHtml(id)}${close}`) : this.modal(`${head}<p>本宗没有灵脉。</p>${close}`);
       if (pid === "mj") {
         const M = this.ysCfg().MJ || {}, i = this.ysMjIdx(id), left = i < 0 ? 0 : this.mjLeft(i, "ys"), x = this.s.explore, on = x && x.mk === "ys" && x.mj === i;
@@ -977,7 +976,8 @@ G.module({
         <div class="stmap">${line}<div class="stcore${lv >= max ? " full" : ""}" style="left:58%;top:14%;cursor:pointer" onclick="G.ysStInfo('${id}')"><img src="img/icons/st_frag.png" alt=""></div><div class="stcn" style="left:58%;top:14%"><b>${nm}</b><small>${lv}/${max}</small></div>${nodes}</div>
         <div class="btns stbtn"><button class="primary" onclick="G.ysStLearn('${sid}','${id}')" ${lv >= max || !ok ? "disabled" : ""}>${lv >= max ? "已圆满" : "修炼"}</button></div>
         ${lv < max ? `<p class="stcost">消耗 ${this.stCostTxt(sid, c)}（现有碎片 ${U.fmt(this.ysFragN(sid))}、灵石 ${U.fmt(this.s.stone || 0)}）</p>` : ""}</div>
-        <div class="card stcard"><h3>累积提高属性</h3><div class="ststat">${stats}</div></div>`;
+        <div class="card stcard"><h3>累积提高属性</h3><div class="ststat">${stats}</div></div>
+        <div class="card stcard"><h3>宗门职位<small>好感度 ${U.fmt(this.ysFavRaw(sid))} · 灵石 ${U.fmt(this.s.stone || 0)}</small></h3>${this.ysRankHtml(sid)}</div>`;
     },
     // 宗门大殿：点中间的神通图片看神通效果
     ysStInfo(id) { const d = this.stDef(id); if (!d) return;
