@@ -82,8 +82,8 @@ DATA.blueprintCost = (kind, g) => _FU[kind].blueprint[g];
 
 /* ---------- 灵田 ---------- */
 DATA.GARDEN_MAX = _GA.MAX;
-DATA.fieldCost = i => { const a = _GA.OPEN_COST, b = _GA.OPEN_LAST, n = (_GA.MAX || 1) - 1;   // 第 i+1 块
-  return Math.round(b && n > 0 ? a * Math.pow(b / a, Math.min(i, n) / n) : a * Math.pow(_GA.OPEN_RATE || 1, i)); };
+DATA.fieldStage = i => Math.floor(i / Math.max(1, +_GA.OPEN_STAGE || 10)) + 1;   // 第 i+1 块所在阶段
+DATA.fieldCost = i => Math.round((+_GA.OPEN_STONE || 0) * (i + 1) * DATA.fieldStage(i));   // 第 i+1 块的灵石
 // 土地（config/garden.js LAND）：等级 0~36，每块灵田单独（s.fields[i].lv）
 DATA.LAND = () => Object.assign({ MAX: 36, BAND: [12, 24, 36], PCT: [1, 1, 1], PCT_LV1: 1, PCT_MAX: 72, PCT_STEP1: 1, LY: [100, 5000] }, _GA.LAND || {});   // 默认值与 config/garden.js 一致（1 级 1%，满级 72%）：配置缺失时也不静默变分档
 DATA.landBand = lv => { const B = DATA.LAND().BAND; const i = B.findIndex(v => lv <= v); return i < 0 ? B.length - 1 : i; };
@@ -102,8 +102,8 @@ DATA.landCost = lv => { const L = DATA.LAND(), a = +L.LY[0] || 0, b = +L.LY[1] |
 // 土地外观：三张满幅土壤图（0~12 级普通土、13~24 绿、25~36 红），同一样式、只换土色，边缘带一点坡度、不带硬边框，不随等级加深
 DATA.landStyle = lv => { const n = Math.floor(+lv || 0) ? DATA.landBand(Math.floor(+lv)) + 1 : 1;
   return `background-color:transparent;background-image:url(img/land_${n}.webp?v=${DATA.IMG_V});background-size:cover;background-position:center;background-repeat:no-repeat`; };
-// 开辟第 i+1 块灵田的矿石：每种 OPEN_ORE × (i+1)，从 OPEN_ORES 第 i 种起连续取 OPEN_ORE_N 种
-DATA.fieldMats = i => { const P = _GA.OPEN_ORES || [], L = P.length, k = Math.min(L, Math.max(0, +_GA.OPEN_ORE_N || 0)), n = Math.round((+_GA.OPEN_ORE || 0) * (i + 1));
+// 开辟第 i+1 块灵田的矿石：每种 OPEN_ORE × (i+1) × 阶段，从 OPEN_ORES 第 i 种起连续取 OPEN_ORE_N 种
+DATA.fieldMats = i => { const P = _GA.OPEN_ORES || [], L = P.length, k = Math.min(L, Math.max(0, +_GA.OPEN_ORE_N || 0)), n = Math.round((+_GA.OPEN_ORE || 0) * (i + 1) * DATA.fieldStage(i));
   return L && k && n > 0 ? DATA.parseMats([...Array(k).keys()].map(j => [P[(i + j) % L], n])) : []; };
 // 灵果（config/garden.js LINGGUO）：灵田作物编号 = LG_BASE + 序号，和药材序号分开；种子物品同样是 { t: "seed", g }
 DATA.LG_BASE = 100;
