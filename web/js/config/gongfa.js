@@ -89,7 +89,7 @@ CFG.gongfa.sect = {
 /* 凡界坊市功法 & 法术（1~5 星，灵石购买，境界要求同门派 REQ_REALM）
  * 售价 = price × PRICE_TYPE[类别] × PRICE_STAR[星级-1] × EFFECT_PRICE（取整） */
 CFG.gongfa.shop = {
-  PCT: 72,           // 每本效果 = 宗门同星级每本 × %（跟坊市有几本无关）
+  PCT: 81,           // 每本效果 = 宗门同星级每本 × %（跟坊市有几本无关）
   BOOKS: {xinfa: 5, gongjue: 5, zhenjing: 5, fajue: 5, spell: 5, tijue: 5, mijue: 5 },   // 每类几本（没写 1 本，最多同宗门第 5 阶段本数），加了本数每本效果不变
   price: 5000,       // 售价基础值（灵石）
   PRICE_TYPE: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 2, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1 },   // 售价类别倍率
