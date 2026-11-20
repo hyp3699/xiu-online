@@ -523,6 +523,11 @@ G.module({
       if (!this.s.ysRank || typeof this.s.ysRank !== "object") this.s.ysRank = {}; this.s.ysRank[id] = r + 1;
       this.log(`晋升${this.ysById(id).name}${R.NAMES[r]}。`, "gold"); this.after();
     },
+    // 大殿「职位晋升」按钮弹窗（每个隐世宗门独立，初始无职位）
+    openYsRank(id) {
+      if (!this.ysById(id)) return;
+      this.modal(`<h2>${this.ysById(id).name} · 职位晋升</h2><p><small>好感度 ${U.fmt(this.ysFavRaw(id))} · 灵石 ${U.fmt(this.s.stone || 0)}</small></p>${this.ysRankHtml(id)}<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+    },
     ysRankHtml(id) {
       const R = this.ysRankCfg(), r = this.ysRank(id), N = (R.NAMES || []).length;
       const rows = (R.NAMES || []).map((nm, k) => `<div class="line"><div>${k < r ? `<span class="q5">${nm}</span>` : nm}<small>事务堂好感度 +${(R.TASK_ADD || [])[k] || 0} · 消耗好感度 ${((R.DISC || [])[k] || 100) / 10} 折</small></div>${k < r ? `<span class="q5">${k === r - 1 ? "当前" : "已晋升"}</span>` : k === r
@@ -977,7 +982,7 @@ G.module({
         <div class="btns stbtn"><button class="primary" onclick="G.ysStLearn('${sid}','${id}')" ${lv >= max || !ok ? "disabled" : ""}>${lv >= max ? "已圆满" : "修炼"}</button></div>
         ${lv < max ? `<p class="stcost">消耗 ${this.stCostTxt(sid, c)}（现有碎片 ${U.fmt(this.ysFragN(sid))}、灵石 ${U.fmt(this.s.stone || 0)}）</p>` : ""}</div>
         <div class="card stcard"><h3>累积提高属性</h3><div class="ststat">${stats}</div></div>
-        <div class="card stcard"><h3>宗门职位<small>好感度 ${U.fmt(this.ysFavRaw(sid))} · 灵石 ${U.fmt(this.s.stone || 0)}</small></h3>${this.ysRankHtml(sid)}</div>`;
+        <div class="btns stbtn"><button class="primary" onclick="G.openYsRank('${sid}')">职位晋升</button></div>`;
     },
     // 宗门大殿：点中间的神通图片看神通效果
     ysStInfo(id) { const d = this.stDef(id); if (!d) return;
