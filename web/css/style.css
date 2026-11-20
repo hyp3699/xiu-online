@@ -1520,3 +1520,8 @@ html .rgmap .rgs.q-dong.cur{background:radial-gradient(ellipse at 80% 50%,rgba(2
 .ss-book i{display:block;width:40%;height:40%;margin:30%;border-radius:50%;background:#e6dcff}
 @keyframes ss-bk{0%,100%{margin-top:0}50%{margin-top:-6px}}
 .cell>small{display:block;font-size:10px;line-height:1.1;opacity:.8}
+/* 数据修改：不左右滑动（文本框内部自己横向滚动） */
+#modal-box:has(.cfged){overflow-x:hidden}
+.cfged{max-width:100%;overflow-x:hidden;box-sizing:border-box}
+.cfged *{max-width:100%;box-sizing:border-box}
+.cfged textarea{overflow:auto;touch-action:pan-x pan-y}

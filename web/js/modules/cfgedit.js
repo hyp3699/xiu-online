@@ -21,7 +21,7 @@ G.module({
     // 每个参数文件的中文名和主要内容
     CFG_INFO: {
       alchemy: ["丹方", "炼丹丹方、学习星级、炼制材料和成功率"],
-      array: ["聚灵阵", "聚灵阵等级、修炼加成、升级灵石"],
+      array: ["聚灵阵/灵珠", "聚灵阵等级、修炼加成、升级灵石；灵珠炼制、强化"],
       bag: ["背包", "物品堆叠上限、一格只放一个的物品"],
       battle: ["战斗", "保底伤害、防御、命中、暴击、回合数"],
       body: ["肉身", "肉身修炼速度、灵气消耗"],
@@ -32,21 +32,21 @@ G.module({
       forge: ["炼器", "装备、空间石、戒指、法宝、强化、洗练"],
       furnace: ["丹炉/器炉", "炼丹炉、炼器炉、仙炉的图纸和加成"],
       zhenfa: ["阵法室", "主动阵法、属性阵法、阵法图纸的全部参数"],
-      garden: ["灵药园", "灵田开垦、种植时间和产量"],
+      garden: ["灵药园", "开辟灵田灵石矿石（每 10 块一阶段）、土地、种子掉落与每日上限、灵果"],
       gongfa: ["功法法术", "功法每层效果、法术、学习消耗"],
       items: ["物品价格", "储物格、药材矿石、修炼丹、坊市价格"],
       jingmai: ["经脉", "经脉光点、穴位层数、冲脉丹与灵液消耗、冲满加成"],
       lingdi: ["灵地", "灵地发现、探索次数、怪物、首领奖励"],
       lingen: ["灵根", "金木水火土雷升级、加成；升级灵石、灵元（首次 / 最后一次）"],
       mijing: ["秘境", "秘境发现、探索次数、怪物、首领奖励；灵元掉落 LINGYUAN、专用材料（含灵元）"],
-      mobs: ["怪物", "各地图怪物境界、属性、倍率"],
+      mobs: ["怪物", "各地图怪物境界、属性、倍率、法力消耗境界倍率"],
       names: ["名字", "游戏里显示的各种名字"],
       player: ["人物属性", "基础属性、属性计算"],
       realm: ["境界", "修为/肉身突破所需和每层属性"],
-      sect: ["宗门", "职务俸禄、事务堂（含物品 / 特殊任务）、修炼室、试炼塔（药材矿石 / 火髓分段奖励）、宝库（含材料二换一、神识药材互换、四界换凡界）、晋升"],
+      sect: ["宗门", "职务俸禄、事务堂（含物品 / 特殊任务）、修炼室、练功房、炼体池、讲道室、试炼塔、宝库（含材料互换）、晋升"],
       servant: ["道童", "道童选拔、资质、升级灵石和灵元、差事（阵法辅助固定聚灵）、俸禄"],
-      shenshi: ["神识", "神识强度、养神丹、灵识点"],
-      start: ["开局", "新角色初始物品"],
+      shenshi: ["神识", "神识强度、养神丹、灵识点、神识功法（层数、灵石、元魂果凝魂芝）、药材掉落"],
+      start: ["开局/出身/寿元", "新角色初始物品；出身列表与效果；寿元上限、战死渡劫扣寿元、延寿丹"],
       trib: ["雷劫", "渡劫层数、时间、雷击伤害"],
       worldmaps: ["四界地图", "仙冥魔神地图、区域、境界要求"],
       wudao: ["宗门秘法", "秘法殿秘法效果和学习"],
@@ -54,17 +54,19 @@ G.module({
       wudaoshi: ["悟道室", "悟道次数、悟道果、悟道奖励"],
       youli: ["地图游历", "地图格子游历：每日次数、掉落几率、灵石药材矿石火髓数量、宝物属性与服用上限、游历功法"],
       xingjun: ["四界官位", "大帝、星君、天将职位和俸禄"],
+      shenjie: ["神界（九重天）", "九重天界、神界怪物、神界小世界、神格、星君界主、资源点"],
+      yinshi: ["隐世宗门", "宗门列表、好感度、事务堂（含神通碎片）、职位、功法阁、炼丹房、炼器室、大殿神通、秘境、灵脉"],
       rates: ["总倍率", "地图收益、怪物属性、雷劫强度、突破需要、战斗图片名字（顶部快捷修改）"],
     },
     cfgListView() {
       const L = this._cfgList || [];
-      this.modal(`<h2>数据修改</h2><p class="desc">选择要修改的参数文件（js/config/）。标「已修改」的是改过的版本，可恢复默认。</p>
+      this.modal(`<div class="cfged"><h2>数据修改</h2><p class="desc">选择要修改的参数文件（js/config/）。标「已修改」的是改过的版本，可恢复默认。</p>
         ${this.cfgMsg ? `<p class="${this._cfgMsgOk ? "c-green" : "c-red"}">${this.cfgEsc(this.cfgMsg)}</p>` : ""}
         ${this.cfgQuickView()}
         <div style="display:flex;flex-direction:column;gap:6px;margin:8px 0">
         ${L.map(f => { const k = String(f.name).replace(/\.js$/, ""), inf = this.CFG_INFO[k] || [k, ""];
-          return `<button class="sm" style="text-align:left;padding:6px 10px" onclick="G.cfgOpenFile('${f.name}')"><b>${inf[0]}</b> <small style="opacity:.6">${f.name}</small>${f.overridden ? ` <b class="c-green">已修改</b>` : ""}${inf[1] ? `<br><small style="opacity:.75">${inf[1]}</small>` : ""}</button>`; }).join("")}</div>
-        <div class="btns"><button onclick="G.cfgClose()">关闭</button></div>`);
+          return `<button class="sm" style="text-align:left;padding:6px 10px;white-space:normal;word-break:break-all;max-width:100%;box-sizing:border-box" onclick="G.cfgOpenFile('${f.name}')"><b>${inf[0]}</b> <small style="opacity:.6">${f.name}</small>${f.overridden ? ` <b class="c-green">已修改</b>` : ""}${inf[1] ? `<br><small style="opacity:.75">${inf[1]}</small>` : ""}</button>`; }).join("")}</div>
+        <div class="btns"><button onclick="G.cfgClose()">关闭</button></div></div>`);
       this.cfgMsg = ""; this._cfgMsgOk = false;
     },
     /* ---------- 顶部快捷修改：总倍率（config/rates.js；突破属性倍率在 config/realm.js） ---------- */
@@ -81,7 +83,7 @@ G.module({
       const p = key.split("."); let o = CFG.rates || {}; for (const k of p) o = o == null ? undefined : o[k]; return o === undefined ? 1 : o;
     },
     cfgQuickView() {
-      const inp = (key, label) => `<label style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:3px 0"><small>${label}</small><input data-q="${key}" type="number" step="0.01" min="0" value="${this.cfgQuickGet(key)}" style="width:90px"></label>`;
+      const inp = (key, label) => `<label style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:3px 0"><small style="min-width:0;flex:1">${label}</small><input data-q="${key}" type="number" step="0.01" min="0" value="${this.cfgQuickGet(key)}" style="width:90px;flex:none"></label>`;
       return `<div class="card" style="margin:8px 0"><h3>快捷修改<small>默认都是 1</small></h3>
         ${this.CFG_QUICK.map(([t, L]) => `<div style="margin:6px 0"><b>${t}</b>${L.map(([k, l]) => inp(k, l)).join("")}</div>`).join("")}
         <div class="btns"><button class="primary sm" id="cfg-qsave" onclick="G.cfgQuickSave()">保存快捷修改</button></div></div>`;
@@ -130,13 +132,13 @@ G.module({
       try {
         const j = await API.req("admin/config/file?name=" + encodeURIComponent(name));
         this._cfgFile = { name: j.name, overridden: j.overridden };
-        this.modal(`<h2>${(this.CFG_INFO[String(j.name).replace(/\.js$/, "")] || [""])[0]} ${this.cfgEsc(j.name)}${j.overridden ? ` <small class="c-green">已修改</small>` : ""}</h2>
+        this.modal(`<div class="cfged"><h2>${(this.CFG_INFO[String(j.name).replace(/\.js$/, "")] || [""])[0]} ${this.cfgEsc(j.name)}${j.overridden ? ` <small class="c-green">已修改</small>` : ""}</h2>
           <p class="desc">改完点「保存」，服务器检查无误后立即使用新参数。</p>
-          <textarea id="cfg-text" spellcheck="false" autocapitalize="off" autocomplete="off" style="width:100%;height:58vh;background:#14110f;color:#e8dcc4;border:1px solid #4a3d31;border-radius:4px;padding:8px;font-family:Consolas,Menlo,monospace;font-size:12px;line-height:1.5;white-space:pre;overflow:auto;tab-size:2">${this.cfgEsc(j.content)}</textarea>
+          <textarea id="cfg-text" spellcheck="false" autocapitalize="off" autocomplete="off" style="display:block;box-sizing:border-box;width:100%;max-width:100%;height:58vh;background:#14110f;color:#e8dcc4;border:1px solid #4a3d31;border-radius:4px;padding:8px;font-family:Consolas,Menlo,monospace;font-size:12px;line-height:1.5;white-space:pre;overflow:auto;tab-size:2">${this.cfgEsc(j.content)}</textarea>
           <p id="cfg-msg" class="desc" style="margin-top:6px"></p>
           <div class="btns"><button class="primary" id="cfg-save" onclick="G.cfgSave()">保存</button>
           ${j.overridden ? `<button onclick="G.cfgReset()">恢复默认</button>` : ""}
-          <button onclick="G.cfgBack()">返回</button></div>`);
+          <button onclick="G.cfgBack()">返回</button></div></div>`);
       } catch (e) { this.cfgMsg = "读取失败：" + e.message; this.cfgListView(); }
     },
     cfgSetMsg(text, bad) { const el = document.getElementById("cfg-msg"); if (el) { el.textContent = text; el.className = bad ? "c-red" : "c-green"; } },
