@@ -1630,7 +1630,7 @@ G.module({
           sp: m.spell ? [m.spell.chance, m.spell.pct] : null, fb: m.fabao ? [m.fabao.chance, m.fabao.pct] : null },
         // 战斗画面点人物：你进这场战斗时的属性（用户定 2026-11-15）
         pst: { hp: st0.hp, atk: st0.atk, def: st0.def, speed: st0.speed, hit: st0.hit, dodge: st0.dodge, mana: st0.mana, crit: st0.crit || 0, res: Object.assign({}, st0.res || {}) } };
-      if (!TEST && php <= 0 && opt.syDie && this.syCut) this.syCut(+((CFG.origin || {}).SY || {}).DIE_CUT || 0, `被${String(m.name || "").replace(/^精英·/, "")}击杀`);   // 寿元：地图 / 秘境 / 神界小世界探索、灵矿首领、宗门特殊任务战死扣（opt.syDie），晋升考核、试炼塔、天将星君等不扣（用户定 2026-11-20）
+      if (!TEST && php <= 0 && opt.syDie && this.syCut) this.syCut(+(((CFG.origin || {}).SY || {}).DIE_CUT ?? 0.5), `被${String(m.name || "").replace(/^精英·/, "")}击杀`);   // 寿元：地图 / 秘境 / 神界小世界探索、灵矿首领、宗门特殊任务战死扣（opt.syDie），晋升考核、试炼塔、天将星君等不扣（用户定 2026-11-20）
       const win = mhp <= 0 && php > 0;   // 打满 MAX_ROUNDS 回合没击败对方也算失败（timeout）
       return { win, lose: !win, timeout: !win && php > 0, rounds, why, detail };
     },

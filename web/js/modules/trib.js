@@ -109,7 +109,7 @@ G.module({
         const loss = this.oriSum && this.oriSum("noTribLoss") ? 0 : Math.floor(s.exp * CFG.trib.FAIL_LOSS); s.exp -= loss;   // 出身「寺庙寄养」不掉修为
         x.result = loss ? `渡劫失败：被劫雷劈倒，修为 -${U.fmt(loss)}。` : "渡劫失败：被劫雷劈倒，心性平和，修为未失。";
         this.log(x.result, "bad");
-        if (this.syCut) this.syCut(+((CFG.origin || {}).SY || {}).TRIB_CUT || 0, "渡劫失败");   // 寿元
+        if (this.syCut) this.syCut(+(((CFG.origin || {}).SY || {}).TRIB_CUT ?? 1), "渡劫失败");   // 寿元
       }
       if (this.exResume) this.exResume();   // 暂停的探索 / 出窍从现在继续
       // 全部信息：记下这次天劫的全过程（服务器存最近 100 条）
