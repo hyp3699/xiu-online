@@ -614,6 +614,18 @@ G.module({
       }
       return s.ysTask[id];
     },
+    // 提交本宗神通碎片：今天交了几次（s.ysTask.fr[宗门id]，跟着 ysTask 每天刷新）
+    ysFragDone(id) { this.ysTasks(id); return +((this.s.ysTask.fr || {})[id]) || 0; },
+    ysSubmitFrag(id) {
+      if (!this.ysFound(id)) return; const s = this.s, T = this.ysCfg().TASK || {}, L = T.FRAG || [], k = this.ysFragDone(id);
+      if (k >= L.length) return this.log("今天的神通碎片已经提交完了。", "sys");
+      const need = +L[k] || 0, have = this.ysFragN(id), nm = this.ysFragName(id);
+      if (have < need) return this.log(`${nm}不足，需要 ${need} 个（现有 ${have}）。`, "sys");
+      this.bagTake(x => x.t === "stp" && x.id === id, need);
+      (s.ysTask.fr = s.ysTask.fr || {})[id] = k + 1;
+      const f = +((T.FRAG_FAV || [])[k] ?? 10) || 0; if (!s.ysFav || typeof s.ysFav !== "object") s.ysFav = {}; s.ysFav[id] = this.ysFavRaw(id) + f;
+      this.log(`向${this.ysById(id).name}提交 ${nm} ×${need}，好感度 +${f}。`, "good"); this.after();
+    },
     ysSubmit(id, i) {
       if (!this.ysFound(id)) return; const s = this.s, t = this.ysTasks(id)[i]; if (!t || t.done) return;
       const nm = DATA.matName(t.kind, t.g), have = this.countMat(t.kind, t.g);
@@ -787,7 +799,10 @@ G.module({
       if (pid === "shiwu") {
         const f = (this.ysCfg().TASK || {}).FAV || 10;
         const rows = this.ysTasks(id).map((t, i) => { const nm = DATA.matName(t.kind, t.g), have = this.countMat(t.kind, t.g);
-          return `<div class="line"><div>提交 ${nm} ×${t.n}<small>现有 ${U.fmt(have)} · 好感度 +${f}</small></div>${t.done ? `<span class="q5">已完成</span>` : `<button class="sm" onclick="G.ysSubmit('${id}',${i})" ${have < t.n ? "disabled" : ""}>提交</button>`}</div>`; }).join("");
+          return `<div class="line"><div>提交 ${nm} ×${t.n}<small>现有 ${U.fmt(have)} · 好感度 +${f}</small></div>${t.done ? `<span class="q5">已完成</span>` : `<button class="sm" onclick="G.ysSubmit('${id}',${i})" ${have < t.n ? "disabled" : ""}>提交</button>`}</div>`; }).join("")
+          + (() => { const T = this.ysCfg().TASK || {}, L = T.FRAG || [], k = this.ysFragDone(id), fh = this.ysFragN(id); if (!L.length || !this.ysSts(id).length) return "";   // 神通碎片：一行，每天 L.length 次
+            const end = k >= L.length, need = end ? L[L.length - 1] : L[k], ff = (T.FRAG_FAV || [])[end ? L.length - 1 : k] ?? 10;
+            return `<div class="line"><div>提交 ${this.ysFragName(id)} ×${need}<small>现有 ${U.fmt(fh)} · 好感度 +${ff} · 今日 ${k}/${L.length}</small></div>${end ? `<span class="q5">已完成</span>` : `<button class="sm" onclick="G.ysSubmitFrag('${id}')" ${fh < need ? "disabled" : ""}>提交</button>`}</div>`; })();
         return this.modal(`${head}${rows}${close}`);
       }
       if (pid === "gf") {
