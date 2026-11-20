@@ -188,7 +188,7 @@ G.module({
           if (ok) {
             this.addDan(a.type, a.g, 1);   // 背包满时进传音，不再暂停出炉
             a.ok = (a.ok || 0) + 1;
-            if (Math.random() * 100 < (this.mifaBonus().danExtra || 0) && this.addDan(a.type, a.g, 1)) a.extra = (a.extra || 0) + 1;
+            if (Math.random() * 100 < ((this.mifaBonus().danExtra || 0) + (this.oriSum ? this.oriSum("danExtra") : 0)) && this.addDan(a.type, a.g, 1)) a.extra = (a.extra || 0) + 1;
           } else a.fail = (a.fail || 0) + 1;
           this.addCraftExp("dan", this.itemExp("dan", this.danTotal(a.type, a.g), ok));   // 经验按丹药总阶
           a.done++; a.next += a.per;

@@ -65,5 +65,6 @@ ITEMS.treasury = [
   { kind: "chuqiao" },   // 元婴出窍秘法：消耗、效果、境界限制在 config/sect.js 的 CFG.chuqiao
   { kind: "neiguan" },   // 太上内观经：学会才能打开经脉（config/sect.js 的 CFG.neiguan）
   { kind: "cqzj", v: 1 }, { kind: "cqzj", v: 2 }, { kind: "cqzj", v: 3 },
-  { kind: "lu", star: 2, n: 1000, get: 10, cost: 300 },   // 养神露：2 星宗门起，1000 个药材或矿石加 300 贡献换 10 个，每天一次   // 出窍真诀第一~三卷：贡献、效果在 config/sect.js 的 CFG.cqzj
+  { kind: "lu", star: 2, n: 1000, get: 10, cost: 300 },
+  { kind: "sy", v: 0 }, { kind: "sy", v: 1 }, { kind: "sy", v: 2 }, { kind: "sy", v: 3 }, { kind: "sy", v: 4 },   // 延寿丹 1~5 星（config/start.js CFG.origin.SY.PILLS，开启寿元才显示，每个只能换一次）   // 养神露：2 星宗门起，1000 个药材或矿石加 300 贡献换 10 个，每天一次   // 出窍真诀第一~三卷：贡献、效果在 config/sect.js 的 CFG.cqzj
 ];

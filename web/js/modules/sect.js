@@ -481,7 +481,7 @@ G.module({
       s.gfRoom = i; this.after();
     },
     /* ---------- 宗门宝库 ---------- */
-    treasuryCost(it) { return it.kind === "neiguan" ? CFG.neiguan.COST : it.kind === "chuqiao" ? this.cqCost() : it.kind === "cqzj" ? (CFG.cqzj.COST || [])[it.v - 1] || 0 : it.cost; },
+    treasuryCost(it) { return it.kind === "sy" ? +((((CFG.origin || {}).SY || {}).PILLS || [])[it.v] || [])[2] || 0 : it.kind === "neiguan" ? CFG.neiguan.COST : it.kind === "chuqiao" ? this.cqCost() : it.kind === "cqzj" ? (CFG.cqzj.COST || [])[it.v - 1] || 0 : it.cost; },
     // 出窍真诀：第 v 卷名字 / 是否学会 / 已学会的卷合计减少的地图每步秒数
     cqzjName(v) { return `${CFG.cqzj.NAME}·第${"一二三四五六七八九十"[v - 1] || v}卷`; },
     cqzjHas(v) { return (this.s.cqZj || []).includes(v); },
@@ -520,12 +520,20 @@ G.module({
       if (it.kind === "chuqiao") return CFG.chuqiao.NAME;
       if (it.kind === "neiguan") return CFG.neiguan.NAME;
       if (it.kind === "cqzj") return this.cqzjName(it.v);
+      if (it.kind === "sy") return `${((((CFG.origin || {}).SY || {}).PILLS || [])[it.v] || [])[0]}星${((CFG.origin || {}).SY || {}).PILL_NAME || "延寿丹"}`;
       return it.name || "灵石";
     },
     exchange(i) {
       const it = this.treasuryList()[i], c = this.treasuryCost(it);
       if (it && it.kind === "lu") return this.openLuSwap(i);   // 养神露走 luSwap
       if (!it || !this.sectInfo() || this.s.contrib < c || (it.star || 1) > this.sectInfo().star) return;
+      if (it.kind === "sy") {   // 延寿丹：直接服用，加寿元上限；每颗只能换一次
+        const P = (((CFG.origin || {}).SY || {}).PILLS || [])[it.v], s = this.s;
+        if (!P || !this.syOn() || this.syDead() || (s.syPill || []).includes(it.v) || P[0] > this.sectInfo().star) return;
+        s.contrib -= c; (s.syPill = s.syPill || []).push(it.v); s.sy.ext = (+s.sy.ext || 0) + P[1];
+        this.log(`服下${P[0]}星${(CFG.origin.SY.PILL_NAME || "延寿丹")}，寿元 +${P[1]} 年。`, "good");
+        return this.after();
+      }
       if (it.kind === "chuqiao") {
         const C = CFG.chuqiao;
         if (this.s.cqLearn || C.STAR > this.sectInfo().star) return;
@@ -1029,6 +1037,13 @@ G.module({
       if (tt === "pill") {
         h += U.doneCards([{ head: `<h3>杂物<small>以贡献兑换</small></h3>`, rows: this.treasuryList().map((it, i) => {
           if (!it) return [0, ""];
+          if (it.kind === "sy") {   // 延寿丹：开启寿元、宗门星级够、没换过才显示
+            const P = (((CFG.origin || {}).SY || {}).PILLS || [])[it.v];
+            if (!P || !this.syOn || !this.syOn() || (s.syPill || []).includes(it.v) || P[0] > x.star) return [0, ""];
+            const c = P[2];
+            return [0, `<div class="line"><div>${DATA.li(DATA.pillIcon("juqi"))}${P[0]}星${CFG.origin.SY.PILL_NAME || "延寿丹"}<small>寿元 +${P[1]} 年 · ${U.fmt(c)} 贡献 · 只能兑换一次</small></div>
+              <button class="sm" onclick="G.exchange(${i})" ${s.contrib < c ? "disabled" : ""}>兑换</button></div>`];
+          }
           if (it.kind === "chuqiao") {
             const C = CFG.chuqiao, has = !!s.cqLearn, c = this.cqCost(), rl = !this.realmOK(C.REALM), sl = C.STAR > x.star;
             return [has, `<div class="line"><div>${DATA.li(DATA.iconImg("mifa"))}<span class="q4">${C.NAME}</span>

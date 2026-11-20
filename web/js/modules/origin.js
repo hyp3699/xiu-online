@@ -30,7 +30,7 @@ G.module({
     // ---------- 寿元（CFG.origin.SY）：存档 sy = { at 开启时间, cut 扣掉的年数, dead 死亡时间 } ----------
     syOn(s = this.s) { return !!(s && s.sy); },
     syDead(s = this.s) { return !!(s && s.sy && s.sy.dead); },
-    syLife() { const L = ((CFG.origin || {}).SY || {}).LIFE || [], r = this.r(); return r < L.length ? +L[r] || Infinity : Infinity; },   // 只看修为境界
+    syLife() { const L = ((CFG.origin || {}).SY || {}).LIFE || [], r = this.r(); return r < L.length ? (+L[r] || Infinity) + (+(this.s.sy || {}).ext || 0) : Infinity; },   // 只看修为境界 + 延寿丹
     syYearMs() { return (+CFG.player.YEAR_MIN || 60) * 60000; },
     syAge(t = this.now()) { const y = this.s.sy; return (+((CFG.origin || {}).SY || {}).AGE0 || 0) + Math.max(0, t - y.at) / this.syYearMs() + (+y.cut || 0); },
     syDeathAt() { const y = this.s.sy, life = this.syLife(); if (!y || y.dead || !isFinite(life)) return Infinity; return y.at + (life - (+((CFG.origin || {}).SY || {}).AGE0 || 0) - (+y.cut || 0)) * this.syYearMs(); },
@@ -77,14 +77,17 @@ G.module({
           const ft = Math.floor(Math.random() * DATA.fabaoTypes.length), el = pick(DATA.elements).id;
           this.addEquip(DATA.rollForged("fabao", C.FABAO_G || 0, ft, el));
         }
-        for (const ty of o.gf || []) {   // 功法：GF_STAR 星宗门随机一个，直接学会第 1 层
-          const srcs = DATA.sects.filter(x => x.star === (C.GF_STAR || 1) && DATA.gfTypesOf(x.src, x.star).some(t => t.id === ty));
+        for (const gx of o.gf || []) {   // 功法：GF_STAR 星（或写明的星级）宗门随机一个，直接学会第 1 层；[类别, 星级, 1] 第三项 = 不占灵识点
+          const [ty, star, free] = Array.isArray(gx) ? gx : [gx, C.GF_STAR || 1, 0];
+          const srcs = DATA.sects.filter(x => x.star === star && DATA.gfTypesOf(x.src, x.star).some(t => t.id === ty));
           if (!srcs.length) continue;
           const id = DATA.gongfaId(pick(srcs).id, ty); if (!DATA.skillInfo(id)) continue;
           if (!s.gongfa[id]) s.gongfa[id] = 1;
+          if (free && !(s.oriFreeGf = s.oriFreeGf || []).includes(id)) s.oriFreeGf.push(id);
           got.push(`《${DATA.skillInfo(id).name}》`);
         }
         for (const [k, g] of o.furnace || []) if (this.addFurnaceItem) this.addFurnaceItem(k, g);
+        if (o.wuzhen > 0) this.addDan("wuzhen", 0, o.wuzhen);
         if (o.bodyL) { for (let i = 0; i < o.bodyL; i++) { s.bodyL++; if (this.brRoll) this.brRoll("rs", s.bodyL); } }
       }
       this.oriSsFix();
