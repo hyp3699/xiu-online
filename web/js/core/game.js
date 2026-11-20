@@ -325,7 +325,7 @@ const G = {
     $("#p-contrib").textContent = topN(s.contrib);   // v27：贡献、功德
     { const ym = (+CFG.player.YEAR_MIN || 15) * 60000; $("#p-years").textContent = `${U.fmt(s.born ? Math.max(0, Math.floor((this.now() - s.born) / ym)) : 0)}年`; }   // 功德换成修炼年数（用户定 2026-11-16）：现实 15 分钟 = 1 年
     { const mb = $("#p-mailbox"); if (mb) { let n = 0; try { n = this.mailboxCount ? this.mailboxCount() : 0; } catch {} mb.textContent = n ? `(${n})` : ""; } }
-    document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === (this.tab === "fshop" ? "cultivate" : this.tab)));
+    document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === (this.tab === "fshop" || this.tab === "aset" ? "cultivate" : this.tab)));
     // 顶部（道号、灵石、贡献、功德）和信息栏只在修炼页显示
     const main = this.tab === "cultivate";
     $("#top").style.display = main ? "" : "none";

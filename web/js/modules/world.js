@@ -3222,8 +3222,8 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       <button onclick="G.restart()">删档重来</button></div>${this.pwFormView()}</div>`;
     },
     // 管理员页在「世界」页里显示：跳过去，返回时回到修炼页设置
-    openAdminFromCult() { this.setFromCult = true; this.tab = "world"; this.atlasOn = false; this.atlasSub = "set"; this.openAdmin(true); },
-    backToCultSet() { this.setFromCult = false; this.adminPage = false; this.atlasSub = null; this.atlasOn = true; this.tab = "cultivate"; this.cultView = "set"; this.setTab = "other"; this.render(); },
+    openAdminFromCult() { this.tab = "aset"; this.openAdmin(true); this.viewScroll && this.viewScroll(0); },
+    backToCultSet() { this.adminPage = false; this.giftPage = false; this.accPage = false; this.srvPage = false; this.tab = "cultivate"; this.cultView = "set"; this.setTab = "other"; this.render(); },
     backFromShop() { this.tab = "cultivate"; this.render(); },
 
     /* ---------- 背景主题：存在本机（localStorage xiu_bg@存档编号），按存档分开（用户 2026-11-17） ---------- */
@@ -3240,7 +3240,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
 
   view() {
     // 战斗、设置从六界图左下 / 右下进（atlasSub）；凡界坊市在凡界地图卷轴里（mapSel "shop"）
-    const s = this.s, wid = this.worldId || "fan", wt = this.atlasSub === "battle" || this.atlasSub === "set" ? this.atlasSub : "explore";
+    const s = this.s, wid = this.worldId || "fan", wt = this.atlasSub === "battle" ? this.atlasSub : "explore";
     const fback = fn => `<div class="fback"><button onclick="${fn}">返回</button></div>`;   // 固定在右下角的返回（不跟着地图滑动）
     // 六界图（img/map/atlas.webp，竖条名牌按 ATLAS_POS 摆）；进了某一界顶部只留一条：六界图按钮 + 界名
     const W0 = DATA.worlds.find(w => w.id === wid) || DATA.worlds[0];
@@ -3307,25 +3307,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       return pg(mback + bars + status + (sel === "mj" ? this.mijingView() : this.regionsCard(sel)));
     }
 
-    const isAdmin = !!(this.adminInfo && this.adminInfo.admin);
-    if (this.giftPage && isAdmin) return tabs + this.giftAdminView();
-    if (this.accPage && isAdmin) return tabs + this.accAdminView();
-    if (this.srvPage && isAdmin) return tabs + this.srvInfoView();
-    if (this.adminInfo === undefined) { this.adminInfo = null; API.adminInfo().then(j => { this.adminInfo = j; this.render(); }).catch(() => {}); }
-    const A = this.adminInfo;
-    // 管理员页：游戏更新（从 GitHub 更新 / 刷新页面）、礼包码、账号管理
-    if (this.adminPage && isAdmin) return tabs + `<div class="row" style="margin:6px 0"><b>管理员</b><button class="sm" onclick="G.openAdmin(false)">返回</button></div>
-      <div class="card"><h3>游戏更新<small>管理员</small></h3>
-      <p class="desc">当前版本：${String(A.version || "未知").replace(/</g, "&lt;")}</p>
-      <div class="btns"><button class="primary" onclick="G.webUpdate()" ${this.updating ? "disabled" : ""}>${this.updating ? "更新中…" : "从 GitHub 更新"}</button>
-      <button onclick="location.reload()">刷新页面</button></div>
-      ${A.log ? `<div class="explore-log" style="white-space:pre-wrap;font-size:11px">${A.log.replace(/</g, "&lt;")}</div>` : ""}</div>
-      <div class="card"><h3>服务器信息<small>管理员</small></h3><p class="desc">游戏程序运行情况、自动备份；设置上传 GitHub 的令牌和间隔。</p><div class="btns"><button class="primary" onclick="G.openSrvInfo(true)">服务器信息</button></div></div>
-      <div class="card"><h3>礼包码<small>管理员</small></h3><div class="btns"><button class="primary" onclick="G.openGiftAdmin(true)">生成礼包码</button></div></div>
-      <div class="card"><h3>账号管理<small>管理员</small></h3><p class="desc">创建、切换、删除自己的多个人物；开关注册、管理所有账号。</p><div class="btns"><button class="primary" onclick="G.openAccAdmin(true)">账号管理</button></div></div>
-      <div class="card"><h3>数据修改<small>管理员</small></h3><p class="desc">直接修改 js/config 里的游戏参数，保存后服务器立即使用新参数。</p><div class="btns"><button class="primary" onclick="G.openCfgEdit()">数据修改</button></div></div>`;
-    // 管理员页返回到这里：从修炼页设置进来的，再返回回到修炼页设置
-    return `<div class="mpage"><div class="pghead">设置</div>` + this.otherSetHtml() + fback(this.setFromCult ? "G.backToCultSet()" : "G.setAtlasSub(null)") + "</div>";
+    return this.atlasView();   // 设置已和世界页分开（tab "aset"，用户定 2026-11-20）
   },
 
 });
@@ -3342,5 +3324,28 @@ function applyBg() {
 }
 applyBg();
 G.applyBg = applyBg;   // 进存档后按本存档的设置重新上色（core/game.js start）
+// 设置 / 管理员：独立页面（tab "aset"，修炼页设置进），和世界页完全分开（用户定 2026-11-20）
+G.views.aset = function () {
+  const fback = fn => `<div class="fback"><button onclick="${fn}">返回</button></div>`;
+  const isAdmin = !!(this.adminInfo && this.adminInfo.admin);
+  if (this.giftPage && isAdmin) return this.giftAdminView();
+  if (this.accPage && isAdmin) return this.accAdminView();
+  if (this.srvPage && isAdmin) return this.srvInfoView();
+  if (this.adminInfo === undefined) { this.adminInfo = null; API.adminInfo().then(j => { this.adminInfo = j; this.render(); }).catch(() => {}); }
+  const A = this.adminInfo;
+  // 管理员页：游戏更新（从 GitHub 更新 / 刷新页面）、礼包码、账号管理
+  if (this.adminPage && isAdmin) return `<div class="row" style="margin:6px 0"><b>管理员</b><button class="sm" onclick="G.openAdmin(false)">返回</button></div>
+    <div class="card"><h3>游戏更新<small>管理员</small></h3>
+    <p class="desc">当前版本：${String(A.version || "未知").replace(/</g, "&lt;")}</p>
+    <div class="btns"><button class="primary" onclick="G.webUpdate()" ${this.updating ? "disabled" : ""}>${this.updating ? "更新中…" : "从 GitHub 更新"}</button>
+    <button onclick="location.reload()">刷新页面</button></div>
+    ${A.log ? `<div class="explore-log" style="white-space:pre-wrap;font-size:11px">${A.log.replace(/</g, "&lt;")}</div>` : ""}</div>
+    <div class="card"><h3>服务器信息<small>管理员</small></h3><p class="desc">游戏程序运行情况、自动备份；设置上传 GitHub 的令牌和间隔。</p><div class="btns"><button class="primary" onclick="G.openSrvInfo(true)">服务器信息</button></div></div>
+    <div class="card"><h3>礼包码<small>管理员</small></h3><div class="btns"><button class="primary" onclick="G.openGiftAdmin(true)">生成礼包码</button></div></div>
+    <div class="card"><h3>账号管理<small>管理员</small></h3><p class="desc">创建、切换、删除自己的多个人物；开关注册、管理所有账号。</p><div class="btns"><button class="primary" onclick="G.openAccAdmin(true)">账号管理</button></div></div>
+    <div class="card"><h3>数据修改<small>管理员</small></h3><p class="desc">直接修改 js/config 里的游戏参数，保存后服务器立即使用新参数。</p><div class="btns"><button class="primary" onclick="G.openCfgEdit()">数据修改</button></div></div>`;
+  // 管理员页返回到这里：从修炼页设置进来的，再返回回到修炼页设置
+  return `<div class="mpage"><div class="pghead">设置</div>` + this.otherSetHtml() + fback("G.backToCultSet()") + "</div>";
+};
 // 凡界坊市：独立页面（tab "fshop"，修炼页进），和世界页完全分开（用户定 2026-11-17）
 G.views.fshop = function () { return `<div class="mpage" style="background-image:url(img/map/bg_fan.webp)"><div class="pghead">${DATA.nmPick(CFG.names.worldTab, "shop", "坊市")}</div>${this.shopView()}<div class="fback"><button onclick="G.backFromShop()">返回</button></div></div>`; };
