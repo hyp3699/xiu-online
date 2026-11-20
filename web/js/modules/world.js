@@ -2766,6 +2766,9 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       for (const it of (d.extra || {})[ev] || []) {
         if (Math.random() * 100 >= (it.chance || 0)) continue;
         const nn = it.n || [1, 1], n = U.rand(nn[0], nn[1]); if (n <= 0) continue;
+        if (it.item === DATA.smName("kj")) {   // 空间晶核：一次秘境最多 1 个，不吃地图收益倍率
+          const key = DATA.smKey("kj"); loot.sm = loot.sm || {}; if (loot.sm[key] > 0) continue; loot.sm[key] = (loot.sm[key] || 0) + 1; got.push(`${DATA.smName("kj")}×1`); continue;
+        }
         const sm = DATA.smByName(it.item), t = this.lootAdd(loot, it.item, n, sm ? EL[sm.k] : undefined); if (t) got.push(t);   // 耀石 / 灵晶：只出本次抽中的几种属性
       }
       return got.filter(Boolean).join("、");
