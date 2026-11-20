@@ -300,7 +300,7 @@ G.module({
       const b = DATA.mobRoll(this.affairFightRow(t), CFG.sect.affairFight.CRIT), v = (x, k) => x * DATA.mobRnd(k);
       const a = t.a >= 0 ? t.a : DATA.maps.findIndex(m => (m.monsters || []).includes(t.name));   // 地图序号：战斗画面按它找怪物图
       const m = this.addMagic({ name: t.name, a, boss: false, hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.resEl || b.res, manaBr: b.manaBr, L: b.L, crit: b.crit }, "normal");
-      const res = this.battle(m); let txt;
+      const res = this.battle(m, { syDie: 1 }); let txt;   // 宗门特殊任务战死扣寿元
       if (res.win) { const w = this.affairFightWin(t); t.done = true; s.stone += w.stone; s.contrib += w.contrib;
         txt = `${res.rounds}回合击杀${t.name}，灵石 +${U.fmt(w.stone)}，贡献 +${U.fmt(w.contrib)}。`; }
       else { t.failed = true;   // 失败不扣灵石、贡献，但当天不能再执行
