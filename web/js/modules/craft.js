@@ -638,6 +638,7 @@ G.module({
     },
     ringPayHave(r) { const S = DATA.ringSp(r); return S.src === "sect" ? this.s.contrib || 0 : this.ysFav(S.ys); },
     ringPay(r, c) { const S = DATA.ringSp(r); if (S.src === "sect") this.s.contrib -= c; else this.ysFavPay(S.ys, c); },   // 测试模式不扣好感
+    ringCost(r, c) { const S = DATA.ringSp(r); return S && S.src === "ys" ? this.ysDisc(S.ys, c) : c; },   // 隐世宗门炼器室按职位打折
     ringPayName(r) { return DATA.ringSp(r).src === "sect" ? "贡献" : "好感度"; },
     // 这张图纸的状态：0 可兑换 / 1 已学会 / 2 背包里有或在学
     ringBpState(r, g) { const key = this.forgeKey("ring", g, r);
@@ -646,19 +647,19 @@ G.module({
     buyRingBp(r, g, ysId) {
       r = +r; g = +g; if (!(g >= 0 && g < 10) || !this.ringShopOK(r, ysId || undefined)) return;
       const st = this.ringBpState(r, g); if (st) return this.log(st === 1 ? "已学会这张图纸。" : "背包里已有这张图纸。", "sys");
-      const c = DATA.ringBpCost(r, g); if (this.ringPayHave(r) < c) return this.log(`${this.ringPayName(r)}不足，需要 ${U.fmt(c)}。`, "sys");
+      const c = this.ringCost(r, DATA.ringBpCost(r, g)); if (this.ringPayHave(r) < c) return this.log(`${this.ringPayName(r)}不足，需要 ${U.fmt(c)}。`, "sys");
       this.ringPay(r, c); const where = this.bagPutOrMail({ t: "rbp", r, g });
       this.log(`${this.ringPayName(r)} −${U.fmt(c)}，获得${DATA.ringBpName(g, r)}，已放进${where === "mail" ? "传音" : "背包"}（点「学习」）。`, "gold"); this.after();
     },
     openRingSm(r, ysId) {   // 弹窗输入数量（同宗门宝库，用户定 2026-11-15）
       r = +r; if (!this.ringShopOK(r, ysId || undefined)) return;
-      const S = DATA.ringSp(r), max = Math.min(9999, Math.floor(this.ringPayHave(r) / Math.max(1, S.SM_COST)));
+      const S = DATA.ringSp(r), sc = this.ringCost(r, S.SM_COST), max = Math.min(9999, Math.floor(this.ringPayHave(r) / Math.max(1, sc)));
       const pn = this.ringPayName(r);
-      this.buyModal({ title: `兑换${DATA.smName(S.sm)}`, icon: DATA.li(DATA.smIcon(S.sm)), name: DATA.smName(S.sm), sub: `${U.fmt(S.SM_COST)} ${pn}/个 · 已有 ${U.fmt(this.smCount(S.sm))}`, ok: "兑换", cost: S.SM_COST, cur: pn, have: this.ringPayHave(r), max, call: n => this.buyRingSm(r, n, ysId) });
+      this.buyModal({ title: `兑换${DATA.smName(S.sm)}`, icon: DATA.li(DATA.smIcon(S.sm)), name: DATA.smName(S.sm), sub: `${U.fmt(sc)} ${pn}/个 · 已有 ${U.fmt(this.smCount(S.sm))}`, ok: "兑换", cost: sc, cur: pn, have: this.ringPayHave(r), max, call: n => this.buyRingSm(r, n, ysId) });
     },
     buyRingSm(r, n, ysId) {
       r = +r; n = Math.floor(+n || 0); if (n <= 0 || n > 9999 || !this.ringShopOK(r, ysId || undefined)) return;
-      const S = DATA.ringSp(r), c = S.SM_COST * n; if (this.ringPayHave(r) < c) return this.log(`${this.ringPayName(r)}不足，需要 ${U.fmt(c)}。`, "sys");
+      const S = DATA.ringSp(r), c = this.ringCost(r, S.SM_COST) * n; if (this.ringPayHave(r) < c) return this.log(`${this.ringPayName(r)}不足，需要 ${U.fmt(c)}。`, "sys");
       if (!this.addSm(S.sm, n)) return;
       this.ringPay(r, c);
       this.log(`${this.ringPayName(r)} −${U.fmt(c)}，获得${DATA.smName(S.sm)} ×${U.fmt(n)}。`, "good"); this.after();
@@ -666,10 +667,10 @@ G.module({
     // 兑换列表（宗门宝库 / 隐世宗门炼器室共用）：ysId 不填 = 宗门宝库
     ringShopHtml(ysId) {
       const rs = DATA.ringList().filter(r => this.ringShopOK(r, ysId)); if (!rs.length) return "";
-      return rs.map(r => { const S = DATA.ringSp(r), have = this.ringPayHave(r), pn = this.ringPayName(r), q = ysId ? `'${ysId}'` : "''", bn = DATA.ringBonus(r);
-        const smRow = `<div class="line"><div>${DATA.li(DATA.smIcon(S.sm))}${DATA.smName(S.sm)}<small>${U.fmt(S.SM_COST)} ${pn}/个 · 已有 ${U.fmt(this.smCount(S.sm))} · 炼制每件要 ${DATA.ringSmNeed(0)}~${DATA.ringSmNeed(DATA.XING.length - 1)} 个</small></div>
-          <button class="sm" onclick="G.openRingSm(${r},${q})" ${have < S.SM_COST ? "disabled" : ""}>兑换</button></div>`;
-        const bpRows = DATA.XING.slice(0, 10).map((x, g) => { const st = this.ringBpState(r, g), c = DATA.ringBpCost(r, g);
+      return rs.map(r => { const S = DATA.ringSp(r), sc = this.ringCost(r, S.SM_COST), have = this.ringPayHave(r), pn = this.ringPayName(r), q = ysId ? `'${ysId}'` : "''", bn = DATA.ringBonus(r);
+        const smRow = `<div class="line"><div>${DATA.li(DATA.smIcon(S.sm))}${DATA.smName(S.sm)}<small>${U.fmt(sc)} ${pn}/个 · 已有 ${U.fmt(this.smCount(S.sm))} · 炼制每件要 ${DATA.ringSmNeed(0)}~${DATA.ringSmNeed(DATA.XING.length - 1)} 个</small></div>
+          <button class="sm" onclick="G.openRingSm(${r},${q})" ${have < sc ? "disabled" : ""}>兑换</button></div>`;
+        const bpRows = DATA.XING.slice(0, 10).map((x, g) => { const st = this.ringBpState(r, g), c = this.ringCost(r, DATA.ringBpCost(r, g));
           return `<div class="line"><div>${DATA.li(DATA.iconImg("bp"))}${DATA.ringBpName(g, r)}<small>${U.fmt(c)} ${pn}${g ? ` · 炼制要${DATA.ringName(r, g - 1)}` : ""}</small></div>
             <button class="sm" onclick="G.buyRingBp(${r},${g},${q})" ${st || have < c ? "disabled" : ""}>${st === 1 ? "已学会" : st === 2 ? "已拥有" : "兑换"}</button></div>`; }).join("");
         return `<div class="card"><h3>${DATA.ringNames[r]}<small>主属性 ${(CFG.forge.ring.main[r] || []).map(k => DATA.attrNames[k] || k).join("、")}${bn ? ` · 额外 +${bn}%` : ""}</small></h3>${smRow}${bpRows}</div>`; }).join("");
@@ -677,7 +678,7 @@ G.module({
     /* ---------- 十一、十二星图谱 / 图纸：神界隐世宗门炼器室，好感度兑换（config/forge.js 的 YS_BP） ----------
      *   kind：eq 装备 / 法宝图谱（sub = 部位）、ss 空间石炼法、ring 戒指图纸（sub = 戒指种类）、fu 炼器炉图纸 */
     ysBpTiers(ysId) { const Y = CFG.forge.YS_BP || {}; return Object.keys(Y).map(Number).filter(g => g < DATA.XING.length && (Y[g].ys || []).includes(ysId)).sort((a, b) => a - b); },
-    ysBpCost(g) { return ((CFG.forge.YS_BP || {})[g] || {}).COST || 0; },
+    ysBpCost(g, ysId) { const c = ((CFG.forge.YS_BP || {})[g] || {}).COST || 0; return ysId ? this.ysDisc(ysId, c) : c; },
     // 0 可兑换 / 1 已学会 / 2 背包里有或在学
     ysBpState(kind, g, sub) {
       const s = this.s;
@@ -690,7 +691,7 @@ G.module({
       if (!this.ysById(ysId) || !this.ysFound(ysId) || !this.ysBpTiers(ysId).includes(g)) return;   // 和 ysTask / ysGf / ysDan 一样先查宗门已发现
       if (kind === "eq" && !DATA.forgeSlots.includes(sub)) return; if (kind === "ring" && !DATA.ringOK(sub)) return; if (!["eq", "ss", "ring", "fu"].includes(kind)) return;
       const st = this.ysBpState(kind, g, sub); if (st) return this.log(st === 1 ? "已学会。" : "已在背包或学习中。", "sys");
-      const c = this.ysBpCost(g); if (this.ysFav(ysId) < c) return this.log(`好感度不足，需要 ${U.fmt(c)}。`, "sys");
+      const c = this.ysBpCost(g, ysId); if (this.ysFav(ysId) < c) return this.log(`好感度不足，需要 ${U.fmt(c)}。`, "sys");
       if (kind === "eq" || kind === "ss") {
         const key = this.forgeKey(kind, g, sub); if (!this.lqCan("forge", key)) return;
         this.ysFavPay(ysId, c); this.lqAdd("forge", { key, k: "forge", ms: (kind === "eq" ? CFG.forge.equip : CFG.forge.stone).learnTime[g] * 60000 });
@@ -705,7 +706,7 @@ G.module({
     ysBpHtml(ysId) {
       const fav = this.ysFav(ysId);
       return this.ysBpTiers(ysId).map(g => {
-        const c = this.ysBpCost(g), btn = (kind, sub) => { const st = this.ysBpState(kind, g, sub);
+        const c = this.ysBpCost(g, ysId), btn = (kind, sub) => { const st = this.ysBpState(kind, g, sub);
           return `<button class="sm" onclick="G.buyYsBp('${ysId}','${kind}',${g},${sub === undefined ? "undefined" : typeof sub === "string" ? `'${sub}'` : sub})" ${st || fav < c ? "disabled" : ""}>${st === 1 ? "已学会" : st === 2 ? "已拥有" : "兑换"}</button>`; };
         const row = (ico, name, tag, kind, sub) => `<div class="line"><div>${ico}${name}${tag ? `<span class="tag">${tag}</span>` : ""}<small>${U.fmt(c)} 好感度</small></div>${btn(kind, sub)}</div>`;
         const rows = [

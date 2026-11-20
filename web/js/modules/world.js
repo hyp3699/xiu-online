@@ -506,6 +506,29 @@ G.module({
     },
     ysFavRaw(id) { return ((this.s.ysFav || {})[id]) || 0; },   // 好感度（每个宗门单独）
     ysFav(id) { return DATA.isTest() ? 1e9 : this.ysFavRaw(id); },   // 用来判断够不够：测试模式（调试人物）当作无限，不扣
+    /* ---------- 职位（config/yinshi.js RANK）：s.ysRank = { 宗门id: 已晋升到第几个职位（0 = 无职位，1 = 门下行走 ……）} ---------- */
+    ysRankCfg() { return this.ysCfg().RANK || { NAMES: [] }; },
+    ysRank(id) { return Math.min((this.ysRankCfg().NAMES || []).length, +((this.s.ysRank || {})[id]) || 0); },
+    ysRankName(id) { const r = this.ysRank(id); return r ? this.ysRankCfg().NAMES[r - 1] : "无"; },
+    ysTaskAdd(id) { const r = this.ysRank(id); return r ? +(this.ysRankCfg().TASK_ADD || [])[r - 1] || 0 : 0; },
+    ysDiscPct(id) { const r = this.ysRank(id); return r ? +(this.ysRankCfg().DISC || [])[r - 1] || 100 : 100; },
+    ysDisc(id, c) { const p = this.ysDiscPct(id); return p >= 100 ? c : Math.ceil(c * p / 100); },   // 打折后的好感度
+    ysRankUp(id) {
+      if (!this.ysFound(id)) return; const R = this.ysRankCfg(), r = this.ysRank(id), N = (R.NAMES || []).length;
+      if (r >= N) return this.log("已是最高职位。", "sys");
+      const fav = +(R.FAV || [])[r] || 0, st = +(R.STONE || [])[r] || 0;
+      if (this.ysFav(id) < fav) return this.log(`好感度不足，需要 ${U.fmt(fav)}。`, "sys");
+      if (!DATA.isTest() && (this.s.stone || 0) < st) return this.log(`灵石不足，需要 ${U.fmt(st)}。`, "sys");
+      this.ysFavPay(id, fav); if (!DATA.isTest()) this.s.stone -= st;
+      if (!this.s.ysRank || typeof this.s.ysRank !== "object") this.s.ysRank = {}; this.s.ysRank[id] = r + 1;
+      this.log(`晋升${this.ysById(id).name}${R.NAMES[r]}。`, "gold"); this.after();
+    },
+    ysRankHtml(id) {
+      const R = this.ysRankCfg(), r = this.ysRank(id), N = (R.NAMES || []).length;
+      const rows = (R.NAMES || []).map((nm, k) => `<div class="line"><div>${k < r ? `<span class="q5">${nm}</span>` : nm}<small>事务堂好感度 +${(R.TASK_ADD || [])[k] || 0} · 消耗好感度 ${((R.DISC || [])[k] || 100) / 10} 折</small></div>${k < r ? `<span class="q5">${k === r - 1 ? "当前" : "已晋升"}</span>` : k === r
+        ? `<button class="sm" onclick="G.ysRankUp('${id}')" ${this.ysFav(id) >= ((R.FAV || [])[k] || 0) && (DATA.isTest() || (this.s.stone || 0) >= ((R.STONE || [])[k] || 0)) ? "" : "disabled"}>晋升</button>` : ""}</div>${k === r ? `<small class="c-green">晋升需要好感度 ${U.fmt((R.FAV || [])[k] || 0)}、灵石 ${U.fmt((R.STONE || [])[k] || 0)}</small>` : ""}`).join("");
+      return `<p>当前职位：<b>${this.ysRankName(id)}</b></p>${rows}`;
+    },
     ysFavPay(id, c) { if (DATA.isTest()) return; if (!this.s.ysFav || typeof this.s.ysFav !== "object") this.s.ysFav = {}; this.s.ysFav[id] = this.ysFavRaw(id) - c; },
     /* ---------- 灵脉（config/yinshi.js LINGMAI）：s.lmYs = { 宗门id: 属性序号 }（进游戏随机定下），s.lm = { 宗门id: { lv 阶, ling 灵气, t 上次恢复时刻, on 租借中, rt 下次扣好感的起算时刻 } } ---------- */
     lmCfg() { return this.ysCfg().LINGMAI || {}; },
@@ -531,7 +554,7 @@ G.module({
     lmMax() { return Math.max(1, Math.floor(+this.lmCfg().MAX || 13)); },
     lmCap(id, lv) { return Math.max(0, lv) * (+(this.lmCfg().CAP_PER || {})[this.lmW(id)] || 0); },   // 灵气上限 = 阶 × 每阶（废品 0 阶 = 0）
     lmRegen(id, lv) { return Math.max(0, lv) * Math.max(0, +(this.lmCfg().REGEN || {})[this.lmW(id)] || 0); },   // 每游戏年（现实 1 小时）恢复固定值 = 阶 × REGEN[界]
-    lmPrice(id) { return Math.max(0, +(this.lmCfg().BUY_FAV || {})[this.lmW(id)] || 0); },
+    lmPrice(id) { return this.ysDisc(id, Math.max(0, +(this.lmCfg().BUY_FAV || {})[this.lmW(id)] || 0)); },
     lmOwn(id) { const o = (this.s.lm || {})[id]; return !!(o && o.own && this.lmHas(id)); },
     lmLv(id) { return this.lmOwn(id) ? Math.max(0, Math.min(this.lmMax(), Math.floor(+this.s.lm[id].lv) || 0)) : 0; },
     lmTick() {
@@ -623,7 +646,7 @@ G.module({
       if (have < need) return this.log(`${nm}不足，需要 ${need} 个（现有 ${have}）。`, "sys");
       this.bagTake(x => x.t === "stp" && x.id === id, need);
       (s.ysTask.fr = s.ysTask.fr || {})[id] = k + 1;
-      const f = +((T.FRAG_FAV || [])[k] ?? 10) || 0; if (!s.ysFav || typeof s.ysFav !== "object") s.ysFav = {}; s.ysFav[id] = this.ysFavRaw(id) + f;
+      const f = (+((T.FRAG_FAV || [])[k] ?? 10) || 0) + this.ysTaskAdd(id); if (!s.ysFav || typeof s.ysFav !== "object") s.ysFav = {}; s.ysFav[id] = this.ysFavRaw(id) + f;
       this.log(`向${this.ysById(id).name}提交 ${nm} ×${need}，好感度 +${f}。`, "good"); this.after();
     },
     ysSubmit(id, i) {
@@ -631,12 +654,12 @@ G.module({
       const nm = DATA.matName(t.kind, t.g), have = this.countMat(t.kind, t.g);
       if (have < t.n) return this.log(`${nm}不足，需要 ${t.n} 个（现有 ${have}）。`, "sys");
       this.takeMat(t.kind, t.g, t.n); t.done = true;
-      const f = (this.ysCfg().TASK || {}).FAV || 10; if (!s.ysFav || typeof s.ysFav !== "object") s.ysFav = {}; s.ysFav[id] = this.ysFavRaw(id) + f;
+      const f = ((this.ysCfg().TASK || {}).FAV || 10) + this.ysTaskAdd(id); if (!s.ysFav || typeof s.ysFav !== "object") s.ysFav = {}; s.ysFav[id] = this.ysFavRaw(id) + f;
       this.log(`向${this.ysById(id).name}提交 ${nm} ×${t.n}，好感度 +${f}。`, "good"); this.after();
     },
     // 功法阁：每本只能兑换一次（学会过、背包里有、正在学也算换过）
     ysGfHas(gid) { return !!(this.s.gongfa[gid] || (this.lqHas && this.lqHas("gf", gid)) || this.s.bag.some(x => x && x.t === "gfb" && x.id === gid) || ((this.s.ysGfGot || {})[gid])); },
-    ysGfCost(id) { const C = this.ysCfg(), y = this.ysById(id) || {}; return (C.GF_COST === undefined ? 500 : C.GF_COST) + Math.max(0, (y.star || 5) - 5) * (C.GF_COST_STEP === undefined ? 100 : C.GF_COST_STEP); },
+    ysGfCost(id) { const C = this.ysCfg(), y = this.ysById(id) || {}; return this.ysDisc(id, (C.GF_COST === undefined ? 500 : C.GF_COST) + Math.max(0, (y.star || 5) - 5) * (C.GF_COST_STEP === undefined ? 100 : C.GF_COST_STEP)); },
     ysBuyGf(id, gid) {
       if (!this.ysFound(id) || !DATA.ysGfIds(id).includes(gid)) return; const s = this.s, cost = this.ysGfCost(id);
       if (this.ysGfHas(gid)) return this.log("这本功法已经兑换过了。", "sys");
@@ -666,7 +689,7 @@ G.module({
     lgYsGot(id) { const r = this.s.lgYsDay; return r && r.day === this.bjDay() ? (r.n || {})[id] || 0 : 0; },
     ysBuyLgSeed(id) {
       if (!this.ysFound(id)) return; const k = this.lgYsMap()[id]; if (k === undefined || !DATA.lgDef(k)) return;
-      const L = DATA.LG(), fav = L.YS_FAV ?? 10, lim = L.YS_DAY ?? 1;
+      const L = DATA.LG(), fav = this.ysDisc(id, L.YS_FAV ?? 10), lim = L.YS_DAY ?? 1;
       if (this.lgYsGot(id) >= lim) return this.log("今天已经兑换过了。", "sys");
       if (this.ysFav(id) < fav) return this.log(`好感度不足，需要 ${fav}。`, "sys");
       if (!this.addSeed(DATA.LG_BASE + k, 1)) return;
@@ -676,21 +699,21 @@ G.module({
     },
     ysLgSeedRow(id) {
       const k = this.lgYsMap()[id]; if (k === undefined || !DATA.lgDef(k)) return "";
-      const L = DATA.LG(), fav = L.YS_FAV ?? 10, lim = L.YS_DAY ?? 1, got = this.lgYsGot(id), g = DATA.LG_BASE + k, d = DATA.lgDef(k);
+      const L = DATA.LG(), fav = this.ysDisc(id, L.YS_FAV ?? 10), lim = L.YS_DAY ?? 1, got = this.lgYsGot(id), g = DATA.LG_BASE + k, d = DATA.lgDef(k);
       return `<div class="line"><div>${DATA.li(DATA.seedImg(g))}${DATA.seedName(g)}<small>${DATA.lgLab(d.k)} +${U.fmt(d.v)} · 今日 ${got}/${lim}</small></div><button class="sm" onclick="G.ysBuyLgSeed('${id}')" ${got >= lim || this.ysFav(id) < fav ? "disabled" : ""}>${got >= lim ? "已兑换" : `${fav} 好感`}</button></div>`;
     },
     // 购买 / 兑换统一弹窗输入数量（同宗门宝库，用户定 2026-11-15）
     openYsDan(id, k) {
       const D = this.ysDanCfg(), d = this.ysDanDef(k); if (!d) return;
-      const left = D.MAX - this.ysDanGotN(id, k), max = Math.min(9999, left, Math.floor(this.ysFav(id) / Math.max(1, D.FAV)));
+      const left = D.MAX - this.ysDanGotN(id, k), df = this.ysDisc(id, D.FAV), max = Math.min(9999, left, Math.floor(this.ysFav(id) / Math.max(1, df)));
       const d0 = this.ysDanDef(k) || {};
-      this.buyModal({ title: `兑换${this.ysDanName(id, k)}`, icon: DATA.li(`img/ysdan/${k}.webp`), name: this.ysDanName(id, k), sub: `${U.fmt(D.FAV)} 好感/颗 · 已兑换 ${this.ysDanGotN(id, k)}/${D.MAX}`, ok: "兑换", cost: D.FAV, cur: "好感", have: this.ysFav(id), max, call: n => this.ysBuyDan(id, k, n) });
+      this.buyModal({ title: `兑换${this.ysDanName(id, k)}`, icon: DATA.li(`img/ysdan/${k}.webp`), name: this.ysDanName(id, k), sub: `${U.fmt(df)} 好感/颗 · 已兑换 ${this.ysDanGotN(id, k)}/${D.MAX}`, ok: "兑换", cost: df, cur: "好感", have: this.ysFav(id), max, call: n => this.ysBuyDan(id, k, n) });
     },
     ysBuyDan(id, k, n) {
       if (!this.ysFound(id)) return; const D = this.ysDanCfg(), d = this.ysDanDef(k); if (!d) return;
       const left = D.MAX - this.ysDanGotN(id, k); if (left <= 0) return this.log(`${this.ysDanName(id, k)}已兑换满 ${D.MAX} 颗。`, "sys");
       n = Math.max(1, Math.min(9999, Math.floor(+n) || 1, left));
-      const cost = D.FAV * n; if (this.ysFav(id) < cost) return this.log(`好感度不足，需要 ${cost}（现有 ${this.ysFav(id)}）。`, "sys");
+      const cost = this.ysDisc(id, D.FAV) * n; if (this.ysFav(id) < cost) return this.log(`好感度不足，需要 ${cost}（现有 ${this.ysFav(id)}）。`, "sys");
       if (!this.bagAdd(x => x.t === "ysd" && x.ys === id && x.k === k, c => ({ t: "ysd", ys: id, k, n: c }), n, "背包已满，兑换失败。")) return;
       this.ysFavPay(id, cost); const got = this.ysDanMap("ysDanGot", id); got[k] = (got[k] || 0) + n;
       this.log(`好感度 −${cost}，兑换${this.ysDanName(id, k)} ×${n}，已放入背包。`, "good"); this.after();
@@ -797,11 +820,11 @@ G.module({
       const y = this.ysById(id), p = (this.ysCfg().PLACES || []).find(x => x.id === pid); if (!y || !p) return;
       const head = `<h2>${y.name} · ${p.name}</h2><p class="ysfavp">好感度 <b>${U.fmt(this.ysFavRaw(id))}</b></p>`, close = `<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`;
       if (pid === "shiwu") {
-        const f = (this.ysCfg().TASK || {}).FAV || 10;
+        const f = ((this.ysCfg().TASK || {}).FAV || 10) + this.ysTaskAdd(id);
         const rows = this.ysTasks(id).map((t, i) => { const nm = DATA.matName(t.kind, t.g), have = this.countMat(t.kind, t.g);
           return `<div class="line"><div>提交 ${nm} ×${t.n}<small>现有 ${U.fmt(have)} · 好感度 +${f}</small></div>${t.done ? `<span class="q5">已完成</span>` : `<button class="sm" onclick="G.ysSubmit('${id}',${i})" ${have < t.n ? "disabled" : ""}>提交</button>`}</div>`; }).join("")
           + (() => { const T = this.ysCfg().TASK || {}, L = T.FRAG || [], k = this.ysFragDone(id), fh = this.ysFragN(id); if (!L.length || !this.ysSts(id).length) return "";   // 神通碎片：一行，每天 L.length 次
-            const end = k >= L.length, need = end ? L[L.length - 1] : L[k], ff = (T.FRAG_FAV || [])[end ? L.length - 1 : k] ?? 10;
+            const end = k >= L.length, need = end ? L[L.length - 1] : L[k], ff = (+((T.FRAG_FAV || [])[end ? L.length - 1 : k] ?? 10) || 0) + this.ysTaskAdd(id);
             return `<div class="line"><div>提交 ${this.ysFragName(id)} ×${need}<small>现有 ${U.fmt(fh)} · 好感度 +${ff} · 今日 ${k}/${L.length}</small></div>${end ? `<span class="q5">已完成</span>` : `<button class="sm" onclick="G.ysSubmitFrag('${id}')" ${fh < need ? "disabled" : ""}>提交</button>`}</div>`; })();
         return this.modal(`${head}${rows}${close}`);
       }
@@ -815,7 +838,7 @@ G.module({
         const D = this.ysDanCfg(), fav = this.ysFav(id);
         const rows = (D.LIST || []).map(d => { const got = this.ysDanGotN(id, d.k), left = D.MAX - got, m = Math.min(10, left);
           return `<div class="line"><div>${DATA.li(`img/ysdan/${d.k}.webp`)}${d.name}<small>${this.ysDanLab(d.k)} +${U.fmt(D.VAL)} · 已兑换 ${got}/${D.MAX}</small></div>${left > 0
-            ? `<button class="sm" onclick="G.openYsDan('${id}','${d.k}')" ${fav < D.FAV ? "disabled" : ""}>兑换</button>`
+            ? `<button class="sm" onclick="G.openYsDan('${id}','${d.k}')" ${fav < this.ysDisc(id, D.FAV) ? "disabled" : ""}>兑换</button>`
             : `<span class="q5">已满</span>`}</div>`; }).join("");
         return this.modal(`${head}${this.ysLgSeedRow(id)}${rows}${this.ysXdRows(id, "dan")}${close}`);
       }
@@ -825,6 +848,7 @@ G.module({
         if (this.ysFav(id) < need && !this.ysHallFree(id)) return this.modal(`${head}<p>好感度达到 ${U.fmt(need)} 才能进入宗门大殿。</p>${close}`);
         this.closeModal(); this.ysHall = id; this.render(); this.viewScroll(0); return;
       }
+      if (pid === "rank") return this.modal(`${head}${this.ysRankHtml(id)}${close}`);
       if (pid === "lm") return this.lmHas(id) ? this.modal(`${head}${this.lmHtml(id)}${close}`) : this.modal(`${head}<p>本宗没有灵脉。</p>${close}`);
       if (pid === "mj") {
         const M = this.ysCfg().MJ || {}, i = this.ysMjIdx(id), left = i < 0 ? 0 : this.mjLeft(i, "ys"), x = this.s.explore, on = x && x.mk === "ys" && x.mj === i;
