@@ -780,7 +780,8 @@ G.module({
       } else if (it.t === "seed") {
         h += `<p>${DATA.cropName(it.g)}的种子。洞府灵药园每种一季（含自动续种）消耗 ${this.plantSeedN ? this.plantSeedN() : 1} 颗。</p><div class="btns">${sell}</div>`;
       } else if (it.t === "sm") {
-        h += `<p>${(CFG.mijing.items[it.k] || {}).desc || ""}</p>${it.k === "zq" && this.zqTxt ? `<p class="c-green">${this.zqTxt(it.ft || 0)}</p>` : ""}<div class="btns">${sell}</div>`;
+        const ysv = /^ysd[1-5]$/.test(it.k) ? +it.k.slice(3) - 1 : -1;   // 延寿丹：服用按钮（sect.js eatYsd）
+        h += `<p>${(CFG.mijing.items[it.k] || {}).desc || ""}${ysv >= 0 ? `<br>已服用 ${this.syAteN(ysv)}/${this.syPillMax()}` : ""}</p>${it.k === "zq" && this.zqTxt ? `<p class="c-green">${this.zqTxt(it.ft || 0)}</p>` : ""}<div class="btns">${ysv >= 0 ? `<button class="primary" onclick="G.eatYsd(${i})" ${!this.syOn() || this.syAteN(ysv) >= this.syPillMax() ? "disabled" : ""}>服用</button>` : ""}${sell}</div>`;
       } else if (it.t === "book") {
         const B = CFG.start.book, has = this.hasGongfa(DATA.START_GF);
         h += `<p>秘诀 · 修炼速度每层 +${U.num(B.SPEED)} · 共 ${B.MAX} 层${has ? "<br><span class='q5'>已学会。</span>" : ""}</p>

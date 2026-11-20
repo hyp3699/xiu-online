@@ -504,6 +504,18 @@ G.module({
     // 延寿丹已服用颗数：s.syPill = { 星级序号: 颗数 }（旧存档是数组，每项算 1 颗）
     syPillMap() { const s = this.s; if (Array.isArray(s.syPill)) { const m = {}; for (const v of s.syPill) m[v] = (m[v] || 0) + 1; s.syPill = m; } return s.syPill = s.syPill || {}; },
     syPillN(v) { return +this.syPillMap()[v] || 0; },
+    syAteN(v) { const a = this.s.syAte; return a && typeof a === "object" ? +a[v] || 0 : 0; },
+    // 背包服用延寿丹（专用材料 ysd1~ysd5）：开启寿元才能吃，每种最多 PILL_MAX 颗
+    eatYsd(i) {
+      const s = this.s, it = s.bag[i]; if (!it || it.t !== "sm" || !/^ysd[1-5]$/.test(it.k) || it.lq) return;
+      const v = +it.k.slice(3) - 1, P = (((CFG.origin || {}).SY || {}).PILLS || [])[v]; if (!P) return;
+      if (!this.syOn() || this.syDead()) return this.log("开启寿元才能服用。", "sys");
+      if (this.syAteN(v) >= this.syPillMax()) return this.log(`${DATA.smName(it.k)}最多服用 ${this.syPillMax()} 颗。`, "sys");
+      if (!s.syAte || typeof s.syAte !== "object") s.syAte = {};
+      s.syAte[v] = this.syAteN(v) + 1; s.sy.ext = (+s.sy.ext || 0) + P[1];
+      this.removeAt(i, 1);
+      this.log(`服下${DATA.smName(it.k)}，寿元 +${P[1]} 年。`, "good"); this.closeModal(); this.after();
+    },
     syPillMax() { return +((CFG.origin || {}).SY || {}).PILL_MAX || 1; },
     // 杂物页货单：content/items.js 的 ITEMS.treasury
     treasuryList() { return ITEMS.treasury; },
@@ -534,8 +546,9 @@ G.module({
       if (it.kind === "sy") {   // 延寿丹：直接服用，加寿元上限；每颗只能换一次
         const P = (((CFG.origin || {}).SY || {}).PILLS || [])[it.v], s = this.s;
         if (!P || !this.syOn() || this.syDead() || this.syPillN(it.v) >= this.syPillMax() || P[0] !== this.sectInfo().star) return;
-        s.contrib -= c; const m = this.syPillMap(); m[it.v] = (m[it.v] || 0) + 1; s.sy.ext = (+s.sy.ext || 0) + P[1];
-        this.log(`服下${P[0]}星${(CFG.origin.SY.PILL_NAME || "延寿丹")}，寿元 +${P[1]} 年。`, "good");
+        if (!this.addSm("ysd" + (it.v + 1), 1)) return;
+        s.contrib -= c; const m = this.syPillMap(); m[it.v] = (m[it.v] || 0) + 1;
+        this.log(`兑换${DATA.smName("ysd" + (it.v + 1))}。`, "good");
         return this.after();
       }
       if (it.kind === "chuqiao") {
@@ -1045,7 +1058,7 @@ G.module({
             const P = (((CFG.origin || {}).SY || {}).PILLS || [])[it.v];
             if (!P || !this.syOn || !this.syOn() || this.syPillN(it.v) >= this.syPillMax() || P[0] !== x.star) return [0, ""];
             const c = P[2];
-            return [0, `<div class="line"><div>${DATA.li(DATA.iconImg("dan_yanshou"))}${P[0]}星${CFG.origin.SY.PILL_NAME || "延寿丹"}<small>寿元 +${P[1]} 年 · ${U.fmt(c)} 贡献 · 已服用 ${this.syPillN(it.v)}/${this.syPillMax()}</small></div>
+            return [0, `<div class="line"><div>${DATA.li(DATA.smIcon("ysd" + (it.v + 1)))}${P[0]}星${CFG.origin.SY.PILL_NAME || "延寿丹"}<small>寿元 +${P[1]} 年 · ${U.fmt(c)} 贡献 · 已兑换 ${this.syPillN(it.v)}/${this.syPillMax()}</small></div>
               <button class="sm" onclick="G.exchange(${i})" ${s.contrib < c ? "disabled" : ""}>兑换</button></div>`];
           }
           if (it.kind === "chuqiao") {

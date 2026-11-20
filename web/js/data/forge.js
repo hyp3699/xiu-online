@@ -60,6 +60,8 @@ if (CFG.zhenqi) { const Z = CFG.zhenqi, T = Z.TIERS * Z.GRADES.length;   // 阵�
   DATA.zqTier = ft => Z.GRADES[DATA.zqG(ft)] + "一二三四五六七八九十"[DATA.zqN(ft)] + "阶";
   DATA.zqNm = ft => Z.NAMES[DATA.zqEl(ft)];
   CFG.mijing.items.zq = { name: "阵旗", names: Z.NAMES.flatMap((n, e) => Array.from({ length: T }, (_, t) => `${n}·${DATA.zqTier(e * T + t)}`)), sell: Z.SELL, desc: Z.DESC }; }
+// 延寿丹 1~5 星（config/start.js CFG.origin.SY.PILLS），背包里是专用材料 ysd1~ysd5，图 sm_ysd*.png
+(((CFG.origin || {}).SY || {}).PILLS || []).forEach(([st, y], i) => { CFG.mijing.items["ysd" + (i + 1)] = { name: `${st}星${CFG.origin.SY.PILL_NAME || "延寿丹"}`, sell: (CFG.origin.SY.PILL_SELL || 80000) * st, desc: `服用后寿元 +${y} 年（开启寿元才能服用，每种最多 ${CFG.origin.SY.PILL_MAX || 3} 颗）。`, ysd: i }; });
 if (CFG.lingzhu) CFG.mijing.items.lz = { name: "灵珠", names: CFG.lingzhu.NAMES, sell: CFG.lingzhu.SELL, desc: CFG.lingzhu.DESC };
 if (!CFG.mijing.items.ly) CFG.mijing.items.ly = { name: "灵元", names: ["金灵元", "木灵元", "水灵元", "火灵元", "土灵元", "雷灵元"], sell: 5, desc: "升级道童、灵根的材料。" };   // 管理员改过 mijing.js 也有
 DATA.SM_GRADED = ["ys", "lj", "lz", "ly", "zq"];
@@ -322,7 +324,7 @@ DATA.fabaoInfo = (e, own) => {
  *   img/icons/pill_丹药id.png 修炼丹、dan_类型.png 属性丹、fu_dan / fu_qi.png 炉子、ss.png 空间石
  *   fbs形状_属性.png 法宝（7 种形状 × 6 种属性）、sm_ys属性.png 耀石、mifa.png 秘法、seed.png 种子、stone.png 灵石、cu_misc.png 自定义物品
  *   hx.png 火髓、bp.png 图纸 */
-DATA.IMG_V = 98;
+DATA.IMG_V = 99;
 DATA.matImg = (kind, g) => `img/mats/${kind}${g}.png?v=${DATA.IMG_V}`;
 DATA.SEED_IMG = [...Array(20).keys()];   // 有种子图的药材序号（img/mats/seed序号.png）
 DATA.seedImg = g => DATA.isLg && DATA.isLg(g) ? `img/lg/seed${g - DATA.LG_BASE}.png?v=${DATA.IMG_V}` : DATA.SEED_IMG.includes(g) ? `img/mats/seed${g}.png?v=${DATA.IMG_V}` : DATA.matImg("herb", g);
