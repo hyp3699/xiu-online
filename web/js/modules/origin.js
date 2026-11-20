@@ -41,7 +41,7 @@ G.module({
     },
     syCut(y, why) { const s = this.s; if (!this.syOn() || this.syDead() || !(y > 0)) return; s.sy.cut = (+s.sy.cut || 0) + y; this.log(`${why}，寿元 -${y >= 1 ? y + " 年" : Math.round(y * 12) + " 个月"}。`, "bad"); this.syCheck(); },
     syCheck(t = this.now()) { const s = this.s; if (!this.syOn() || this.syDead()) return false; if (this.syAge(t) < this.syLife()) return false; s.sy.dead = t; this.log("寿元已尽，人物已死亡。", "bad"); this.dirty(); return true; },
-    syText() { if (!this.syOn()) return ""; const life = this.syLife(); return `${Math.floor(this.syAge())} 岁 / ${isFinite(life) ? U.fmt(Math.round(life * 10) / 10) + " 岁" : "无限"}`; },
+    syText() { if (!this.syOn()) return ""; const life = this.syLife(); return `${Math.floor(this.syAge())} 岁 / ${isFinite(life) ? (life % 1 ? (Math.round(life * 10) / 10).toFixed(1) : U.fmt(life)) + " 岁" : "无限"}`; },
     // 死亡画面：只提示 + 删档按钮（不自动删档）
     syDeadView() { if (this._syShown && $("#modal-box .sy-dead")) return; this._syShown = true; this._lockModal = true;
       this.modal(`<div class="sy-dead"><h2>寿元到了</h2><p>${this.s.name} 寿元已尽，人物已死亡。</p><div class="btns"><button class="primary" onclick="G._lockModal=false;G.restart()">删档</button></div></div>`); },
