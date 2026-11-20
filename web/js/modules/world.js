@@ -105,7 +105,7 @@ G.module({
         }
         if (o.m.includes(i) && !o.k.includes(i)) {   // 怪物格：打赢才算走到、计入征服度
           const R0 = (r - DATA.regionCount) >> 1, m = this.makeJieMob(a, R0, r, i);
-          const res = this.battle(m, { foe: m.boss ? "boss" : m.elite ? "elite" : "mob", useSet: true }), nm = String(m.name).replace(/^精英·/, "");
+          const res = this.battle(m, { foe: m.boss ? "boss" : m.elite ? "elite" : "mob", useSet: true, syDie: 1 }), nm = String(m.name).replace(/^精英·/, "");
           this.playBattle(res.detail, `${this.gridName(a, r)} · ${nm}`, res.win ? "胜利" : "失败", !!res.win, []);
           if (!res.win) {   // 打输：这格怪物标在地图上（点亮格子，不发奖励），以后点它直接打
             const g0 = this.s.grids[a + "_" + r]; if (!Array.isArray(g0.v)) g0.v = []; if (!g0.v.includes(i)) g0.v.push(i);
@@ -1586,7 +1586,7 @@ G.module({
           sp: m.spell ? [m.spell.chance, m.spell.pct] : null, fb: m.fabao ? [m.fabao.chance, m.fabao.pct] : null },
         // 战斗画面点人物：你进这场战斗时的属性（用户定 2026-11-15）
         pst: { hp: st0.hp, atk: st0.atk, def: st0.def, speed: st0.speed, hit: st0.hit, dodge: st0.dodge, mana: st0.mana, crit: st0.crit || 0, res: Object.assign({}, st0.res || {}) } };
-      if (!TEST && php <= 0 && this.syCut) this.syCut(+((CFG.origin || {}).SY || {}).DIE_CUT || 0, `被${String(m.name || "").replace(/^精英·/, "")}击杀`);   // 寿元：战死扣寿元
+      if (!TEST && php <= 0 && opt.syDie && this.syCut) this.syCut(+((CFG.origin || {}).SY || {}).DIE_CUT || 0, `被${String(m.name || "").replace(/^精英·/, "")}击杀`);   // 寿元：只有地图 / 秘境探索战死扣（opt.syDie），晋升考核、试炼塔等不扣（用户定 2026-11-20）
       const win = mhp <= 0 && php > 0;   // 打满 MAX_ROUNDS 回合没击败对方也算失败（timeout）
       return { win, lose: !win, timeout: !win && php > 0, rounds, why, detail };
     },
@@ -2528,7 +2528,7 @@ G.module({
         const kind = type === "monster" ? "normal" : type, m = mj !== undefined ? this.makeMjMob(mj, kind, mk) : this.makeMob(a, r, kind);
         m.a = a;
         // 离线补算（服务器后台 / 上线补算 / 停机后补算）：不打战斗，直接按胜利算（用户定 2026-11-16）
-        const res = this._autoWin ? { win: true, rounds: 0, auto: 1 } : this.battle(m, { foe: m.boss ? "boss" : m.elite ? "elite" : "mob", useSet: true }), tag = `${m.boss ? "【首领】" : m.elite ? "【精英】" : ""}${String(m.name).replace(/^精英·/, "")}`;
+        const res = this._autoWin ? { win: true, rounds: 0, auto: 1 } : this.battle(m, { foe: m.boss ? "boss" : m.elite ? "elite" : "mob", useSet: true, syDie: 1 }), tag = `${m.boss ? "【首领】" : m.elite ? "【精英】" : ""}${String(m.name).replace(/^精英·/, "")}`;
         if (res.win) { this.s.kills++; t = `遭遇${tag}，${res.auto ? "离线自动击败" : `${res.rounds}回合击败`}，获得 ${[this.rollMonsterLoot(x, m), sm()].filter(Boolean).join("、")}`; c = m.boss ? "gold" : ""; }
         else if (res.lose) { t = `遭遇${tag}，${res.timeout ? `${res.rounds} 回合未能击败，力竭重伤` : `第 ${res.rounds} 回合不敌重伤`}，本次探索收获全部遗失。${res.why}`; c = "bad"; }
         else { const g = sm(); t = `遭遇${tag}，缠斗 ${res.rounds} 回合，各自退去${g ? `，拾得 ${g}` : ""}`; }
