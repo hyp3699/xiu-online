@@ -164,7 +164,8 @@ G.module({
     rankTrialCost(i) { return (CFG.sect.rankTrial.cost || [])[i] || 0; },   // 考验贡献：就是 rankTrial.cost，不乘宗门星级
     makeRankGuard(i) {
       const b = DATA.mobStats(DATA.mobExam(this.sectInfo().star, i), DATA.mobCrit("考官")), v = (x, k) => x * DATA.mobRnd(k);   // config/mobs.js 的 sect
-      return this.addMagic({ name: `${DATA.ranks[i].name}考官`, img: this.npcImg(`考官${this.sectInfo().star}_${i}`, "rn"), boss: false, hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.resEl || b.res, manaBr: b.manaBr, L: b.L, crit: b.crit }, "考核");
+      const sw = (CFG.mobs.STAR_WN || [])[this.sectInfo().star] || "凡界";   // 伤害减免按宗门星级算界（config/mobs.js STAR_WN）
+      return Object.assign(this.addMagic({ name: `${DATA.ranks[i].name}考官`, img: this.npcImg(`考官${this.sectInfo().star}_${i}`, "rn"), boss: false, hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.resEl || b.res, manaBr: b.manaBr, L: b.L, crit: b.crit }, "考核"), { wn: sw });
     },
     challengeRank() {
       const s = this.s, i = s.rank + 1; if (i >= DATA.ranks.length || s.rankPass === i) return;
@@ -743,7 +744,7 @@ G.module({
       for (const k of DATA.REF_KEYS) m[k] = k === "res" ? tw[k] : tw[k] * DATA.mobRnd(k);   // 抗性在 addMagic 里每系单独随机
       m.crit = tw.crit; m.manaBr = tw.manaBr; m.L = tw.L; if (tw.resEl) m.res = tw.resEl;   // 六系分开
       const ER = CFG.mobs.tower.EL_RED || {}, er = ER[floor % 10]; if (er && ER.PCT) { m.elRed = {}; er.forEach(e => m.elRed[e] = ER.PCT); }   // 层数尾数对应的几系伤害减少
-      return this.addMagic(Object.assign(m, { name: `第${floor}层守关者`, img: this.npcImg(`塔${this.sectInfo().star}_${floor}`, "rn"), boss: false }), "tower");
+      return Object.assign(this.addMagic(Object.assign(m, { name: `第${floor}层守关者`, img: this.npcImg(`塔${this.sectInfo().star}_${floor}`, "rn"), boss: false }), "tower"), { wn: (CFG.mobs.STAR_WN || [])[this.sectInfo().star] || "凡界" });   // 伤害减免按宗门星级算界（STAR_WN）
     },
     // 第 f 层的额外奖励：{ kind: "mijue", id } 试炼塔秘诀 / { kind: "ring", r } / { kind: "rbp", g } / { kind: "extra" }（v223）
     towerBonus(star, f) {
