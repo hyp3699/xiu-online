@@ -88,7 +88,7 @@ G.module({
     gfStarBonus() { return 10 * this.starStep(); },   // 练功房：每两星 +10（3~4 星 +10 … 9~10 星 +40）
     gfRoomPct(i) { return this.roomEff(DATA.gfRooms[i].pct + this.gfStarBonus()); },   // × 境界效率
     gfRoomCost(i) { return DATA.gfRooms[i].cost; },   // v98：写多少就是多少，不乘星级
-    gfRoomUnits() { return Math.max(1, Math.round((CFG.sect.gfRoomSec || 5) / DATA.STUDY_STEP)); },   // 几个 5 秒单位扣一次贡献
+    gfRoomUnits() { return Math.max(1, Math.round((CFG.sect.gfRoomSec || 10) / DATA.STUDY_STEP)); },   // 几个 5 秒单位扣一次贡献
     gfRoomSec() { return this.gfRoomUnits() * DATA.STUDY_STEP; },
     gfRoomLocked(i) { return (DATA.gfRooms[i].rank || 0) > this.s.rank; },
     // 功法减少%（不含练功房）：同 gongfa.js studySec 的 red 口径

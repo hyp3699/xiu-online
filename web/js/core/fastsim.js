@@ -111,7 +111,8 @@
       const HP = st.hp, MP = st.mana, CAP = this.lingCap(), GATH = sp.gather;
       // 功法修炼
       const gs = s.gfStudy, STEP = DATA.STUDY_STEP * 1000;
-      if (gs && gs.ling !== 1) return 0;
+      if (gs && (gs.ling !== 1 || (gs.u || 5) !== DATA.STUDY_STEP)) return 0;   // 旧存档 / 结算单位改过：先逐个结算转换
+      const SE = DATA.STUDY_SETTLE();
       if (this.lmActive && this.lmActive()) return 0;   // 租借了灵脉：灵气先扣灵脉，逐个结算   // v246 旧存档还没转成灵气：逐个结算
       const GR = gs ? this.gfRoomNow(DATA.skillInfo(gs.id, s.gongfa[gs.id] || 1)) : null, RU = this.gfRoomUnits();
       // 修为修炼
@@ -158,16 +159,16 @@
         // 3. gongfa：功法修炼进度
         if (gs) {
           { const mul0 = GR ? GR.mul : 1, rem0 = Math.ceil((gs.total - d2) / (STEP * mul0));   // 同 gongfa.js 的 fin：最后不足 10 秒的一段到点就结算 → 这层修完是事件，交给逐个结算
-            if (!sl2 && rem0 < 2 && now >= a2 + rem0 * STEP) return false; }
-          const steps = Math.floor((now - a2) / (2 * STEP));   // v247 每 10 秒结算（和 gongfa.js 一样）
+            if (!sl2 && rem0 <= SE && now >= a2 + Math.ceil((gs.total - d2) / mul0)) return false; }
+          const steps = Math.floor((now - a2) / (SE * STEP));   // v247 每 10 秒结算（和 gongfa.js 一样）
           if (steps > 0) {
-            a2 += steps * 2 * STEP;
+            a2 += steps * SE * STEP;
             const mul = GR ? GR.mul : 1, per = this.ssGfPer(gs.per * mul), sps = (gs.stone || 0) * mul;
-            const rem = Math.ceil((gs.total - d2) / (STEP * mul)), want = Math.min(2 * steps, rem);
+            const rem = Math.ceil((gs.total - d2) / (STEP * mul)), want = Math.min(SE * steps, rem);
             if (L < want * per && refill) { const pay = Math.min(Math.ceil((want * per - L) / RATE), Math.floor(sn - KEEP - (sps ? want * sps : 0)), Math.max(0, Math.ceil((CAP - L) / RATE))); if (pay > 0) { sn -= pay; L = Math.min(CAP, L + pay * RATE); } }   // 自动补灵气封顶到 lingCap（同 gongfa.tick）
             // 同 gongfa.js：灵石为负时 can 不能为负，否则会倒加灵气 / 贡献。
             let can = Math.max(0, Math.min(want, per > 0 ? Math.floor(L / per) : Infinity, sps ? Math.floor(sn / sps) : Infinity));
-            if (can < rem && can % 2) can--;
+            if (can < rem) can -= can % SE;
             L -= can * per; s2 += can * per; d2 = can >= rem ? gs.total : Math.min(gs.total, d2 + can * STEP * mul);
             if (sps) {   // 同 gongfa.js：按单位四舍五入累计，这层走完扣满 sc
               const C = gs.sc || Math.round(gs.stone * Math.ceil(gs.total / STEP)); su2 += can * mul;

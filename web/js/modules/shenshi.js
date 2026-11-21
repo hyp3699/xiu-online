@@ -119,14 +119,14 @@ G.module({
       const s = this.s, out = { gf: 0, exp: 0, body: 0 }; let left = this.ssGfSum("ling");
       if (left <= 0) return out;
       const st = s.gfStudy;
-      if (st && st.done < st.total && !st.stalled) { const R = this.gfRoomNow ? this.gfRoomNow(DATA.skillInfo(st.id, s.gongfa[st.id] || 1)) : null; out.gf = Math.min(left, Math.max(0, (st.per || 0) * (R ? R.mul : 1) * 2)); left -= out.gf; }   // 停滞时功法基本不耗灵气，减免不给它、往下传给修为 / 肉身
+      if (st && st.done < st.total && !st.stalled) { const R = this.gfRoomNow ? this.gfRoomNow(DATA.skillInfo(st.id, s.gongfa[st.id] || 1)) : null; out.gf = Math.min(left, Math.max(0, (st.per || 0) * (R ? R.mul : 1) * DATA.STUDY_SETTLE())); left -= out.gf; }   // 停滞时功法基本不耗灵气，减免不给它、往下传给修为 / 肉身
       const blk = this.exBlocksCult ? this.exBlocksCult() : false;
       if (left > 0 && s.auto && this.hasMijue && this.hasMijue() && !blk) { out.exp = Math.min(left, Math.max(0, this.speed().total - this.wdRedRaw("exp"))); left -= out.exp; }
       if (left > 0 && s.bodyAuto && this.hasTijue && this.hasTijue() && !blk && !this.bodyMax()) out.body = Math.min(left, Math.max(0, this.bodySpeed().total * Math.max(0.0001, CFG.body.LING_RATE || 1) - this.wdRedRaw("body")));
       return out;
     },
     // 功法修炼每 5 秒单位灵气（减少量按每 10 秒的数字，单位是一半）；alone=true：列表里单独估算（整份减少量都给它）
-    ssGfPer(per, alone, noZq) { return Math.max(0, per - (alone ? this.ssGfSum("ling") : this.lxShare().gf) / 2) * (!noZq && this.zqLingK ? this.zqLingK() : 1); },   // noZq：灵脉灵气不吃阵旗   // 阵旗减消耗最后乘   // 功法修炼每 5 秒单位灵气（《敛息归元诀》按每 10 秒的数字减，单位是一半）
+    ssGfPer(per, alone, noZq) { return Math.max(0, per - (alone ? this.ssGfSum("ling") : this.lxShare().gf) / DATA.STUDY_SETTLE()) * (!noZq && this.zqLingK ? this.zqLingK() : 1); },   // noZq：灵脉灵气不吃阵旗   // 阵旗减消耗最后乘   // 功法修炼每 5 秒单位灵气（《敛息归元诀》按每 10 秒的数字减，单位是一半）
     // 第 k 层的消耗（没写 = 不要）：stone 灵石，sm 专用材料 [[键, 数量]]（养神丹 yd、元魂果 yhg、凝魂芝 nhz）
     ssGfCost(k, g) {
       const mk = (st, yd, yhg, nhz) => ({ stone: Math.max(0, st || 0), sm: [["yd", yd], ["yhg", yhg], ["nhz", nhz]].filter(x => x[1] > 0) });

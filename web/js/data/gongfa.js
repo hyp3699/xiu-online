@@ -176,6 +176,7 @@ DATA.spellName = (sect, el) => {
 DATA.GONGFA_MAX = _GF.MAX;
 DATA.GF_QUEUE = _GF.QUEUE;
 DATA.STUDY_STEP = _GF.STUDY_STEP;
+DATA.STUDY_SETTLE = () => Math.max(1, Math.round(10 / DATA.STUDY_STEP));   // 每 10 秒结算一次 = 几个 STUDY_STEP 单位（STUDY_STEP 10 → 1）
 DATA.studyMin = _GF.STUDY_MIN;
 
 /* ---------- 凡界坊市功法的「来源」（相当于一个门派，1~5 星，每星 6 个 = 金木水火土雷各一个，id f星级_序号） ---------- */
@@ -258,7 +259,7 @@ DATA.gfCalc = (o, typeId, key) => {
 
 // 层数倍率：第 lv 层效果 = 每层效果 × LV_MULT[lv-1]（没写就是 lv）
 DATA.lvMul = lv => { const m = (_GF.LV_MULT || [])[lv - 1]; return m === undefined ? lv : m; };
-// 修炼：每 5 秒消耗灵气 = STUDY_RATE × STUDY_STAR[星级-1] × STUDY_LING（不乘层数；开局功法书 = STUDY_PER × STUDY_LING）
+// 修炼：每 STUDY_STEP 秒消耗灵气 = STUDY_RATE × STUDY_STAR[星级-1] × STUDY_LING（不乘层数；开局功法书 = STUDY_PER × STUDY_LING）
 DATA.studyPer = info => { const v = (x, d) => x === undefined ? d : x, M = v(_GF.STUDY_LING, 1);
   const base = info.per ? info.per : Math.max(1, Math.floor(v(_GF.STUDY_RATE, 5) * v((_GF.STUDY_STAR || [])[info.star - 1], info.star)));
   const L = v((_GF.STUDY_LV || [])[(info.lv || 1) - 1], 1);   // v248 每层单独倍率

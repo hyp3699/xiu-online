@@ -78,7 +78,7 @@ G.module({
       if (s.auto && this.hasMijue() && !this.exBlocksCult()) o.exp = Math.max(0, this.speed().total - this.wdRed("exp"));
       if (s.bodyAuto && this.hasTijue() && !this.exBlocksCult() && !this.bodyMax()) o.body = Math.max(0, this.bodySpeed().total * Math.max(0.0001, CFG.body.LING_RATE || 1) - this.wdRed("body"));
       const st = s.gfStudy;
-      if (st && st.done < st.total) { const R = this.gfRoomNow(DATA.skillInfo(st.id, s.gongfa[st.id] || 1)); o.gf = this.ssGfPer(st.per * (R ? R.mul : 1)) * 2; }
+      if (st && st.done < st.total) { const R = this.gfRoomNow(DATA.skillInfo(st.id, s.gongfa[st.id] || 1)); o.gf = this.ssGfPer(st.per * (R ? R.mul : 1)) * DATA.STUDY_SETTLE(); }
       return o;
     },
     lingPerStone() { return DATA.array.STONE_LING; }, // 固定数值
