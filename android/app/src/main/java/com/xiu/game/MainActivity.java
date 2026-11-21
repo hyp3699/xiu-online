@@ -228,22 +228,42 @@ public class MainActivity extends Activity {
         } catch (Exception e) { }
     }
 
+    // 服务器图片清单上次读到的存在本机（srv_img_ver.txt）：启动时先用它，图片不用等联网读清单就直接从安装包里出；
+    // 同时后台去服务器读最新清单，读到后替换并存回本机。只有第一次安装还没有本机清单时才等服务器（最多 2 秒）
+    private static HashMap<String, String> parseVer(BufferedReader r) throws java.io.IOException {
+        HashMap<String, String> m = new HashMap<>();
+        String line;
+        while ((line = r.readLine()) != null) {
+            int i = line.lastIndexOf(' ');
+            if (i > 0) m.put(line.substring(0, i), line.substring(i + 1).trim());
+        }
+        return m;
+    }
+
     private void loadSrvHash() {
+        java.io.File cache = new java.io.File(getFilesDir(), "srv_img_ver.txt");
+        try (BufferedReader r = new BufferedReader(new InputStreamReader(new java.io.FileInputStream(cache), "UTF-8"))) {
+            HashMap<String, String> m = parseVer(r);
+            if (!m.isEmpty()) { srvHash = m; srvReady.countDown(); }
+        } catch (Exception e) { }
         new Thread(() -> {
             try {
                 String base = serverUrl(); if (!base.endsWith("/")) base += "/";
                 HttpURLConnection c = (HttpURLConnection) new URL(base + "img_ver.txt?t=" + System.currentTimeMillis()).openConnection();
                 c.setConnectTimeout(4000); c.setReadTimeout(4000);
                 if (c.getResponseCode() == 200) {
-                    HashMap<String, String> m = new HashMap<>();
-                    try (BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream(), "UTF-8"))) {
-                        String line;
-                        while ((line = r.readLine()) != null) {
-                            int i = line.lastIndexOf(' ');
-                            if (i > 0) m.put(line.substring(0, i), line.substring(i + 1).trim());
-                        }
+                    byte[] raw;
+                    try (java.io.InputStream in = c.getInputStream()) {
+                        java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream();
+                        byte[] buf = new byte[8192]; int n;
+                        while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
+                        raw = bo.toByteArray();
                     }
-                    if (!m.isEmpty()) srvHash = m;
+                    HashMap<String, String> m = parseVer(new BufferedReader(new InputStreamReader(new java.io.ByteArrayInputStream(raw), "UTF-8")));
+                    if (!m.isEmpty()) {
+                        srvHash = m;
+                        try (java.io.FileOutputStream fo = new java.io.FileOutputStream(cache)) { fo.write(raw); } catch (Exception e2) { }
+                    }
                 }
                 c.disconnect();
             } catch (Exception e) { }
@@ -260,7 +280,7 @@ public class MainActivity extends Activity {
             String rel = path.substring(i + 5);
             String h = imgHash.get(rel);
             if (h == null) return null;                       // 包里没有这张图
-            try { srvReady.await(5, TimeUnit.SECONDS); } catch (InterruptedException e) { }
+            try { srvReady.await(2, TimeUnit.SECONDS); } catch (InterruptedException e) { }
             HashMap<String, String> sh = srvHash;
             if (sh != null) {
                 String s2 = sh.get(rel);
