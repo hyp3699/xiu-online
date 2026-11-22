@@ -137,7 +137,7 @@ G.module({
       const SC = CFG.shenjie || {}, kind = SC.JIE_MOB_KIND || "boss", f = this.sjJieMobMul ? this.sjJieMobMul(a, r, i) : 1, fx = ((this.sjJieG(a, r).fx || {})[i]) || {};
       let x = (fx.sd || (a * 977 + r * 131 + i * 7 + 1)) >>> 0;
       const sr = () => { x = (x + 0x6D2B79F5) >>> 0; let t = x; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-      const wn = DATA.mobWn(a), rk = k => { const R = DATA.mobRandOf(k, wn); return R[0] + sr() * (R[1] - R[0]); };
+      const wn = DATA.mobWn(a), rk = k => { const R = DATA.mobRandOf(k, wn, kind); return R[0] + sr() * (R[1] - R[0]); };
       const R = DATA.region(a, R0), t = R && R._t && R._t[kind], b = t ? DATA.mobStats(t, DATA.mobCrit(DATA.MOB_KIND[kind])) : DATA.mobMeet(R, kind), v = (y, k) => y * rk(k) * f;
       const r0 = b.resEl || b.res, res = {};
       for (const e of DATA.elements) res[e.id] = (r0 && typeof r0 === "object" ? +r0[e.id] || 0 : +r0 || 0) * f * rk("res_" + e.id);
@@ -1127,7 +1127,7 @@ G.module({
     // 生成怪物：a 地图、r 区域、kind = normal 普通 / elite 精英 / boss 首领（属性见 js/config/ 数值文件 monster.regions）
     makeMob(a, r, kind) {
       const R = DATA.region(a, r), b = DATA.mobMeet(R, kind), map = DATA.maps[a], wn = DATA.mobWn(a);   // v168 每次遇到随机层 / 功法
-      const v = (x, k) => x * DATA.mobRnd(k, wn);   // × 随机浮动
+      const v = (x, k) => x * DATA.mobRnd(k, wn, kind);   // × 随机浮动（气血按种类固定倍率）
       const name = kind === "boss" ? DATA.regionBoss(a, r) : (kind === "elite" ? "精英·" : "") + (U.pick(map.monsters) || "");   // pick 空数组返 undefined 时名字里不出现“undefined”
       return this.addMagic({ name, mapA: a, Lm: R.L, kind, boss: kind === "boss", elite: kind === "elite", elKey: kind === "boss" ? `b:${a}:${r}` : "",
         hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.resEl || b.res, manaBr: b.manaBr, L: b.L, crit: b.crit, stl: b.stl }, kind);
@@ -2795,7 +2795,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
     // 秘境 / 灵地怪物：属性在 js/data/mobs.js 按 config/mobs.js 生成
     makeMjMob(i, kind, k) {
       if (k === "ys") { const d = this.mjDef(i, k); return this.makeMob(d.a, DATA.regionCount - 1, kind); }   // 宗门秘境：所在地图北域的怪
-      const d = this.mjDef(i, k), b = DATA.mobMeet(d, kind), wn = k === "ld" && d && d.w ? ((DATA.worlds.find(o => o.id === d.w) || {}).name || "凡界") : k === "ys" ? DATA.mobWn(d.a) : DATA.mobWn(d && d.find ? d.find.map : d && d.drops), v = (x, k) => x * DATA.mobRnd(k, wn);   // 灵地按所在界，凡界秘境按「秘境」
+      const d = this.mjDef(i, k), b = DATA.mobMeet(d, kind), wn = k === "ld" && d && d.w ? ((DATA.worlds.find(o => o.id === d.w) || {}).name || "凡界") : k === "ys" ? DATA.mobWn(d.a) : DATA.mobWn(d && d.find ? d.find.map : d && d.drops), v = (x, k) => x * DATA.mobRnd(k, wn, kind);   // 灵地按所在界，凡界秘境按「秘境」
       const pick = kind === "boss" ? -1 : Math.floor(Math.random() * d.monsters.length), name = kind === "boss" ? d.bossName : (kind === "elite" ? "精英·" : "") + d.monsters[pick];
       const img = `${k === "ld" ? "ld" : "mj"}${i}_${pick + 1}`;   // 秘境 / 灵地怪物图：img/mob/mj第几处_序号.webp（0 = 首领，1~4 = monsters 顺序），灵地 ld 开头
       return this.addMagic({ name, img, rw: wn, Lm: d.L, kind, boss: kind === "boss", elite: kind === "elite", elKey: kind === "boss" ? `${k === "ld" ? "ld" : "mj"}:${i}` : "",

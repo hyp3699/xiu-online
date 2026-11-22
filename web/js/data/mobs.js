@@ -16,10 +16,14 @@ DATA.MOB_KEYS = ["hp", "atk", "def", "speed", "hit", "dodge", "mana", "res"];
 DATA.MOB_RAND_ZH = { hp: "气血", atk: "攻击", def: "防御", speed: "速度", hit: "命中", dodge: "闪避", mana: "法力",
   res_jin: "金抗性", res_mu: "木抗性", res_shui: "水抗性", res_huo: "火抗性", res_tu: "土抗性", res_lei: "雷抗性" };
 // wn = 哪一界（凡界 / 秘境 / 仙界 / 冥界 / 魔界 / 神界）：配置写成 { 凡界: [a, b], … } 的项（气血、法力）按界取，没写的界用凡界
-DATA.mobRandOf = (k, wn) => { const R = CFG.mobs.RAND || {}; let v = R[DATA.MOB_RAND_ZH[k]] || R[k];
-  if (v && !Array.isArray(v)) v = v[wn || "凡界"] || v["凡界"] || Object.values(v).find(Array.isArray);
+// kd = 怪物种类（普通 / 精英 / 首领 / 天将 / 星君 / 界主，或 normal / elite / boss）：配置按种类写的项（气血）先取种类，没写的种类用「普通」；单个数字 = 固定倍率
+DATA.MOB_KD_ZH = { normal: "普通", elite: "精英", boss: "首领" };
+DATA.mobRandOf = (k, wn, kd) => { const R = CFG.mobs.RAND || {}; let v = R[DATA.MOB_RAND_ZH[k]] || R[k];
+  if (v && !Array.isArray(v) && typeof v === "object" && ("普通" in v || "精英" in v || "首领" in v)) { const z = DATA.MOB_KD_ZH[kd] || kd; v = v[z] || v["普通"]; }
+  if (typeof v === "number") return [v, v];
+  if (v && !Array.isArray(v)) { v = v[wn || "凡界"] ?? v["凡界"] ?? Object.values(v).find(x => Array.isArray(x) || typeof x === "number"); if (typeof v === "number") return [v, v]; }
   return v || R["其他"] || (k.startsWith("res") && (R["金抗性"] || R.res)) || [1, 1]; };   // k = hp / atk … / res_jin（每系抗性）
-DATA.mobRnd = (k, wn) => { const R = DATA.mobRandOf(k, wn); return R[0] + Math.random() * (R[1] - R[0]); };
+DATA.mobRnd = (k, wn, kd) => { const R = DATA.mobRandOf(k, wn, kd); return R[0] + Math.random() * (R[1] - R[0]); };
 // 地图序号 → 界名（凡界 / 仙界 / 冥界 / 魔界 / 神界）
 DATA.mobWn = a => { for (const w of DATA.worlds || []) if ((DATA.worldMapIdx[w.id] || []).includes(a)) return w.name; return "凡界"; };
 // 肉身突破 n 次的合计加成（同 modules/body.js bodyBonus）

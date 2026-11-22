@@ -837,7 +837,7 @@ G.module({
     },
     testFight() {
       const t = this.testMobT(), kd = this.testPick().k, b = DATA.mobRoll(t, DATA.mobCrit(DATA.MOB_KIND[kd]));   // v168 学哪些功法、每本几层随机
-      const v = (x, k) => x * DATA.mobRnd(k);   // 和地图普通怪一样每项随机浮动
+      const v = (x, k) => x * DATA.mobRnd(k, undefined, kd);   // 和地图普通怪一样每项随机浮动（气血按种类）
       const p = this.testPick(), a = Math.floor(p.a / 4), r = p.a % 4, mp = DATA.maps[a];   // v180 名字 / 图同地图里的怪（图按名字找）
       const nm = kd === "boss" ? DATA.regionBoss(a, r) : (kd === "elite" ? "精英·" : "") + U.pick(mp.monsters);
       const m = this.addMagic({ name: nm, a, mapA: a, kind: kd, elKey: kd === "boss" ? `b:${a}:${r}` : "", boss: kd === "boss", elite: kd === "elite", hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.resEl || b.res, manaBr: b.manaBr, L: b.L, crit: b.crit }, kd);
@@ -851,7 +851,7 @@ G.module({
       const st = [["生命", b.hp], ["攻击", b.atk], ["防御", b.def], ["速度", b.speed], ["命中", b.hit], ["闪避", b.dodge], ["法力", b.mana], ["抗性", b.res]].map(([k, v]) => `${k} ${U.fmt(v)}`).join("　") + `　暴击 ${U.num(b.crit)}%`;
       return `<div class="card"><h3>实力测试</h3>
         <div class="line"><div>对手</div><div class="sg-btns">${this.selBox("testA", this.testMapOpts(), p.a, v => this.setTestPick("a", +v))}${this.selBox("testK", kOpts, p.k, v => this.setTestPick("k", v))}</div></div>
-        <p class="desc">${this.testMobName()}：${DATA.realms[R.realm] || ""}${R.lay[0] === R.lay[1] ? DATA.layerNames[R.lay[0] - 1] : `${rg(R.lay)}层随机`}（属性为平均值，战斗时攻击 ×${DATA.mobRandOf("atk").join("~")}、生命 ×${DATA.mobRandOf("hp").join("~")}、其他各项按配置单独随机）<br>${st}</p>
+        <p class="desc">${this.testMobName()}：${DATA.realms[R.realm] || ""}${R.lay[0] === R.lay[1] ? DATA.layerNames[R.lay[0] - 1] : `${rg(R.lay)}层随机`}（属性为平均值，战斗时攻击 ×${DATA.mobRandOf("atk").join("~")}、生命 ×${[...new Set(DATA.mobRandOf("hp", undefined, this.testPick().k))].join("~")}、其他各项按配置单独随机）<br>${st}</p>
         <p class="desc">法术：每回合 ${M.spell ? M.spell.chance : 0}% 几率，伤害 攻击×${M.spell ? M.spell.pct : 0}%　法宝：每回合 ${M.fabao ? M.fabao.chance : 0}% 几率，伤害 攻击×${M.fabao ? M.fabao.pct : 0}%</p>
         ${n ? (() => { return `<details class="desc"><summary>功法：${R.cats.map(C => DATA.mobParts(C).map(([lo, hi, P]) => `${DATA.MOB_GF_CAT[C.c]} ${lo === hi ? lo : `${lo}~${hi}`}星每种学 ${rg(P.pct)}%、每本 ${rg(P.gf)} 层`).join("，")).filter(x => x).join("；")}（共 ${n} 部可选，显示属性为平均值）</summary>${gf.map(([nm, l]) => `<p><b>${nm}</b>：${l.join("、")}</p>`).join("")}</details>`; })() : `<p class="desc">功法：无</p>`}
         <div class="btns"><button onclick="G.testFight()">开始测试</button></div></div>`;
@@ -1023,7 +1023,7 @@ G.module({
       }
     } else if (tab === "room") {
       const FC = CFG.sect.freeRoom, fc = s.freeCult || {}, fcOn = this.freeCultOn(), fcLeft = fc.left > 0, fcDone = !fcLeft && this.freeUsed(fc) >= FC.daily;
-      h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "room", "修炼室")}<small>加快修炼 · 进入先扣一次贡献，之后每 ${Math.round(this.roomBillMs() / 1000)} 秒扣一次</small></h3>
+      h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "room", "修炼室")}</h3>
         <div class="line"><div>${FC.name}<span class="tag">+${U.num(this.freeCultPct())}%</span><small>${fcLeft ? `本次剩余 ${fc.left} 次修炼` : `每天 ${FC.daily} 次 · 每次 ${FC.times} 次修炼 · 不消耗贡献`}</small></div>
           <button class="sm ${fcOn ? "on" : ""}" onclick="G.enterFreeRoom()" ${fcDone ? "disabled" : ""}>${fcOn ? "使用中" : fcDone ? "今日已用" : "进入"}</button></div>` + DATA.rooms.map((r, i) => {
         const on = s.room === i, lock = !on && this.roomLocked(i);
@@ -1032,7 +1032,7 @@ G.module({
       }).join("") + `</div>`;
     } else if (tab === "gfroom") {
       const FG = CFG.sect.freeGfRoom, fg = s.freeGf || {}, fgOn = this.freeGfOn(), fgDone = !fgOn && this.freeUsed(fg) >= FG.daily;
-      h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "gfroom", "练功房")}<small>减少功法修炼时间 · 进入先扣一次贡献，之后每 ${Math.round(this.roomBillMs() / 1000)} 秒扣一次</small></h3>
+      h += `<div class="card"><h3>${DATA.nmPick(CFG.names.sectHall, "gfroom", "练功房")}</h3>
         <div class="line"><div>${FG.name}<span class="tag">修炼时间 -${U.num(this.freeGfPct())}%</span><small>${fgOn ? `剩余 ${U.cd(Math.ceil((fg.end - this.now()) / 1000))}` : `每天 ${FG.daily} 次 · 每次 ${FG.minutes} 分钟 · 不消耗贡献`}</small></div>
           <button class="sm ${fgOn ? "on" : ""}" onclick="G.enterFreeGfRoom()" ${fgOn || fgDone ? "disabled" : ""}>${fgOn ? "使用中" : fgDone ? "今日已用" : "进入"}</button></div>` + DATA.gfRooms.map((r, i) => {
         const on = s.gfRoom === i, lock = !on && this.gfRoomLocked(i);
