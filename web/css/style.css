@@ -627,6 +627,7 @@ button small .cd{min-width:0}
   box-shadow:0 0 0 3px #e8b88a66,0 4px 10px #8a3a1a66,inset 0 -4px 8px #a0381a66}
 .cult-orb:active{transform:scale(.95);background:radial-gradient(circle at 50% 35%,#ffcf9a,#f08a50 55%,#c9502a)}
 .cult-orb.l{left:14px}.cult-orb.r{right:14px}
+.cult-orb.sq{top:14px;bottom:auto;width:42px;height:42px;font-size:12px;letter-spacing:0}
 /* 圆钮外圈进度：左 生命（红） 右 法力（蓝），--p 为百分比 */
 .cult-orb.ring{width:40px;height:40px;font-size:12px;letter-spacing:0;bottom:16px}
 .cult-orb.ring::before{content:"";position:absolute;inset:-7px;border-radius:50%;pointer-events:none;

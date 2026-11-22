@@ -13,7 +13,7 @@ G.module({
 
   api: {
     // 养神：消耗养神丹，神识强度 +1
-    ysNeed() { const Y = CFG.shenshi.YANGSHEN || {}, p = Math.max(0, (this.s.ssPow || 0) - (this.ssGfSum ? this.ssGfSum("pow") : 0) - (this.s.oriSs && this.oriSum ? this.oriSum("ssPow") : 0)); return Math.floor((Y.BASE || 1) + (Y.ADD || 0) * Math.floor(p / (Y.EVERY || 10))); },   // 《凝神观想诀》、出身加的神识强度不让养神丹变贵（出身的单独算，用户定 2026-11-16）
+    ysNeed() { const Y = CFG.shenshi.YANGSHEN || {}, p = Math.max(0, (this.s.ssPow || 0) - (this.s.sqSs || 0) - (this.ssGfSum ? this.ssGfSum("pow") : 0) - (this.s.oriSs && this.oriSum ? this.oriSum("ssPow") : 0)); return Math.floor((Y.BASE || 1) + (Y.ADD || 0) * Math.floor(p / (Y.EVERY || 10))); },   // 《凝神观想诀》、出身加的神识强度不让养神丹变贵（出身的单独算，用户定 2026-11-16）
     yangshen() {
       const s = this.s, need = this.ysNeed();
       if (this.smCount("yd") < need) return this.log(`${DATA.smName("yd")}不足，需要 ${need} 枚。`, "sys");
@@ -39,7 +39,7 @@ G.module({
       for (const x of (s.lq && s.lq.gf) || []) if (x.id && !s.gongfa[x.id]) n += this.ssCost(x.id);   // v173 排队的也算
       return n;
     },
-    lsTotal() { return (this.s.lsMax || 0) + ((this.s.wd || {}).ls || 0) + (this.oriSum ? this.oriSum("ls") : 0) + this.ssGfSum("ls"); },   // + 神识功法《灵台开识篇》   // + 出身「残魂附体」   // 总灵识点 = 买的 + 神魂之道得的
+    lsTotal() { return (this.s.lsMax || 0) + (this.s.sqLs || 0) + ((this.s.wd || {}).ls || 0) + (this.oriSum ? this.oriSum("ls") : 0) + this.ssGfSum("ls"); },   // + 神识功法《灵台开识篇》   // + 出身「残魂附体」   // 总灵识点 = 买的 + 神魂之道得的
     lsLeft() { return this.lsTotal() - this.lsUsed(); },
     lsStoneCount() { const s = this.s; return Math.max(+s.lsStoneBought || 0, (s.lsMax || 0) - (CFG.shenshi.INIT || 0) - (s.lsFragBought || 0)); },   // lsMax 只有灵石买、碎片换会加，所以灵石买过的 = lsMax − INIT − 碎片换的（修复：defaults 曾把老存档 lsStoneBought 补成 0，阶段被重置）   // 用灵石买过的点数（老存档没有这个字段时按 lsMax − INIT 折算，阶段不变）
     // 第 i 个用灵石买的点要多少灵石（i 从 1 开始）

@@ -434,6 +434,7 @@ G.module({
       <div class="cult-aura"></div>
       <img class="cult-hero" src="${this.heroImg("ys")}?v=${DATA.IMG_V}" alt="">
       <div class="cult-dan" onclick="G.openJingmai(true)" title="经脉">${this.jmMini ? this.jmMini() : ""}<i></i><b></b></div>
+      <button class="cult-orb l sq" onclick="G.openShenqi()"><span>神器</span></button>
       <button class="cult-orb l ring hp" id="orb-hp" style="--p:${this.orbPct("hp")}" onclick="G.openShenshi(true)"><span>神识</span></button>
       <button class="cult-orb r ring mp" id="orb-mp" style="--p:${this.orbPct("mana")}" onclick="G.openBoost()"><span>修炼<br>增幅</span></button>
       <div class="cult-info">
