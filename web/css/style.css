@@ -627,13 +627,6 @@ button small .cd{min-width:0}
   box-shadow:0 0 0 3px #e8b88a66,0 4px 10px #8a3a1a66,inset 0 -4px 8px #a0381a66}
 .cult-orb:active{transform:scale(.95);background:radial-gradient(circle at 50% 35%,#ffcf9a,#f08a50 55%,#c9502a)}
 .cult-orb.l{left:14px}.cult-orb.r{right:14px}
-.sq-ico{position:absolute;left:10px;top:12px;z-index:3;width:58px;height:34px;padding:0;border:0;background:none;filter:drop-shadow(0 2px 6px #6b4a2a66)}
-.sq-ico img{width:100%;height:100%;object-fit:contain}.sq-ico:active{transform:scale(.95)}
-.sq-stage{background:url(../img/bg/sq_lotus_bg.webp?v=1) center 40%/cover no-repeat,#e9dcc0}
-.sq-seat{position:absolute;left:50%;bottom:14px;width:min(86%,360px);aspect-ratio:336/181;transform:translateX(-50%);z-index:1}
-.sq-lotus{position:absolute;left:0;bottom:0;width:100%;filter:drop-shadow(0 4px 10px #6b4a2a55)}
-.sq-hero{position:absolute;left:50%;bottom:58%;width:83%;transform:translateX(-50%);z-index:1}
-.sq-lv{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:3;padding:4px 14px;border-radius:14px;background:#2a1a0acc;color:#ffe3a0;font-size:13px;white-space:nowrap}
 /* 圆钮外圈进度：左 生命（红） 右 法力（蓝），--p 为百分比 */
 .cult-orb.ring{width:40px;height:40px;font-size:12px;letter-spacing:0;bottom:16px}
 .cult-orb.ring::before{content:"";position:absolute;inset:-7px;border-radius:50%;pointer-events:none;

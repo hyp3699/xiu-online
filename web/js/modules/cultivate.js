@@ -413,7 +413,6 @@ G.module({
     const s = this.s, sp = this.speed(), cap = this.lingCap();
     if (this.cultView === "body") return this.bodyView();   // 修炼肉身（modules/body.js）
     if (this.cultView === "shenshi") return this.shenshiView();
-    if (this.cultView === "shenqi") return this.shenqiView();   // 神器莲台（modules/shenqi.js）   // 神识（modules/shenshi.js）
     if (this.cultView === "jingmai" && this.ngHas && !this.ngHas()) this.cultView = "";   // 没学太上内观经不能进经脉
     if (this.cultView === "jingmai") return this.jingmaiView();   // 经脉（modules/jingmai.js）
     if (this.cultView === "set") return this.setView();   // 设置（修炼 / 战斗 / 其他）
@@ -435,7 +434,6 @@ G.module({
       <div class="cult-aura"></div>
       <img class="cult-hero" src="${this.heroImg("ys")}?v=${DATA.IMG_V}" alt="">
       <div class="cult-dan" onclick="G.openJingmai(true)" title="经脉">${this.jmMini ? this.jmMini() : ""}<i></i><b></b></div>
-      <button class="sq-ico" onclick="G.openShenqi()" aria-label="莲台"><img src="img/sq_lotus_s.webp?v=${DATA.IMG_V}" alt=""></button>
       <button class="cult-orb l ring hp" id="orb-hp" style="--p:${this.orbPct("hp")}" onclick="G.openShenshi(true)"><span>神识</span></button>
       <button class="cult-orb r ring mp" id="orb-mp" style="--p:${this.orbPct("mana")}" onclick="G.openBoost()"><span>修炼<br>增幅</span></button>
       <div class="cult-info">
