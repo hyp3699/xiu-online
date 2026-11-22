@@ -210,7 +210,7 @@ G.caveViews.wudao = function () {
   else {
     const st = DATA.wdStage(w.n[cur.id] || 0, cur.id), need = DATA.wdStageFruit(st.k, cur.id), have = this.smCount("wdg"), left = this.wdLeft(cur.id), run = this._wdRun;
     body = `<div class="ys-need"><img src="${DATA.smIcon("wdg")}" alt=""><b class="${have >= need ? "" : "q5"}">${U.fmt(have)}/${need}</b></div>
-      <p class="desc wd-tip">${cur.desc}</p>${cur.id === "shenhun" ? `<div class="stats"><div><span>修为灵气消耗</span>−${U.fmt(this.wdRedRaw("exp"))}</div><div><span>肉身灵气消耗</span>−${U.fmt(this.wdRedRaw("body"))}</div></div>` : ""}
+      <p class="desc wd-tip">${cur.desc}</p>
       ${run ? `<div class="bar wd-run"><div style="animation-duration:${_WR.TIME}s;animation-delay:-${Math.max(0, _WR.TIME - (run.end - Date.now()) / 1000).toFixed(2)}s"></div></div><div class="btns"><button class="primary" disabled>悟道中……</button></div>`
         : `<div class="btns"><button class="primary" onclick="G.wudao('${cur.id}')" ${left > 0 && have >= need ? "" : "disabled"}>开始悟道</button></div>`}`;
   }
