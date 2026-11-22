@@ -225,7 +225,7 @@ G.module({
     studySec(g) {
       if (g.noEl) return Math.max(1, ((g.studyMin || [])[g.lv - 1] || 1) * 60);   // 开局功法书：config/start.js 的 STUDY_MIN
       const sw = this.sjSwBonus ? this.sjSwBonus() : {}, m = this.mifaBonus(), red = g.kind === "sp" ? m.spStudy + this.ssGfSum("sp") + (sw.spStudy || 0) : (sw.gfStudy || 0) + m.gfStudy + (this.jmGfCut ? this.jmGfCut() : 0) + (this.arrayGfCut ? this.arrayGfCut() : 0) + this.ssGfSum("gf");   // + 神识功法
-      const base = DATA.studyMin[g.lv - 1] * 60;
+      const base = DATA.studyMin[g.lv - 1] * 60 * (1 + (CFG.gongfa.STUDY_STAR_PCT ?? 10) * Math.max(0, (g.star || 1) - 1) / 100);   // 1 星 100%，每高一星 + STUDY_STAR_PCT%
       return Math.max(Math.min(CFG.wudao.STUDY_MIN_SEC || 10, base), base / (1 + Math.max(0, red) / 100));
     },
     // 是否学会了秘诀（修炼的前提）
