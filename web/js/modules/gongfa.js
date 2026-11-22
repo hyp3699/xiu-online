@@ -259,22 +259,22 @@ G.module({
         s.gfStudy = { id, total, done: 0, at: at || this.now(), per: DATA.studyPer(info), u: DATA.STUDY_STEP, spent: 0, stone: sc ? sc / Math.ceil(total / 1000 / DATA.STUDY_STEP) : 0, sc, su: 0, ling: 1 };   // stone：秘法每 5 秒灵石（这层 sc 平均分）   // per：每 5 秒消耗灵气（v246）；stone：秘法每 5 秒灵石
       }
     },
-    // 立即减功法修炼时间（现实毫秒）：先减修炼中的，减到 0 立即完成，剩下的接着减队列里下一个；返回实际减了多少毫秒（悟道室神魂之道用）
+    // 立即减功法修炼时间（现实毫秒）：等于让修炼直接多走 ms 这么久——把开始时间往前挪 ms 再结算，
+    // 灵气 / 灵石（秘法）按这段时间照常扣（灵气不够照常暂停）；修炼中的走完立即完成，剩下的接着走队列；队列空了剩余作废（用户定 2026-11-22）。
+    // 返回实际用掉的毫秒（悟道室神魂之道用）
     gfCutTime(ms) {
       const s = this.s, M = (this.modules || []).find(x => x.id === "gongfa"), tick = () => { if (M && M.tick) M.tick.call(this); };
       let left = Math.max(0, +ms || 0), used = 0;
       tick();
-      for (let g = 0; left > 0 && g < 500; g++) {
+      for (let g = 0; left > 0 && g < 500; g++) {   // 一层一层走：tick 一次跨过完成点时多出来的时间不会带到下一层，所以每层只挪到刚好完成
         if (!s.gfStudy) this.nextStudy();
-        const st = s.gfStudy; if (!st) break;
+        const st = s.gfStudy; if (!st) break;   // 队列空了：剩余作废
+        if (st.stalled) { st.stalled = false; st.at = this.now(); }   // 暂停中的从现在算起
         const R = this.gfRoomNow(DATA.skillInfo(st.id, s.gongfa[st.id] || 1)), mul = R ? R.mul : 1;
-        const el = st.stalled ? 0 : Math.max(0, this.now() - st.at) * mul, avail = Math.max(0, st.total - st.done - el);   // 还没走的进度
-        const cut = Math.min(left * mul, avail);
-        st.total -= cut; left -= cut / mul; used += cut / mul;
-        if (st.total - st.done - el > 1) break;   // 这一层还没减完
-        st.total = st.done + el; st.stalled = false;   // 减完：立即结算完成（灵气 / 灵石照常扣）
-        tick();
-        if (s.gfStudy === st) break;   // 灵气或灵石不够，没能完成
+        const rest = Math.max(0, Math.ceil((st.total - st.done) / mul) - Math.max(0, this.now() - st.at));   // 这一层还要多久（现实毫秒）
+        const d = Math.min(left, rest);
+        st.at -= d; tick(); left -= d; used += d;
+        if (s.gfStudy === st) break;   // 没走完这一层（时间用完，或灵气 / 灵石不够暂停）
       }
       return used;
     },
