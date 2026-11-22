@@ -2,7 +2,8 @@
  * 模块：洞府 · 悟道室（数值在 config/wudaoshi.js）
  * ---------------------------------------------------------------------
  * 修炼之道：每天一次，消耗悟道果，得修为（当前境界升级需要的 2%~5%），按阶段给悟道秘诀（进背包）。
- * 神魂之道：每天一次，消耗悟道果，按阶段给神识强度，永久减修炼灵气消耗（wd.red），每次悟道给灵识点 1 点（wd.ls，2026-11-15 用户定）。
+ * 神魂之道：每天一次，消耗悟道果，按阶段给神识强度，永久减修炼灵气消耗（wd.red），每次悟道给灵识点 1 点（wd.ls，2026-11-15 用户定），立即减功法修炼时间 CUT_YEAR 年（gfCutTime，累计 wd.cut）。
+ * 点人物图 openWdInfo：显示神魂之道、战斗之道累计效果。
  * 战斗之道：每天一次，消耗悟道果，每次在攻击 / 防御 / 生命 / 六系抗性共 9 种里随机加一种（wd.bat，各 1/9）；页面上不显示累计，悟道后弹框里显示这次加的属性和得到的功法；
  *   加多少 = 基础（当前境界修为突破合计 + 肉身突破合计，不含功法 / 丹药 / 装备 / 炼体池）× PCT 区间随机 % × 阶段倍率（每阶段 +25%，最高 +240%）。
  *   每阶段给功法（wz阶段_序号:类别，来源在 DATA.wzSrc 现算，类型、抗性属性由序号哈希定，效果 = 同星级 × 1.5，不占灵识点）：
@@ -155,7 +156,9 @@ G.module({
       if (t % ev === 0 && t / ev <= H.SS) { s.ssPow = (s.ssPow || 0) + H.SS_N; rows.push(["神识强度", "+" + H.SS_N]); msg.push(`神识强度 +${H.SS_N}`); }
       const kind = H.RED_TYPES[st.t % H.RED_TYPES.length], red = H.RED + H.RED_ADD * (k - 1), kn = kind === "body" ? "肉身修炼灵气消耗" : "修为修炼灵气消耗";
       w.red[kind] = (w.red[kind] || 0) + red; rows.push([kn, "−" + red]); msg.push(`${kn} −${red}`);
-      { const ls = H.LS || 1; w.ls = (w.ls || 0) + ls; rows.push(["灵识点", "+" + ls]); msg.push(`灵识点 +${ls}`); }   // 每次悟道给灵识点（2026-11-15 用户定，取代阶段最后一次给）
+      { const ls = H.LS || 1; w.ls = (w.ls || 0) + ls; rows.push(["灵识点", "+" + ls]); msg.push(`灵识点 +${ls}`); }
+      if (H.CUT_YEAR > 0) { const cut = this.gfCutTime(H.CUT_YEAR * (+CFG.player.YEAR_MIN || 60) * 60000); w.cut = (w.cut || 0) + cut;   // 立即减功法修炼时间（2026-11-22 用户定）
+        rows.push(["功法修炼时间", cut > 0 ? "−" + U.dur(cut / 1000) : "没有在修炼的功法"]); if (cut > 0) msg.push(`功法修炼时间 −${U.dur(cut / 1000)}`); }   // 每次悟道给灵识点（2026-11-15 用户定，取代阶段最后一次给）
       this._wdFx = Date.now();
       this.log(`${D0.name}悟道一次，${msg.join("，")}。`, "gold"); this.dirty(); this.after();
       this.wdModal(D0, rows.map(([a, b]) => `<div class="line"><div>${a}</div><b class="q4">${b}</b></div>`).join(""));
@@ -190,6 +193,18 @@ G.module({
       this.log(`${D0.name}悟道一次，${msg.join("，")}。`, "gold"); this.dirty(); this.after();
       this.wdModal(D0, rows.map(([a, b]) => `<div class="line"><div>${a}</div><b class="q4">${b}</b></div>`).join("") + (book ? `<div class="line"><div>${book}</div></div>` : ""));
     },
+    // 点悟道室人物：神魂之道、战斗之道累计效果
+    wdSsPow() { const H = _WR.shenhun, n = ((this.s.wd || {}).n || {}).shenhun || 0; let p = 0;   // 神魂之道累计给的神识强度（按已悟道次数现算）
+      for (let i = 0; i < n; i++) { const st = DATA.wdStage(i, "shenhun"), t = st.t + 1, ev = DATA.wdEvery(st.k, "shenhun", H.SS); if (t % ev === 0 && t / ev <= H.SS) p += H.SS_N; } return p; },
+    openWdInfo() {
+      const w = this.s.wd || {}, n = w.n || {}, red = w.red || {}, b = this.wdBat(), L = (a, v) => `<div><span>${a}</span>${v}</div>`;
+      const sh = L("已悟道", `${n.shenhun || 0} 次`) + L("神识强度", "+" + U.fmt(this.wdSsPow())) + L("灵识点", "+" + U.fmt(w.ls || 0))
+        + L("修为修炼灵气消耗", `−${U.fmt(red.exp || 0)} / 10秒`) + L("肉身修炼灵气消耗", `−${U.fmt(red.body || 0)} / 10秒`) + L("功法修炼时间", `已减 ${w.cut ? U.dur(w.cut / 1000) : "0"}`);
+      const zd = L("已悟道", `${n.zhandou || 0} 次`) + L("攻击", "+" + U.dec(b.atk)) + L("防御", "+" + U.dec(b.def)) + L("生命", "+" + U.dec(b.hp))
+        + DATA.elements.map(e => L(`${e.name}抗性`, "+" + U.dec(b.res[e.id] || 0))).join("");
+      this.modal(`<h2>${DATA.caveName("wudao")}</h2><h3>神魂之道</h3><div class="stats">${sh}</div><h3>战斗之道</h3><div class="stats">${zd}</div>
+        <div class="btns"><button class="primary" onclick="G.closeModal()">关闭</button></div>`);
+    },
     wdModal(D0, rows) {
       if (this._autoQuiet) return;   // 自动任务悟道不弹窗
       const T = _WR.TEXTS || [];
@@ -215,7 +230,7 @@ G.caveViews.wudao = function () {
         : `<div class="btns"><button class="primary" onclick="G.wudao('${cur.id}')" ${left > 0 && have >= need ? "" : "disabled"}>开始悟道</button></div>`}`;
   }
   return `<div class="card wd-card"><h3>${DATA.caveName("wudao")}</h3><p class="desc">${_WR.DESC}</p>
-    <div class="ys-stage wd-stage${fx}"><div class="ys-aura"></div><img class="ys-hero" src="${this.heroImg("wd")}?v=${DATA.IMG_V}" alt=""></div>
+    <div class="ys-stage wd-stage${fx}"><div class="ys-aura"></div><img class="ys-hero" src="${this.heroImg("wd")}?v=${DATA.IMG_V}" alt="" onclick="G.openWdInfo()"></div>
     <div class="wd-daos">${_WR.daos.map(daoBtn).join("")}</div></div>
     <div class="card"><h3>${cur.name}</h3>${body}</div>`;
 };
