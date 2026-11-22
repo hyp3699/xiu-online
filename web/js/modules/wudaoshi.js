@@ -198,11 +198,11 @@ G.module({
       for (let i = 0; i < n; i++) { const st = DATA.wdStage(i, "shenhun"), t = st.t + 1, ev = DATA.wdEvery(st.k, "shenhun", H.SS); if (t % ev === 0 && t / ev <= H.SS) p += H.SS_N; } return p; },
     openWdInfo() {
       const w = this.s.wd || {}, n = w.n || {}, red = w.red || {}, b = this.wdBat(), L = (a, v) => `<div><span>${a}</span>${v}</div>`;
-      const sh = L("已悟道", `${n.shenhun || 0} 次`) + L("神识强度", "+" + U.fmt(this.wdSsPow())) + L("灵识点", "+" + U.fmt(w.ls || 0))
+      const sh = L("神识强度", "+" + U.fmt(this.wdSsPow())) + L("灵识点", "+" + U.fmt(w.ls || 0))
         + L("修为修炼灵气消耗", `−${U.fmt(red.exp || 0)} / 10秒`) + L("肉身修炼灵气消耗", `−${U.fmt(red.body || 0)} / 10秒`) + L("功法修炼时间", `已减 ${w.cut ? U.dur(w.cut / 1000) : "0"}`);
-      const zd = L("已悟道", `${n.zhandou || 0} 次`) + L("攻击", "+" + U.dec(b.atk)) + L("防御", "+" + U.dec(b.def)) + L("生命", "+" + U.dec(b.hp))
+      const zd = L("攻击", "+" + U.dec(b.atk)) + L("防御", "+" + U.dec(b.def)) + L("生命", "+" + U.dec(b.hp))
         + DATA.elements.map(e => L(`${e.name}抗性`, "+" + U.dec(b.res[e.id] || 0))).join("");
-      this.modal(`<h2>${DATA.caveName("wudao")}</h2><h3>神魂之道</h3><div class="stats">${sh}</div><h3>战斗之道</h3><div class="stats">${zd}</div>
+      this.modal(`<h2>${DATA.caveName("wudao")}</h2><h3>神魂之道&nbsp;&nbsp;&nbsp;已悟道 ${n.shenhun || 0} 次</h3><div class="stats">${sh}</div><br><br><h3>战斗之道&nbsp;&nbsp;&nbsp;已悟道 ${n.zhandou || 0} 次</h3><div class="stats">${zd}</div>
         <div class="btns"><button class="primary" onclick="G.closeModal()">关闭</button></div>`);
     },
     wdModal(D0, rows) {
