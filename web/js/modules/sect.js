@@ -743,7 +743,7 @@ G.module({
       const tw = DATA.towerStage(this.sectInfo().star, floor, this.towerMax()), m = {};
       const sw = (CFG.mobs.STAR_WN || [])[this.sectInfo().star] || "凡界";   // 按宗门星级算界（STAR_WN）：属性倍率、抗性、伤害减免
       m.rw = sw;
-      for (const k of DATA.REF_KEYS) m[k] = k === "res" ? tw[k] : tw[k] * DATA.mobRnd(k, sw);   // 抗性在 addMagic 里每系单独随机
+      for (const k of DATA.REF_KEYS) m[k] = k === "res" ? tw[k] : tw[k] * DATA.mobRnd(k, sw);   // 抗性在 addMagic 里每系 × 倍率
       m.crit = tw.crit; m.manaBr = tw.manaBr; m.L = tw.L; if (tw.resEl) m.res = tw.resEl;   // 六系分开
       const ER = CFG.mobs.tower.EL_RED || {}, er = ER[floor % 10]; if (er && ER.PCT) { m.elRed = {}; er.forEach(e => m.elRed[e] = ER.PCT); }   // 层数尾数对应的几系伤害减少
       return Object.assign(this.addMagic(Object.assign(m, { name: `第${floor}层守关者`, img: this.npcImg(`塔${this.sectInfo().star}_${floor}`, "rn"), boss: false }), "tower"), { wn: (CFG.mobs.STAR_WN || [])[this.sectInfo().star] || "凡界" });   // 伤害减免按宗门星级算界（STAR_WN）
@@ -839,7 +839,7 @@ G.module({
     },
     testFight() {
       const t = this.testMobT(), kd = this.testPick().k, b = DATA.mobRoll(t, DATA.mobCrit(DATA.MOB_KIND[kd]));   // v168 学哪些功法、每本几层随机
-      const v = (x, k) => x * DATA.mobRnd(k, undefined, kd);   // 和地图普通怪一样每项随机浮动（气血按种类）
+      const v = (x, k) => x * DATA.mobRnd(k, undefined, kd);   // 和地图怪一样每项 × 固定倍率（按种类）
       const p = this.testPick(), a = Math.floor(p.a / 4), r = p.a % 4, mp = DATA.maps[a];   // v180 名字 / 图同地图里的怪（图按名字找）
       const nm = kd === "boss" ? DATA.regionBoss(a, r) : (kd === "elite" ? "精英·" : "") + U.pick(mp.monsters);
       const m = this.addMagic({ name: nm, a, mapA: a, kind: kd, elKey: kd === "boss" ? `b:${a}:${r}` : "", boss: kd === "boss", elite: kd === "elite", hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.resEl || b.res, manaBr: b.manaBr, L: b.L, crit: b.crit }, kd);
@@ -853,7 +853,7 @@ G.module({
       const st = [["生命", b.hp], ["攻击", b.atk], ["防御", b.def], ["速度", b.speed], ["命中", b.hit], ["闪避", b.dodge], ["法力", b.mana], ["抗性", b.res]].map(([k, v]) => `${k} ${U.fmt(v)}`).join("　") + `　暴击 ${U.num(b.crit)}%`;
       return `<div class="card"><h3>实力测试</h3>
         <div class="line"><div>对手</div><div class="sg-btns">${this.selBox("testA", this.testMapOpts(), p.a, v => this.setTestPick("a", +v))}${this.selBox("testK", kOpts, p.k, v => this.setTestPick("k", v))}</div></div>
-        <p class="desc">${this.testMobName()}：${DATA.realms[R.realm] || ""}${R.lay[0] === R.lay[1] ? DATA.layerNames[R.lay[0] - 1] : `${rg(R.lay)}层随机`}（属性为平均值，战斗时攻击 ×${DATA.mobRandOf("atk").join("~")}、生命 ×${[...new Set(DATA.mobRandOf("hp", undefined, this.testPick().k))].join("~")}、其他各项按配置单独随机）<br>${st}</p>
+        <p class="desc">${this.testMobName()}：${DATA.realms[R.realm] || ""}${R.lay[0] === R.lay[1] ? DATA.layerNames[R.lay[0] - 1] : `${rg(R.lay)}层随机`}（属性为平均值，战斗时攻击 ×${[...new Set(DATA.mobRandOf("atk", undefined, this.testPick().k))].join("~")}、生命 ×${[...new Set(DATA.mobRandOf("hp", undefined, this.testPick().k))].join("~")}、其他各项按配置倍率）<br>${st}</p>
         <p class="desc">法术：每回合 ${M.spell ? M.spell.chance : 0}% 几率，伤害 攻击×${M.spell ? M.spell.pct : 0}%　法宝：每回合 ${M.fabao ? M.fabao.chance : 0}% 几率，伤害 攻击×${M.fabao ? M.fabao.pct : 0}%</p>
         ${n ? (() => { return `<details class="desc"><summary>功法：${R.cats.map(C => DATA.mobParts(C).map(([lo, hi, P]) => `${DATA.MOB_GF_CAT[C.c]} ${lo === hi ? lo : `${lo}~${hi}`}星每种学 ${rg(P.pct)}%、每本 ${rg(P.gf)} 层`).join("，")).filter(x => x).join("；")}（共 ${n} 部可选，显示属性为平均值）</summary>${gf.map(([nm, l]) => `<p><b>${nm}</b>：${l.join("、")}</p>`).join("")}</details>`; })() : `<p class="desc">功法：无</p>`}
         <div class="btns"><button onclick="G.testFight()">开始测试</button></div></div>`;
