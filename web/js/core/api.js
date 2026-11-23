@@ -318,7 +318,7 @@ const API = {
     startTrib: () => !G.s.trib && G.canBreak() && G.needTrib() ? "本次突破要渡雷劫，确定开始渡劫？" : "",
     leaveSect: () => G.s.sect && G.s.contrib >= G.leaveCost() ? `叛出门派将扣除贡献 ${U.fmt(G.leaveCost())}、清空职务（已学功法保留），确定？` : "",
     svFire: () => "遣散这个道童？",
-    svStartPick: () => !G.s.svPick && !G.svFull() && G.s.stone >= CFG.servant.PICK_COST ? `花费 ${U.fmt(CFG.servant.PICK_COST)} 灵石选拔道童（${CFG.servant.PICK_SEC} 秒出结果），确定？` : "",
+    svStartPick: (n) => { n = Math.max(1, Math.min(G.svPickMax(), Math.floor(+n || 1))); return !G.s.svPick && !G.svFull() && G.s.stone >= CFG.servant.PICK_COST * n ? `花费 ${U.fmt(CFG.servant.PICK_COST * n)} 灵石选拔道童 ${n} 次（${U.dur(CFG.servant.PICK_SEC * n)}出结果），确定？` : ""; },
     forgetGongfa: id => {
       const g = G.s.gongfa[id] && DATA.skillInfo(id, G.s.gongfa[id]);
       return g && G.ssForgettable(id) ? `遗忘《${g.name}》？\n第 ${g.lv} 层和加的${g.label}全部删除，归还灵识点 ${G.ssCost(id)}。` : "";

@@ -12,11 +12,15 @@ G.module({
   tick() {
     const s = this.s, C = CFG.servant, p = s.svPick;
     if (p && p.end && this.now() >= p.end) {
-      const av = Math.floor(Math.random() * C.AVATARS);
-      const q = U.weighted(this.svPickW());   // 权重全 0 / 为空时 weighted 返 -1，按最低资质黄品（3）算，不静默取天品（0）
-      s.svPity = q === 0 ? 0 : (s.svPity || 0) + 1;   // 出天品后几率降回初始
-      s.svPick = { q: q < 0 ? 3 : q, el: U.pick(Object.keys(C.EL)), av, name: this.svRandName(av) };
-      this.log(`道童选拔结束：选出${this.svName(s.svPick)}。`, "good"); this.dirty();
+      const list = [];   // 连续选拔 n 次（用户定 2026-11-23）：到点一起出结果，保底几率逐个累计
+      for (let i = 0; i < Math.max(1, p.n || 1); i++) {
+        const av = Math.floor(Math.random() * C.AVATARS);
+        const q = U.weighted(this.svPickW());   // 权重全 0 / 为空时 weighted 返 -1，按最低资质黄品（3）算，不静默取天品（0）
+        s.svPity = q === 0 ? 0 : (s.svPity || 0) + 1;   // 出天品后几率降回初始
+        list.push({ q: q < 0 ? 3 : q, el: U.pick(Object.keys(C.EL)), av, name: this.svRandName(av) });
+      }
+      s.svPick = { list };
+      this.log(`道童选拔结束：选出${list.map(d => this.svName(d)).join("、")}。`, "good"); this.dirty();
     }
     if (s.svAuto) s.servants.forEach(d => { const c = this.svOwed(d) * this.svSalary(d); if (c > 0 && s.stone >= c) { s.stone -= c; d.paid = this.bjDay(); this.dirty(); } });
     const gone = s.servants.filter(d => this.svOwed(d) > C.SALARY.LEAVE_DAYS);
@@ -60,28 +64,41 @@ G.module({
     svJobTotal(job) { if (job === "lk") return this.svEffTxt("lk"); return job === "zhen" ? `聚灵 +${U.num(this.gatherServant() + this.servantFlat())}` : this.svEffTxt(job, this.servantPct(job), 0, this.servantPct(job, "YIELD_")); },   // 差事按钮：阵法辅助显示所有道童合计增加的聚灵（每 10 秒）
     svFull() { const m = +CFG.servant.MAX || 0; return m > 0 && this.s.servants.length >= m; },   // MAX 0 = 不限数量（用户定 2026-11-18）
     servantPct(job, f = "") { return (this.s.servants || []).filter(d => d.job === job).reduce((t, d) => t + this.svEff(d, job, f), 0); },
-    svStartPick() {
+    svPickList(p) { return !p || p.end ? [] : p.list || [p]; },   // 旧存档单个结果 { q, el, av, name }
+    svPickMax() { const C = CFG.servant; return Math.max(1, Math.floor(C.PICK_MAX ?? 10)); },
+    // 点「选拔道童」：输入次数（1 ~ PICK_MAX）
+    openSvPickN() {
+      const s = this.s, C = CFG.servant;
+      if (s.svPick) return s.svPick.end ? undefined : this.openSvPick();
+      const max = Math.min(this.svPickMax(), Math.floor(s.stone / Math.max(1, C.PICK_COST)));
+      if (max < 1) return this.log("灵石不足。", "sys");
+      this.qtyModal("选拔道童", `<p class="desc">每次 ${U.fmt(C.PICK_COST)} 灵石、${U.dur(C.PICK_SEC)}，连续选拔到时间一起出结果 · 当前天品 ${U.num(this.svPickW()[0])}%</p>`, max,
+        n => this.svStartPick(n), { max: "最多可选拔", ok: "选拔" });
+    },
+    svStartPick(n) {
       const s = this.s, C = CFG.servant, p = s.svPick;
       if (p && !p.end) return this.openSvPick();
       if (p) return;
       if (this.svFull()) return this.log("道童已满。", "sys");
-      if (s.stone < C.PICK_COST) return this.log("灵石不足。", "sys");
-      s.stone -= C.PICK_COST; s.svPick = { end: this.now() + C.PICK_SEC * 1000 };
-      this.log("开始选拔道童。", "good"); this.after();
+      n = Math.max(1, Math.min(this.svPickMax(), Math.floor(+n || 1)));
+      if (s.stone < C.PICK_COST * n) return this.log("灵石不足。", "sys");
+      s.stone -= C.PICK_COST * n; s.svPick = { end: this.now() + C.PICK_SEC * 1000 * n, n };
+      this.log(`开始选拔道童（${n} 次）。`, "good"); this.after();
     },
     openSvPick() {
-      const p = this.s.svPick, full = this.svFull();
-      this.modal(`<h2>选拔结果</h2><div class="sv-pick"><img src="${this.svImg(p)}" alt=""><div><b>${this.svName(p)}</b><br>资质 ${this.svQName(p)} · 五行 ${CFG.servant.EL[p.el]}</div></div>
-        <div class="btns"><button class="primary" onclick="G.svAccept(true)" ${full ? "disabled" : ""}>${full ? "道童已满" : "收下"}</button><button onclick="G.svAccept(false)">遣散</button></div>`);
+      const list = this.svPickList(this.s.svPick), full = this.svFull(); if (!list.length) return;
+      this.modal(`<h2>选拔结果</h2>${list.map((p, i) => `<div class="sv-pick"><img src="${this.svImg(p)}" alt=""><div><b>${this.svName(p)}</b><br>资质 ${this.svQName(p)} · 五行 ${CFG.servant.EL[p.el]}</div></div>
+        <div class="btns"><button class="primary" onclick="G.svAccept(true,${i})" ${full ? "disabled" : ""}>${full ? "道童已满" : "收下"}</button><button onclick="G.svAccept(false,${i})">遣散</button></div>`).join("")}`);
     },
-    svAccept(keep) {
-      const s = this.s, p = s.svPick; if (!p || p.end) return;
+    svAccept(keep, i) {
+      const s = this.s, list = this.svPickList(s.svPick); i = Math.floor(+i || 0); const p = list[i]; if (!p) return;
       if (keep) {
         if (this.svFull()) return this.log("道童已满。", "sys");
         s.servants.push({ uid: "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), q: this.svQ(p), el: p.el, av: p.av || 0, name: p.name || this.svRandName(p.av || 0), lv: 1, job: null, paid: this.bjDay() });
         this.log(`收下${this.svName(p)}。`, "good");
       }
-      s.svPick = null; this.closeModal(); this.after();
+      list.splice(i, 1);
+      if (list.length) { s.svPick = { list }; this.after(); this.openSvPick(); } else { s.svPick = null; this.closeModal(); this.after(); }
     },
     svPay(i) {
       const s = this.s, d = s.servants[i]; if (!d) return;
@@ -150,9 +167,9 @@ G.caveViews.servant = function () {
   const s = this.s, C = CFG.servant, p = s.svPick, n = s.servants.length;
   const rows = s.servants.map((d, i) => { const o = this.svOwed(d);
     return `<div class="sv-row"><img src="${this.svImg(d)}" alt=""><div class="sv-nm">${this.svName(d)}<small>${d.job ? C.JOB[d.job].name : "空闲"}${o ? ` · <span class="q5">欠俸 ${o} 天</span>` : ""}</small></div><b class="sv-el sv-${d.el}">${C.EL[d.el]}</b><span>资质${this.svQName(d)}</span><span>等级${d.lv}级</span><button class="sm" onclick="G.openSv(${i})">管理</button></div>`; }).join("");
-  const pickBtn = !p ? `<button class="primary" onclick="G.svStartPick()" ${s.stone < C.PICK_COST || this.svFull() ? "disabled" : ""}>选拔道童<small>${this.svFull() ? "道童已满" : U.fmt(C.PICK_COST) + " 灵石 · 天品 " + U.num(this.svPickW()[0]) + "%"}</small></button>`
-    : p.end ? `<button disabled>选拔道童<small>${U.cd(Math.max(0, (p.end - this.now()) / 1000))}</small></button>`
-    : `<button class="primary" onclick="G.openSvPick()">选拔道童<small>已选出</small></button>`;
+  const pickBtn = !p ? `<button class="primary" onclick="G.openSvPickN()" ${s.stone < C.PICK_COST || this.svFull() ? "disabled" : ""}>选拔道童<small>${this.svFull() ? "道童已满" : U.fmt(C.PICK_COST) + " 灵石 · 天品 " + U.num(this.svPickW()[0]) + "%"}</small></button>`
+    : p.end ? `<button disabled>选拔道童${p.n > 1 ? ` ×${p.n}` : ""}<small>${U.cd(Math.max(0, (p.end - this.now()) / 1000))}</small></button>`
+    : `<button class="primary" onclick="G.openSvPick()">选拔道童<small>已选出 ${this.svPickList(p).length} 个</small></button>`;
   const jobs = Object.keys(C.JOB).map(k => `<button onclick="G.openSvJob('${k}')">${C.JOB[k].name}</button>`).join("");
   return `<div class="card"><h3>${DATA.caveName("servant")}<small>道童 ${n}${+C.MAX > 0 ? ` / ${C.MAX}` : ""}</small></h3>
     ${rows}
