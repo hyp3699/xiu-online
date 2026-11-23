@@ -198,7 +198,7 @@ const G = {
   newSid() { return Date.now().toString(36) + Math.floor(Math.random() * 1e9).toString(36); },
   saveKey(k) { const s = this.s; return s && s.sid ? k + "@" + s.sid : k; },
   // 存档设置（隐藏丹方 / 配方、隐藏探索出窍地图、功法法术排序、背景）全部存在服务器存档 s.ui 里，不存手机（用户 2026-11-18）；删档就一起没了
-  UI_KEYS: ["xiu_runhide_", "xiu_hide_", "xiu_gf_pref", "xiu_sp_pref", "xiu_bg"],
+  UI_KEYS: ["xiu_runhide_", "xiu_hide_", "xiu_gf_pref", "xiu_sp_pref", "xiu_bg", "xiu_slotinfo"],
   uiKeyOk(k) { return typeof k === "string" && k.length <= 40 && this.UI_KEYS.some(p => k.startsWith(p)); },
   saveLsGet(k) {
     if (typeof localStorage !== "undefined") try { if (!localStorage.getItem("xiu_lsclr2")) { localStorage.setItem("xiu_lsclr2", "1"); const del = [];   // 手机里以前存的旧设置一次性清掉

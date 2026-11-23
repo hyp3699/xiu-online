@@ -1135,8 +1135,9 @@ G.module({
     // 人物左右两个圆钮：神通秘术 / 本命法宝，点开进单独页面（bagPage）
     const orb = (k, t, c) => `<button class="bs-orb" style="grid-column:${c};grid-row:2/4" onclick="G.setBagPage('${k}')"><img src="img/orb_${k}.webp?v=3" alt=""><span>${t}</span></button>`;
     // 格子：有装备 = 图片 + 名字；空 = 只显示格子名称（头盔、法宝……）
-    const cell = (key, label, e) => { const src = DATA.eqIcon(e); return `<div class="slot-eq ${e ? "q" + e.q + " sp-slot" : ""}${DATA.eqCls(e)}" onclick="G.openEquip('${key}')">
-        ${e ? `${src ? DATA.fbArt(e, src, "si") : ""}<span class="nm">${e.name}</span><span class="spl">${(e.g || 0) + 1}星 精${DATA.rjCount(e)}</span>` : `<b>${label}</b>`}</div>`; };   // 格子底部绿字：星级 + 已精炼次数（用户定 2026-11-23） // 只显示名字，点击看详细
+    const sInfo = this.slotInfoOn();   // 设置 → 其他设置 可关；显示时图片上移 10%
+    const cell = (key, label, e) => { const src = DATA.eqIcon(e); return `<div class="slot-eq ${e ? "q" + e.q + (sInfo ? " sp-slot" : "") : ""}${DATA.eqCls(e)}" onclick="G.openEquip('${key}')">
+        ${e ? `${src ? DATA.fbArt(e, src, "si") : ""}<span class="nm">${e.name}</span>${sInfo ? `<span class="spl">${(e.g || 0) + 1}星 精炼${DATA.rjCount(e)}</span>` : ""}` : `<b>${label}</b>`}</div>`; };   // 格子底部绿字：星级 + 已精炼次数（用户定 2026-11-23） // 只显示名字，点击看详细
 
     // v（仿立绘界面）：格子围着人物站立图，左右两列；装备 12 格 = 外侧 4 + 内侧上下各 1，法宝 / 法术 8 格 = 外侧左右各 4
     const sCells = [], at = (c, r, h) => sCells.push(h.replace('<div class="slot-eq', `<div style="grid-column:${c};grid-row:${r}" class="slot-eq`));
@@ -1150,7 +1151,7 @@ G.module({
         let h;
         if (i >= n && !(tab === "fb" ? s.fabao[i] : s.spellSlots[i])) h = `<div class="slot-eq lock"><b>${nm}</b><span class="nm">${DATA.realmLabel(DATA.slotRealm(i))}开启</span></div>`;
         else if (tab === "fb") h = cell("fb" + i, "法宝", s.fabao[i]);
-        else { const id = s.spellSlots[i]; if (id) { const g = DATA.spellInfo(id, s.gongfa[id]); h = `<div class="slot-eq q1 sp-slot" onclick="G.openSpellSlot(${i})"><img class="si" src="${DATA.skillIcon(g)}" alt=""><span class="nm">${g.name}</span><span class="spl">${g.star}星 ${g.lv}层</span></div>`; } else h = `<div class="slot-eq" onclick="G.openSpellPick()"><b>法术</b></div>`; }
+        else { const id = s.spellSlots[i]; if (id) { const g = DATA.spellInfo(id, s.gongfa[id]); h = `<div class="slot-eq q1${sInfo ? " sp-slot" : ""}" onclick="G.openSpellSlot(${i})"><img class="si" src="${DATA.skillIcon(g)}" alt=""><span class="nm">${g.name}</span>${sInfo ? `<span class="spl">${g.star}星 ${g.lv}层</span>` : ""}</div>`; } else h = `<div class="slot-eq" onclick="G.openSpellPick()"><b>法术</b></div>`; }
         at(P[i][0], P[i][1], h);
       }
     }

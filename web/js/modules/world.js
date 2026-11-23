@@ -3224,7 +3224,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       const isAdmin = !!(this.adminInfo && this.adminInfo.admin);
       if (this.adminInfo === undefined) { this.adminInfo = null; API.adminInfo().then(j => { this.adminInfo = j; this.render(); }).catch(() => {}); }
       const upd = isAdmin ? `<div class="card"><h3>管理员<small>仅管理员可见</small></h3><div class="btns"><button class="primary" onclick="G.openAdminFromCult()">管理员</button></div></div>` : "";
-      return upd + this.giftRedeemCard() + `<div class="card"><h3>账号<small>${API.user}</small></h3>${this.oriNames && this.oriNames() ? `<p class="desc">出身：${this.oriNames()}</p>` : ""}
+      return upd + this.giftRedeemCard() + this.slotInfoCard() + `<div class="card"><h3>账号<small>${API.user}</small></h3>${this.oriNames && this.oriNames() ? `<p class="desc">出身：${this.oriNames()}</p>` : ""}
       <p class="desc">存档保存在服务器，换手机、关浏览器都不会丢。离线期间修炼、聚灵阵持续进行，不封顶。</p>
       <div class="btns"><button onclick="G.openPwForm(true)">修改密码</button><button onclick="G.logout()">退出登录</button>
       <button onclick="G.restart()">删档重来</button></div>${this.pwFormView()}</div>`;
@@ -3233,6 +3233,14 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
     openAdminFromCult() { this.tab = "aset"; this.openAdmin(true); this.viewScroll && this.viewScroll(0); },
     backToCultSet() { this.adminPage = false; this.giftPage = false; this.accPage = false; this.srvPage = false; this.tab = "cultivate"; this.cultView = "set"; this.setTab = "other"; this.render(); },
     backFromShop() { this.tab = "cultivate"; this.render(); },
+
+    // 背包格子底部显示星级 / 精炼 / 层数（装备、法宝、法术），存档 s.ui.xiu_slotinfo，默认显示（用户 2026-11-23）
+    slotInfoOn() { return this.saveLsGet("xiu_slotinfo") !== "0"; },
+    slotInfoCard() {
+      const on = this.slotInfoOn();
+      return `<div class="card"><h3>背包格子信息</h3><p class="desc">装备、法宝显示星级和精炼次数，法术显示星级和层数。</p><div class="btns"><button class="${on ? "primary" : ""}" onclick="G.setSlotInfo(${on ? 0 : 1})">${on ? "已显示（点击隐藏）" : "已隐藏（点击显示）"}</button></div></div>`;
+    },
+    setSlotInfo(v) { this.saveLsSet("xiu_slotinfo", v ? null : "0"); this.render(); },
 
     /* ---------- 背景主题：存在本机（localStorage xiu_bg@存档编号），按存档分开（用户 2026-11-17） ---------- */
     bgCard() {
