@@ -1644,7 +1644,7 @@ G.module({
       const pre = (fx & 4096 ? `${S("通玄")}发动，` : "") + (fx & 8 ? `发动${S("连星秘法")}，` : "") + (fx & 1024 ? `发动${S("连击")}，` : "") + (fx & 32 ? `发动${S("破军秘法")}，` : "");
       if (k === 6) return `<p>${who}的被动神通${S(`「${((w ? b.mPasN : b.pasN) || [])[sp] || "神通"}」`)}发动，${stx || ""}。</p>`;
       const isSt = !w && k === 1 && b.stI !== undefined && sp >= b.stI, isMSt = w && k === 1 && sp >= 0 && b.mSt && b.mSt[sp];   // 怪物神通：w = 1、sp ≥ 0（怪物法术 sp = -1）
-      const how = isSt ? `施展神通${S(`「${b.sp[sp] || "神通"}」`)}` : isMSt ? `施展神通${S(`「${b.mSt[sp].name}」`)}` : k === 1 ? `施放${S(w ? `${el ? el + "系" : ""}法术` : `《${b.sp[sp] || "法术"}》`)}` : k === 2 ? `祭出${S(w || !b.sp[sp] ? "法宝" : `「${b.sp[sp]}」`)}`
+      const how = isSt ? `施展神通${S(`「${b.sp[sp] || "神通"}」`)}` : isMSt ? `施展神通${S(`「${b.mSt[sp].name}」`)}` : k === 1 ? `施放${S(w ? `${el ? el + "系" : ""}法术` : `《${b.sp[sp] || "法术"}》`)}` : k === 2 ? `祭出${S(w ? `${el ? el + "系" : ""}法宝` : !b.sp[sp] ? "法宝" : `「${b.sp[sp]}」`)}`
         : k === 3 ? `祭起${S(`「${b.sp[sp] || "护盾"}」`)}` : k === 4 ? "被眩晕" : k === 5 ? `发动${S("金蝉秘法")}` : "发动普通攻击";
       let res = k === 3 ? `，护盾值 ${D(d)}` : k === 4 ? "，无法行动" : k === 5 ? `，${CFG.wudao.JINCHAN && CFG.wudao.JINCHAN.ROUNDS || 3} 回合内免疫攻击` : fx & 128 ? `，被${tgt}的金蝉秘法挡下` : f === 1 ? `，被${tgt}闪避` : `，${f === 2 ? `<span class="bt-c">暴击</span>` : ""}对${tgt}造成 ${D(d)} 点伤害`;
       if (ab) res += `（护盾抵挡 ${U.fmt(ab)}）`;
