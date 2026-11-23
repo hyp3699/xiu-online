@@ -1150,7 +1150,7 @@ G.module({
         let h;
         if (i >= n && !(tab === "fb" ? s.fabao[i] : s.spellSlots[i])) h = `<div class="slot-eq lock"><b>${nm}</b><span class="nm">${DATA.realmLabel(DATA.slotRealm(i))}开启</span></div>`;
         else if (tab === "fb") h = cell("fb" + i, "法宝", s.fabao[i]);
-        else { const id = s.spellSlots[i]; if (id) { const g = DATA.spellInfo(id, s.gongfa[id]); h = `<div class="slot-eq q1" onclick="G.openSpellSlot(${i})"><img class="si" src="${DATA.skillIcon(g)}" alt=""><span class="nm">${g.name}</span><span class="spl">${g.star}星 ${g.lv}层</span></div>`; } else h = `<div class="slot-eq" onclick="G.openSpellPick()"><b>法术</b></div>`; }
+        else { const id = s.spellSlots[i]; if (id) { const g = DATA.spellInfo(id, s.gongfa[id]); h = `<div class="slot-eq q1 sp-slot" onclick="G.openSpellSlot(${i})"><img class="si" src="${DATA.skillIcon(g)}" alt=""><span class="nm">${g.name}</span><span class="spl">${g.star}星 ${g.lv}层</span></div>`; } else h = `<div class="slot-eq" onclick="G.openSpellPick()"><b>法术</b></div>`; }
         at(P[i][0], P[i][1], h);
       }
     }
