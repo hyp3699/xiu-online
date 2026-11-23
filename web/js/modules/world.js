@@ -2324,10 +2324,16 @@ G.module({
     },
     // v236 本次探索的药材 / 矿石总量（CFG.dropTotal），分配到各步：返回 { 步序号: [药材个数, 矿石个数] }
     //   药材可落在 灵药 / 怪物 步，矿石可落在 矿脉 / 怪物 步
+    // 普通地图探索 / 历练 / 出窍一次的药材、矿石总数范围：第 1 级地图 dropTotal.explore，再按地图等级、人物大境界加（2026-11-23 用户定）
+    exDrop(a) {
+      const T = CFG.dropTotal || {}, D = T.explore || {}, add = (DATA.mapLv(a) - 1) * (T.EXPLORE_MAP_ADD ?? 1) + Math.max(0, this.r()) * (T.EXPLORE_REALM_ADD ?? 1), o = {};
+      for (const k of ["herb", "ore"]) if (D[k]) o[k] = [D[k][0] + add, D[k][1] + add];
+      return o;
+    },
     matPlan(x) {
       const T = CFG.dropTotal || {}, plan = x.plan || "", mp = {};
       const YM = x.mk === "ys" ? this.ysCfg().MJ || {} : null;
-      const tk = x.mj === undefined ? "explore" : x.mk === "ld" ? "lingdi" : "mijing", t = YM ? { herb: YM.HERB_N, ore: YM.ORE_N } : T[tk] || {};   // 宗门秘境：总量见 config/yinshi.js MJ
+      const tk = x.mj === undefined ? "explore" : x.mk === "ld" ? "lingdi" : "mijing", t = YM ? { herb: YM.HERB_N, ore: YM.ORE_N } : tk === "explore" ? this.exDrop(x.map) : T[tk] || {};   // 宗门秘境：总量见 config/yinshi.js MJ
       const pick = (r, ok, j) => { if (!r) return; const n = U.rand(r[0], r[1]), idx = [];
         for (let i = 0; i < plan.length; i++) if (ok.includes(plan[i])) idx.push(i);
         if (!idx.length) idx.push(plan.length - 1);
@@ -2600,7 +2606,7 @@ G.module({
         this.s.kills += Math.round(mobs * N);
       }
       for (const ev in cnt) { const f = DATA.mapFixed(a, ev); for (const name in f) add(name, avg(f[name] || [1, 1]) * cnt[ev] * N * k); }
-      const D = (CFG.dropTotal || {}).explore || {}, pool = DATA.mapPool(this.matPoolMap(x));
+      const D = this.exDrop(x.map), pool = DATA.mapPool(this.matPoolMap(x));
       ["herb", "ore"].forEach(kk => { const L = pool[kk] || []; if (L.length && D[kk]) for (const name of L) add(name, avg(D[kk]) / L.length * N * k); });
       delete x.loot.k;
       for (const name in acc) { const n = Math.floor(acc[name] + Math.random()); if (n > 0) this.lootAdd(x.loot, name, n); }
