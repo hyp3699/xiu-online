@@ -88,12 +88,14 @@ DATA.fieldCost = i => Math.round((+_GA.OPEN_STONE || 0) * (i + 1) * DATA.fieldSt
 DATA.LAND = () => Object.assign({ MAX: 36, BAND: [12, 24, 36], PCT: [1, 1, 1], PCT_LV1: 1, PCT_MAX: 72, PCT_STEP1: 1, LY: [100, 5000] }, _GA.LAND || {});   // 默认值与 config/garden.js 一致（1 级 1%，满级 72%）：配置缺失时也不静默变分档
 DATA.landBand = lv => { const B = DATA.LAND().BAND; const i = B.findIndex(v => lv <= v); return i < 0 ? B.length - 1 : i; };
 // 生长速度：1 级 PCT_LV1 %，满级 PCT_MAX %，中间每级平均增加（有 PCT_MAX 时用；否则按旧的 BAND×PCT 累加）
-DATA.landYieldPct = lv => { const L = DATA.LAND(); return L.YIELD_MAX && L.PCT_MAX ? Math.round(DATA.landPct(lv) * L.YIELD_MAX / L.PCT_MAX * 100) / 100 : 0; };   // 土地产量 +%（用户定 2026-11-17）
+DATA.landCurve = (lv, a, b, s1, MAX) => { const n = MAX - 1; if (n <= 0) return b;   // 每级增加量从 s1（1→2 级）起逐级等量变大，正好到满级 b
+  s1 = s1 != null ? +s1 : (b - a) / n; const d = n > 1 ? 2 * ((b - a) - n * s1) / (n * (n - 1)) : 0, k = lv - 1;
+  return Math.round((a + k * s1 + d * k * (k - 1) / 2) * 100) / 100; };
+// 土地产量 +%：自己一条曲线 YIELD_LV1 → YIELD_MAX，1→2 级 +YIELD_STEP1（保留 72% 时代的原曲线，用户定 2026-11-23）
+DATA.landYieldPct = lv => { const L = DATA.LAND(); lv = Math.max(0, Math.min(L.MAX, Math.floor(+lv || 0))); if (!lv || !L.YIELD_MAX) return 0;
+  return DATA.landCurve(lv, +(L.YIELD_LV1 ?? 0.5), +L.YIELD_MAX, L.YIELD_STEP1 ?? 0.5, L.MAX); };
 DATA.landPct = lv => { const L = DATA.LAND(); lv = Math.max(0, Math.min(L.MAX, Math.floor(+lv || 0))); if (!lv) return 0;
-  if (L.PCT_MAX != null) {   // 每级增加量从 PCT_STEP1（1→2 级）起逐级等量变大，正好到满级 PCT_MAX（高级加得多，用户定 2026-11-14）
-    const a = +L.PCT_LV1 || 0, b = +L.PCT_MAX || 0, n = L.MAX - 1; if (n <= 0) return b;
-    const s1 = L.PCT_STEP1 != null ? +L.PCT_STEP1 : (b - a) / n, d = n > 1 ? 2 * ((b - a) - n * s1) / (n * (n - 1)) : 0, k = lv - 1;
-    return Math.round((a + k * s1 + d * k * (k - 1) / 2) * 100) / 100; }
+  if (L.PCT_MAX != null) return DATA.landCurve(lv, +L.PCT_LV1 || 0, +L.PCT_MAX || 0, L.PCT_STEP1, L.MAX);   // 高级加得多，用户定 2026-11-14
   let t = 0, lo = 0; L.BAND.forEach((hi, b) => { t += Math.max(0, Math.min(lv, hi) - lo) * (+L.PCT[b] || 0); lo = hi; }); return Math.round(t * 100) / 100; };
 // 第 i 块灵田升到第 lv 级的矿石：ORE_N 种各 ORE × lv，按 BAND 取凡 / 仙 / 神界矿石池，从 (i + lv) 种起连续取
 DATA.landMats = (i, lv) => { const L = DATA.LAND(), P = (L.ORES || [])[DATA.landBand(lv)] || [], N = P.length, k = Math.min(N, Math.max(0, +L.ORE_N || 0)), n = Math.round((+L.ORE || 0) * lv), st = (Math.floor(+i) || 0) + lv;
