@@ -161,11 +161,11 @@ DATA.CRIT_CAP = _P.CRIT_CAP;
 // 修炼节奏：每 10 秒结算一次
 DATA.TICK = 10;
 
-// v171 保底伤害：练气一层 MIN_BASE，每层 + MIN_STEP（L = 总层序，0 = 练气一层）
+// 保底伤害 = 总层数 × MIN_STEP × 大境界序号（L = 总层序，0 = 练气一层；总层数 = L+1，大境界序号 = floor(L/10)+1）
 // 保底伤害：L = 出手方层序，D = 对方层序（不写 = 不比境界，如雷劫）；比对方每高 1 层 + MIN_HIGH，每低 1 层 − MIN_LOW，最少 MIN_FLOOR
 DATA.minDmg = (L, D) => {
   const B = CFG.battle, v = (x, d) => x === undefined ? d : x; L = Math.max(0, L || 0);
-  let x = v(B.MIN_BASE, 1) + v(B.MIN_STEP, 3) * L;
+  let x = v(B.MIN_STEP, 3) * (L + 1) * (Math.floor(L / DATA.LAYERS) + 1);   // 2026-11-23 用户定：总层数 × MIN_STEP × 大境界序号（都从 1 起）
   if (D !== undefined) { D = Math.max(0, D || 0); x += L > D ? (L - D) * v(B.MIN_HIGH, 0) : -(D - L) * v(B.MIN_LOW, 0); }
   return Math.max(v(B.MIN_FLOOR, 1), x);
 };
