@@ -1137,7 +1137,7 @@ G.module({
     // 格子：有装备 = 图片 + 名字；空 = 只显示格子名称（头盔、法宝……）
     const sInfo = this.slotInfoOn();   // 设置 → 其他设置 可关；显示时图片上移 10%
     const cell = (key, label, e) => { const src = DATA.eqIcon(e); return `<div class="slot-eq ${e ? "q" + e.q + (sInfo ? " sp-slot" : "") : ""}${DATA.eqCls(e)}" onclick="G.openEquip('${key}')">
-        ${e ? `${src ? DATA.fbArt(e, src, "si") : ""}<span class="nm">${e.name}</span>${sInfo ? `<span class="spl">${(e.g || 0) + 1}星 精炼${DATA.rjCount(e)}</span>` : ""}` : `<b>${label}</b>`}</div>`; };   // 格子底部绿字：星级 + 已精炼次数（用户定 2026-11-23） // 只显示名字，点击看详细
+        ${e ? `${src ? DATA.fbArt(e, src, "si") : ""}<span class="nm">${e.name}</span>${sInfo ? (t => `<span class="spl${t.length > 7 ? " lg" : ""}">${t}</span>`)(`${(e.g || 0) + 1}星 精炼${DATA.rjCount(e)}`) : ""}` : `<b>${label}</b>`}</div>`; };   // 格子底部绿字：星级 + 已精炼次数（用户定 2026-11-23） // 只显示名字，点击看详细
 
     // v（仿立绘界面）：格子围着人物站立图，左右两列；装备 12 格 = 外侧 4 + 内侧上下各 1，法宝 / 法术 8 格 = 外侧左右各 4
     const sCells = [], at = (c, r, h) => sCells.push(h.replace('<div class="slot-eq', `<div style="grid-column:${c};grid-row:${r}" class="slot-eq`));
