@@ -723,7 +723,7 @@ G.module({
           h += `<p>功法/法术/秘法修炼时间 -${(CFG.alchemy.recipes.wuzhen || {}).studyPct || 120}%，持续 ${(CFG.alchemy.recipes.wuzhen || {}).studyMin || 360} 分钟。${on ? `<br><span class='q5'>已生效，剩余 ${U.dur(left / 1000)}，再次服用效果增加${(CFG.alchemy.recipes.wuzhen || {}).studyMin || 360}分钟。</span>` : ""}</p>
           <div class="btns"><button class="primary" onclick="G.eatWuzhen(${i})">服用</button>${sell}</div>`;
         } else {
-        const left = this.danLeft(it.type, it.g), d = DATA.dans[it.type];
+        const left = this.danLeft(it.type, it.g, it.sg), d = DATA.dans[it.type];
         h += `<p>服用后永久 ${d.label} +${U.num(DATA.danVal(it.type, it.g))}。<br>此阶已服 ${DATA.danLimit(it.type, it.g) - left} / ${DATA.danLimit(it.type, it.g)} 枚。</p>
           <div class="btns"><button class="primary" onclick="G.eatDan(${i},1)" ${left > 0 ? "" : "disabled"}>服用</button>
           <button onclick="G.eatDan(${i},${it.n})" ${left > 0 && it.n >= 1 ? "" : "disabled"}>全部服用</button>${sell}</div>`;

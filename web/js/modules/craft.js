@@ -19,7 +19,7 @@
  *   forgeQueue [{ kind, g }]                     炼器室队列（排队时已扣材料）
  *   alchJob    { type, g, n, done, next, per } | null  正在炼的丹
  *   alchQueue  [{ type, g, n }]                   炼丹队列（排队时已扣药材）
- *   danEaten   { "atk|0": 已服用枚数 }
+ *   danEaten   { "atk|0": 已服用枚数, "xian_atk|3|sg": 上古丹另记 }
  *   forgeKnown ["eq:weapon:0", "ss:0", ...]      门派炼器室学会的装备图谱 / 空间石（v21）
  *   forgeStudy { key, end } | null              正在学习的炼器图谱
  *   stoneUsed  { 阶: 已使用空间石个数 }
@@ -870,13 +870,15 @@ G.module({
       if (DATA.isSpeedRecipe(type)) return this.addPill(type, DATA.pillGrade(type, g), n); // 修炼速度丹 → 背包修炼丹（品质 = 阶，仙界修炼丹 + REALM0）
       return this.bagAdd(x => x.t === "dan" && x.type === type && x.g === g && !x.sg === !sg, k => sg ? { t: "dan", type, g, n: k, sg: 1 } : { t: "dan", type, g, n: k }, n, "背包已满，丹药无处存放，暂停出炉。");
     },
-    danLeft(type, g) { return DATA.danLimit(type, g) - (this.s.danEaten[type + "|" + g] || 0); },
+    // 服用记录键：丹 type|阶；上古丹（sg）另记 type|阶|sg，和自己炼的同阶丹各算各的上限（2026-11-23 用户定）
+    danKey(type, g, sg) { return type + "|" + g + (sg ? "|sg" : ""); },
+    danLeft(type, g, sg) { return DATA.danLimit(type, g) - (this.s.danEaten[this.danKey(type, g, sg)] || 0); },
     eatDan(i, n) {
       if (this.tribBusy && this.tribBusy()) return this.log("渡劫中不能服用丹药。", "sys");   // v259
       const it = this.s.bag[i]; if (!it || it.t !== "dan") return;
-      n = Math.min(Math.floor(+n) || 1, it.n, this.danLeft(it.type, it.g));   // 与 eatLg（garden.js）/ useCxp（bag.js）同款兜底：NaN / 0 按 1 算，负数或仍不是 ≥1 由下一行拦住，不让 NaN 毒化 danEaten
+      n = Math.min(Math.floor(+n) || 1, it.n, this.danLeft(it.type, it.g, it.sg));   // 与 eatLg（garden.js）/ useCxp（bag.js）同款兜底：NaN / 0 按 1 算，负数或仍不是 ≥1 由下一行拦住，不让 NaN 毒化 danEaten
       if (!(n >= 1)) return this.log(`${DATA.danName(it.type, it.g, it.sg)}已达服用上限。`, "sys");
-      const key = it.type + "|" + it.g, d = DATA.dans[it.type];
+      const key = this.danKey(it.type, it.g, it.sg), d = DATA.dans[it.type];
       this.s.danEaten[key] = (this.s.danEaten[key] || 0) + n;
       this.log(`服下${DATA.danName(it.type, it.g, it.sg)} ×${n}，${d.label} +${U.num(DATA.danVal(it.type, it.g) * n)}。`, "good");
       this.removeAt(i, n); this.closeModal(); this.after();

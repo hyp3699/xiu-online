@@ -3124,7 +3124,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
     openSgDan(a, type) {
       const s = this.s, d = this.sgDanList(a).find(x => x.type === type); if (!d) return;
       const ck = this.jieCur(a), max = Math.min(9999, Math.floor((s[ck] || 0) / Math.max(1, d.cost)));
-      this.buyModal({ title: `购买${DATA.danName(type, d.g, 1)}`, icon: DATA.danImg(DATA.danIcon(type), DATA.danCls(type, d.g), "li"), name: DATA.danName(type, d.g, 1), sub: `${U.fmt(d.cost)} ${this.jieCurName(a)}/枚 · 已服 ${DATA.danLimit(type, d.g) - this.danLeft(type, d.g)} / ${DATA.danLimit(type, d.g)}`, ok: "购买", cost: d.cost, cur: this.jieCurName(a), have: s[ck] || 0, max, call: n => this.buySgDan(a, type, n) });
+      this.buyModal({ title: `购买${DATA.danName(type, d.g, 1)}`, icon: DATA.danImg(DATA.danIcon(type), DATA.danCls(type, d.g), "li"), name: DATA.danName(type, d.g, 1), sub: `${U.fmt(d.cost)} ${this.jieCurName(a)}/枚 · 已服 ${DATA.danLimit(type, d.g) - this.danLeft(type, d.g, 1)} / ${DATA.danLimit(type, d.g)}`, ok: "购买", cost: d.cost, cur: this.jieCurName(a), have: s[ck] || 0, max, call: n => this.buySgDan(a, type, n) });
     },
     buySgDan(a, type, n) {
       const s = this.s, o = DATA.jieGfOf("gd", a), d = this.sgDanList(a).find(x => x.type === type); if (!o || !d) return;
@@ -3154,7 +3154,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
           ${lock && !has ? `<button class="sm" disabled>境界不足</button>` : this.gfLearnBtn(g, `G.learnJieGf('${g.id}')`, poor)}</div>`]; });
       const todo = l => l.filter(x => !x[0]).map(x => x[1]).join(""), rows = todo(gfl);
       const dans = gd ? this.sgDanList(a).map(d => { const r = DATA.dans[d.type], poor = cur < d.cost;
-        return `<div class="line"><div>${DATA.danImg(DATA.danIcon(d.type), DATA.danCls(d.type, d.g), "li")}${DATA.danName(d.type, d.g, 1)}<small>${r.label} +${U.num(DATA.danVal(d.type, d.g))} · 已服 ${DATA.danLimit(d.type, d.g) - this.danLeft(d.type, d.g)} / ${DATA.danLimit(d.type, d.g)} · ${U.fmt(d.cost)} ${cn}</small></div>
+        return `<div class="line"><div>${DATA.danImg(DATA.danIcon(d.type), DATA.danCls(d.type, d.g), "li")}${DATA.danName(d.type, d.g, 1)}<small>${r.label} +${U.num(DATA.danVal(d.type, d.g))} · 已服 ${DATA.danLimit(d.type, d.g) - this.danLeft(d.type, d.g, 1)} / ${DATA.danLimit(d.type, d.g)} · ${U.fmt(d.cost)} ${cn}</small></div>
           ${lock ? `<button class="sm" disabled>境界不足</button>` : `<button class="sm" onclick="G.openSgDan(${a},'${d.type}')" ${poor ? "disabled" : ""}>购买</button>`}</div>`; }).join("") : "";
       const recs = gd ? this.gdRecipeList(a).map(d => { const key = d.type + "|" + d.g, has = s.recipes.includes(key);
         return [has, `<div class="line"><div>${DATA.danImg(DATA.danIcon(d.type), DATA.danCls(d.type, d.g), "li")}《${DATA.danName(d.type, d.g)}》<span class="tag">${DATA.recipeEffect(d.type, d.g)}</span>
