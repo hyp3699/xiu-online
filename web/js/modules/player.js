@@ -124,12 +124,39 @@ G.module({
       const body = kind === "rs", FP0 = body ? A.BODY_FIRST_PCT : A.XW_FIRST_PCT, fp = a => typeof FP0 === "object" && FP0 ? +FP0[a] || 0 : +FP0 || 0;
       const g = (DATA.brRow(DATA.autoRows(body), Math.floor(Math.max(0, T) / DATA.LAYERS)) || [0, {}])[1] || {};
       const o = ((s.brRand = s.brRand || {})[kind] = s.brRand[kind] || {});
-      const add = (key, a) => { const v = DATA.brLayerGain(body, T, a) * (Math.random() * 2 - 1) * P / (100 + fp(a)); o[key] = Math.round(((o[key] || 0) + v) * 100) / 100; };
+      const rec = {}, add = (key, a) => { const v = DATA.brLayerGain(body, T, a) * (Math.random() * 2 - 1) * P / (100 + fp(a)), o0 = o[key] || 0; o[key] = Math.round((o0 + v) * 100) / 100; rec[key] = Math.round((o[key] - o0) * 100) / 100; };
       for (const a in g) { if (a === "cultivate" || (body && a === "mana")) continue; if (a === "res") DATA.elements.forEach(e => add("res:" + e.id, a)); else add(a, a); }
+      ((s.brRandL = s.brRandL || {})[kind] = s.brRandL[kind] || {})[T] = rec;   // 记下这层加了多少，跌落境界时扣回（brUnroll）
+    },
+    // 跌落境界：扣回第 T 层突破随机属性（2026-11-23 前突破的层没有记录，不扣）
+    brUnroll(kind, T, s = this.s) {
+      const L = (s.brRandL || {})[kind] || {}, r = L[T]; if (!r) return;
+      const o = ((s.brRand = s.brRand || {})[kind] = s.brRand[kind] || {});
+      for (const k in r) o[k] = Math.round(((o[k] || 0) - r[k]) * 100) / 100;
+      delete L[T];
+    },
+    // 死亡惩罚（config/battle.js CFG.battle.DEATH）：扣修为、气血，不够扣就跌落境界
+    dieLoss(who) {
+      const s = this.s, C = CFG.battle.DEATH; if (!C) return;
+      const big = L => Math.floor(Math.max(0, L) / DATA.LAYERS), pct = (P, L) => Math.max(+C.MIN || 0, (+P || 0) - (+C.STEP || 0) * big(L)) / 100;
+      const L0 = s.L, B0 = s.bodyL, mortal0 = s.mortal, msg = [];
+      // 修为
+      const X = Math.round(this.needExp() * pct(C.EXP_PCT, s.mortal ? 0 : s.L));
+      if (X > 0) { while (s.exp < X && !s.mortal && s.L > 0) { this.brUnroll("xw", s.L); s.L--; s.exp += DATA.needExp(s.L); }
+        s.exp = Math.max(0, s.exp - X); msg.push(`修为 -${U.fmt(X)}`); }
+      // 气血
+      if (s.bodyL !== undefined) { const Y = this.bodyMax && this.bodyMax() ? Math.round(this.bodyNeed(s.bodyL) * pct(C.BODY_PCT, s.bodyL)) : Math.round(this.bodyNeed() * pct(C.BODY_PCT, s.bodyL));
+        if (Y > 0) { while ((s.bodyExp || 0) < Y && s.bodyL > 0) { s.bodyExp = (s.bodyExp || 0) + this.bodyNeed(s.bodyL); this.brUnroll("rs", s.bodyL); s.bodyL--; }
+          s.bodyExp = Math.max(0, (s.bodyExp || 0) - Y); msg.push(`气血 -${U.fmt(Y)}`); } }
+      if (s.L !== L0 && !mortal0) msg.push(`修为境界跌落至【${this.realmName()}】`);
+      if (s.bodyL !== B0) msg.push(`肉身境界跌落至【${this.bodyName()}】`);
+      if (s.L !== L0 || s.bodyL !== B0) { const st = this.stats(); s.hp = Math.min(s.hp, st.hp); s.mana = Math.min(s.mana, st.mana); }
+      if (msg.length) this.log(`${who ? `被${who}击杀` : "战死"}，${msg.join("，")}。`, "bad");
+      this.dirty();
     },
     // 老存档：已突破的层按现在的规则重新掷一次（s.brRandV = 2 标记，只做一次）
     brFill(s) {
-      if (s.brRandV === 2) return; s.brRand = {};
+      if (s.brRandV === 2) return; s.brRand = {}; s.brRandL = {};
       if (!s.mortal) for (let t = 0; t <= (s.L || 0); t++) this.brRoll("xw", t, s);
       for (let t = 0; t <= (s.bodyL === undefined ? -1 : s.bodyL); t++) this.brRoll("rs", t, s);
       s.brRandOk = 1; s.brRandV = 2;
