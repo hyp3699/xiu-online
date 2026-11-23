@@ -2326,7 +2326,7 @@ G.module({
     //   药材可落在 灵药 / 怪物 步，矿石可落在 矿脉 / 怪物 步
     // 普通地图探索 / 历练 / 出窍一次的药材、矿石总数范围：第 1 级地图 dropTotal.explore，再按地图等级、人物大境界加（2026-11-23 用户定）
     exDrop(a) {
-      const T = CFG.dropTotal || {}, D = T.explore || {}, n = Math.max(0, DATA.mapLv(a) - 1) + Math.max(0, this.r()), o = {};
+      const T = CFG.dropTotal || {}, D = T.explore || {}, n = Math.max(0, DATA.mapLv(a) - 1) + Math.max(0, this.r() || 0), o = {};   // 地图等级 DATA.mapLv 在 data/mobs.js
       const up = n * (T.EXPLORE_MAX_ADD ?? 1), lo = Math.floor(n / Math.max(1, T.EXPLORE_MIN_EVERY ?? 3));
       for (const k of ["herb", "ore"]) if (D[k]) { const mx = D[k][1] + up; o[k] = [Math.min(mx, D[k][0] + lo), mx]; }
       return o;

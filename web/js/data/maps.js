@@ -107,11 +107,6 @@ DATA.mapPool = a => {
   for (const n of names) { const x = DATA.matByName[n]; if (x && o[x.kind] && !o[x.kind].includes(n)) o[x.kind].push(n); }
   return o;
 };
-// 地图等级（探索药材矿石数量用，config/drops.js dropTotal）：凡界 1~9，仙冥魔 10~19（三界同级），神界 20~29
-DATA.mapLv = a => {
-  const m = DATA.maps[a]; if (!m) return 1; if (!m.w) return a + 1;
-  return (m.w === "shen" ? DATA.FAN_MAP_N + ((DATA.worldMapIdx || {}).xian || []).length : DATA.FAN_MAP_N) + (m.wi || 0) + 1;
-};
 DATA.mapReq = a => { const v = (CFG.monster.MAP_REALM || [])[a]; return v === undefined ? a : v; }; // 该地图需要的境界
 // 凡界地图会掉的全部药材、矿石名字（坊市只卖这些）
 DATA.fanMats = () => {
