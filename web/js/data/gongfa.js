@@ -44,7 +44,7 @@ DATA.gongfaTypes.forEach(t => { const n = (_NM.gfType || {})[t.id]; if (n) { t.n
 //   ni = 原来的序号（起名用，不影响原有功法的名字）
 //   功法分阶段（BOOK_STAGE）：fam = 本数按哪一类算（sufa 单独一类），bk = 这一类的第几本；第 4 本起 id「mijue4」…，sufa 第 2 本起「sufa2」…
 DATA.GF_STAGE_SRC = ["sect"];   // 分阶段加书的来源（只有宗门）
-DATA.GF_NEW_SRC = ["sect", "shop", "jshop", "gd", "tianwai"];   // 按新算法算效果的来源：坊市、功德司、天外天每本 = 宗门同星级每本 × PCT%（跟本数无关）
+DATA.GF_NEW_SRC = ["sect", "shop", "jshop", "gd", "tianwai", "wdroom", "tower"];   // 按新算法算效果的来源：坊市、功德司、天外天每本 = 宗门同星级每本 × PCT%（跟本数无关）；悟道室、试炼塔 = 宗门同星级每本 × mult（2026-11-24 用户定，都 ×1.5）
 DATA.gfStage = star => { const n = (_GF.BOOK_STAGE || [1]).length; return Math.max(1, Math.min(n, Math.ceil((star || 1) / (_GF.BOOK_STAGE_STARS || 2)))); };
 DATA.gfBookN = (src, star, fam) => {   // 某来源、某星级、某一类有几本
   src = src || "sect"; const b1 = src === "sect" ? (_GF.BOOKS || {})[fam] || 1
@@ -253,7 +253,7 @@ DATA.gfCalc = (o, typeId, key) => {
   if (o.src === "cc") { const S = DATA.gfSrcById[o.sectId], CC = CFG.sect.chuancheng || {}, P = typeId === "zhenjue" ? CC.ZJ_PCT : CC.PCT;   // 宗门传承 = 本门派同星级同类宗门功法 × PCT%（真经 × ZJ_PCT%），走宗门新算法
     return S ? DATA.gfCalc(S, typeId, key) * (P === undefined ? 100 : P) / 100 : 0; }
   const ek = o.floor ? 1 : C.GF_K === undefined ? 1 : C.GF_K;   // v223 新版试炼塔秘诀：只看每本 mult   // 坊市 / 功德司 = 宗门 × PCT%
-  const nw = DATA.GF_NEW_SRC.includes(DATA.srcType(o)) && !o.floor;   // 宗门、坊市、功德司按新算法（宗门每本 × PCT%）；其他按旧算法
+  const nw = DATA.GF_NEW_SRC.includes(DATA.srcType(o));   // 宗门、坊市、功德司、悟道室、试炼塔按新算法（宗门每本 × 倍率）；其他按旧算法
   return (nw ? DATA.gfUnit(key) : DATA.gfUnitOld(key)) * ((nw ? C.STAT_STAR : C.STAT_STAR_OTHER || C.STAT_STAR)[o.star - 1] || 0) * (tm === undefined ? 1 : tm) * ek * (o.mult || DATA.gfRand(o.id + ":" + typeId));   // 悟道秘诀：固定倍率 o.mult
 };
 
