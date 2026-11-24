@@ -839,7 +839,7 @@ G.module({
     },
     testFight() {
       const t = this.testMobT(), kd = this.testPick().k, b = DATA.mobRoll(t, DATA.mobCrit(DATA.MOB_KIND[kd]));   // v168 学哪些功法、每本几层随机
-      const v = (x, k) => x * DATA.mobRnd(k, undefined, kd);   // 和地图怪一样每项 × 固定倍率（按种类）
+      const v = (x, k) => x * DATA.mobRnd(k, undefined, kd, Math.floor(this.testPick().a / 4));   // 和地图怪一样每项 × 固定倍率（按种类）
       const p = this.testPick(), a = Math.floor(p.a / 4), r = p.a % 4, mp = DATA.maps[a];   // v180 名字 / 图同地图里的怪（图按名字找）
       const nm = kd === "boss" ? DATA.regionBoss(a, r) : (kd === "elite" ? "精英·" : "") + U.pick(mp.monsters);
       const m = this.addMagic({ name: nm, a, mapA: a, kind: kd, elKey: kd === "boss" ? `b:${a}:${r}` : "", boss: kd === "boss", elite: kd === "elite", hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.resEl || b.res, manaBr: b.manaBr, L: b.L, crit: b.crit }, kd);

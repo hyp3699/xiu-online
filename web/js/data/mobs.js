@@ -23,7 +23,11 @@ DATA.mobRandOf = (k, wn, kd) => { const R = CFG.mobs.RAND || {}; let v = R[DATA.
   if (typeof v === "number") return [v, v];
   if (v && !Array.isArray(v)) { v = v[wn || "凡界"] ?? v["凡界"] ?? Object.values(v).find(x => Array.isArray(x) || typeof x === "number"); if (typeof v === "number") return [v, v]; }
   return v || R["其他"] || (k.startsWith("res") && (R["金抗性"] || R.res)) || [1, 1]; };   // k = hp / atk … / res_jin（每系抗性）
-DATA.mobRnd = (k, wn, kd) => { const R = DATA.mobRandOf(k, wn, kd); return R[0] + Math.random() * (R[1] - R[0]); };
+// 地图倍率 CFG.mobs.MAP_RATE[地图名][生命/法力/攻击/…/金抗…]（和 RAND 相乘，没写 = 1；a = 地图序号）
+DATA.MAP_RATE_ZH = { hp: "生命", mana: "法力", atk: "攻击", def: "防御", hit: "命中", dodge: "闪避", speed: "速度",
+  res_jin: "金抗", res_mu: "木抗", res_shui: "水抗", res_huo: "火抗", res_tu: "土抗", res_lei: "雷抗" };
+DATA.mobMapRate = (k, a) => { if (a === undefined || a === null) return 1; const m = DATA.maps[a], T = m && (CFG.mobs.MAP_RATE || {})[m.name]; const v = T && T[DATA.MAP_RATE_ZH[k]]; return typeof v === "number" && isFinite(v) ? v : 1; };
+DATA.mobRnd = (k, wn, kd, a) => { const R = DATA.mobRandOf(k, wn, kd); return (R[0] + Math.random() * (R[1] - R[0])) * DATA.mobMapRate(k, a); };
 // 地图序号 → 界名（凡界 / 仙界 / 冥界 / 魔界 / 神界）
 DATA.mobWn = a => { for (const w of DATA.worlds || []) if ((DATA.worldMapIdx[w.id] || []).includes(a)) return w.name; return "凡界"; };
 // 肉身突破 n 次的合计加成（同 modules/body.js bodyBonus）

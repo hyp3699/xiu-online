@@ -137,7 +137,7 @@ G.module({
       const SC = CFG.shenjie || {}, kind = SC.JIE_MOB_KIND || "boss", f = this.sjJieMobMul ? this.sjJieMobMul(a, r, i) : 1, fx = ((this.sjJieG(a, r).fx || {})[i]) || {};
       let x = (fx.sd || (a * 977 + r * 131 + i * 7 + 1)) >>> 0;
       const sr = () => { x = (x + 0x6D2B79F5) >>> 0; let t = x; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-      const wn = DATA.mobWn(a), rk = k => { const R = DATA.mobRandOf(k, wn, kind); return R[0] + sr() * (R[1] - R[0]); };
+      const wn = DATA.mobWn(a), rk = k => { const R = DATA.mobRandOf(k, wn, kind); return (R[0] + sr() * (R[1] - R[0])) * DATA.mobMapRate(k, a); };
       const R = DATA.region(a, R0), t = R && R._t && R._t[kind], b = t ? DATA.mobStats(t, DATA.mobCrit(DATA.MOB_KIND[kind])) : DATA.mobMeet(R, kind), v = (y, k) => y * rk(k) * f;
       const r0 = b.resEl || b.res, res = {};
       for (const e of DATA.elements) res[e.id] = (r0 && typeof r0 === "object" ? +r0[e.id] || 0 : +r0 || 0) * f * rk("res_" + e.id);
@@ -1127,7 +1127,7 @@ G.module({
     // 生成怪物：a 地图、r 区域、kind = normal 普通 / elite 精英 / boss 首领（属性见 js/config/ 数值文件 monster.regions）
     makeMob(a, r, kind) {
       const R = DATA.region(a, r), b = DATA.mobMeet(R, kind), map = DATA.maps[a], wn = DATA.mobWn(a);   // v168 每次遇到随机层 / 功法
-      const v = (x, k) => x * DATA.mobRnd(k, wn, kind);   // × 固定倍率（按种类 + 界）
+      const v = (x, k) => x * DATA.mobRnd(k, wn, kind, a);   // × 固定倍率（按种类 + 界）× 地图倍率 MAP_RATE
       const name = kind === "boss" ? DATA.regionBoss(a, r) : (kind === "elite" ? "精英·" : "") + (U.pick(map.monsters) || "");   // pick 空数组返 undefined 时名字里不出现“undefined”
       return this.addMagic({ name, mapA: a, Lm: R.L, kind, boss: kind === "boss", elite: kind === "elite", elKey: kind === "boss" ? `b:${a}:${r}` : "",
         hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.resEl || b.res, manaBr: b.manaBr, L: b.L, crit: b.crit, stl: b.stl }, kind);
@@ -1144,7 +1144,7 @@ G.module({
       const r0 = m.res, rv = typeof r0 === "number" ? r0 : 0;   // 数字 = 六系一样；对象 = 每系单独（真经按系分开算）
       m.res = {};
       m.wn = m.rw || (m.mapA !== undefined ? DATA.mobWn(m.mapA) : "凡界");   // 怪物在哪一界（伤害减免等按界取）
-      for (const e of DATA.elements) m.res[e.id] = b.res && b.res[e.id] !== undefined ? b.res[e.id] : (r0 && typeof r0 === "object" ? +r0[e.id] || 0 : rv) * DATA.mobRnd("res_" + e.id, m.wn, ["天将", "星君", "界主"].includes(kind) ? kind : m.kind || kind) * (e.id === m.el ? O : 1);   // 每系抗性按种类 + 界取倍率；每系抗性 = 怪物抗性（修为 + 肉身 + 真诀）× 倍率，本属性再 × OWN_RES
+      for (const e of DATA.elements) m.res[e.id] = b.res && b.res[e.id] !== undefined ? b.res[e.id] : (r0 && typeof r0 === "object" ? +r0[e.id] || 0 : rv) * DATA.mobRnd("res_" + e.id, m.wn, ["天将", "星君", "界主"].includes(kind) ? kind : m.kind || kind, m.mapA) * (e.id === m.el ? O : 1);   // 每系抗性按种类 + 界取倍率；每系抗性 = 怪物抗性（修为 + 肉身 + 真诀）× 倍率，本属性再 × OWN_RES
       // 进战斗：六系抗性随机一系 +UP1%，两系 +UP2%[最小, 最大]，两系不变，一系 −DOWN%[最小, 最大]（用户定 2026-11-15，config/mobs.js ELRES）
       if (!b.res) {
         const ER = Object.assign({ UP1: 24, UP2: [6, 12], DOWN: [18, 24] }, MG.ELRES || {});
