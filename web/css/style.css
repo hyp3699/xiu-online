@@ -1528,3 +1528,9 @@ html .rgmap .rgs.q-dong.cur{background:radial-gradient(ellipse at 80% 50%,rgba(2
 .cfged{max-width:100%;overflow-x:hidden;box-sizing:border-box}
 .cfged *{max-width:100%;box-sizing:border-box}
 .cfged textarea{overflow:auto;touch-action:pan-x pan-y}
+/* 自动队列（2026-11-24） */
+.gf-cost .gf-btns{display:flex;flex-direction:column;gap:4px;flex-shrink:0;align-items:stretch}
+.gfa-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+.gfa-row select{max-width:7.5em}
+.gfa-row input{width:3.2em;margin:0 2px;text-align:center}
+.gfa-row .gfa-ops{margin-left:auto;display:flex;gap:4px}
