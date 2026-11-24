@@ -1540,3 +1540,4 @@ html .rgmap .rgs.q-dong.cur{background:radial-gradient(ellipse at 80% 50%,rgba(2
 .gfa-row input{width:2.4em;margin:0 2px;padding:4px 2px;text-align:center;font-size:13px}
 .gfa-row .gfa-ops{display:flex;gap:3px}
 .gfa-row .gfa-ops button.sm{padding:4px 7px}
+.gfa-list{margin:4px 0 8px}.gfa-list .gfa-row:first-child{border-top:1px solid rgba(255,255,255,.08)}
