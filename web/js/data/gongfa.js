@@ -133,8 +133,13 @@ DATA.gongfaName = (sect, type) => {
   if (sect.src === "wdroom") { const W = CFG.wudaoRoom || {}, NM = (sect.dao && W[sect.dao] && W[sect.dao].NAME) || W.xiulian.NAME || {}; return `${NM[type.id] || type.suffix}·第${DATA.cnNum(sect.juan)}卷`; }   // 悟道室秘诀（修炼之道 / 战斗之道各用自己的名字）
   if (sect.book) return `${sect.prefix}${type.suffix}·第${sect.book}卷`;   // 试炼塔秘诀
   if (sect.rw) {   // 神界愿力祠：地图名 + 随机词 + 后缀（每本不同词；同后缀的身法 / 速度身法共用词表不重名）
-    const fk = type.fam === "sufa" ? "shenfa" : type.fam || type.id, w = DATA.sectWords(sect, fk), off = type.fam === "sufa" ? 8 : 0;
-    return sect.prefix + w[((type.ni * 7 + 3) + (sect.map || 0) * 5 + off + (type.bk || 1) - 1) % w.length] + type.suffix; }
+    const fk = type.fam === "sufa" ? "shenfa" : type.fam || type.id, w = DATA.sectWords(sect, fk), L = w.length, b0 = (type.ni * 7 + 3) + (sect.map || 0) * 5;
+    let off = (type.bk || 1) - 1;
+    if (type.fam === "sufa") {   // 速度身法从第 8 个词往后取，跳过身法已用的词（身法、速度身法各 5 本也不重名）
+      const nS = DATA.gfBookN(sect.src, sect.star, "shenfa"); let k = type.bk || 1; off = 7;
+      for (let n = 0; n < L * 2 && k > 0; n++) { off++; if ((off % L) >= nS) k--; }
+    }
+    return sect.prefix + w[(b0 + off) % L] + type.suffix; }
   if (sect.plain && type.fam === "zhenjue" && (type.bk || 1) <= 6) return sect.prefix + (DATA.elById[(sect.els || {})[type.id]] || {}).name + type.suffix;   // 四界真经 6 本：地图名 + 属性 + 真经（梵度天火真经）
   // 分阶段多出来的书：也用随机词起名（跳过同类原有书已用的词，同类不重名；宗门原来就有的第 2、3 本不变）
   const isSect = (sect.src || "sect") === "sect", bOf = f => isSect ? (_GF.BOOKS || {})[f] || 1 : 1;
