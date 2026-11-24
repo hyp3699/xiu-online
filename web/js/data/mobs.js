@@ -187,8 +187,8 @@ DATA.towerPart = (star, floor, max) => {   // 返回 { total, ng: 不含功法�
   }
   const add = {}; for (const k of DATA.MOB_KEYS) add[k] = 0;
   const rEl = DATA.mobResEl0();   // 真经抗性按系分开
-  for (const sc of DATA.sects || []) {   // 本星：学 pct%、gf 层；前面星级：学 PRE_PCT%、PRE_GF 层（全部功法 × 学习比例，平均）
-    const P = sc.star === star ? pct : sc.star < star ? (T.PRE_PCT || 0) : 0, L = sc.star === star ? gf : T.PRE_GF || 1; if (!P) continue;
+  for (const sc of DATA.sects || []) {   // 本星：学 pct%、gf 层；前面星级：学 PRE_PCT% + (段−1)×PRE_PCT_ADD%、PRE_GF 层（全部功法 × 学习比例，平均）
+    const P = sc.star === star ? pct : sc.star < star ? (T.PRE_PCT || 0) + (sg - 1) * (T.PRE_PCT_ADD || 0) : 0, L = sc.star === star ? gf : T.PRE_GF || 1; if (!P) continue;
     for (const t of DATA.gfTypesOf(sc.src, sc.star)) { const v = DATA.mobGfVal(DATA.gongfaId(sc.id, t.id), L);
       if (t.stat === "res" && sc.el in rEl) rEl[sc.el] += v[0] * P / 100; else if (add[t.stat] !== undefined) add[t.stat] += v[0] * P / 100; if (t.stat2 && add[t.stat2] !== undefined) add[t.stat2] += v[1] * P / 100; } }
   const ng = {}, total = {};
