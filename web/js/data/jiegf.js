@@ -29,6 +29,12 @@ DATA.jieGf = { jshop: [], gd: [] };
     // 每类功法多本：第 1 本属性不变，后面依次补齐金木水火土雷（每类 6 本 = 六系各一本；用户定 2026-11-25，原来只有真经这样）
     const fams = [...new Set(DATA.gongfaTypes.map(t => t.fam))];
     list.forEach(o => fams.forEach(f => { const b0 = E.findIndex(e => e.id === o.els[f]); if (b0 < 0) return; for (let b = 2; b <= 12; b++) if ((f + b) in o.els) o.els[f + b] = E[(b0 + b - 1) % E.length].id; }));   // 第 7 本起再从第 1 本那系轮
+    // 仙冥魔：同序号地图（第 i 张）三界每类各 2 本，合起来 6 本 = 金木水火土雷各一；仙界第 1 本属性不变，仙 → 魔 → 冥 依次往后排（用户定 2026-11-25）
+    const XMM = ["xian", "mo", "ming"];
+    list.filter(o => o.w === "xian").forEach(ox => { const i = DATA.worldMapIdx.xian.indexOf(ox.map);
+      fams.forEach(f => { const b0 = E.findIndex(e => e.id === ox.els[f]); if (b0 < 0) return;
+        XMM.forEach((w, k) => { const o = list.find(x => x.w === w && DATA.worldMapIdx[w].indexOf(x.map) === i); if (!o) return;
+          for (let b = 1; b <= 12; b++) { const key = b === 1 ? f : f + b; if (key in o.els) o.els[key] = E[(b0 + 2 * k + b - 1) % E.length].id; } }); }); });
     list.forEach(o => { o.el = o.els.mijue; DATA.gfSrcById[o.id] = o; });
   }
 })();
