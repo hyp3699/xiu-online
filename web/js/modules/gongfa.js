@@ -107,6 +107,10 @@ G.module({
     lqHas(ch, key) { const c = this.s[this.lqSlot(ch)]; if (c && this.lqKey(c) === key) return 1; return this.lqList(ch).some(x => this.lqKey(x) === key) ? 2 : 0; },
     // 三条只是存放位置，实际是一条队列：同时只学一个，按加入顺序（x.sq）轮流学（用户定 2026-11-15）
     lqChs() { return ["gf", "dan", "forge"]; },
+    // 学习队列最早学完的时刻（服务器据此准点结算，不等 10 秒周期；没有返回 null）
+    lqEnd() { const s = this.s; let e = null; for (const c of this.lqChs()) { const x = s[this.lqSlot(c)]; if (x && +x.end > 0 && (e == null || x.end < e)) e = +x.end; } return e; },
+    // 新学会功法 / 改了自动队列条件：马上按条件补队列并开练
+    gfAutoKick() { this.gfAutoFill(); if (!this.s.gfStudy) this.nextStudy(); },
     lqCur() { const s = this.s; for (const c of this.lqChs()) if (s[this.lqSlot(c)]) return s[this.lqSlot(c)]; return null; },
     lqQueued() { const a = []; for (const c of this.lqChs()) this.lqList(c).forEach((x, i) => a.push({ ch: c, x, i })); return a.sort((p, q) => ((p.x.sq || 0) - (q.x.sq || 0)) || (p.i - q.i)); },
     lqFull(ch) { return !DATA.isTest() && !!this.lqCur() && this.lqQueued().length >= this.lqMax(); },
@@ -161,6 +165,7 @@ G.module({
         if (this.lsjSync) this.lsjSync();
         const info = DATA.skillInfo(c.id, 1);
         if (info && info.kind === "sp") this.autoSlotSpell(c.id);   // 法术栏有空位就自动放入（见 bag.js）
+        this.gfAutoKick();   // 自动队列马上识别新学会的
         this.log(c.k === "mf" ? `习得${name}！之后在「功法 → 秘法」里修炼升层。` : `习得${name}第 1 层，可在功法栏修炼提升。`, "gold");
       } else if (ch === "dan") {
         if (!s.recipes.includes(c.key)) s.recipes.push(c.key);

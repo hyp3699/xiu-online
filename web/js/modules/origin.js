@@ -82,7 +82,7 @@ G.module({
           const srcs = DATA.sects.filter(x => x.star === star && DATA.gfTypesOf(x.src, x.star).some(t => t.id === ty));
           if (!srcs.length) continue;
           const id = DATA.gongfaId(pick(srcs).id, ty); if (!DATA.skillInfo(id)) continue;
-          if (!s.gongfa[id]) s.gongfa[id] = 1;
+          if (!s.gongfa[id]) { s.gongfa[id] = 1; if (this.gfAutoKick) this.gfAutoKick(); }
           if (free && !(s.oriFreeGf = s.oriFreeGf || []).includes(id)) s.oriFreeGf.push(id);
           got.push(`《${DATA.skillInfo(id).name}》`);
         }

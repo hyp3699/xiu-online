@@ -318,6 +318,10 @@ export class GameEngine {
         const end = this.G.gfStudyEnd(), gm = (this.G.modules || []).find(m => m.id === "gongfa");
         if (end != null && this.clock.now >= end && gm && gm.tick) gm.tick.call(this.G, false);
       }
+      if (typeof this.G.lqEnd === "function") {   // 学习队列学完：到点就习得（自动队列马上识别新功法），不等 10 秒周期
+        const end = this.G.lqEnd(), gm = (this.G.modules || []).find(m => m.id === "gongfa");
+        if (end != null && this.clock.now >= end && gm && gm.tick) gm.tick.call(this.G, false);
+      }
     } catch (err) { console.error("timed settle failed:", err?.stack || err); }
     // 探索 / 出窍只结算到 tick 已算完的位置：advanceExplore 本来按 _simNow（= 现在）结算，不受 tick 预算约束，
     // 后台没跟上时一次 advance 会把几十天的探索全算完；先把 _simNow 临时设为 s.last（已算完的 tick 位置），算完恢复。
@@ -430,6 +434,7 @@ export class GameEngine {
       if (s && s.sect && s.room >= 0 && s.roomAt > 0) times.push(s.roomAt);
       if (s && s.sect && s.gfRoom >= 0 && s.gfRoomAt > 0) times.push(s.gfRoomAt);
       if (s && s.gfStudy && typeof this.G.gfStudyEnd === "function") { const e = this.G.gfStudyEnd(); if (e != null) times.push(e); }
+      if (typeof this.G.lqEnd === "function") { const e = this.G.lqEnd(); if (e != null) times.push(e); }
     } catch {}
     const valid = times.filter(Number.isFinite);
     return valid.length ? Math.min(...valid) : this.clock.now + TICK_MS;

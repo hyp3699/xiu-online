@@ -133,7 +133,7 @@ G.module({
         case "gf": case "sp": case "mf": {
           const id = it.c === "gf" ? DATA.gongfaId(it.src, it.type) : it.c === "sp" ? DATA.spellId(it.src, DATA.gfSrcById[it.src].el) : DATA.mifaId(it.star, it.kind);
           if (!DATA.skillInfo(id)) return false;
-          if (!s.gongfa[id]) { s.gongfa[id] = 1; if (it.c === "sp") this.autoSlotSpell(id); }
+          if (!s.gongfa[id]) { s.gongfa[id] = 1; if (it.c === "sp") this.autoSlotSpell(id); if (this.gfAutoKick) this.gfAutoKick(); }
           return true;
         }
         case "fabao": return rep(() => this.addEquip(DATA.rollForged("fabao", it.g, it.ft, it.el)));

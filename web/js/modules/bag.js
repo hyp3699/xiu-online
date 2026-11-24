@@ -673,7 +673,7 @@ G.module({
     // 开局功法书：学会第 1 层，书用掉
     learnBook(i) {
       const it = this.s.bag[i]; if (!it || it.t !== "book" || this.hasGongfa(DATA.START_GF)) return;
-      this.s.gongfa[DATA.START_GF] = 1; this.removeAt(i, 1);
+      this.s.gongfa[DATA.START_GF] = 1; this.removeAt(i, 1); if (this.gfAutoKick) this.gfAutoKick();
       this.log(`习得《${CFG.start.book.name}》第 1 层。`, "gold"); this.closeModal(); this.after();
     },
     // 试炼塔秘诀：在背包里学习，学会第 1 层，占用神识，书用掉
