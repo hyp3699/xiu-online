@@ -342,7 +342,7 @@ CFG.alchemy = {
     yangshen: { name: "养神丹", item: "yd", star: 2,
       time:      [15],
       learnTime: [5],
-      learnCost: [2000],
+      learnCost: [3000],   // 用户定 2026-11-25，原 2000
       herbs: [
         [["养神露", 1], ["青灵草", 36], ["凝露花", 36], ["赤血参", 36]],
       ] },
@@ -350,7 +350,7 @@ CFG.alchemy = {
     chongmai: { name: "冲脉丹", item: "cmd", star: 2, effect: "冲脉用",
       time:      [30],
       learnTime: [5],
-      learnCost: [2000],
+      learnCost: [3000],   // 用户定 2026-11-25，原 2000
       herbs: [
         [["凝露花", 300], ["紫灵芝", 300], ["星辰草", 300]],
       ] },

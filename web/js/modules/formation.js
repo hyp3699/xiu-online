@@ -133,7 +133,7 @@ G.module({
     zfBpC() { return this.zfC().BP || {}; },
     // t = 0：主动阵法图纸（没有阶）
     zfBpStar(t) { const B = this.zfBpC(); return t ? +((B.STAR || [])[t - 1]) || 1 : +B.ACT_STAR || 1; },
-    zfBpCost(t) { const B = this.zfBpC(); return t ? Math.round((+B.CONTRIB || 0) + (+B.CONTRIB_ADD || 0) * (t - 1)) : Math.round(+B.ACT_CONTRIB || 0); },
+    zfBpCost(t) { const B = this.zfBpC(); return t && B.COSTS && B.COSTS[t - 1] != null ? Math.round(+B.COSTS[t - 1] || 0) : t ? Math.round((+B.CONTRIB || 0) + (+B.CONTRIB_ADD || 0) * (t - 1)) : Math.round(+B.ACT_CONTRIB || 0); },
     zfBpMs(t) { const B = this.zfBpC(); return Math.round((t ? (+B.LEARN_MIN || 0) * t : +B.ACT_LEARN_MIN || 0) * 60000); },
     zfBpName(k, t) { if (!t) { const a = this.zfAct(k); return `${a ? a.name : "阵法"}图纸`; } const f = this.zfStat(k); return `${this.zfTName(f, t)}图纸`; },
     zfBpInBag(k, t) { return (this.s.bag || []).some(it => it && it.t === "zfbp" && it.kind === k && it.g === t); },
