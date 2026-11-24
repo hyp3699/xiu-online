@@ -157,6 +157,10 @@ G.module({
       const kind = H.RED_TYPES[st.t % H.RED_TYPES.length], red = H.RED + H.RED_ADD * (k - 1), kn = kind === "body" ? "肉身修炼灵气消耗" : "修为修炼灵气消耗";
       w.red[kind] = (w.red[kind] || 0) + red; rows.push([kn, "−" + red]); msg.push(`${kn} −${red}`);
       { const ls = H.LS || 1; w.ls = (w.ls || 0) + ls; rows.push(["灵识点", "+" + ls]); msg.push(`灵识点 +${ls}`); }
+      { const L = H.LSJ || {}, c = w.n.shenhun || 0, F = L.FIRST || 0, FN = L.FIRST_N || 0, A = L.AFTER || 0;   // 炼神诀：累计第 F、2F … FN×F 次各一卷，之后每 A 次一卷
+        const kk = F > 0 && c % F === 0 && c / F <= FN ? c / F : A > 0 && c > F * FN && (c - F * FN) % A === 0 ? FN + (c - F * FN) / A : 0;
+        if (kk > 0) { const id = DATA.lsjId(kk), nm = `《${DATA.gongfaInfo(id, 1).name}》`, where = this.bagPutOrMail({ t: "gfb", id, n: 1 }), bk = `悟得${nm}（已放入${where === "mail" ? "传音" : "背包"}）`;
+          rows.push([bk, ""]); msg.push(bk); } }
       if (H.CUT_YEAR > 0) { const cut = this.gfCutTime(H.CUT_YEAR * (+CFG.player.YEAR_MIN || 60) * 60000); w.cut = (w.cut || 0) + cut;   // 立即减功法修炼时间（2026-11-22 用户定）
         rows.push(["功法修炼时间", cut > 0 ? "−" + U.dur(cut / 1000) : "没有在修炼的功法"]); if (cut > 0) msg.push(`功法修炼时间 −${U.dur(cut / 1000)}`); }   // 每次悟道给灵识点（2026-11-15 用户定，取代阶段最后一次给）
       this._wdFx = Date.now();
@@ -193,6 +197,11 @@ G.module({
       this.log(`${D0.name}悟道一次，${msg.join("，")}。`, "gold"); this.dirty(); this.after();
       this.wdModal(D0, rows.map(([a, b]) => `<div class="line"><div>${a}</div><b class="q4">${b}</b></div>`).join("") + (book ? `<div class="line"><div>${book}</div></div>` : ""));
     },
+    // 炼神诀：已学各卷层数合计 × 每层（key = "pow" 神识强度 / "ls" 灵识点）
+    lsjSum(key) { const C = DATA.lsjCfg(), per = key === "ls" ? (C.LS === undefined ? 1 : C.LS) : (C.POW === undefined ? 1 : C.POW); let n = 0;
+      for (const id in this.s.gongfa || {}) if (DATA.isLsj(id)) n += this.s.gongfa[id] || 0; return n * per; },
+    // 神识强度存在 s.ssPow：按炼神诀层数补差（s.lsjPow 记已加过的），学会 / 升层 / 遗忘后调用
+    lsjSync() { const s = this.s, want = this.lsjSum("pow"), had = s.lsjPow || 0; if (want !== had) { s.ssPow = Math.max(0, (s.ssPow || 0) + want - had); s.lsjPow = want; } },
     // 点悟道室人物：神魂之道、战斗之道累计效果
     wdSsPow() { const H = _WR.shenhun, n = ((this.s.wd || {}).n || {}).shenhun || 0; let p = 0;   // 神魂之道累计给的神识强度（按已悟道次数现算）
       for (let i = 0; i < n; i++) { const st = DATA.wdStage(i, "shenhun"), t = st.t + 1, ev = DATA.wdEvery(st.k, "shenhun", H.SS); if (t % ev === 0 && t / ev <= H.SS) p += H.SS_N; } return p; },

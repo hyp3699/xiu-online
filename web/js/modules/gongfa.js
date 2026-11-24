@@ -66,6 +66,7 @@ G.module({
       s.gfStudy = null; this.dirty();
       this.nextStudy(st.at);
     }
+    if (this.lsjSync) this.lsjSync();
   },
 
   api: {
@@ -156,6 +157,7 @@ G.module({
       if (c.k === "xd") { this.xdLearnDone(c); if (this._off) this._off.learn.push(name); this.dirty(); return; }
       if (ch === "gf") {
         s.gongfa[c.id] = Math.max(1, s.gongfa[c.id] || 0);
+        if (this.lsjSync) this.lsjSync();
         const info = DATA.skillInfo(c.id, 1);
         if (info && info.kind === "sp") this.autoSlotSpell(c.id);   // 法术栏有空位就自动放入（见 bag.js）
         this.log(c.k === "mf" ? `习得${name}！之后在「功法 → 秘法」里修炼升层。` : `习得${name}第 1 层，可在功法栏修炼提升。`, "gold");
@@ -209,7 +211,7 @@ G.module({
       for (const id in this.s.gongfa) {
         if (DATA.isSpell(id)) continue;
         const info = DATA.gongfaInfo(id, this.s.gongfa[id]);
-        if (!info) continue;
+        if (!info || info.lsj) continue;   // 炼神诀不加战斗属性（神识、灵识点另算）
         const lgOn = !(info.kind === "mf" || info.noEl || !info.el), lgK = (st) => lgOn ? this.lingenSpd(st, info.el.id) : 1;
         const v = info.value * lgK(info.type.stat);  // 灵根加成：修炼速度类走 GONGFA，其他功法走 OTHER（用户定 2026-11-14）
         if (info.type.stat === "res") { b.res[info.el.id] = (b.res[info.el.id] || 0) + v; raw.res[info.el.id] = (raw.res[info.el.id] || 0) + info.value; }
@@ -223,7 +225,7 @@ G.module({
     // 这一层的修炼时间（秒）= STUDY_MIN ÷ (1 + 减少%)，最少 STUDY_MIN_SEC（秘法和功法一样：悟道 + 经脉 + 聚灵阵）
     //   功法：悟道秘法 + 经脉光点冲满（jingmai.js jmGfCut）；法术：悟法秘法（经脉不减法术）；减少% 可以超过 100%
     studySec(g) {
-      if (g.noEl) return Math.max(1, ((g.studyMin || [])[g.lv - 1] || 1) * 60);   // 开局功法书：config/start.js 的 STUDY_MIN
+      if (g.noEl && !g.lsj) return Math.max(1, ((g.studyMin || [])[g.lv - 1] || 1) * 60);   // 开局功法书：config/start.js 的 STUDY_MIN
       const sw = this.sjSwBonus ? this.sjSwBonus() : {}, m = this.mifaBonus(), red = g.kind === "sp" ? m.spStudy + this.ssGfSum("sp") + (sw.spStudy || 0) : (sw.gfStudy || 0) + m.gfStudy + (this.jmGfCut ? this.jmGfCut() : 0) + (this.arrayGfCut ? this.arrayGfCut() : 0) + this.ssGfSum("gf");   // + 神识功法
       const base = DATA.studyMin[g.lv - 1] * 60 * (1 + (CFG.gongfa.STUDY_STAR_PCT ?? 10) * Math.max(0, (g.star || 1) - 1) / 100);   // 1 星 100%，每高一星 + STUDY_STAR_PCT%
       return Math.max(Math.min(CFG.wudao.STUDY_MIN_SEC || 10, base), base / (1 + Math.max(0, red) / 100));

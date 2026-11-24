@@ -297,8 +297,20 @@ DATA.startGfInfo = (lv = 1) => {
     max: B.MAX || 1, studyMin: B.STUDY_MIN || [], per: B.STUDY_PER || 1,
     label: type.label, name: B.name || "练气诀", value: sp * lv, next: sp * (lv + 1), perLv: sp, cost: 0 };
 };
+// 炼神诀（悟道室神魂之道给，id "lsj_卷:lianshen"）：无星级、无属性，每层 神识强度 +POW、灵识点 +LS；修炼按 STAR 星功法算（星级只内部用，不显示）
+DATA.lsjCfg = () => (((CFG.wudaoRoom || {}).shenhun || {}).LSJ) || {};
+DATA.lsjId = k => `lsj_${k}:lianshen`;
+DATA.isLsj = id => /^lsj_\d+:lianshen$/.test(id || "");
+DATA.LSJ_TYPE = { id: "lianshen", name: "炼神诀", suffix: "炼神诀", stat: "lianshen", label: "神识强度、灵识点", fam: "lianshen", bk: 1 };
+DATA.lsjInfo = (id, lv = 1) => {
+  const C = DATA.lsjCfg(), k = +((/^lsj_(\d+):/.exec(id) || [])[1]); if (!(k >= 1)) return null;
+  const star = C.STAR || 5, pow = C.POW === undefined ? 1 : C.POW, cn = DATA.cnNum ? DATA.cnNum(k) : String(k);
+  return { kind: "gf", id, sect: { id: "lsj_" + k, src: "wdroom", dao: "shenhun", star, juan: k }, src: "wdroom", star, type: DATA.LSJ_TYPE, lv, noEl: true, lsj: true, el: { id: "", name: "" },
+    label: DATA.LSJ_TYPE.label, name: `${C.NAME || "炼神诀"}·第${cn}卷`, value: pow * lv, next: pow * (lv + 1), perLv: pow, cost: 0 };
+};
 DATA.gongfaInfo = (id, lv = 1) => {
   if (id === DATA.START_GF) return DATA.startGfInfo(lv);
+  if (DATA.isLsj(id)) return DATA.lsjInfo(id, lv);
   const p = id.split(":"), sect = DATA.gfSrc(p[0]), type = DATA.gongfaTypes.find(x => x.id === p[1]);
   if (p.length !== 2 || !sect || !type || type.bk > DATA.gfBookN(sect.src, sect.star, type.fam)) return null;
   const per = DATA.gfCalc(sect, type.id, type.stat), per2 = type.stat2 ? DATA.gfCalc(sect, type.id, type.stat2) : 0;
