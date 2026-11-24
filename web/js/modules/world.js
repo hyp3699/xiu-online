@@ -1781,13 +1781,16 @@ G.module({
         const mb = $("#bt-mp" + i), mm = [b.me[3], b.mob[3]][i]; if (mb) mb.style.width = (mm > 0 ? Math.max(0, Math.min(100, (bp.mp || [])[i] / mm * 100)) : 0) + "%"; }   // v244 法力蓝条
     },
     // 播放一次出手：文字 + 血条 + 动作（普通攻击冲撞、法术光球、法宝飞剑、护盾光罩）
+    btSumShow(bp) { const se = $("#bt-sum"), r = bp.sumR || 1;
+      if (se) se.innerHTML = `你共造成 <b>${U.fmt(bp.sum[0])}</b>（每回合 ${U.fmt(bp.sum[0] / Math.max(1, r))}）　对方共造成 <b>${U.fmt(bp.sum[1])}</b>（每回合 ${U.fmt(bp.sum[1] / Math.max(1, r))}）`; },
     btAct(x, anim) {
       const bp = this._bp, b0 = bp.b, [r, w, k, sp, f, d, ph, pm, mh, mm, fx] = x, b = x[13] ? Object.assign({}, b0, { el: x[13] }) : b0;   // 怪物这一下的属性（x[13]）
       // v253 血条 / 蓝条等这一下真正打到身上（hit）再变，不在出手瞬间提前扣；seq 防止上一下迟到的命中把血条改回去
       const seq = bp.seq = (bp.seq || 0) + 1, H = () => { if (seq >= (bp.hpSeq || 0)) { bp.hpSeq = seq; bp.hp = [ph, mh]; bp.mp = [pm, mm]; } this.btHp(); };
       if (!anim) { bp.hpSeq = seq; bp.hp = [ph, mh]; bp.mp = [pm, mm]; }
-      if (bp.test) { if (k < 3 && d > 0) bp.sum[w] += d; const se = $("#bt-sum"), R0 = bp.round || 1;
-        if (se) se.innerHTML = `你共造成 <b>${U.fmt(bp.sum[0])}</b>（每回合 ${U.fmt(bp.sum[0] / Math.max(1, r))}）　对方共造成 <b>${U.fmt(bp.sum[1])}</b>（每回合 ${U.fmt(bp.sum[1] / Math.max(1, r))}）`; }
+      if (bp.test) { if (k < 3 && d > 0) bp.sum[w] += d; bp.sumR = r; if (!bp._buf) this.btSumShow(bp); }
+      // 跳过时（bp._buf）：记录先攒成字符串，最后一次性插入，避免每条都改 DOM、滚动导致卡顿（2026-11-24）
+      if (bp._buf) { if (r !== bp.round) { bp.round = r; bp._buf.push(`<p class="bt-rd">第 ${r} 回合</p>`); } bp._buf.push(this.battleRow(b, x)); return; }
       const log = $("#bt-log");
       if (log) { if (r !== bp.round) { bp.round = r; log.insertAdjacentHTML("beforeend", `<p class="bt-rd">第 ${r} 回合</p>`); }
         log.insertAdjacentHTML("beforeend", this.battleRow(b, x)); log.scrollTop = 1e9; }
@@ -2301,7 +2304,12 @@ G.module({
     btFinish() {
       const bp = this._bp; if (!bp || bp.done) return;
       clearInterval(bp.timer); clearTimeout(bp.skipT);
-      while (bp.shown < bp.acts.length) this.btAct(bp.acts[bp.shown++], false);
+      if (bp.shown < bp.acts.length) {   // 剩下的回合一次性写进记录
+        bp._buf = []; while (bp.shown < bp.acts.length) this.btAct(bp.acts[bp.shown++], false);
+        const log = $("#bt-log"), h = bp._buf.join(""); bp._buf = null;
+        if (log && h) { log.insertAdjacentHTML("beforeend", h); log.scrollTop = 1e9; }
+        if (bp.test) this.btSumShow(bp); this.btHp();
+      }
       if (bp.test) { const last = bp.acts[bp.acts.length - 1]; if (last) bp.hp = [last[6], last[8]]; return this.btTestEnd(bp); }
       const last = bp.acts[bp.acts.length - 1]; if (last) bp.hp = [last[6], last[8]];
       bp.done = true; this.btHp(); this.battleDone(bp);
