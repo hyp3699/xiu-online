@@ -321,7 +321,8 @@ G.module({
     gfAutoOn() { const A = this.gfAutoCfg(); A.on = !A.on; this.log(`自动队列已${A.on ? "开启" : "关闭"}。`, "sys"); if (A.on) { this.gfAutoFill(); if (!this.s.gfStudy) this.nextStudy(); } this.after(); },
     gfAutoAdd() { const A = this.gfAutoCfg(), M = +CFG.gongfa.AUTO_RULES || 10; if (A.rules.length >= M) return this.log(`最多 ${M} 条条件。`, "sys"); A.rules.push({ t: "all", lv: 0, star: 0 }); this.after(); },
     gfAutoDel(i) { const A = this.gfAutoCfg(); i = Math.floor(+i); if (!(i >= 0 && i < A.rules.length)) return; A.rules.splice(i, 1); this.after(); },
-    gfAutoMove(i, d) { const A = this.gfAutoCfg(); i = Math.floor(+i); const j = i + (+d < 0 ? -1 : 1); if (!(i >= 0 && i < A.rules.length && j >= 0 && j < A.rules.length)) return; [A.rules[i], A.rules[j]] = [A.rules[j], A.rules[i]]; this.after(); },
+    gfAutoMove(i, d) { const A = this.gfAutoCfg(); i = Math.floor(+i); const j = i + (+d === 1 ? 1 : -1);   // d：0 上移、1 下移（服务器不收负数）
+      if (!(i >= 0 && i < A.rules.length && j >= 0 && j < A.rules.length)) return; [A.rules[i], A.rules[j]] = [A.rules[j], A.rules[i]]; this.after(); },
     gfAutoSet(i, k, v) {
       const A = this.gfAutoCfg(), r = A.rules[Math.floor(+i)]; if (!r) return;
       if (k === "t") { if (!this.gfAutoTypes().some(x => x[0] === v)) return; r.t = v; }
@@ -336,7 +337,7 @@ G.module({
         ${this.selBox("gfa" + i, T, r.t, v => { G.gfAutoSet(i, "t", v); G.openGfAuto(); })}
         <span>低于<input type="number" min="0" max="${DATA.GONGFA_MAX}" value="${r.lv || ""}" placeholder="满" onchange="G.gfAutoSet(${i},'lv',this.value||0)${re}">层</span>
         <span>≥<input type="number" min="0" max="99" value="${r.star || ""}" placeholder="任" onchange="G.gfAutoSet(${i},'star',this.value||0)${re}">星</span>
-        <span class="gfa-ops"><button class="sm" ${i ? "" : "disabled"} onclick="G.gfAutoMove(${i},-1)${re}">↑</button><button class="sm" onclick="G.gfAutoDel(${i})${re}">删</button></span></div>`).join("");
+        <span class="gfa-ops"><button class="sm" ${i ? "" : "disabled"} onclick="G.gfAutoMove(${i},0)${re}">↑</button><button class="sm" ${i < A.rules.length - 1 ? "" : "disabled"} onclick="G.gfAutoMove(${i},1)${re}">↓</button><button class="sm" onclick="G.gfAutoDel(${i})${re}">删</button></span></div>`).join("");
       this.modal(`<h2>自动队列</h2><p class="desc">排队不满 ${NQ} 个时，按条件先后自动补：第 1 条没有可补的，才用第 2 条，依此类推。同一条里先补层数最低的，再按星级高的；选「全部」按 心法、攻诀、抗性、生命、秘诀、法力、命中、闪避、速度 的顺序补。层数空着 = 补到满层，星级空着 = 不限。</p>
         <div class="card">${rows || `<p class="desc">还没有条件。</p>`}</div>
         <div class="btns"><button class="${A.on ? "primary" : ""}" onclick="G.gfAutoOn()${re}">${A.on ? "已开启（点击关闭）" : "已关闭（点击开启）"}</button>
