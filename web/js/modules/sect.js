@@ -167,13 +167,19 @@ G.module({
       const b = DATA.mobStats(DATA.mobExam(this.sectInfo().star, i), DATA.mobCrit("考官")), v = (x, k) => x * DATA.mobRnd(k, sw);   // config/mobs.js 的 sect
       return Object.assign(this.addMagic({ rw: sw, name: `${DATA.ranks[i].name}考官`, img: this.npcImg(`考官${this.sectInfo().star}_${i}`, "rn"), boss: false, hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.resEl || b.res, manaBr: b.manaBr, L: b.L, crit: b.crit }, "考核"), { wn: sw });
     },
+    // 考官属性生成一次后存进存档（s.rankGuard），测试和考验打同一个考官；换宗门 / 宗门星级 / 目标职务变了才重新生成（用户定 2026-11-24）
+    rankGuardOf(i) {
+      const s = this.s, k = `${s.sect}|${this.sectInfo().star}|${i}`;
+      if (!s.rankGuard || s.rankGuard.k !== k || !s.rankGuard.m) s.rankGuard = { k, m: this.makeRankGuard(i) };
+      return JSON.parse(JSON.stringify(s.rankGuard.m));   // 每次战斗用副本，不改存档里的
+    },
     rankTestCost(i) { return Math.ceil(this.rankTrialCost(i) * ((CFG.sect.rankTrial.TEST_PCT ?? 20) / 100)); },   // 测试贡献 = 考验贡献 × TEST_PCT%
     testRank() {   // 测试考官实力：和考验同一个考官，赢了也不能晋升
       const s = this.s, i = s.rank + 1; if (i >= DATA.ranks.length) return;
       const c = this.rankTestCost(i);
       if (s.contrib < c) return this.log(`贡献不足，测试需要 ${U.fmt(c)}。`, "sys");
       s.contrib -= c;
-      const res = this.battle(this.makeRankGuard(i));
+      const res = this.battle(this.rankGuardOf(i));
       const txt = res.win ? `测试：${res.rounds}回合击败${DATA.ranks[i].name}考官（测试不算通过考验）。` : `测试：未能击败${DATA.ranks[i].name}考官${res.timeout ? "（回合耗尽）" : ""}。`;
       this.after();
       this.playBattle(res.detail, `考官测试 · ${DATA.ranks[i].name}`, txt, res.win);
@@ -183,7 +189,7 @@ G.module({
       const c = this.rankTrialCost(i);
       if (s.contrib < c) return this.log(`贡献不足，参加考验需要 ${U.fmt(c)}。`, "sys");
       s.contrib -= c;
-      const res = this.battle(this.makeRankGuard(i));
+      const res = this.battle(this.rankGuardOf(i));
       let txt;
       if (res.win) { s.rankPass = i; txt = `${res.rounds}回合击败${DATA.ranks[i].name}考官，通过晋升考验！`; }
       else { txt = `${DATA.ranks[i].name}晋升考验失败${res.timeout ? "（回合耗尽，未能击败）" : ""}。`; }
@@ -993,7 +999,7 @@ G.module({
           <small>${U.fmt(this.rankCost(next))} 贡献 · ${s.rankPass === next ? "已通过考验" : "需先通过考验"}</small></div>
           <button class="sm" onclick="G.promote()" ${(s.rankPass !== next && !DATA.isTest()) || s.contrib < this.rankCost(next) ? "disabled" : ""}>晋升</button></div>
           <div class="line"><div>晋升考验 · ${DATA.ranks[next].name}考官<small>每次消耗 ${U.fmt(this.rankTrialCost(next))} 贡献 · 战斗胜利后才能晋升 · 测试 ${U.fmt(this.rankTestCost(next))} 贡献（只试实力，不算通过）</small></div>
-          <div><button class="sm" onclick="G.testRank()" ${s.contrib < this.rankTestCost(next) ? "disabled" : ""}>测试</button><button class="sm ${s.rankPass === next ? "on" : ""}" onclick="G.challengeRank()" ${s.rankPass === next || s.contrib < this.rankTrialCost(next) ? "disabled" : ""}>${s.rankPass === next ? "已通过" : "考验"}</button></div></div>`}</div>
+          <div style="display:flex;gap:6px;flex:none;justify-content:flex-end"><button class="sm" onclick="G.testRank()" ${s.contrib < this.rankTestCost(next) ? "disabled" : ""}>测试</button><button class="sm ${s.rankPass === next ? "on" : ""}" onclick="G.challengeRank()" ${s.rankPass === next || s.contrib < this.rankTrialCost(next) ? "disabled" : ""}>${s.rankPass === next ? "已通过" : "考验"}</button></div></div>`}</div>
         ${this.isMaster() ? this.ccCard() : ""}
         <div class="card"><h3>职务一览</h3>${DATA.ranks.map((r, i) => `<div class="line"><div>${r.name}<small>俸禄 ${U.fmt(Math.floor(r.daily * this.starMul() * this.rankMul(i)))} 灵石 · 晋升 ${U.fmt(this.rankCost(i))} 贡献</small></div>${i === s.rank ? "<b>当前</b>" : i < s.rank ? "<small>已历</small>" : ""}</div>`).join("")}</div>
         ${this.isMaster() ? this.ccCard(1) : ""}
