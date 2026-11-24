@@ -6,7 +6,7 @@
  * 点人物图 openWdInfo：显示神魂之道、战斗之道累计效果。
  * 战斗之道：每天一次，消耗悟道果，每次在攻击 / 防御 / 生命 / 六系抗性共 9 种里随机加一种（wd.bat，各 1/9）；页面上不显示累计，悟道后弹框里显示这次加的属性和得到的功法；
  *   加多少 = 基础（当前境界修为突破合计 + 肉身突破合计，不含功法 / 丹药 / 装备 / 炼体池）× PCT 区间随机 % × 阶段倍率（每阶段 +25%，最高 +240%）。
- *   每阶段给功法（wz阶段_序号:类别，来源在 DATA.wzSrc 现算，类型、抗性属性由序号哈希定，效果 = 同星级 × 1.5，不占灵识点）：
+ *   每阶段给功法（wz阶段_序号:类别，来源在 DATA.wzSrc 现算，类型（13 种）、抗性属性由序号哈希定，效果 = 同星级 × 1.5，不占灵识点）：
  *   给功法间隔按 BOOK_STEPS 表（1–2 阶段每 10 次，3–4 阶段每 13 次，5–6 阶段每 16 次，7–8 阶段每 20 次，9–10 阶段每 25 次，11–20 阶段每 50 次，21 阶段以后每阶段最后一次给 1 本）；星级 = 阶段（最高 15 星）。
  * 悟道秘诀 id "wd阶段_序号:mijue|tijue"（序号 0~9），来源在 DATA.wdSrc 现算。
  * 存档：wd = { n: { 道id: 已悟道次数 }, day: { 道id: 上次悟道的日期 }, red: { exp, body } 减少的灵气消耗, ls 得到的灵识点,
@@ -51,11 +51,11 @@ DATA.wzSrc = sid => {
   const k = +m[1], j = +m[2], H = _WR.zhandou;
   if (k < 1 || j < 0) return null;
   let h = 2166136261; for (const c of sid) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
-  // 9 本里随机 1 本：攻击 / 防御 / 生命功法 + 六系抗性功法（哈希取余，均匀分布）
-  const idx = h % 9;
-  let type, els;
-  if (idx < 3) type = ["gongjue", "xinfa", "zhenjing"][idx];
-  else { type = "zhenjue"; els = { zhenjue: DATA.elements[idx - 3].id }; }
+  // 13 本里随机 1 本：攻击 / 防御 / 生命 / 法力 / 命中 / 闪避 / 速度功法 + 六系抗性功法（哈希取余，均匀分布；2026-11-24 用户加法力命中闪避速度）
+  //   抗性系别仍按旧 9 选 1 的哈希定（h % 9 ≥ 3 时同旧书），已拿到的旧真经系别不变；类型存在书 id 里，旧书也不变
+  const T13 = ["gongjue", "xinfa", "zhenjing", "fajue", "shenfa", "dunshu", "sufa"], idx = h % (T13.length + 6), i9 = h % 9;
+  const type = idx < T13.length ? T13[idx] : "zhenjue";
+  const els = { zhenjue: DATA.elements[i9 >= 3 ? i9 - 3 : (h >>> 8) % 6].id };
   const juan = DATA.wzBooksBefore(k) + j + 1;   // 第几本（全部阶段累计，卷号全局递增）
   return DATA._wzSrc[sid] = { id: sid, src: "wdroom", dao: "zhandou", star: Math.min(k, H.MAX_STAR), stage: k, idx: j, type, juan, mult: H.BOOK_MULT, el: "jin", els, prefix: "", name: "悟道室", reqRealm: -1 };
 };
