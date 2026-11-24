@@ -26,7 +26,9 @@ DATA.jieGf = { jshop: [], gd: [] };
       grp.forEach((o, i) => { o.els[t.id] = seq[i]; });
     });
     const E = DATA.elements;   // 真经 6 本：第 1 本属性不变，后面 5 本依次补齐金木水火土雷（每处六种抗性各一本）
-    list.forEach(o => { const b0 = E.findIndex(e => e.id === o.els.zhenjue); for (let b = 2; b <= 12; b++) if (("zhenjue" + b) in o.els) o.els["zhenjue" + b] = E[(b0 + b - 1) % E.length].id; });   // 第 7 本起再从第 1 本那系轮
+    // 每类功法多本：第 1 本属性不变，后面依次补齐金木水火土雷（每类 6 本 = 六系各一本；用户定 2026-11-25，原来只有真经这样）
+    const fams = [...new Set(DATA.gongfaTypes.map(t => t.fam))];
+    list.forEach(o => fams.forEach(f => { const b0 = E.findIndex(e => e.id === o.els[f]); if (b0 < 0) return; for (let b = 2; b <= 12; b++) if ((f + b) in o.els) o.els[f + b] = E[(b0 + b - 1) % E.length].id; }));   // 第 7 本起再从第 1 本那系轮
     list.forEach(o => { o.el = o.els.mijue; DATA.gfSrcById[o.id] = o; });
   }
 })();
