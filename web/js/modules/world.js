@@ -1555,8 +1555,8 @@ G.module({
         if (lj) act.x = (act.x || 0) | 1024;
         d = after(d, pMob, mhp, m.hp, mobJc, meJc);
         if (pj && act.f !== 1 && !(act.x & 128)) act.x = (act.x || 0) | 32;   // 破军标记：金蝉挡下时不显示（和镇魂的 128 检查一致）
-        // 境界伤害：两项相加——层数项（每比人物高 1 层 + REALM_DMG）+ 大境界项（每比人物高 1 个大境界 + REALM_BIG_DMG）；不吃加成，无视防御、抗性；之后和正常伤害一样过护盾；人物打怪物没有
-        if (act.f !== 1 && !((act.x || 0) & 128) && mL > myL && (BT.REALM_DMG || BT.REALM_BIG_DMG)) { const rd = Math.floor(mL / DATA.LAYERS) - Math.floor(myL / DATA.LAYERS); d += (mL - myL) * (BT.REALM_DMG || 0) + (rd > 0 ? rd * (BT.REALM_BIG_DMG || 0) : 0); }
+        // 境界伤害：（层数项 每比人物高 1 层 REALM_DMG + 大境界项 每比人物高 1 个大境界 REALM_BIG_DMG）× 怪物大境界序号；不吃加成，无视防御、抗性；之后和正常伤害一样过护盾；人物打怪物没有
+        if (act.f !== 1 && !((act.x || 0) & 128) && mL > myL && (BT.REALM_DMG || BT.REALM_BIG_DMG)) { const rd = Math.floor(mL / DATA.LAYERS) - Math.floor(myL / DATA.LAYERS); d += ((mL - myL) * (BT.REALM_DMG || 0) + (rd > 0 ? rd * (BT.REALM_BIG_DMG || 0) : 0)) * (Math.floor(mL / DATA.LAYERS) + 1); }   // 2026-11-24 用户定：两项之和 × 怪物大境界序号（从 1 起）
         if (zfEl && this.zfDmg && act.f !== 1 && !((act.x || 0) & 128) && d > 0) { const r = this.zfDmg(zfEl, Math.max(0, d - 1), TEST); d = r > 0 ? Math.max(1, d - r) : d - r; }   // 主动阵法：无视保底伤害和境界伤害，最低减到 1 点（用户定 2026-11-14）
         if (act.f !== 1 && !(act.x & 128) && !meSeal && cnt.mob.zh < pMob.zhT && ch(pMob.zh)) { meSeal = pMob.zhR; sealR.me = rounds; cnt.mob.zh++; act.x = (act.x || 0) | 64; }
         if (shield && act.f !== 1 && d > 0) {   // 人物护盾：伤害按盾防御算（代替本身防御），再减「受到伤害减少%」，剩下先扣护盾值
