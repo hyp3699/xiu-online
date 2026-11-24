@@ -24,7 +24,7 @@ G.module({
   tick() {
     const s = this.s, STEP = DATA.STUDY_STEP * 1000;
     this.lqTick("gf");   // v173 学习（首次习得）+ 学习队列
-    this.gfAutoFill();   // 自动队列：排队不满 AUTO_Q 个按条件补
+    this.gfAutoFill();   // 自动队列：排队空了按条件补 AUTO_Q 个
     if (!s.gfStudy) this.nextStudy();
     while (s.gfStudy) {
       const st = s.gfStudy;
@@ -294,7 +294,7 @@ G.module({
      *   t：all 全部 / 功法类别 id（xinfa、gongjue…，含第 2、3 本）/ spell 法术 / mifa 秘法
      *   lv：低于第几层（计划层 = 当前 + 修炼中 + 排队中 < lv 才补；0 = 不限，补到满层）
      *   star：星级 ≥ 几（0 = 不限）
-     * 排队不满 AUTO_Q 个就补：按条件先后，第一条没有可补的才看第二条；同一条里先补计划层最低的，再按星级高的。
+     * 排队里没有功法了才补，补 AUTO_Q 个：按条件先后，第一条没有可补的才看第二条；同一条里先补计划层最低的，再按星级高的。
      */
     gfAutoTypes() { const o = t => this.gfAutoOrd({ kind: "gf", type: t }); return [["all", "全部"], ...DATA.gongfaTypes.filter(t => !t.base).sort((a, b) => o(a) - o(b)).map(t => [t.id, t.name]), ["spell", "法术"], ["mifa", "秘法"]]; },
     // 「全部」的补充顺序（用户定 2026-11-24）：心法 攻诀 抗性（6 种） 生命 秘诀 法力 命中 闪避 速度，之后 炼体秘诀、法术、秘法
@@ -309,7 +309,7 @@ G.module({
     },
     gfAutoFill() {
       const s = this.s, A = s.gfAuto; if (!A || !A.on || !Array.isArray(A.rules) || !A.rules.length || !s.gongfa) return;
-      const NQ = Math.min(+CFG.gongfa.AUTO_Q || 2, DATA.GF_QUEUE); if (s.gfQueue.length >= NQ) return;
+      const NQ = Math.min(+CFG.gongfa.AUTO_Q || 2, DATA.GF_QUEUE); if (s.gfQueue.length > 0) return;   // 排队里没有功法了才补（补到 AUTO_Q 个）
       // 性能：上次没东西可补、且功法 / 层数 / 队列 / 条件都没变，就不再算（离线结算每 10 秒都会调用）
       const ids = Object.keys(s.gongfa); let lvSum = 0; for (const id of ids) lvSum += s.gongfa[id] || 0;
       const sig = `${ids.length}|${lvSum}|${s.gfStudy ? s.gfStudy.id : ""}|${s.gfQueue.join(",")}|${JSON.stringify(A.rules)}`, M = this._gfaMiss || (this._gfaMiss = new WeakMap());   // 按存档分开记（服务器一个引擎轮流算多个玩家）
@@ -364,7 +364,7 @@ G.module({
         <span>低于<input type="number" min="0" max="${DATA.GONGFA_MAX}" value="${r.lv || ""}" placeholder="满" onchange="G.gfAutoSet(${i},'lv',this.value||0)${re}">层</span>
         <span>≥<input type="number" min="0" max="99" value="${r.star || ""}" placeholder="任" onchange="G.gfAutoSet(${i},'star',this.value||0)${re}">星</span>
         <span class="gfa-ops"><button class="sm" ${i ? "" : "disabled"} onclick="G.gfAutoMove(${i},0)${re}">↑</button><button class="sm" ${i < A.rules.length - 1 ? "" : "disabled"} onclick="G.gfAutoMove(${i},1)${re}">↓</button><button class="sm" onclick="G.gfAutoDel(${i})${re}">删</button></span></div>`).join("");
-      this.modal(`<h2>自动队列</h2><p class="desc">排队不满 ${NQ} 个时，按条件先后自动补：第 1 条没有可补的，才用第 2 条，依此类推。同一条里先补层数最低的，再按星级高的；选「全部」按 心法、功诀、真经（抗性）、真诀（生命）、秘诀、法诀（法力）、身法（命中）、遁术（闪避）、身法（速度）的顺序补。层数空着 = 补到满层，星级空着 = 不限。</p>
+      this.modal(`<h2>自动队列</h2><p class="desc">排队里没有功法时，按条件先后自动补 ${NQ} 个：第 1 条没有可补的，才用第 2 条，依此类推。同一条里先补层数最低的，再按星级高的；选「全部」按 心法、功诀、真经（抗性）、真诀（生命）、秘诀、法诀（法力）、身法（命中）、遁术（闪避）、身法（速度）的顺序补。层数空着 = 补到满层，星级空着 = 不限。</p>
         <div class="gfa-list">${rows || `<p class="desc">还没有条件。</p>`}</div>
         <div class="btns"><button class="${A.on ? "primary" : ""}" onclick="G.gfAutoOn()${re}">${A.on ? "已开启（点击关闭）" : "已关闭（点击开启）"}</button>
         <button ${A.rules.length >= M ? "disabled" : ""} onclick="G.openGfAutoPick()">添加条件 ${A.rules.length}/${M}</button><button onclick="G.closeModal()">关闭</button></div>`);
