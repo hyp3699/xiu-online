@@ -150,7 +150,7 @@ G.module({
           s.bodyExp = Math.max(0, (s.bodyExp || 0) - Y); msg.push(`气血 -${U.fmt(Y)}`); } }
       if (s.L !== L0 && !mortal0) msg.push(`修为境界跌落至【${this.realmName()}】`);
       if (s.bodyL !== B0) msg.push(`肉身境界跌落至【${this.bodyName()}】`);
-      if (s.L !== L0 || s.bodyL !== B0) { const st = this.stats(); s.hp = Math.min(s.hp, st.hp); s.mana = Math.min(s.mana, st.mana); }
+      if (s.L !== L0 || s.bodyL !== B0) { this.dirty(); /* 先清缓存，按跌落后的新上限钳制 */ const st = this.stats(); s.hp = Math.min(s.hp, st.hp); s.mana = Math.min(s.mana, st.mana); }
       if (msg.length) this.log(`${who ? `被${who}击杀` : "战死"}，${msg.join("，")}。`, "bad");
       this.dirty();
     },
