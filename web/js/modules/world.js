@@ -347,12 +347,13 @@ G.module({
     lkEnter(a) { return this.lkMap(a) && DATA.regionDirs.every((d, r) => this.isTrained(a, r)); },
     lkOwned(a) { return !!((this.s.lkOwn || {})[a]) || this.lkLv(a) > 0; },
     lkBossName(a) { return `${DATA.maps[a].name}灵矿守卫`; },
-    // 灵矿守卫：本图北域（r = 3）首领的平均属性（不随机）× BOSS_MUL；秘法 / 天赋同北域首领
+    // 灵矿守卫：本图北域（r = 3）首领的平均属性 × RAND × MAP_RATE（同本图首领）× BOSS_MUL；秘法 / 天赋同北域首领
     lkBoss(a) {
       const r = DATA.regionCount - 1, R = DATA.region(a, r), t = R && R._t && R._t.boss, b = t ? DATA.mobStats(t, DATA.mobCrit(DATA.MOB_KIND.boss)) : DATA.mobMeet(R, "boss");
-      const r0 = b.resEl || b.res, res = {}; for (const e of DATA.elements) res[e.id] = r0 && typeof r0 === "object" ? +r0[e.id] || 0 : +r0 || 0;
+      const wn = DATA.mobWn(a), v = (x, k) => x * DATA.mobRnd(k, wn, "boss", a);   // 和本图首领一样 × RAND（首领 + 界）× 地图倍率 MAP_RATE（用户定 2026-11-24）
+      const r0 = b.resEl || b.res, res = {}; for (const e of DATA.elements) res[e.id] = v(r0 && typeof r0 === "object" ? +r0[e.id] || 0 : +r0 || 0, "res_" + e.id);
       const m = this.addMagic({ name: this.lkBossName(a), mapA: a, Lm: R.L, kind: "boss", boss: true, elite: false, elKey: `b:${a}:${r}`,
-        hp: b.hp, atk: b.atk, def: b.def, speed: b.speed, hit: b.hit, dodge: b.dodge, mana: b.mana, res, manaBr: b.manaBr, L: b.L, crit: b.crit, stl: b.stl }, "boss", { res });
+        hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res, manaBr: b.manaBr, L: b.L, crit: b.crit, stl: b.stl }, "boss", { res });
       const k = +DATA.LK().BOSS_MUL || 1;   // 加完神通等之后整体 × 倍率
       for (const x of ["hp", "atk", "def", "speed", "hit", "dodge"]) if (typeof m[x] === "number") m[x] *= k;
       m.mana = m.maxMana = (m.mana || 0) * k; for (const e in m.res) m.res[e] *= k;
