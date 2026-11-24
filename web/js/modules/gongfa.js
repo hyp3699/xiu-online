@@ -319,7 +319,12 @@ G.module({
     },
     // 玩家操作（加进 server/action-whitelist.json）
     gfAutoOn() { const A = this.gfAutoCfg(); A.on = !A.on; this.log(`自动队列已${A.on ? "开启" : "关闭"}。`, "sys"); if (A.on) { this.gfAutoFill(); if (!this.s.gfStudy) this.nextStudy(); } this.after(); },
-    gfAutoAdd() { const A = this.gfAutoCfg(), M = +CFG.gongfa.AUTO_RULES || 10; if (A.rules.length >= M) return this.log(`最多 ${M} 条条件。`, "sys"); A.rules.push({ t: "all", lv: 0, star: 0 }); this.after(); },
+    gfAutoAdd(t) { const A = this.gfAutoCfg(), M = +CFG.gongfa.AUTO_RULES || 10; if (A.rules.length >= M) return this.log(`最多 ${M} 条条件。`, "sys");
+      if (!this.gfAutoTypes().some(x => x[0] === t)) t = "all"; A.rules.push({ t, lv: 0, star: 0 }); this.gfAutoFill(); if (!this.s.gfStudy) this.nextStudy(); this.after(); },
+    // 添加条件：先选功法类型（本地窗口），选好再加；关闭回到自动队列
+    openGfAutoPick() { const T = this.gfAutoTypes();
+      this.modal(`<h2>选择功法</h2><div class="sel-list">${T.map(([k, n]) => `<button onclick="G.gfAutoAdd('${k}');G.openGfAuto()">${n}</button>`).join("")}</div>
+        <div class="btns"><button onclick="G.openGfAuto()">关闭</button></div>`); },
     gfAutoDel(i) { const A = this.gfAutoCfg(); i = Math.floor(+i); if (!(i >= 0 && i < A.rules.length)) return; A.rules.splice(i, 1); this.after(); },
     gfAutoMove(i, d) { const A = this.gfAutoCfg(); i = Math.floor(+i); const j = i + (+d === 1 ? 1 : -1);   // d：0 上移、1 下移（服务器不收负数）
       if (!(i >= 0 && i < A.rules.length && j >= 0 && j < A.rules.length)) return; [A.rules[i], A.rules[j]] = [A.rules[j], A.rules[i]]; this.after(); },
@@ -341,7 +346,7 @@ G.module({
       this.modal(`<h2>自动队列</h2><p class="desc">排队不满 ${NQ} 个时，按条件先后自动补：第 1 条没有可补的，才用第 2 条，依此类推。同一条里先补层数最低的，再按星级高的；选「全部」按 心法、攻诀、抗性、生命、秘诀、法力、命中、闪避、速度 的顺序补。层数空着 = 补到满层，星级空着 = 不限。</p>
         <div class="gfa-list">${rows || `<p class="desc">还没有条件。</p>`}</div>
         <div class="btns"><button class="${A.on ? "primary" : ""}" onclick="G.gfAutoOn()${re}">${A.on ? "已开启（点击关闭）" : "已关闭（点击开启）"}</button>
-        <button ${A.rules.length >= M ? "disabled" : ""} onclick="G.gfAutoAdd()${re}">添加条件 ${A.rules.length}/${M}</button><button onclick="G.closeModal()">关闭</button></div>`);
+        <button ${A.rules.length >= M ? "disabled" : ""} onclick="G.openGfAutoPick()">添加条件 ${A.rules.length}/${M}</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
     gfAutoBtn() { const A = this.s.gfAuto; return `<button class="sm ${A && A.on ? "active" : ""}" onclick="G.openGfAuto()">自动队列${A && A.on ? "·开" : ""}</button>`; },
     removeQueue(i) { this.s.gfQueue.splice(i, 1); this.after(); },

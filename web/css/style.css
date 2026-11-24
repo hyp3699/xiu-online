@@ -1532,11 +1532,11 @@ html .rgmap .rgs.q-dong.cur{background:radial-gradient(ellipse at 80% 50%,rgba(2
 .gf-info{display:flex;gap:8px;align-items:stretch}
 .gf-info-l{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:space-between}
 .gf-info .gf-btns{display:flex;flex-direction:column;justify-content:space-between;gap:4px;flex-shrink:0}
-.gfa-row{display:flex;flex-wrap:nowrap;align-items:center;gap:3px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.08);white-space:nowrap;font-size:12px}
+.gfa-row{display:flex;flex-wrap:nowrap;align-items:center;gap:4px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.08);white-space:nowrap;font-size:14px}
 .gfa-row>b{flex:none}
-.gfa-row button.sel{flex:0 0 5em;width:5em;min-width:5em;max-width:5em;padding:4px 4px;gap:2px;font-size:12px}
+.gfa-row button.sel{flex:1 1 auto;width:auto;min-width:4.6em;max-width:none;padding:6px 6px;gap:2px;font-size:14px}
 .gfa-row>span{flex:none}
-.gfa-row input{width:2.1em;margin:0 1px;padding:4px 1px;text-align:center;font-size:12px}
-.gfa-row .gfa-ops{display:flex;gap:2px;margin-left:auto;flex:none}
-.gfa-row .gfa-ops button.sm{padding:3px 6px;font-size:12px}
+.gfa-row input{width:2.3em;margin:0 1px;padding:6px 1px;text-align:center;font-size:14px}
+.gfa-row .gfa-ops{display:flex;gap:3px;flex:none}
+.gfa-row .gfa-ops button.sm{padding:6px 8px;font-size:14px}
 .gfa-list{margin:4px 0 8px}.gfa-list .gfa-row:first-child{border-top:1px solid rgba(255,255,255,.08)}
