@@ -290,7 +290,9 @@ G.module({
      *   star：星级 ≥ 几（0 = 不限）
      * 排队不满 AUTO_Q 个就补：按条件先后，第一条没有可补的才看第二条；同一条里先补计划层最低的，再按星级高的。
      */
-    gfAutoTypes() { return [["all", "全部"], ...DATA.gongfaTypes.filter(t => !t.base).map(t => [t.id, t.name]), ["spell", "法术"], ["mifa", "秘法"]]; },
+    gfAutoTypes() { const o = t => this.gfAutoOrd({ kind: "gf", type: t }); return [["all", "全部"], ...DATA.gongfaTypes.filter(t => !t.base).sort((a, b) => o(a) - o(b)).map(t => [t.id, t.name]), ["spell", "法术"], ["mifa", "秘法"]]; },
+    // 「全部」的补充顺序（用户定 2026-11-24）：心法 攻诀 抗性（6 种） 生命 秘诀 法力 命中 闪避 速度，之后 炼体秘诀、法术、秘法
+    gfAutoOrd(g) { if (g.kind === "sp") return 20; if (g.kind === "mf") return 21; const st = g.type && g.type.stat, L = ["def", "atk", "res", "hp", "cultivate", "mana", "hit", "dodge", "speed", "body"], i = L.indexOf(st); return i < 0 ? 19 : i; },
     gfAutoCfg() { const s = this.s; if (!s.gfAuto || typeof s.gfAuto !== "object") s.gfAuto = { on: false, rules: [] }; if (!Array.isArray(s.gfAuto.rules)) s.gfAuto.rules = []; return s.gfAuto; },
     gfAutoMatch(g, r) {
       if (r.t === "spell") { if (g.kind !== "sp") return false; }
@@ -308,7 +310,7 @@ G.module({
           const c = Object.keys(s.gongfa).map(id => { const info = DATA.skillInfo(id, s.gongfa[id]); return info ? { id, info, plan: this.plannedLv(id) } : null; })
             .filter(x => x && x.plan < (x.info.max || DATA.GONGFA_MAX) && (!(r.lv > 0) || x.plan < r.lv) && this.gfAutoMatch(x.info, r));
           if (!c.length) continue;
-          c.sort((a, b) => a.plan - b.plan || (b.info.star || 0) - (a.info.star || 0) || (a.id < b.id ? -1 : 1));
+          c.sort((a, b) => (r.t === "all" ? this.gfAutoOrd(a.info) - this.gfAutoOrd(b.info) : 0) || a.plan - b.plan || (b.info.star || 0) - (a.info.star || 0) || (a.id < b.id ? -1 : 1));   // 全部：先按类型顺序
           pick = c[0]; break;
         }
         if (!pick) break;
@@ -331,11 +333,11 @@ G.module({
     openGfAuto() {
       const A = this.gfAutoCfg(), T = this.gfAutoTypes(), M = +CFG.gongfa.AUTO_RULES || 10, NQ = +CFG.gongfa.AUTO_Q || 2, re = ";G.openGfAuto()";
       const rows = A.rules.map((r, i) => `<div class="gfa-row"><b>${i + 1}.</b>
-        <select onchange="G.gfAutoSet(${i},'t',this.value)${re}">${T.map(([k, n]) => `<option value="${k}" ${r.t === k ? "selected" : ""}>${n}</option>`).join("")}</select>
+        ${this.selBox("gfa" + i, T, r.t, v => { G.gfAutoSet(i, "t", v); G.openGfAuto(); })}
         <span>低于<input type="number" min="0" max="${DATA.GONGFA_MAX}" value="${r.lv || ""}" placeholder="满" onchange="G.gfAutoSet(${i},'lv',this.value||0)${re}">层</span>
         <span>≥<input type="number" min="0" max="99" value="${r.star || ""}" placeholder="任" onchange="G.gfAutoSet(${i},'star',this.value||0)${re}">星</span>
         <span class="gfa-ops"><button class="sm" ${i ? "" : "disabled"} onclick="G.gfAutoMove(${i},-1)${re}">↑</button><button class="sm" onclick="G.gfAutoDel(${i})${re}">删</button></span></div>`).join("");
-      this.modal(`<h2>自动队列</h2><p class="desc">排队不满 ${NQ} 个时，按条件先后自动补：第 1 条没有可补的，才用第 2 条，依此类推。同一条里先补层数最低的，再按星级高的。层数空着 = 补到满层，星级空着 = 不限。</p>
+      this.modal(`<h2>自动队列</h2><p class="desc">排队不满 ${NQ} 个时，按条件先后自动补：第 1 条没有可补的，才用第 2 条，依此类推。同一条里先补层数最低的，再按星级高的；选「全部」按 心法、攻诀、抗性、生命、秘诀、法力、命中、闪避、速度 的顺序补。层数空着 = 补到满层，星级空着 = 不限。</p>
         <div class="card">${rows || `<p class="desc">还没有条件。</p>`}</div>
         <div class="btns"><button class="${A.on ? "primary" : ""}" onclick="G.gfAutoOn()${re}">${A.on ? "已开启（点击关闭）" : "已关闭（点击开启）"}</button>
         <button ${A.rules.length >= M ? "disabled" : ""} onclick="G.gfAutoAdd()${re}">添加条件 ${A.rules.length}/${M}</button><button onclick="G.closeModal()">关闭</button></div>`);
@@ -407,8 +409,8 @@ G.module({
       // 星级 + 修到第几层（只显示目标层），不换行（用户定 2026-11-16）
       return `<div class="card"><h3 class="gf-cur-h"><span class="gf-cur-l">修炼中 ·《${info ? info.name : st.id}》</span><span class="gf-tags">${info && !info.noEl ? `<span class="tag">${info.star}星</span>` : ""}${info ? `<span class="tag gf-to">第${info.lv + 1}层</span>` : ""}</span></h3>
         <div class="bar tick"><div id="gf-cd-bar"></div></div>
-        <div class="row small"><span>${st.stalled ? `<b class='q5'>${st.stone ? "灵气或灵石" : "灵气"}不足，暂停中</b>` : `${info ? `<span class="c-green">${this.gfGainTxt(info)}</span> · ` : ""}倒计时 <b><span class="cd" id="gf-cd"></span></b>`}</span></div>
-        <div class="row small gf-cost"><span>每 10 秒消耗 <b>${U.fmt(this.ssGfPer(st.per * mul) * DATA.STUDY_SETTLE())}</b> 灵气${st.stone ? ` + ${U.fmt(Math.round(st.stone * mul * DATA.STUDY_SETTLE()))} 灵石` : ""} · 已消耗 <b>${U.fix(U.fmt(st.spent))}</b> / ${U.fmt(this.ssGfPer(st.per * mul) * st.total / (DATA.STUDY_STEP * 1000 * mul))}</span><div class="gf-btns">${this.gfAutoBtn()}<button class="sm" onclick="G.gfBonusView()">功法加成</button></div></div></div>`;
+        <div class="gf-info"><div class="gf-info-l"><div class="row small"><span>${st.stalled ? `<b class='q5'>${st.stone ? "灵气或灵石" : "灵气"}不足，暂停中</b>` : `${info ? `<span class="c-green">${this.gfGainTxt(info)}</span> · ` : ""}倒计时 <b><span class="cd" id="gf-cd"></span></b>`}</span></div>
+        <div class="row small gf-cost"><span>每 10 秒消耗 <b>${U.fmt(this.ssGfPer(st.per * mul) * DATA.STUDY_SETTLE())}</b> 灵气${st.stone ? ` + ${U.fmt(Math.round(st.stone * mul * DATA.STUDY_SETTLE()))} 灵石` : ""} · 已消耗 <b>${U.fix(U.fmt(st.spent))}</b> / ${U.fmt(this.ssGfPer(st.per * mul) * st.total / (DATA.STUDY_STEP * 1000 * mul))}</span></div></div><div class="gf-btns">${this.gfAutoBtn()}<button class="sm" onclick="G.gfBonusView()">功法加成</button></div></div></div>`;
     },
     // 排队中每部的耗时与累计完成时间（毫秒），供列表渲染与倒计时实时刷新共用
     gfQueueTimes() {

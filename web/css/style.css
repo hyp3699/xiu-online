@@ -1529,8 +1529,13 @@ html .rgmap .rgs.q-dong.cur{background:radial-gradient(ellipse at 80% 50%,rgba(2
 .cfged *{max-width:100%;box-sizing:border-box}
 .cfged textarea{overflow:auto;touch-action:pan-x pan-y}
 /* 自动队列（2026-11-24） */
-.gf-cost .gf-btns{display:flex;flex-direction:column;gap:4px;flex-shrink:0;align-items:stretch}
-.gfa-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.08)}
-.gfa-row select{max-width:7.5em}
-.gfa-row input{width:3.2em;margin:0 2px;text-align:center}
-.gfa-row .gfa-ops{margin-left:auto;display:flex;gap:4px}
+.gf-info{display:flex;gap:8px;align-items:stretch}
+.gf-info-l{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:space-between}
+.gf-info .gf-btns{display:flex;flex-direction:column;justify-content:space-between;gap:4px;flex-shrink:0}
+.gfa-row{display:flex;flex-wrap:nowrap;align-items:center;gap:4px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.08);white-space:nowrap;font-size:13px}
+.gfa-row>b{flex:none}
+.gfa-row button.sel{flex:1 1 auto;min-width:0;max-width:none;padding:4px 6px;gap:4px;font-size:13px}
+.gfa-row>span{flex:none}
+.gfa-row input{width:2.4em;margin:0 2px;padding:4px 2px;text-align:center;font-size:13px}
+.gfa-row .gfa-ops{display:flex;gap:3px}
+.gfa-row .gfa-ops button.sm{padding:4px 7px}
