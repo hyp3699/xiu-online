@@ -163,13 +163,16 @@ G.module({
     /* ---------- 晋升考验（config/sect.js 的 sect.rankTrial） ---------- */
     rankTrialCost(i) { return (CFG.sect.rankTrial.cost || [])[i] || 0; },   // 考验贡献：就是 rankTrial.cost，不乘宗门星级
     makeRankGuard(i) {
-      const sw = (CFG.mobs.STAR_WN || [])[this.sectInfo().star] || "凡界";   // 按宗门星级算界（config/mobs.js STAR_WN）：属性倍率、抗性、伤害减免都按这一界
-      const b = DATA.mobStats(DATA.mobExam(this.sectInfo().star, i), DATA.mobCrit("考官")), v = (x, k) => x * DATA.mobRnd(k, sw);   // config/mobs.js 的 sect
-      return Object.assign(this.addMagic({ rw: sw, name: `${DATA.ranks[i].name}考官`, img: this.npcImg(`考官${this.sectInfo().star}_${i}`, "rn"), boss: false, hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.resEl || b.res, manaBr: b.manaBr, L: b.L, crit: b.crit }, "考核"), { wn: sw });
+      const sw = (CFG.mobs.STAR_WN || [])[this.sectInfo().star] || "凡界";   // 伤害减免按宗门星级算界（config/mobs.js STAR_WN）；属性倍率按 STAR_RAND_WN / STAR_RAND_KIND
+      const rw = this.starRandWn(), rkd = this.starRandKd();   // 属性倍率按 STAR_RAND_WN / STAR_RAND_KIND（用户定 2026-11-24）
+      const b = DATA.mobStats(DATA.mobExam(this.sectInfo().star, i), DATA.mobCrit("考官")), v = (x, k) => x * DATA.mobRnd(k, rw, rkd);   // config/mobs.js 的 sect
+      return Object.assign(this.addMagic({ rw: sw, name: `${DATA.ranks[i].name}考官`, img: this.npcImg(`考官${this.sectInfo().star}_${i}`, "rn"), boss: false, hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.resEl || b.res, manaBr: b.manaBr, L: b.L, crit: b.crit, randWn: rw, randKd: rkd }, "考核"), { wn: sw });
     },
     // 考官属性生成一次后存进存档（s.rankGuard），测试和考验打同一个考官；换宗门 / 宗门星级 / 目标职务变了才重新生成（用户定 2026-11-24）
+    starRandWn() { return (CFG.mobs.STAR_RAND_WN || CFG.mobs.STAR_WN || [])[this.sectInfo().star] || "凡界"; },
+    starRandKd() { return CFG.mobs.STAR_RAND_KIND || "普通"; },
     rankGuardOf(i) {
-      const s = this.s, k = `${s.sect}|${this.sectInfo().star}|${i}`;
+      const s = this.s, k = `${s.sect}|${this.sectInfo().star}|${i}|${this.starRandKd()}${this.starRandWn()}`;   // 倍率设置变了也重新生成
       if (!s.rankGuard || s.rankGuard.k !== k || !s.rankGuard.m) s.rankGuard = { k, m: this.makeRankGuard(i) };
       return JSON.parse(JSON.stringify(s.rankGuard.m));   // 每次战斗用副本，不改存档里的
     },
@@ -759,8 +762,8 @@ G.module({
     makeTowerGuard(floor) {
       const tw = DATA.towerStage(this.sectInfo().star, floor, this.towerMax()), m = {};
       const sw = (CFG.mobs.STAR_WN || [])[this.sectInfo().star] || "凡界";   // 按宗门星级算界（STAR_WN）：属性倍率、抗性、伤害减免
-      m.rw = sw;
-      for (const k of DATA.REF_KEYS) m[k] = k === "res" ? tw[k] : tw[k] * DATA.mobRnd(k, sw);   // 抗性在 addMagic 里每系 × 倍率
+      m.rw = sw; m.randWn = this.starRandWn(); m.randKd = this.starRandKd();   // 属性倍率按 STAR_RAND_WN / STAR_RAND_KIND（用户定 2026-11-24）
+      for (const k of DATA.REF_KEYS) m[k] = k === "res" ? tw[k] : tw[k] * DATA.mobRnd(k, m.randWn, m.randKd);   // 抗性在 addMagic 里每系 × 倍率
       m.crit = tw.crit; m.manaBr = tw.manaBr; m.L = tw.L; if (tw.resEl) m.res = tw.resEl;   // 六系分开
       const ER = CFG.mobs.tower.EL_RED || {}, er = ER[floor % 10]; if (er && ER.PCT) { m.elRed = {}; er.forEach(e => m.elRed[e] = ER.PCT); }   // 层数尾数对应的几系伤害减少
       return Object.assign(this.addMagic(Object.assign(m, { name: `第${floor}层守关者`, img: this.npcImg(`塔${this.sectInfo().star}_${floor}`, "rn"), boss: false }), "tower"), { wn: (CFG.mobs.STAR_WN || [])[this.sectInfo().star] || "凡界" });   // 伤害减免按宗门星级算界（STAR_WN）
