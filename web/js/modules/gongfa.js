@@ -334,7 +334,7 @@ G.module({
     openGfAuto() {
       const A = this.gfAutoCfg(), T = this.gfAutoTypes(), M = +CFG.gongfa.AUTO_RULES || 10, NQ = +CFG.gongfa.AUTO_Q || 2, re = ";G.openGfAuto()";
       const rows = A.rules.map((r, i) => `<div class="gfa-row"><b>${i + 1}.</b>
-        ${this.selBox("gfa" + i, T, r.t, v => { G.gfAutoSet(i, "t", v); G.openGfAuto(); })}
+        ${this.selBox("gfa" + i, T, r.t, v => { G.gfAutoSet(i, "t", v); G.openGfAuto(); }, () => G.openGfAuto())}
         <span>低于<input type="number" min="0" max="${DATA.GONGFA_MAX}" value="${r.lv || ""}" placeholder="满" onchange="G.gfAutoSet(${i},'lv',this.value||0)${re}">层</span>
         <span>≥<input type="number" min="0" max="99" value="${r.star || ""}" placeholder="任" onchange="G.gfAutoSet(${i},'star',this.value||0)${re}">星</span>
         <span class="gfa-ops"><button class="sm" ${i ? "" : "disabled"} onclick="G.gfAutoMove(${i},0)${re}">↑</button><button class="sm" ${i < A.rules.length - 1 ? "" : "disabled"} onclick="G.gfAutoMove(${i},1)${re}">↓</button><button class="sm" onclick="G.gfAutoDel(${i})${re}">删</button></span></div>`).join("");

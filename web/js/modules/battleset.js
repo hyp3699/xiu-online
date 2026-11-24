@@ -70,9 +70,9 @@ G.module({
     },
     bsetToggle(key) { const b = this.bsetGet(), i = b.off.indexOf(key); if (i >= 0) b.off.splice(i, 1); else b.off.push(key); this.dirty(); this.render(); },
     // 游戏风格的下拉选择（代替浏览器自带的 select）：key 唯一名字，opts [[值, 显示]]，cur 当前值，fn(值) 选中后调用
-    selBox(key, opts, cur, fn) {
+    selBox(key, opts, cur, fn, back) {   // back：选择窗口点「关闭」后回到哪（不写 = 直接关闭）
       const esc = x => String(x).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
-      (this._sels || (this._sels = {}))[key] = { opts, cur, fn };
+      (this._sels || (this._sels = {}))[key] = { opts, cur, fn, back };
       const o = opts.find(x => String(x[0]) === String(cur)) || opts[0] || ["", ""];
       return `<button class="sel" data-sel="${esc(key)}" onclick="G.openSel('${esc(key)}')"><span${o[2] ? ` class="${o[2]}"` : ""}>${esc(o[1])}</span><i>▾</i></button>`;   // o[2]：显示颜色 class
     },
@@ -80,9 +80,10 @@ G.module({
       const o = (this._sels || {})[key]; if (!o) return;
       const esc = x => String(x).replace(/&/g, "&amp;").replace(/</g, "&lt;");
       this.modal(`<div class="sel-list">${o.opts.map(([v, t, c], i) => `<button class="${String(v) === String(o.cur) ? "on" : ""} ${c || ""}" onclick="G.pickSel('${key}',${i})">${esc(t)}</button>`).join("")}</div>
-        <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+        <div class="btns"><button onclick="${o.back ? `G.selBack('${key}')` : "G.closeModal()"}">关闭</button></div>`);
       const cur = document.querySelector(".sel-list button.on"); if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: "center" });
     },
+    selBack(key) { const o = (this._sels || {})[key]; this.closeModal(); if (o && o.back) o.back(); },
     pickSel(key, i) {
       const o = (this._sels || {})[key]; this.closeModal(); if (!o || !o.opts[i]) return;
       const [v, t, c] = o.opts[i];
