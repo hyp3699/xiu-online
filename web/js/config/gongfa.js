@@ -111,7 +111,7 @@ CFG.gongfa.tianwai = {
 //   神界：  学习 = 灵石 SHEN_STONE[星级-11] × TYPE[类别] + 本图贡献 SHEN_GX[星级-11] × TYPE[类别]
 //   真经（抗性）每处 6 本，金木水火土雷各一本（BOOKS 的 zhenjue: 6）
 CFG.gongfa.jshop = {
-  PCT: 110,           // 每本效果 = 宗门同星级每本 × %（跟坊市有几本无关）
+  PCT: 96,           // 每本效果 = 宗门同星级每本 × %（跟坊市有几本无关）
   BOOKS: { xinfa: 2, gongjue: 2, zhenjing: 2, mijue: 2, shenfa: 2, sufa: 2, dunshu: 2, fajue: 2, tijue: 2, zhenjue: 2 },   // 仙冥魔每类 2 本（用户定 2026-11-25 07:53：同序号地图仙冥魔三处合起来每类 6 本，金木水火土雷各一）
   SHEN_BOOKS: { xinfa: 3, gongjue: 3, zhenjing: 3, mijue: 3, shenfa: 3, sufa: 3, dunshu: 3, fajue: 3, tijue: 3, zhenjue: 3 },   // 神界每类 3 本（用户定 2026-11-25 08:02：第 1、2 张图合起来 6 本金木水火土雷各一，3、4 张同理）
   STONE: [300000, 600000, 1000000, 1500000, 2000000],   // 仙冥魔：6 星 ~ 10 星
@@ -123,7 +123,7 @@ CFG.gongfa.jshop = {
 
 // 四界功德司功法（data/jiegf.js；仙冥魔 6~10 星，神界 11、12 星）：学习功德 = 仙冥魔 MERIT[星级-6] / 神界 SHEN_MERIT[星级-11] × TYPE[类别]
 CFG.gongfa.gd = {
-  PCT: 110,          // 每本效果 = 宗门同星级每本 × %（跟功德司有几本无关）
+  PCT: 103,          // 每本效果 = 宗门同星级每本 × %（跟功德司有几本无关）
   BOOKS: { xinfa: 2, gongjue: 2, zhenjing: 2, mijue: 2, shenfa: 2, sufa: 2, dunshu: 2, fajue: 2, tijue: 2, zhenjue: 2 },   // 仙冥魔功德司每类 2 本（用户定 2026-11-25 07:53：同序号地图三界合起来 6 本六系各一）
   SHEN_BOOKS: { xinfa: 3, gongjue: 3, zhenjing: 3, mijue: 3, shenfa: 3, sufa: 3, dunshu: 3, fajue: 3, tijue: 3, zhenjue: 3 },   // 神界每类 3 本（用户定 2026-11-25 08:02：第 1、2 张图合起来 6 本金木水火土雷各一，3、4 张同理）
   MERIT: [9000, 10500, 12000, 13500, 15000],   // 仙冥魔：6 星 ~ 10 星（用户定 2026-11-25 ×1.5，原 6000~10000）
