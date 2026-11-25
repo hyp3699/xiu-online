@@ -596,7 +596,11 @@ G.module({
         this.log(`开始学习${this.cqzjName(it.v)}，需 ${U.dur((CFG.cqzj.LEARN_MIN || 10) * 60)}。`, "good");
         return this.after();
       }
-      if (it.kind === "furnace") { if (!this.addFurnaceItem(it.fk, it.g)) return; }
+      if (it.kind === "furnace") {
+        if ((it.maxStar && this.sectInfo().star > it.maxStar) || (it.once && (this.s.trFu || {})[it.fk])) return;
+        if (!this.addFurnaceItem(it.fk, it.g)) return;
+        if (it.once) (this.s.trFu = this.s.trFu || {})[it.fk] = 1;   // 宝库炉子每种只能换一次
+      }
       else if (it.kind === "pill") { if (!this.addPill(it.type, this.r())) return; }
       else this.s.stone += Math.floor(it.n * this.starMul());
       this.s.contrib -= c;
@@ -1113,12 +1117,13 @@ G.module({
             return [0, `<div class="line"><div>${DATA.li(DATA.smIcon("lu"))}${DATA.smName("lu")} ×${it.get}<small>${U.fmt(it.n)} 个同一种${DATA.matKinds.herb}或${DATA.matKinds.ore}${it.cost ? ` + ${U.fmt(it.cost)} 贡献` : ""} · 每天一次</small></div>
               <button class="sm" onclick="G.openLuSwap(${i})" ${lock || done ? "disabled" : ""}>${lock ? `${it.star}星宗门可兑换` : done ? "今日已换" : "兑换"}</button></div>`];
           }
-          const c = this.treasuryCost(it), lock = (it.star || 1) > x.star;
+          if (it.maxStar && x.star > it.maxStar) return [0, ""];   // 宝库炉子只在 1 星宗门显示
+          const c = this.treasuryCost(it), lock = (it.star || 1) > x.star, got = it.once && it.kind === "furnace" && (s.trFu || {})[it.fk];
           const desc = it.kind === "furnace" ? `${it.fk === "dan" ? "炼丹" : "炼器"}速度 +${DATA.furnaceBonus(it.fk, it.g)}% · `
             : "";
           const img = it.kind === "furnace" ? DATA.furnaceIcon(it.fk) : it.kind === "pill" ? DATA.pillIcon(it.type) : DATA.iconImg("stone");
           return [0, `<div class="line"><div>${DATA.li(img)}${this.treasuryName(it)}<small>${desc}${U.fmt(c)} 贡献</small></div>
-            <button class="sm" onclick="G.exchange(${i})" ${lock || s.contrib < c ? "disabled" : ""}>${lock ? `${it.star}星宗门可兑换` : "兑换"}</button></div>`];
+            <button class="sm" onclick="G.exchange(${i})" ${got || lock || s.contrib < c ? "disabled" : ""}>${got ? "已兑换" : lock ? `${it.star}星宗门可兑换` : "兑换"}</button></div>`];
         }) }, ...this.zqBpCards()]);   // 已学会的放最后一张「已学会」卡；凡品阵旗图纸按星级显示
       } else if (tt === "seed") {
         h += `<div class="card"><h3>灵药种子<small>种一季用一颗</small></h3>` + this.seedList().map(({ g, lock }) => { const n = DATA.herbs[g], c = DATA.seedCost(g), has = false;

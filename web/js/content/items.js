@@ -59,9 +59,9 @@ ITEMS.shop = [
  *   { kind: "lu", star: 2, n: 1000, get: 10, cost: 300 }   n 个同一种药材或矿石（玩家自选）加 cost 贡献换 get 个养神露，每天一次
  */
 ITEMS.treasury = [
-  { kind: "furnace", fk: "dan", g: 0, cost: 100 },
-  { kind: "furnace", fk: "qi",  g: 0, cost: 100 },
-  { kind: "stone", n: 50, cost: 100, name: "一袋灵石" },
+  { kind: "furnace", fk: "dan", g: 0, cost: 100, maxStar: 1, once: 1 },   // 只有 1 星宗门能换，每个人物只能换一次（用户定 2026-11-25）
+  { kind: "furnace", fk: "qi",  g: 0, cost: 100, maxStar: 1, once: 1 },
+  { kind: "stone", n: 500, cost: 100, name: "一袋灵石" },   // 500 × 宗门星级倍率（原 50）
   { kind: "chuqiao" },   // 元婴出窍秘法：消耗、效果、境界限制在 config/sect.js 的 CFG.chuqiao
   { kind: "neiguan" },   // 太上内观经：学会才能打开经脉（config/sect.js 的 CFG.neiguan）
   { kind: "cqzj", v: 1 }, { kind: "cqzj", v: 2 }, { kind: "cqzj", v: 3 },
