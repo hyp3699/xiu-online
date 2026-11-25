@@ -113,7 +113,7 @@ CFG.gongfa.tianwai = {
 CFG.gongfa.jshop = {
   PCT: 110,           // 每本效果 = 宗门同星级每本 × %（跟坊市有几本无关）
   BOOKS: { xinfa: 2, gongjue: 2, zhenjing: 2, mijue: 2, shenfa: 2, sufa: 2, dunshu: 2, fajue: 2, tijue: 2, zhenjue: 2 },   // 仙冥魔每类 2 本（用户定 2026-11-25 07:53：同序号地图仙冥魔三处合起来每类 6 本，金木水火土雷各一）
-  SHEN_BOOKS: { xinfa: 6, gongjue: 6, zhenjing: 6, mijue: 6, shenfa: 6, sufa: 6, dunshu: 6, fajue: 6, tijue: 6, zhenjue: 6 },   // 神界神市（11、12 星）每类 6 本，六系各一
+  SHEN_BOOKS: { xinfa: 3, gongjue: 3, zhenjing: 3, mijue: 3, shenfa: 3, sufa: 3, dunshu: 3, fajue: 3, tijue: 3, zhenjue: 3 },   // 神界每类 3 本（用户定 2026-11-25 08:02：第 1、2 张图合起来 6 本金木水火土雷各一，3、4 张同理）
   STONE: [300000, 600000, 1000000, 1500000, 2000000],   // 仙冥魔：6 星 ~ 10 星
   GX: [12000, 16000, 20000, 24000, 30000],                 // 仙冥魔：6 星 ~ 10 星
   SHEN_STONE: [3000000, 4000000],   // 神界：11 星、12 星
@@ -125,7 +125,7 @@ CFG.gongfa.jshop = {
 CFG.gongfa.gd = {
   PCT: 110,          // 每本效果 = 宗门同星级每本 × %（跟功德司有几本无关）
   BOOKS: { xinfa: 2, gongjue: 2, zhenjing: 2, mijue: 2, shenfa: 2, sufa: 2, dunshu: 2, fajue: 2, tijue: 2, zhenjue: 2 },   // 仙冥魔功德司每类 2 本（用户定 2026-11-25 07:53：同序号地图三界合起来 6 本六系各一）
-  SHEN_BOOKS: { xinfa: 6, gongjue: 6, zhenjing: 6, mijue: 6, shenfa: 6, sufa: 6, dunshu: 6, fajue: 6, tijue: 6, zhenjue: 6 },   // 用户定 2026-11-25：每种 6 本（金木水火土雷各一本，07:44 改），真经 6 本六系各一（原第 7 本删掉）//   // 神界愿力祠（11、12 星）每类几本：2026-11-12 用户要求每种多一本（真经 7 本：六种抗性各一本 + 第 7 本与第 1 本同系）
+  SHEN_BOOKS: { xinfa: 3, gongjue: 3, zhenjing: 3, mijue: 3, shenfa: 3, sufa: 3, dunshu: 3, fajue: 3, tijue: 3, zhenjue: 3 },   // 神界每类 3 本（用户定 2026-11-25 08:02：第 1、2 张图合起来 6 本金木水火土雷各一，3、4 张同理）
   MERIT: [9000, 10500, 12000, 13500, 15000],   // 仙冥魔：6 星 ~ 10 星（用户定 2026-11-25 ×1.5，原 6000~10000）
   SHEN_MERIT: [20000, 25000],               // 神界：11 星、12 星（已不用，神界愿力祠看 SHEN_YL）
   SHEN_YL: [75000, 750000],                 // 神界愿力祠每本愿力（2026-11-25 ×1.5，原 5 万→50 万）：第一重天 7.5 万 → 最后一重天 75 万，中间平均（不乘 TYPE，用户定 2026-11-12）

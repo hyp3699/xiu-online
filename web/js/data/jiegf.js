@@ -35,6 +35,11 @@ DATA.jieGf = { jshop: [], gd: [] };
       fams.forEach(f => { const b0 = E.findIndex(e => e.id === ox.els[f]); if (b0 < 0) return;
         XMM.forEach((w, k) => { const o = list.find(x => x.w === w && DATA.worldMapIdx[w].indexOf(x.map) === i); if (!o) return;
           for (let b = 1; b <= 12; b++) { const key = b === 1 ? f : f + b; if (key in o.els) o.els[key] = E[(b0 + 2 * k + b - 1) % E.length].id; } }); }); });
+    // 神界（新 11、12 星）：第 1、2 张图每类各 3 本，合起来 6 本 = 六系各一（3、4 张同理）；单数图第 1 本属性不变（用户定 2026-11-25）
+    const SM = DATA.worldMapIdx.shen || [], sOf = i => list.find(x => x.nw && x.map === SM[i]);
+    for (let i = 0; i < SM.length; i += 2) { const o1 = sOf(i); if (!o1) continue;
+      fams.forEach(f => { const b0 = E.findIndex(e => e.id === o1.els[f]); if (b0 < 0) return;
+        [o1, sOf(i + 1)].forEach((o, k) => { if (!o) return; for (let b = 1; b <= 12; b++) { const key = b === 1 ? f : f + b; if (key in o.els) o.els[key] = E[(b0 + 3 * k + b - 1) % E.length].id; } }); }); }
     list.forEach(o => { o.el = o.els.mijue; DATA.gfSrcById[o.id] = o; });
   }
 })();
