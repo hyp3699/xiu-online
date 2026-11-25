@@ -65,8 +65,12 @@ G.module({
     },
     async restart() {
       if (!(await this.ask("确定删除这个账号的存档，从头开始？"))) return;
+      this.modal(`<h2>输入密码确认删档</h2><p><input id="rs-pw" type="password" autocomplete="current-password" placeholder="账号密码"></p><div class="btns"><button class="primary" onclick="G.restartGo()">删除存档</button><button onclick="G.closeModal()">取消</button></div>`);
+    },
+    restartGo() {
+      const pw = (document.getElementById("rs-pw") || {}).value || ""; if (!pw) return;
       this._stopped = true;
-      API.resetCharacter().then(() => location.reload()).catch(e => { this._stopped = false; this.modal(`<h2>重置失败</h2><p>${e.message}</p><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`); });
+      API.resetCharacter(pw).then(() => location.reload()).catch(e => { this._stopped = false; this.modal(`<h2>重置失败</h2><p>${e.message}</p><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`); });
     },
 
     // 创建角色（不再随机灵根；灵根在「灵根」页用灵石提升）

@@ -661,7 +661,7 @@ const API = {
 
   async upload() { throw new Error("客户端存档上传已关闭，所有进度保存在服务器"); },
   beacon() {},
-  async resetCharacter() { return this.req("character/reset", {}, "POST"); },
+  async resetCharacter(password) { return this.req("character/reset", { password: String(password || "") }, "POST"); },
 
   // 管理员与账号 API
   async adminInfo() { return this.req("admin"); },

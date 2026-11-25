@@ -949,8 +949,9 @@ G.module({
       this.log(`装备了${e.name}。`, "good"); this.closeModal(); this.after();
     },
     unequip(key) {
-      if (key.startsWith("fb")) { const k = +key.slice(2); if (!this.s.fabao[k]) return; this.addEquip(this.s.fabao[k]); this.s.fabao[k] = null; }   // 法宝卸下不补位：该格留空，后面的法宝不往前挪
-      else { if (!this.s.equip[key]) return; this.addEquip(this.s.equip[key]); this.s.equip[key] = null; }   // 装备（含戒指）本来就是按格位存，卸下只清该格，不补位；背包满时卸下的装备进传音，不再塞入 e:null 的幻影物品
+      key = String(key);
+      if (/^fb\d+$/.test(key)) { const k = +key.slice(2); if (!(k < this.s.fabao.length)) return; if (!this.s.fabao[k]) return; this.addEquip(this.s.fabao[k]); this.s.fabao[k] = null; }   // 法宝卸下不补位：该格留空，后面的法宝不往前挪
+      else { if (!DATA.equipSlots.includes(key) || !this.s.equip[key]) return; this.addEquip(this.s.equip[key]); this.s.equip[key] = null; }   // 装备（含戒指）本来就是按格位存，卸下只清该格，不补位；背包满时卸下的装备进传音，不再塞入 e:null 的幻影物品
       this.closeModal(); this.after();
     },
     // 宗门秘境掉的炼丹 / 炼器经验：每个 +MJ.CXP_VAL 点
@@ -1006,6 +1007,7 @@ G.module({
       // 只靠它校验等于没校验；服务端跑同一份代码，控制台越权调用也会被挡下。
       if (!DATA.isSpell(id) || !this.s.gongfa[id]) return;
       const sl = this.s.spellSlots;
+      if (rep !== undefined && rep !== null) { rep = Math.floor(+rep); if (!(rep >= 0 && rep < this.slotCount())) return; } else rep = undefined;   // 下标越界（如 5000000）会把数组撑大卡死服务器
       if (sl.includes(id) && (rep === undefined || sl[rep] !== id)) return;
       if (rep !== undefined) sl[rep] = id;
       else { const hole = sl.findIndex(x => !x); if (hole >= 0 && hole < this.slotCount()) sl[hole] = id; else if (sl.length < this.slotCount()) sl.push(id); }
@@ -1042,7 +1044,7 @@ G.module({
       this.log(`《${g.name}》精研成功，属性伤害 +${U.fmt(DATA.jyStep(g.star, "JY_DMG"))}。`, "good");
       this.dirty(); this.after(); this.openSpellJy(id);
     },
-    unslotSpell(i) { this.s.spellSlots[i] = null; this.closeModal(); this.after(); },   // 卸下不补位：该格留空，后面的法术不往前挪
+    unslotSpell(i) { i = Math.floor(+i); if (!(i >= 0 && i < this.slotCount())) return; this.s.spellSlots[i] = null; this.closeModal(); this.after(); },   // 卸下不补位：该格留空，后面的法术不往前挪
     // 点法术栏：显示详细，可卸下
     openSpellSlot(i) {
       const id = this.s.spellSlots[i], g = id && DATA.spellInfo(id, this.s.gongfa[id]); if (!g) return;

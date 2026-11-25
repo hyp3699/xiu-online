@@ -150,11 +150,13 @@ G.module({
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
     lzPut(i, ft) {
+      i = Math.floor(+i); if (!(i >= 0 && i < CFG.lingzhu.SLOTS)) return;   // 只能放 SLOTS 格（原来不查下标，能放无限颗、或撑大数组）
       const s = this.s; if (s.lzSlot[i] || !this.takeSm("lz", 1, ft)) return;
       s.lzSlot[i] = { ft, v: CFG.lingzhu.BASE, n: 0 };   // n = 强化次数（灵珠数值改了时迁移用）
       this.log(`${DATA.smName("lz", ft)}放入聚灵阵，聚灵 +${U.fmt(CFG.lingzhu.BASE)}。`, "good"); this.after(); this.lzOpen(i);
     },
     lzEnh(i, times) {
+      i = Math.floor(+i); if (!(i >= 0 && i < CFG.lingzhu.SLOTS)) return;
       const C = CFG.lingzhu, z = this.s.lzSlot[i]; if (!z) return;
       // 按钮传 Infinity 时 JSON 序列化成 null，Math.min(null, ...) = 0 永远失败：
       // 0 / null / undefined 都表示「全部」，其它数按次数算。

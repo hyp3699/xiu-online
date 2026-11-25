@@ -3072,6 +3072,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
     // 坊市药材、矿石
     shopMatPrice(kind, g) { return DATA.shopPrice(Math.max(1, Math.ceil(DATA.matPrice(kind, g) * (CFG.price.SHOP_MAT || 3)))); },
     buyMat(kind, g, n) {
+      if (kind !== "herb" && kind !== "ore") return;   // 乱传 kind 会按矿石给、按 0 价算（刷灵石）
       n = Math.min(9999, Math.floor(n || +($("#shop-n") && $("#shop-n").value) || 1));
       const names = kind === "herb" ? DATA.herbs : DATA.ores;
       if (n <= 0 || !DATA.fanMats().has(names[g])) return;

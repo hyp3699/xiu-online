@@ -653,6 +653,7 @@ G.module({
     seedOK(g) { return DATA.herbGrow(g) && this.seedList().some(x => x.g === g && !x.lock); },
     // 兑换材料（药材、矿石，凡界全部可换）；n 不填就用输入框里的数量
     exchangeMat(kind, g, n) {
+      if (kind !== "herb" && kind !== "ore") return;   // 乱传 kind 会按矿石给、贡献按 0 算
       n = Math.min(9999, Math.floor(n || +($("#tr-n") && $("#tr-n").value) || 1));
       if (n <= 0 || !this.treasuryMatOK(kind, g)) return;
       const c = DATA.matContrib(kind, g) * n;

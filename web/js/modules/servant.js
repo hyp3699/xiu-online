@@ -107,7 +107,7 @@ G.module({
       s.stone -= c; d.paid = this.bjDay();
       this.log(`给${this.svName(d)}发放俸禄 ${U.fmt(c)} 灵石。`, "good"); this.after(); this.openSv(i);
     },
-    svAutoToggle(i) { this.s.svAuto = !this.s.svAuto; this.tickAll(false); this.after(); if (i != null) this.openSv(i); },
+    svAutoToggle(i) { this.s.svAuto = !this.s.svAuto; /* 不再调 tickAll：每切一次多结算一个周期（可刷修为） */ this.after(); if (i != null) this.openSv(i); },
     svUp(i) {
       const s = this.s, d = s.servants[i]; if (!d || d.lv >= CFG.servant.MAX_LV) return;
       const c = this.svUpCost(d), ly = this.svUpLy(d), ft = this.svLyFt(d); if (s.stone < c) return this.log("灵石不足。", "sys");

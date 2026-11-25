@@ -326,8 +326,15 @@ function regHit(key) {
 // 登录+注册全局限流（内存滑动窗口）：单靠按 IP / 按（账号，IP）限流挡不住轮换 IP/用户名
 // 打满哈希槽（HASH_MAX=4）。登录和注册合计每分钟最多 120 次，超了直接 429，不占哈希槽；
 // 注册另有全局每小时 60 次。正常玩家和现有测试的登录次数远低于这个量，不会被误拦。
-const AUTH_MIN_LIMIT = 120, AUTH_MIN_MS = 60_000, REG_HOUR_LIMIT = 60, REG_HOUR_MS = 3600_000;
+const AUTH_MIN_LIMIT = 3000, AUTH_IP_LIMIT = 30, AUTH_MIN_MS = 60_000,   // 全服共用只作最后防线；主要按 IP 每分钟 AUTH_IP_LIMIT 次
+  REG_HOUR_LIMIT = 60, REG_HOUR_MS = 3600_000;
 const authAttempts = [], regGlobalAttempts = [];
+const authIpHits = new Map();
+function authIpLimited(req) {   // 登录 / 注册按 IP 限流：每分钟最多 AUTH_IP_LIMIT 次
+  const key = clientIp(req), now = Date.now(); let r = authIpHits.get(key);
+  if (!r || now - r.first > AUTH_MIN_MS) { r = { n: 0, first: now }; authIpHits.set(key, r); }
+  return ++r.n > AUTH_IP_LIMIT;
+}
 function rateLimited(list, limit, windowMs) {
   const now = Date.now();
   while (list.length && now - list[0] > windowMs) list.shift();
@@ -388,12 +395,13 @@ function validUsername(raw) {
 // 不会落盘。sellItem(i, 1e12) 是整数、能过这一层，靠 sellItem 内部按格 clamp 挡下。
 // 数量上限仍保留原来的 1e12，
 // 因为 cultSetSave 的灵石阈值这类设置本身就可能超过 1e9，真正防超卖靠下面各函数的按格 clamp。
-const NEGATIVE_ONE_ACTIONS = new Set(["bsetMove", "jmSwap"]);
+const NEGATIVE_ONE_ACTIONS = new Set(["bsetMove", "jmSwap", "gridQuick"]);   // gridQuick(a, -1) = 合并地图整张图一起快速游历
 function validateValue(value, depth = 0, action = "") {
   if (depth > 5) throw new Error("操作参数层级过深");
   if (value === null || typeof value === "boolean") return;
   if (typeof value === "string") {
     if (value.length > 2048) throw new Error("操作参数过长");
+    if (["__proto__", "prototype", "constructor"].includes(value)) throw new Error("操作参数无效");   // 字符串参数当键名用（如 unequip("__proto__")）会取到原型对象
     // 长得像数字的字符串（"1e21"、"-5"、"Infinity"）按数字同样校验：引擎里大量 Math.floor(+n)，字符串会绕过下面的数字检查
     const t = value.trim();
     if (t && /^[-+]?(\d|\.\d|Infinity)/.test(t) && !Number.isNaN(Number(t))) return validateValue(Number(t), depth, action);
@@ -457,7 +465,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "POST" && route === "/api/register") {
       const body = await readBody(req);
-      if (rateLimited(authAttempts, AUTH_MIN_LIMIT, AUTH_MIN_MS)) return error(res, 429, "登录/注册太频繁，请稍后再试");
+      if (authIpLimited(req) || rateLimited(authAttempts, AUTH_MIN_LIMIT, AUTH_MIN_MS)) return error(res, 429, "登录/注册太频繁，请稍后再试");
       if (rateLimited(regGlobalAttempts, REG_HOUR_LIMIT, REG_HOUR_MS)) return error(res, 429, "注册太频繁，请 1 小时后再试");
       if (!registrationOpen()) return error(res, 403, "暂未开放注册");
       const username = validUsername(body.username), password = String(body.password || "");
@@ -472,7 +480,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === "POST" && route === "/api/login") {
       const body = await readBody(req), ip = clientIp(req);
-      if (rateLimited(authAttempts, AUTH_MIN_LIMIT, AUTH_MIN_MS)) return error(res, 429, "登录/注册太频繁，请稍后再试");
+      if (authIpLimited(req) || rateLimited(authAttempts, AUTH_MIN_LIMIT, AUTH_MIN_MS)) return error(res, 429, "登录/注册太频繁，请稍后再试");
       let username;
       try { username = validUsername(body.username); } catch { loginFail("ip:" + ip); return error(res, 401, "账号或密码错误"); }
       if (loginBlocked("ip:" + ip) || loginBlocked("ua:" + username + "@" + ip)) return error(res, 429, "登录失败次数过多，请 15 分钟后再试");
@@ -561,7 +569,9 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 201, { data, serverNow: Date.now() });
     }
     if (req.method === "POST" && route === "/api/character/reset") {
-      await readBody(req);
+      const body = await readBody(req), ip = clientIp(req);   // 删档要重新输入密码（令牌泄露也删不了档）
+      if (loginBlocked("ua:" + user.username + "@" + ip)) return error(res, 429, "密码错误次数过多，请 15 分钟后再试");
+      if (!equalHex(await passwordHash(String(body.password || ""), user.salt), user.password_hash)) { loginFail("ua:" + user.username + "@" + ip); return error(res, 401, "密码错误"); }
       db.prepare("DELETE FROM saves WHERE user_id=?").run(user.id);
       db.prepare("DELETE FROM hist WHERE user_id=?").run(user.id);
       db.prepare("DELETE FROM receipts WHERE user_id=?").run(user.id); receipts.delete(user.id);
@@ -724,7 +734,7 @@ const server = http.createServer(async (req, res) => {
       if (db.prepare("SELECT 1 FROM gifts WHERE code=?").get(code)) return error(res, 400, "礼包码已存在");
       for (const item of items) { const bad = giftItemError(item); if (bad) return error(res, 400, bad); }
       const payload = { items };
-      const maxUses = Math.max(1, Math.min(100_000, Number(body.uses || body.max_uses || 1)));
+      const maxUses = Math.max(1, Math.min(100_000, Math.floor(Number(body.uses || body.max_uses || 1)) || 1));   // 非数字按 1
       const expiresAt = body.expires_at ? Number(body.expires_at) : null;
       db.prepare("INSERT INTO gifts(code,payload,max_uses,expires_at,created_at) VALUES(?,?,?,?,?)").run(code, JSON.stringify(payload), maxUses, expiresAt, Date.now());
       return sendJson(res, 201, { ok: true, code });
@@ -1252,6 +1262,7 @@ const timer = setInterval(() => {
     beat();   // 运行时心跳：停机窗口的起点，重启时据此跳过停机期
     for (const [key, r] of loginFails) if (now - r.first > 10 * 60_000 && (!r.until || now > r.until)) loginFails.delete(key);
     for (const [key, r] of regHits) if (now - r.first > 60 * 60_000) regHits.delete(key);
+    for (const [key, r] of authIpHits) if (now - r.first > AUTH_MIN_MS) authIpHits.delete(key);
     for (const [ticket, item] of tickets) if (item.expiresAt < now) tickets.delete(ticket);
     for (const [userId, entry] of engines) if (!clients.has(userId) && now - entry.lastUsed > 120_000) dropEngine(userId);
     db.prepare("DELETE FROM tokens WHERE expires_at<?").run(now);

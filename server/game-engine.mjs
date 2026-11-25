@@ -495,6 +495,7 @@ GameEngine.prototype.insane = function (s) {
       if (k === "log" || k === "_nm") continue;
       const v = o[k];
       if (typeof v === "number") { if (!Number.isFinite(v)) { bad.push(p + "." + k); return; } }
+      else if (Array.isArray(v) && v.length > 20000) { bad.push(p + "." + k + ".length"); return; }   // 下标越界撑大的数组（如 spellSlots[5000000]）
       else if (v && typeof v === "object") walk(v, p + "." + k, d + 1);
     }
   };

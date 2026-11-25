@@ -116,7 +116,13 @@ const G = {
   },
   // 存档缺字段时，用模块默认值补上（以后加新功能不会坏档）
   migrate(s) {
-    if (!s.sid) s.sid = this.newSid();   // 老存档补存档编号
+    if (!s.sid) s.sid = this.newSid();
+    {   // 清理参数漏洞留下的脏数据（2026-11-25）：灵珠超格、kind 不对的材料、空壳装备、"undefined" 装备格
+      const LS = (CFG.lingzhu || {}).SLOTS || 5; if (Array.isArray(s.lzSlot) && s.lzSlot.length > LS) s.lzSlot.length = LS;
+      if (Array.isArray(s.spellSlots) && s.spellSlots.length > 100) s.spellSlots.length = 30;
+      if (Array.isArray(s.bag)) s.bag = s.bag.map(it => it && ((it.t === "mat" && it.kind !== "herb" && it.kind !== "ore") || (it.t === "eq" && !(it.e && it.e.slot))) ? null : it);
+      if (s.equip && typeof s.equip === "object") for (const k of Object.keys(s.equip)) if (k === "undefined" || (s.equip[k] && !s.equip[k].slot)) delete s.equip[k];
+    }   // 老存档补存档编号
     this.oreV2(s);   // 要在 nmMigrate 之前：矿石序号变了
     DATA.nmMigrate(s);   // 存档里的旧名字 → config/names.js 的新名字
     if (!s.ssGfS6) {   // 凝神观想诀 3 段（36 层 ×1/×2/×3）→ 6 段（18 层 ×1~×6）（用户定 2026-11-16）：层数不变，神识强度按新旧加成差补
