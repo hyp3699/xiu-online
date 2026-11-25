@@ -602,7 +602,7 @@ G.module({
         if (it.once) (this.s.trFu = this.s.trFu || {})[it.fk] = 1;   // 宝库炉子每种只能换一次
       }
       else if (it.kind === "pill") { if (!this.addPill(it.type, this.r())) return; }
-      else this.s.stone += Math.floor(it.n * this.starMul());
+      else this.s.stone += Math.floor(it.n * (it.fixed ? 1 : this.starMul()));
       this.s.contrib -= c;
       this.log("兑换成功。", "good"); this.after();
     },

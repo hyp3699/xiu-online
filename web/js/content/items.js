@@ -51,7 +51,7 @@ ITEMS.shop = [
 /* ---------------- 3. 宗门宝库 · 杂物 ----------------
  * 每一行一种，cost = 贡献（不乘星级），star = 需要门派星级（不写 = 1 星起）：
  *   { kind: "furnace", fk: "dan", g: 0, cost: 100 }   炉子（dan 炼丹炉 / qi 炼器炉，g 阶序号 0 = 一阶）
- *   { kind: "stone", n: 2000, cost: 100, name: "一袋灵石" }  灵石 n × 门派星级倍率
+ *   { kind: "stone", n: 2000, cost: 100, name: "一袋灵石" }  灵石 n × 门派星级倍率（fixed: 1 时固定 n）
  *   { kind: "pill", type: "juqi", cost: 50 }          修炼丹（当前境界品质）
  *   { kind: "chuqiao" }                               元婴出窍秘法（数值在 config/sect.js 的 CFG.chuqiao）
  *   { kind: "neiguan" }                               太上内观经（学会才能打开经脉，数值在 config/sect.js 的 CFG.neiguan）
@@ -61,7 +61,7 @@ ITEMS.shop = [
 ITEMS.treasury = [
   { kind: "furnace", fk: "dan", g: 0, cost: 100, maxStar: 1, once: 1 },   // 只有 1 星宗门能换，每个人物只能换一次（用户定 2026-11-25）
   { kind: "furnace", fk: "qi",  g: 0, cost: 100, maxStar: 1, once: 1 },
-  { kind: "stone", n: 500, cost: 100, name: "一袋灵石" },   // 500 × 宗门星级倍率（原 50）
+  { kind: "stone", n: 500, fixed: 1, cost: 100, name: "一袋灵石" },   // 固定 500，不乘宗门星级倍率（用户定 2026-11-25）
   { kind: "chuqiao" },   // 元婴出窍秘法：消耗、效果、境界限制在 config/sect.js 的 CFG.chuqiao
   { kind: "neiguan" },   // 太上内观经：学会才能打开经脉（config/sect.js 的 CFG.neiguan）
   { kind: "cqzj", v: 1 }, { kind: "cqzj", v: 2 }, { kind: "cqzj", v: 3 },
