@@ -1047,7 +1047,7 @@ G.module({
     openSpellSlot(i) {
       const id = this.s.spellSlots[i], g = id && DATA.spellInfo(id, this.s.gongfa[id]); if (!g) return;
       this.modal(`<h2 class="q1">《${g.name}》</h2><p><span class="c-red">${g.star}星</span> · ${g.el.name}系 · <span class="c-green">${g.lv} 层</span> · 攻击 ${U.fmt(g.atk)}<br>${this.spellDmgTxt(g, 1)}<br>耗法力 ${U.fmt(g.mana)} · 每场战斗最多 ${g.uses} 次<br>${g.fuPct ? `<span class="c-green">融合 +${U.dec(g.fuPct)}%（${DATA.fuseTxt(g.fu)}）</span>` : "未融合"} · ${g.jy ? `<span class="c-green">已精研 ${U.fmt(g.jy)} 次</span>` : "未精研"}</p>
-        <div class="btns g3"><button onclick="G.openSpellJy('${id}')">精研</button><button onclick="G.openSpellFuse('${id}')">融合</button><button onclick="G.openSpellAdv('${id}')">进阶</button>
+        <div class="btns g3"><button onclick="G.openSpellJy('${id}')">精研</button><button onclick="G.openSpellFuse('${id}')">融合</button>
         <button onclick="G.unslotSpell(${i})">卸下</button><button onclick="G.openSpellPick(${i})">更换</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
 
@@ -1078,7 +1078,7 @@ G.module({
     openSpellFuse(id) {
       const s = this.s, g = DATA.spellInfo(id, s.gongfa[id]); if (!g || !s.gongfa[id]) return;
       const C = DATA.fuseCfg(), fu = g.fu || {}, M = this.spMax(), P = C.PCT || [];
-      let h = `<p>融合星级更低、已修炼到 ${M} 层的法术，被融合的法术消失，百分百成功。每个星级最多融合 ${C.PER_STAR} 本。<br>当前伤害 +${U.dec(g.fuPct)}%<br><small>${g.star > 1 ? this.fuseRow(fu, g.star) : "1 星法术没有可融合的"}</small></p>`;
+      let h = `<p>融合星级更低、已修炼到 ${M} 层的法术，被融合的法术消失，百分百成功；它的融合数量、精研次数按两边较高的保留。每个星级最多融合 ${C.PER_STAR} 本。<br>当前伤害 +${U.dec(g.fuPct)}%<br><small>${g.star > 1 ? this.fuseRow(fu, g.star) : "1 星法术没有可融合的"}</small></p>`;
       if (g.lv < M) h += `<p class="desc q5">本法术修炼到 ${M} 层才能融合。</p>`;
       else {
         const L = this.spOwned().filter(x => x !== id).map(x => DATA.spellInfo(x, s.gongfa[x])).filter(x => x.star < g.star && x.lv >= M).sort((a, b) => b.star - a.star);
@@ -1093,36 +1093,15 @@ G.module({
       if (!s.gongfa[id] || !g || !f || g.lv < M || f.lv < M || f.star >= g.star) return;
       const fu = (s.spFuse = s.spFuse || {})[id] = s.spFuse[id] || {};
       if ((fu[f.star] || 0) >= C.PER_STAR) return this.log(`${f.star}星法术已融合 ${C.PER_STAR} 本。`, "sys");
+      // 被融合法术的融合数量、精研次数按两边较高的保留（融合按星取较大，上限 PER_STAR；用户定 2026-11-25，取代法术进阶）
+      const fuF = (s.spFuse || {})[fid] || {}, jyF = (s.spJy || {})[fid] || 0;
+      for (const k in fuF) fu[k] = Math.min(C.PER_STAR || 99, Math.max(fu[k] || 0, fuF[k] || 0));
+      if (jyF > ((s.spJy || {})[id] || 0)) (s.spJy = s.spJy || {})[id] = jyF;
       this.spDrop(fid); fu[f.star] = (fu[f.star] || 0) + 1;
-      this.log(`《${g.name}》融合了《${f.name}》，伤害 +${U.dec(DATA.fusePct(fu))}%。`, "good");
+      this.log(`《${g.name}》融合了《${f.name}》，伤害 +${U.dec(DATA.fusePct(fu))}%${jyF || Object.keys(fuF).length ? "，融合数量、精研次数按较高的保留" : ""}。`, "good");
       this.dirty(); this.after(); this.openSpellFuse(id);
     },
-    openSpellAdv(id) {
-      const s = this.s, g = DATA.spellInfo(id, s.gongfa[id]); if (!g || !s.gongfa[id]) return;
-      const M = this.spMax();
-      let h = `<p>修炼到 ${M} 层后，用一本高一星、同属性、也修炼到 ${M} 层的法术进阶：本法术升一星，精研、融合效果和层数保留，用掉的那本消失。</p>`;
-      if (g.lv < M) h += `<p class="desc q5">本法术修炼到 ${M} 层才能进阶。</p>`;
-      else {
-        const L = this.spOwned().map(x => DATA.spellInfo(x, s.gongfa[x])).filter(x => x.id !== id && x.star === g.star + 1 && x.el.id === g.el.id && x.lv >= M);
-        h += L.length ? L.map(x => `<div class="line"><div>《${x.name}》<small>${x.star}星 · ${x.el.name}系 · ${x.lv} 层</small></div><button class="sm" onclick="G.spellAdv('${id}','${x.id}')">进阶</button></div>`).join("")
-          : `<p class="desc">没有可用的法术（要${g.star + 1}星、${g.el.name}系、修炼到 ${M} 层）。</p>`;
-      }
-      this.modal(`<h2 class="q1">《${g.name}》进阶</h2>${h}<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
-    },
-    spellAdv(id, tid) {
-      const s = this.s, g = DATA.spellInfo(id, s.gongfa[id]), t = tid !== id && s.gongfa[tid] && DATA.spellInfo(tid, s.gongfa[tid]), M = this.spMax();
-      if (!s.gongfa[id] || !g || !t || g.lv < M || t.lv < M || t.star !== g.star + 1 || t.el.id !== g.el.id) return;
-      // 目标法术已学且已有精研 / 融合时不能直接覆盖：取两边较大的精研，
-      // 融合按星取较大值（上限 PER_STAR），两边都不丢。
-      const jy = Math.max((s.spJy || {})[id] || 0, (s.spJy || {})[tid] || 0), fu0 = (s.spFuse || {})[id] || {}, fuT = (s.spFuse || {})[tid] || {}, fu = {}, lv = Math.max(g.lv, t.lv);
-      for (const k of new Set([...Object.keys(fu0), ...Object.keys(fuT)])) fu[k] = Math.min(DATA.fuseCfg().PER_STAR || 99, Math.max(fu0[k] || 0, fuT[k] || 0));
-      this.spDrop(id, tid);
-      s.gongfa[tid] = lv;
-      s.spJy = s.spJy || {}; if (jy) s.spJy[tid] = jy; else delete s.spJy[tid];
-      s.spFuse = s.spFuse || {}; if (Object.keys(fu).length) s.spFuse[tid] = fu; else delete s.spFuse[tid];
-      this.log(`《${g.name}》进阶为${t.star}星《${t.name}》，精研、融合效果保留。`, "gold");
-      this.closeModal(); this.dirty(); this.after();
-    },
+
   },
 
   view() {
