@@ -1047,8 +1047,8 @@ G.module({
     openSpellSlot(i) {
       const id = this.s.spellSlots[i], g = id && DATA.spellInfo(id, this.s.gongfa[id]); if (!g) return;
       this.modal(`<h2 class="q1">《${g.name}》</h2><p><span class="c-red">${g.star}星</span> · ${g.el.name}系 · <span class="c-green">${g.lv} 层</span> · 攻击 ${U.fmt(g.atk)}<br>${this.spellDmgTxt(g, 1)}<br>耗法力 ${U.fmt(g.mana)} · 每场战斗最多 ${g.uses} 次<br>${g.fuPct ? `<span class="c-green">融合 +${U.dec(g.fuPct)}%（${DATA.fuseTxt(g.fu)}）</span>` : "未融合"} · ${g.jy ? `<span class="c-green">已精研 ${U.fmt(g.jy)} 次</span>` : "未精研"}</p>
-        <div class="btns g3"><button onclick="G.openSpellJy('${id}')">精研</button><button onclick="G.openSpellFuse('${id}')">融合</button>
-        <button onclick="G.unslotSpell(${i})">卸下</button><button onclick="G.openSpellPick(${i})">更换</button><button onclick="G.closeModal()">关闭</button></div>`);
+        <div class="btns g4"><button onclick="G.openSpellJy('${id}')">精研</button><button onclick="G.openSpellFuse('${id}')">融合</button>
+        <button onclick="G.unslotSpell(${i})">卸下</button><button onclick="G.openSpellPick(${i})">更换</button><button class="row-full" onclick="G.closeModal()">关闭</button></div>`);
     },
 
     /* ---------- 法术融合 / 进阶、法宝融合（config/gongfa.js FUSE）---------- */
