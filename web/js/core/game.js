@@ -86,7 +86,7 @@ const G = {
     s.ssGfS6 = 1;   // 凝神观想诀已是 6 段加成（见 migrate）
     s._oreV2 = 1;   // v254 矿石表新版（见 migrate）
     s.sid = this.newSid(); s.sidNew = 1; s.hero = "";   // 存档编号：本机 localStorage 里的存档设置（隐藏丹方等）按它分开，新存档不继承旧存档的（用户 2026-11-17）
-    s.lzB1000 = true; s.lzV3 = true;   // lzV3：灵珠 3000 / 每强化 +24（见 migrate）   // 新存档的灵珠直接按 v261 后的 1000 算（见 migrate 的补 +990：只补老存档，新存档不再补）
+    s.lzB1000 = true; s.lzV3 = true; s.lzV4 = true;   // lzV3：灵珠 3000 / 每强化 +24（见 migrate）   // 新存档的灵珠直接按 v261 后的 1000 算（见 migrate 的补 +990：只补老存档，新存档不再补）
     return s;
   },
   // v254 矿石表：去掉仙 / 冥 / 魔特色矿石（仙霞玉髓、冥河寒晶、魔焰晶），三者都并入新的通用矿石（序号 11），神辉金及神界矿石序号 -2
@@ -154,6 +154,7 @@ const G = {
     {   // 2026-11-12 灵珠初始 1000 → 3000、每强化 +3 → +24：已放入的按强化次数重算（老灵珠没记次数：(聚灵 − 1000) ÷ 3），只算一次
       if (!s.lzV3 && Array.isArray(s.lzSlot)) { const C = CFG.lingzhu; s.lzSlot.forEach(z => { if (!z || !Number.isFinite(z.v)) return; const n = Number.isFinite(z.n) ? z.n : Math.max(0, Math.round((z.v - 1000) / 3)); z.n = n; z.v = (C.BASE || 0) + n * (C.ENH || 0); }); }
       s.lzV3 = true; }
+    if (!s.lzV4 && Array.isArray(s.lzSlot)) { const C = CFG.lingzhu; s.lzSlot.forEach(z => { if (z && Number.isFinite(z.n)) z.v = (C.BASE || 0) + z.n * (C.ENH || 0); }); s.lzV4 = true; }   // 灵珠 BASE 3000→10000（2026-11-25）：已放入的按强化次数重算
     {   // v259 渡劫准备格子去掉：老存档的格子记录删掉；进行中的渡劫护盾、格子冷却清掉
       delete s.tribSlots; if (s.trib) { s.trib.shield = null; delete s.trib.cd; delete s.trib.used; } }
     {   // 炼器仙炉（xqi）删掉：清掉老存档里的图纸、炉子、背包图纸 / 炉子、学习和炼制队列

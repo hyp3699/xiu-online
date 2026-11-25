@@ -222,7 +222,8 @@ G.module({
     // 聚灵阵
     const cap = this.lingCap(), max = a.lv >= DATA.array.MAX, f = this.arrayFactor();
     return rooms + `<div class="card"><div class="jl-top"><h3>${DATA.caveName("array")} · ${a.lv} 级</h3>
-      <div class="small"><span>聚灵中（每 10 秒 +${U.num(this.gatherAmount())} 灵气）${(u => u > 0 ? `　修炼消耗 <b class="c-red">-${U.num(u)}</b>` : "")(this.lingUse() + (this.zfKeep ? this.zfKeep() : 0))}</span></div>
+      <div class="small jl-l">聚灵中（每 10 秒 +${U.num(this.gatherAmount())} 灵气）</div>
+      <div class="small jl-l">修炼消耗 <b class="${(u => u > 0 ? "c-red" : "")(this.lingUse() + (this.zfKeep ? this.zfKeep() : 0))}">${(u => u > 0 ? "-" + U.num(u) : "0")(this.lingUse() + (this.zfKeep ? this.zfKeep() : 0))}</b></div>
       <div class="jl-btns"><button class="sm jl-add jl-lm" onclick="G.openLmSw()"><span>灵</span><span>脉</span></button><button class="sm jl-add" onclick="G.openGatherInfo()">聚灵加成</button></div></div>
       <div class="bar tick"><div id="gather-bar"></div></div>
       <div class="row small"><span>灵气</span><span>${U.fmt(s.ling)} / ${U.fmt(cap)}</span></div>

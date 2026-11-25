@@ -1277,6 +1277,7 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .jl-top{position:relative;padding-right:7em}
 .jl-btns{position:absolute;right:0;bottom:0;display:grid;gap:3px}
 .jl-top h3{margin-bottom:10px}
+.jl-l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;height:1.6em;line-height:1.6em}   /* 聚灵中 / 修炼消耗各占一行，卡片高度固定 */
 .jl-btns .jl-add{padding:2px 0;line-height:1.4}
 .jl-add.jl-lm{display:flex;justify-content:center;gap:1.2em}
 .jl-add{flex:none;align-self:center;padding:2px 0;width:6em!important;text-align:center;font-size:12px;min-height:0}
