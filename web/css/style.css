@@ -913,9 +913,9 @@ html.bg-light .ori-tip-box{background:#fbf6ea;border-color:#b8862b}html.bg-light
 /* 三个一行的按钮（法术详情：精研 融合 进阶 / 卸下 更换 关闭） */
 .btns.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
 .btns.g3 button{min-width:0}
-/* 四个一行（法术详情：精研 融合 卸下 更换），关闭单独一行 */
-.btns.g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
-.btns.g4 button{min-width:0}
+/* 两个一行（法术详情：精研 融合 / 卸下 更换），关闭单独一行 */
+.btns.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.btns.g2 button{min-width:0}
 .btns .row-full{grid-column:1/-1}
 
 /* 修炼页 · 设置（修炼设置 / 战斗设置 / 其他设置） */
