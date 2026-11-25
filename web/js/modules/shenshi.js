@@ -42,6 +42,7 @@ G.module({
     lsTotal() { return (this.s.lsMax || 0) + ((this.s.wd || {}).ls || 0) + (this.oriSum ? this.oriSum("ls") : 0) + this.ssGfSum("ls") + (this.lsjSum ? this.lsjSum("ls") : 0); },   // + 炼神诀每层   // + 神识功法《灵台开识篇》   // + 出身「残魂附体」   // 总灵识点 = 买的 + 神魂之道得的
     lsLeft() { return this.lsTotal() - this.lsUsed(); },
     lsStoneCount() { const s = this.s; return Math.max(+s.lsStoneBought || 0, (s.lsMax || 0) - (CFG.shenshi.INIT || 0) - (s.lsFragBought || 0)); },   // lsMax 只有灵石买、碎片换会加，所以灵石买过的 = lsMax − INIT − 碎片换的（修复：defaults 曾把老存档 lsStoneBought 补成 0，阶段被重置）   // 用灵石买过的点数（老存档没有这个字段时按 lsMax − INIT 折算，阶段不变）
+    lsBoughtAll() { return this.lsStoneCount() + (+this.s.lsFragBought || 0); },   // 灵石买 + 碎片换的总点数（两种共用阶段）
     // 第 i 个用灵石买的点要多少灵石（i 从 1 开始）
     lsPrice(i) {   // BUY = [每阶段点数, 每阶段递增灵石]：第 n 阶段每点 n × 递增（兼容旧的 [[从, 到, 灵石], …] 写法）
       const C = CFG.shenshi, B = C.BUY || [], init = C.INIT || 0;
@@ -50,7 +51,7 @@ G.module({
       return (Math.floor((i - 1) / n) + 1) * add;
     },
     lsBuyCost(n) {
-      const bought = this.lsStoneCount(); let c = 0;
+      const bought = this.lsBoughtAll(); let c = 0;   // 阶段灵石买、碎片换共用（用户定 2026-11-25）
       for (let i = 1; i <= n; i++) { const p = this.lsPrice(bought + i); if (p === null) return null; c += p; }
       return c;
     },
@@ -65,14 +66,14 @@ G.module({
       const bought = this.lsStoneCount(); s.stone -= c; s.lsMax += n; s.lsStoneBought = bought + n;   // 先取数再加 lsMax，老存档的折算（lsMax − INIT）才不会多算 1
       this.log(`消耗灵石 ${U.fmt(c)}，灵识点 +${n}（共 ${this.lsTotal()}）。`, "good"); this.dirty(); this.after();
     },
-    // 第 i 个用碎片换的点（i 从 1 开始）：阶段单独算，按碎片换过的点数，不跟灵石买共用
+    // 第 i 个用碎片换的点（i 从 1 开始）：阶段按灵石买 + 碎片换的总点数算（2026-11-25 起共用）
     lsFragPrice(i) {
       const C = CFG.shenshi, B = C.BUY_FRAG || [];
       const n = +B[0] || 0, add = +B[1] || 0; if (!n || i < 1) return null;
       return (Math.floor((i - 1) / n) + 1) * add;
     },
     lsFragBuyCost(n) {
-      const bought = this.s.lsFragBought || 0; let c = 0;
+      const bought = this.lsBoughtAll(); let c = 0;   // 阶段灵石买、碎片换共用（用户定 2026-11-25）
       for (let i = 1; i <= n; i++) { const p = this.lsFragPrice(bought + i); if (p === null) return null; c += p; }
       return c;
     },
