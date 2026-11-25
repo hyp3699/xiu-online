@@ -1309,7 +1309,7 @@ G.module({
       // 战斗设置（回合、出手方式、保命、继续探索）只对 探索 / 出窍 / 历练（含秘境）生效（opt.useSet）；
       // 法术、法宝、神通列表（顺序 order、不使用 off）对所有战斗生效
       const BG = this.bsetGet ? this.bsetGet() : { off: [], order: [] };
-      const BS = opt.useSet ? BG : { r: [], mode: "rot", off: BG.off, order: BG.order, lowPct: 0, lowKey: "" }, onlyAtk = false, off = BS.off || [];
+      const BS = opt.useSet ? BG : { r: [], mode: "rot", off: BG.off, order: BG.order, lowPct: 0, lowKey: "" }, onlyAtk = false, off = BS.off || [],
        keepMp = 0, rKeys = BS.r || [];
       let rDone = 0;
       // 出一招：a = acts[j]；res = true 可以动用保留的法力；放不出返回 null
@@ -1332,7 +1332,7 @@ G.module({
           let d = roll(st, mE(), (X, c) => Math.max(MIN(st), EL((((sp.stn ? st.atk : sp.atk * atkK()) * (sp.pct + (sp.fuPct || 0)) / 100 * sp.mul + (sp.jyDmg || 0)) * dmgAdd(jmUp(sp.el.id), swSp, lgSp(sp.el), ssSp, up)) * c, X, sp.el.id, myL)), 1, j, !!sp.stn);
           if (d > 0) d += lgD(sp.el.id);   // 灵果属性伤害：最后直接加，不吃任何加成、不被防御抗性减   // 融合：+% 加进法术% 里；法术吃灵根法术伤害%；经脉该系属性伤害 +%（神通固定 99% 命中）
           if (sp.stn) { if (act.f !== 1) stFx(sp.stn, d, up > 1); return d; }   // 神通附加效果（没闪避才触发）
-          if (!opt.test) { const xd = CFG.gongfa.XD_GAIN === undefined ? 1 : CFG.gongfa.XD_GAIN; if (xd > 0) { const X = this.s.spXd = this.s.spXd || {}; X[sp.el.id] = (X[sp.el.id] || 0) + xd; act.x = (act.x || 0) | 256; } }   // v239 法术心得
+          if (!opt.test && !opt.noXd) { const xd = CFG.gongfa.XD_GAIN === undefined ? 1 : CFG.gongfa.XD_GAIN; if (xd > 0) { const X = this.s.spXd = this.s.spXd || {}; X[sp.el.id] = (X[sp.el.id] || 0) + xd; act.x = (act.x || 0) | 256; } }   // v239 法术心得
           return d; }
         const fb = a.fb;
         const isBm = a.key === "fb:bm", pjK = isBm && mShield && bmV.pjDmg > 0 ? 1 + bmV.pjDmg / 100 : 1;   // 破禁①：对手有护盾时增伤
@@ -1561,7 +1561,7 @@ G.module({
         if (act.f !== 1 && !(act.x & 128) && !meSeal && cnt.mob.zh < pMob.zhT && ch(pMob.zh)) { meSeal = pMob.zhR; sealR.me = rounds; cnt.mob.zh++; act.x = (act.x || 0) | 64; }
         if (shield && act.f !== 1 && d > 0) {   // 人物护盾：伤害按盾防御算（代替本身防御），再减「受到伤害减少%」，剩下先扣护盾值
           const dSo = d;   // 减伤%之前（盾碎后溢出部分不再吃盾的减伤%）
-          if (shield.red) d = Math.max(MIN(m), d * (1 - shield.red / 100));   // 盾防御已在出手时代替本身防御，这里只算额外减伤%
+          if (shield.red) d = Math.max(Math.min(MIN(m), d), d * (1 - shield.red / 100));   // 盾防御已在出手时代替本身防御，这里只算额外减伤%；已被压到保底以下（主动阵法、金蝉自降）时不再垫回保底
           const ab = Math.min(shield.hp, d), dS = d; shield.hp -= ab; d -= ab; act.ab = ab;
           if (shield.hp <= 0) { shield = null; act.x = (act.x || 0) | 4; if (d > 0 && act.altR) d = d / dS * dSo * act.altR; }   // 盾碎：溢出部分按人物本身防御算
         }

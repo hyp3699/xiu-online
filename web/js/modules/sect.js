@@ -183,7 +183,7 @@ G.module({
       if (s.contrib < c) return this.log(`贡献不足，测试需要 ${U.fmt(c)}。`, "sys");
       s.contrib -= c;
       const hp0 = s.hp, mp0 = s.mana;
-      const res = this.battle(this.rankGuardOf(i));
+      const res = this.battle(this.rankGuardOf(i), { noXd: 1 });   // 测试不得法术心得
       s.hp = hp0; s.mana = mp0;   // 测试打完生命、法力恢复到测试前（用户定 2026-11-25）
       const txt = res.win ? `测试：${res.rounds}回合击败${DATA.ranks[i].name}考官（测试不算通过考验）。` : `测试：未能击败${DATA.ranks[i].name}考官${res.timeout ? "（回合耗尽）" : ""}。`;
       this.after();
