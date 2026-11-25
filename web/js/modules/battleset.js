@@ -46,9 +46,9 @@ G.module({
     // 现在法术栏、法宝栏里生效的招式 [{ key, name, shield }]
     bsetActs() {
       const s = this.s, n = this.slotCount(), out = [];
-      s.spellSlots.slice(0, n).forEach(id => { const g = id && DATA.spellInfo(id, s.gongfa[id]); if (g) out.push({ key: "sp:" + id, name: `法术·${g.name}  ${g.star}星 ${g.lv}层 精研${(s.spJy || {})[id] || 0}次` }); });
-      s.fabao.slice(0, n).forEach((e, i) => { if (e && e.attrs) { const f = DATA.fabaoInfo(e); out.push({ key: "fb:" + i, name: `法宝·${f.name}  ${(e.g || 0) + 1}星 强化${e.enh || 0}次 精炼${e.bmRf || 0}次`, shield: !!f.shield }); } });
-      { const f = this.bmInfo ? this.bmInfo() : null; if (f) out.push({ key: "fb:bm", name: `本命法宝·${f.name}  ${(B => B ? `${(B.g || 0) + 1}星 强化${B.enh || 0}次 精炼${B.bmRf || 0}次` : "")(this.bmEq())}`, shield: !!f.shield }); }   // 本命法宝（bag.js）
+      s.spellSlots.slice(0, n).forEach(id => { const g = id && DATA.spellInfo(id, s.gongfa[id]); if (g) out.push({ key: "sp:" + id, name: `法术·${g.name}`, sub: `${g.star}星 ${g.lv}层 精研${(s.spJy || {})[id] || 0}次` }); });
+      s.fabao.slice(0, n).forEach((e, i) => { if (e && e.attrs) { const f = DATA.fabaoInfo(e); out.push({ key: "fb:" + i, name: `法宝·${f.name}`, sub: `${(e.g || 0) + 1}星 强化${e.enh || 0}次 精炼${e.bmRf || 0}次`, shield: !!f.shield }); } });
+      { const f = this.bmInfo ? this.bmInfo() : null; if (f) out.push({ key: "fb:bm", name: `本命法宝·${f.name}`, sub: (B => B ? `${(B.g || 0) + 1}星 强化${B.enh || 0}次 精炼${B.bmRf || 0}次` : "")(this.bmEq()), shield: !!f.shield }); }   // 本命法宝（bag.js）
       if (this.stEqList) this.stEqList().filter(id => !this.stIsPas(id)).forEach(id => out.push({ key: "st:" + id, name: `神通·${this.stName(id)}` }));   // 出战神通（world.js）
       return out;
     },
@@ -103,7 +103,7 @@ G.module({
       const tab = this.bsetTab === "set" ? "set" : "ord";   // 两个页签：释放顺序 / 战斗方式（只在界面上记，不进存档）
       const tabs = `<div class="bag-tabs">${[["ord", "释放顺序"], ["set", "战斗方式"]].map(([k, t]) => `<button class="${tab === k ? "active" : ""}" onclick="G.bsetTab='${k}';G.render()">${t}</button>`).join("")}</div>`;
       if (tab === "ord") return tabs + `<div class="card"><h3>法术、法宝、神通列表<small>顺序和使用对所有战斗生效</small></h3>${this.bsetSorted().map((a, i, L) => { const on = !b.off.includes(a.key), k = esc(a.key);
-          return `<div class="line"><div>${i + 1}. ${esc(a.name).replace(/  /g, "&nbsp;&nbsp;")}</div><div><button class="sm" onclick="G.bsetMove('${k}',-1)" ${i ? "" : "disabled"}>↑</button><button class="sm" onclick="G.bsetMove('${k}',1)" ${i < L.length - 1 ? "" : "disabled"}>↓</button><button class="sm ${on ? "on" : ""}" onclick="G.bsetToggle('${k}')">${on ? "使用" : "不使用"}</button></div></div>`; }).join("") || `<p class="desc">法术栏、法宝栏、神通都还是空的。</p>`}</div>`;
+          return `<div class="line"><div>${i + 1}. ${esc(a.name)}${a.sub ? `<br><small>${esc(a.sub)}</small>` : ""}</div><div><button class="sm" onclick="G.bsetMove('${k}',-1)" ${i ? "" : "disabled"}>↑</button><button class="sm" onclick="G.bsetMove('${k}',1)" ${i < L.length - 1 ? "" : "disabled"}>↓</button><button class="sm ${on ? "on" : ""}" onclick="G.bsetToggle('${k}')">${on ? "使用" : "不使用"}</button></div></div>`; }).join("") || `<p class="desc">法术栏、法宝栏、神通都还是空的。</p>`}</div>`;
       return tabs + `<div class="card"><h3>战斗方式<small>只对探索、出窍、历练生效</small></h3>
         ${["第一回合", "第二回合", "第三回合"].map((t, i) => `<div class="line"><div>${t}${lost(b.r[i])}</div>${this.selBox("bs:r" + i, [["auto", "按出手方式"], ["atk", "普通攻击"], ...actOpts], b.r[i], v => this.bsetRound(i, v))}</div>`).join("")}
         <div class="line"><div>剩余回合</div>${sel("mode", [["rot", "法术、法宝轮流"], ["sp", "优先法术"], ["fb", "优先法宝"], ["max", "伤害最高优先"], ["cheap", "消耗最低优先"], ["list", "按列表顺序"], ["atk", "普通攻击"]])}</div>
