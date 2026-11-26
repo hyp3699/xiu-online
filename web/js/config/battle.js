@@ -50,7 +50,7 @@ CFG.battle.RES_EL_RATE = 1.168;   // 对方该系抗性 × 此值
  *   扣修为 = 当前层突破需要 × (EXP_PCT − STEP × 修为大境界序号)%，练气 48%、筑基 47%……；
  *   扣气血 = 当前层突破需要 × (BODY_PCT − STEP × 炼体大境界序号)%，炼体第一境界 48%……；最少 MIN%。
  *   不够扣就降一层（退回那层突破花掉的修为 / 气血，扣掉那层突破随机属性）接着扣，直到够；最低练气一层 / 炼体第一境界一层。
- *   寿元另扣 CFG.origin.SY.DIE_CUT 年（开了寿元才扣）；本次收获照旧丢。 */
+ *   寿元另扣 CFG.origin.SY.DIE_CUT 年（开了寿元才扣）；本次收获照旧丢。渡劫失败同样按这里扣（modules/trib.js endTrib）。 */
 CFG.battle.DEATH = { EXP_PCT: 48, BODY_PCT: 48, STEP: 1, MIN: 0 };
 CFG.battle.FORMULA = "sub";   // 现用 "sub" 直接相减；"ratio" = 按比例
 CFG.battle.RATIO = { DEF_K: 1, RES_K: 1, DEF_CAP: 75, RES_CAP: 75, SP_DEF: 0.5 };

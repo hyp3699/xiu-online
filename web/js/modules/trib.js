@@ -106,10 +106,11 @@ G.module({
         this.log(x.result, "gold");
       } else {
         s.hp = 1;
-        const loss = this.oriSum && this.oriSum("noTribLoss") ? 0 : Math.floor(s.exp * CFG.trib.FAIL_LOSS); s.exp -= loss;   // 出身「寺庙寄养」不掉修为
-        x.result = loss ? `渡劫失败：被劫雷劈倒，修为 -${U.fmt(loss)}。` : "渡劫失败：被劫雷劈倒，心性平和，修为未失。";
+        // 惩罚同地图战死（用户定）：寿元 −DIE_CUT 年，扣修为、气血（config/battle.js DEATH，不够扣跌落境界）；出身「寺庙寄养」不扣修为
+        if (this.syCut) this.syCut(+(((CFG.origin || {}).SY || {}).DIE_CUT ?? 0.3), "渡劫失败");
+        const lost = this.dieLoss ? this.dieLoss("劫雷", { noExp: this.oriSum && this.oriSum("noTribLoss"), noLog: 1 }) : "";
+        x.result = lost ? `渡劫失败：被劫雷劈倒，${lost}。` : "渡劫失败：被劫雷劈倒。";
         this.log(x.result, "bad");
-        if (this.syCut) this.syCut(+(((CFG.origin || {}).SY || {}).TRIB_CUT ?? 1), "渡劫失败");   // 寿元
       }
       if (this.exResume) this.exResume();   // 暂停的探索 / 出窍从现在继续
       // 全部信息：记下这次天劫的全过程（服务器存最近 100 条）

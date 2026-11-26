@@ -135,13 +135,14 @@ G.module({
       for (const k in r) o[k] = Math.round(((o[k] || 0) - r[k]) * 100) / 100;
       delete L[T];
     },
-    // 死亡惩罚（config/battle.js CFG.battle.DEATH）：扣修为、气血，不够扣就跌落境界
-    dieLoss(who) {
-      const s = this.s, C = CFG.battle.DEATH; if (!C) return;
+    // 死亡惩罚（config/battle.js CFG.battle.DEATH）：扣修为、气血，不够扣就跌落境界；地图战死和渡劫失败共用（用户定）
+    //   o.noExp：不扣修为（出身「寺庙寄养」渡劫失败）；o.head：日志开头（默认「被 who 击杀」）；返回扣除说明（没有扣返回空串）
+    dieLoss(who, o = {}) {
+      const s = this.s, C = CFG.battle.DEATH; if (!C) return "";
       const big = L => Math.floor(Math.max(0, L) / DATA.LAYERS), pct = (P, L) => Math.max(+C.MIN || 0, (+P || 0) - (+C.STEP || 0) * big(L)) / 100;
       const L0 = s.L, B0 = s.bodyL, mortal0 = s.mortal, msg = [];
       // 修为
-      const X = Math.round(this.needExp() * pct(C.EXP_PCT, s.mortal ? 0 : s.L));
+      const X = o.noExp ? 0 : Math.round(this.needExp() * pct(C.EXP_PCT, s.mortal ? 0 : s.L));
       if (X > 0) { while (s.exp < X && !s.mortal && s.L > 0) { this.brUnroll("xw", s.L); s.L--; s.exp += DATA.needExp(s.L); }
         s.exp = Math.max(0, s.exp - X); msg.push(`修为 -${U.fmt(X)}`); }
       // 气血
@@ -151,8 +152,9 @@ G.module({
       if (s.L !== L0 && !mortal0) msg.push(`修为境界跌落至【${this.realmName()}】`);
       if (s.bodyL !== B0) msg.push(`肉身境界跌落至【${this.bodyName()}】`);
       if (s.L !== L0 || s.bodyL !== B0) { this.dirty(); /* 先清缓存，按跌落后的新上限钳制 */ const st = this.stats(); s.hp = Math.min(s.hp, st.hp); s.mana = Math.min(s.mana, st.mana); }
-      if (msg.length) this.log(`${who ? `被${who}击杀` : "战死"}，${msg.join("，")}。`, "bad");
-      this.dirty();
+      const head = o.head || (who ? `被${who}击杀` : "战死");
+      if (msg.length && !o.noLog) this.log(`${head}，${msg.join("，")}。`, "bad");
+      this.dirty(); return msg.join("，");
     },
     // 老存档：已突破的层按现在的规则重新掷一次（s.brRandV = 2 标记，只做一次）
     brFill(s) {
