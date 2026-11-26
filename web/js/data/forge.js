@@ -8,6 +8,10 @@
  * 空间石在背包里是 { t: "ss", g: 阶, n: 数量 }
  * ===================================================================== */
 const _FG = CFG.forge;
+// 是不是六系属性 id：DATA.elById 是普通对象，"toString" / "constructor" / "__proto__" 这类原型属性名也能取到值，不能拿它判断
+DATA.isEl = el => typeof el === "string" && DATA.elements.some(x => x.id === el);
+// 法宝形状序号：只认 0~N-1 的整数（数字或数字字符串），其余返回 -1（+null、+"" 都是 0，不能直接 +ft）
+DATA.fbFt = ft => { const n = typeof ft === "number" ? ft : typeof ft === "string" && ft.trim() ? +ft : NaN; return Number.isInteger(n) && n >= 0 && n < DATA.fabaoTypes.length ? n : -1; };
 
 // 每星每部位一种装备（一星 ~ 十二星）
 DATA.forgeNames = {
@@ -184,7 +188,7 @@ DATA.rollForged = (slot, g, r, el) => {
   const A = _FG.attr;
   if (slot === "fabao") {   // r = 形状序号、el = 属性（不填就随机）
     const F = _FG.fabao, ft = r === undefined ? Math.floor(Math.random() * DATA.fabaoTypes.length) : r, T = DATA.fabaoTypes[ft];
-    const elv = el && DATA.elById[el] ? el : (U.pick(DATA.elements) || {}).id;
+    const elv = DATA.isEl(el) ? el : (U.pick(DATA.elements) || {}).id;   // 只认六系 id
     const W = DATA.fabaoNewW(), attrs = (T.shield ? ["shHpMain", "shDef"] : ["pct"]).map(k => DATA.rollAttr(k, 1, undefined, W));
     for (const k of T.special || []) attrs.push(DATA.rollAttr(k, 2, undefined, W));
     const n = DATA.affixRollN(F.AFFIX_COUNT, g), pool = DATA.fbPool(T);

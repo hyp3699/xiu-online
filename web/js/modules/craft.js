@@ -412,10 +412,12 @@ G.module({
     // 装备 / 戒指用哪种耀石：ys 0~5 = 指定那种，其它 = 自动（法宝不看这个，固定同属性）
     ysArg(ys) { const n = ((CFG.mijing.items.ys || {}).names || []).length; ys = Number(ys); return Number.isInteger(ys) && ys >= 0 && ys < n ? ys : -1; },
     craftFurnace(kind, g, slot, ft, el, uid, ys) {
+      // 只接装备、戒指、空间石、炉子：灵珠走 craftLz、阵旗走 craftZq（各自扣灵晶 / 灵液），精炼走 refineEq，不能从这里绕过
+      if (kind !== "eq" && kind !== "ring" && kind !== "ss" && !DATA.FURNACE_KINDS.includes(kind)) return;
       const s = this.s, q = s.forgeQueue, job = { kind, g };
       if (kind === "ring") job.r = +slot; else if (slot) job.slot = slot;
       if ((kind === "ring" || kind === "eq") && slot !== "fabao" && this.ysArg(ys) >= 0) job.ys = this.ysArg(ys);
-      if (slot === "fabao") { if (!DATA.fabaoTypes[ft] || !DATA.elById[el]) return this.openFabaoPick(g); job.ft = +ft; job.el = el; }
+      if (slot === "fabao") { const fi = DATA.fbFt(ft); if (fi < 0 || !DATA.isEl(el)) return this.openFabaoPick(g); job.ft = fi; job.el = el; }   // 属性只认六系 id，形状只认 0~N-1 的整数
       const mats = this.jobMats(job);
       if (s.furnaceUse.qi < 0) return this.log("炼器必须装有炼器炉（宗门宝库 · 杂物可兑换一星炼器炉）。", "sys");
       if (DATA.FURNACE_KINDS.includes(kind)) { if (!s.blueprints[kind].includes(g)) return this.log("尚未学会该图纸。", "sys"); }

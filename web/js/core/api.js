@@ -571,7 +571,7 @@ const API = {
     this._clickedButton = null;
     if (typeof G !== "undefined" && G.s) {
       // 炼法宝还没选类型 / 属性：在本地打开选择窗口，选好后再发给服务器
-      if (name === "craftFurnace" && args[2] === "fabao" && !(DATA.fabaoTypes[args[3]] && DATA.elById[args[4]])) { G.openFabaoPick(args[1]); return false; }
+      if (name === "craftFurnace" && args[2] === "fabao" && !(DATA.fbFt(args[3]) >= 0 && DATA.isEl(args[4]))) { G.openFabaoPick(args[1]); return false; }
       // 突破要渡劫（如练气十层 → 筑基）：有渡劫在进行就在本地打开渡劫页，否则直接发 startTrib 开始渡劫
       if (name === "breakthrough" && G.s.trib) { G.openTrib(); return false; }
       if (name === "breakthrough" && G.canBreak() && G.needTrib()) return this.sendAction("startTrib", []);
