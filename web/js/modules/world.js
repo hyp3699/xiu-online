@@ -3206,12 +3206,12 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
 
     /* ---------- 背景主题：存在本机（localStorage xiu_bg@存档编号），按存档分开（用户定） ---------- */
     bgCard() {
-      const cur = this.saveLsGet("xiu_bg") || "";
+      const cur = bgCur(this.saveLsGet("xiu_bg"));
       return `<div class="card"><h3>背景</h3><div class="bg-grid">${BG_THEMES.map(([id, nm]) =>
         `<div class="bg-sw${id === cur ? " on" : ""}" data-bgsw="${id}" onclick="G.setBg('${id}')">${nm}</div>`).join("")}</div></div>`;
     },
     setBg(id) {
-      this.saveLsSet("xiu_bg", id || null);
+      this.saveLsSet("xiu_bg", id === BG_DEF ? null : id);   // 默认竹青不存
       applyBg(); this.render();
     },
   },
@@ -3285,13 +3285,15 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
 
 });
 
-// 背景主题列表：[id, 名字]，id 为空 = 默认；样式在 style.css 的 html[data-bg="id"]
-const BG_THEMES = [["", "默认"], ["xuanzhi", "宣纸"], ["xinghuang", "杏黄"], ["zhuqing", "竹青"], ["qingci", "青瓷"], ["yunbai", "云白"], ["yuebai", "月白"], ["yanmo", "烟墨"]];
+// 背景主题列表：[id, 名字]；没设置过 = BG_DEF 竹青（用户定）；"yuan" = 原来的深色底（不加 data-bg）；样式在 style.css 的 html[data-bg="id"]
+const BG_DEF = "zhuqing";
+const BG_THEMES = [["yuan", "原色"], ["xuanzhi", "宣纸"], ["xinghuang", "杏黄"], ["zhuqing", "竹青"], ["qingci", "青瓷"], ["yunbai", "云白"], ["yuebai", "月白"], ["yanmo", "烟墨"]];
 const BG_DARK = ["yanmo"];   // 深色背景主题（文字保持浅色）；其他非默认主题都按浅色处理
+function bgCur(v) { return BG_THEMES.some(t => t[0] === v) ? v : BG_DEF; }   // 没设置过或旧值（含原来的「默认」空值）→ 竹青
 function applyBg() {
   if (typeof document === "undefined" || !document.documentElement) return;   // 服务器端引擎里没有页面
   let id = ""; try { id = (typeof G !== "undefined" && G.s && G.saveLsGet ? G.saveLsGet("xiu_bg") : localStorage.getItem("xiu_bg")) || ""; } catch (e) {}   // 没进存档前（登录页）用旧的本机设置
-  if (!BG_THEMES.some(t => t[0] === id)) id = "";
+  id = bgCur(id); if (id === "yuan") id = "";
   if (id) document.documentElement.dataset.bg = id; else delete document.documentElement.dataset.bg;
   document.documentElement.classList.toggle("bg-light", !!id && !BG_DARK.includes(id));   // 浅色背景：style.css 里 html.bg-light 把写死的浅色字改深
 }
