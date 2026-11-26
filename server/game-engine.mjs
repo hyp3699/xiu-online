@@ -141,6 +141,15 @@ export class GameEngine {
     if (!this.G || !this.G.runTicks || !this.G.modules.length) throw new Error("The game modules did not initialize");
 
     const engine = this;
+    // 自动队列补功法日志：只写服务器文件（data/gf-auto.log），超过 10MB 只留后一半（用户定）
+    const GFA_LOG = path.join(path.resolve(process.env.XIU_DATA_DIR || path.join(HERE, "data")), "gf-auto.log"), GFA_MAX = 10 * 1024 * 1024;
+    this.G.gfAutoTrace = function (msg) {
+      try {
+        const line = `${new Date((this.now ? +this.now() : Date.now()) + 8 * 3600000).toJSON().slice(0, 19).replace("T", " ")} ${(this.s && this.s.name) || "?"} ${msg}\n`;
+        fs.appendFileSync(GFA_LOG, line);
+        if (fs.statSync(GFA_LOG).size > GFA_MAX) { const b = fs.readFileSync(GFA_LOG), k = b.indexOf(10, b.length - GFA_MAX / 2); fs.writeFileSync(GFA_LOG, b.subarray(k + 1)); }
+      } catch {}
+    };
     this.G.log = function (message, color = "") {
       if (!this.s || this.silent) return;
       const entry = { m: String(message), c: String(color) };

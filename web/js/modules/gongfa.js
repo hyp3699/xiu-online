@@ -338,10 +338,11 @@ G.module({
         }
         if (!pick) break;
         s.gfQueue.push(pick.id); pick.plan++; added++;
-        if (!old) this.log(`自动队列：按第 ${ri} 条补《${(DATA.skillInfo(pick.id, s.gongfa[pick.id]) || {}).name || pick.id}》第 ${pick.plan} 层（计划层 ${pick.plan - 1}，候选 ${all.length} 部）。`, "sys");   // 查问题用：哪条条件补的
+        if (this.gfAutoTrace && !(old && old.includes(pick.id))) { let lo = null; for (const x of all) if (x !== pick && x.plan < x.mx && (!lo || x.plan < lo.plan)) lo = x;   // 查问题用：服务器写自动补日志（不进游戏日志）
+          this.gfAutoTrace(`${old ? "重挑" : "补"} 第${ri}条 ${pick.id} 到第${pick.plan}层 候选${all.length} 最低层${lo ? lo.id + "@" + lo.plan : "无"} 修炼中${s.gfStudy ? s.gfStudy.id + "@" + (s.gongfa[s.gfStudy.id] || 0) : "无"} 队列${s.gfQueue.join(",")}`); }
       }
       if (old && !added) s.gfQueue.push(...old);   // 没有可补的（如改了条件）：原样留着
-      if (old) { const same = old.join(",") === s.gfQueue.join(","); if (added) s.gfQAuto = true; M.set(s, `${ids.length}|${lvSum}|${s.gfStudy ? s.gfStudy.id : ""}|${s.gfQueue.join(",")}|${JSON.stringify(A.rules)}`); if (!same && added) this.log(`自动队列：按条件改补《${(DATA.skillInfo(s.gfQueue[0], s.gongfa[s.gfQueue[0]]) || {}).name || s.gfQueue[0]}》。`, "sys"); return; }
+      if (old) { if (added) s.gfQAuto = true; M.set(s, `${ids.length}|${lvSum}|${s.gfStudy ? s.gfStudy.id : ""}|${s.gfQueue.join(",")}|${JSON.stringify(A.rules)}`); return; }
       if (added) { s.gfQAuto = true; M.delete(s); } else M.set(s, sig);
     },
     // 玩家操作（加进 server/action-whitelist.json）
