@@ -106,9 +106,9 @@ G.module({
         this.log(x.result, "gold");
       } else {
         s.hp = 1;
-        // 惩罚同地图战死（用户定）：寿元 −DIE_CUT 年，扣修为、气血（config/battle.js DEATH，不够扣跌落境界）；出身「寺庙寄养」不扣修为
+        // 惩罚同地图战死（用户定）：寿元 −DIE_CUT 年，扣修为、气血（config/battle.js DEATH，不够扣跌落境界）；出身「寺庙寄养」不扣修为和气血（寿元照扣）
         if (this.syCut) this.syCut(+(((CFG.origin || {}).SY || {}).DIE_CUT ?? 0.3), "渡劫失败");
-        const lost = this.dieLoss ? this.dieLoss("劫雷", { noExp: this.oriSum && this.oriSum("noTribLoss"), noLog: 1 }) : "";
+        const lost = this.dieLoss && !(this.oriSum && this.oriSum("noTribLoss")) ? this.dieLoss("劫雷", { noLog: 1 }) : "";
         x.result = lost ? `渡劫失败：被劫雷劈倒，${lost}。` : "渡劫失败：被劫雷劈倒。";
         this.log(x.result, "bad");
       }

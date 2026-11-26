@@ -35,7 +35,7 @@ CFG.start = {
  *   sectRank 加入 SECT_STAR 星宗门直接成为第几个职务（0 外门 1 内门 2 真传…），contrib 同时加贡献（只第一次加入时）
  *   gfStudyPct 功法修炼时间 -%   spStudyPct 法术修炼时间 -%   leiCut 渡劫雷属性伤害 -%   bodyPct 肉身修炼（气血）速度 +%
  *   danRate / qiRate 炼丹 / 炼器成功率 +%   danExtra 炼丹额外多出一枚几率 +%   explore 探索、出窍每步 -秒（仍受 config/explore.js STEP_MIN 下限）
- *   mjDrop 秘境收益 +%   noTribLoss 1 = 渡劫失败不掉修为   shopCut 坊市（凡界 + 四界）灵石价格 -%   ls 灵识点 +   ssPow 神识强度 +   cqPct 元婴出窍收益 +%
+ *   mjDrop 秘境收益 +%   noTribLoss 1 = 渡劫失败不掉修为和气血   shopCut 坊市（凡界 + 四界）灵石价格 -%   ls 灵识点 +   ssPow 神识强度 +   cqPct 元婴出窍收益 +%
  *   灵体、cultPct 见 LIST 里的说明
  * --------------------------------------------------------------------- */
 CFG.origin = {
@@ -74,7 +74,7 @@ CFG.origin = {
     { id: "qifang",   name: "器坊学徒", desc: "自幼在器坊拉风箱。炼器成功率 永久 +10%，送 1 星炼器炉 1 座。", qiRate: 10, furnace: [["qi", 0]] },
     { id: "youfang",  name: "游方散修", desc: "随师父走遍凡界。探索每步时间 永久 -0.5 秒。", explore: 0.5 },
     { id: "mijing",   name: "秘境遗民", desc: "生于秘境边缘。秘境掉落 永久 +30%。", mjDrop: 30 },
-    { id: "simiao",   name: "寺庙寄养", desc: "在古寺长大，心性平和。渡劫失败不掉修为，神识强度 +12，灵识点 +24。", noTribLoss: 1, ssPow: 12, ls: 24 },
+    { id: "simiao",   name: "寺庙寄养", desc: "在古寺长大，心性平和。渡劫失败不掉修为和气血，神识强度 +12，灵识点 +24。", noTribLoss: 1, ssPow: 12, ls: 24 },
     { id: "shangjia", name: "商贾之家", desc: "家中经商。坊市购买价格 永久 -10%（包括四界坊市），灵石 +50000。", shopCut: 10, stone: 50000 },
     { id: "canhun",   name: "转世之身", desc: "前世大能转世，识海未泯。神识强度 +100，灵识点 +12，元婴出窍收益 +3%。", ls: 12, ssPow: 100, cqPct: 3 },   // 用户定
     // 灵体（用户定）：elDmg 造成该系伤害 +%、elCut 受到该系伤害 −%；allEl* 对六系都算；cultPct 修炼速度 +%（修为和炼体都加）

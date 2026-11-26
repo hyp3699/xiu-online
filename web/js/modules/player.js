@@ -136,7 +136,7 @@ G.module({
       delete L[T];
     },
     // 死亡惩罚（config/battle.js CFG.battle.DEATH）：扣修为、气血，不够扣就跌落境界；地图战死和渡劫失败共用（用户定）
-    //   o.noExp：不扣修为（出身「寺庙寄养」渡劫失败）；o.head：日志开头（默认「被 who 击杀」）；返回扣除说明（没有扣返回空串）
+    //   o.noExp：不扣修为；o.head：日志开头（默认「被 who 击杀」）；返回扣除说明（没有扣返回空串）
     dieLoss(who, o = {}) {
       const s = this.s, C = CFG.battle.DEATH; if (!C) return "";
       const big = L => Math.floor(Math.max(0, L) / DATA.LAYERS), pct = (P, L) => Math.max(+C.MIN || 0, (+P || 0) - (+C.STEP || 0) * big(L)) / 100;
