@@ -48,6 +48,7 @@ G.module({
     qlEaten: {},      // 各门派清灵丹已服用颗数 { 门派id: 颗数 }
     ccDay: "",        // v213 宗门传承：上次领悟日期
     ccGot: {},        // 各门派已领悟的传承功法 { 门派id: [功法id…] }（门派之间互不通用）
+    ccAssign: null,   // 各门派的 5 本传承功法种类（第一次进游戏随机一次后固定，见 DATA.ccGenAssign）
     jd: null,         // 讲道室 { day, list:[{nm, k:"dan"/"qi"/功法类别, book, done}], free: 免费用掉的日期, cur: {i, end}, got: {属性: 值}, log: [] }
   }),
 
@@ -234,8 +235,9 @@ G.module({
       for (const sid in E) { const v = DATA.qlVals(sid); for (const k in v) b[k] = (b[k] || 0) + v[k] * E[sid]; }
       return b;
     },
-    ccGotOf(sid = this.s.sect) { const all = DATA.ccIds(sid); return ((this.s.ccGot || {})[sid] || []).filter(id => all.includes(id)); },   // 只算现在还有的（去掉的传承法术不算）
-    ccLeft() { const got = this.ccGotOf(); return DATA.ccIds(this.s.sect).filter(id => !got.includes(id)); },
+    ccIdsOf(sid = this.s.sect) { if (!DATA.ccAssignOk(this.s.ccAssign)) this.s.ccAssign = DATA.ccGenAssign(); return DATA.ccIds(sid, this.s.ccAssign); },
+    ccGotOf(sid = this.s.sect) { const all = this.ccIdsOf(sid); return ((this.s.ccGot || {})[sid] || []).filter(id => all.includes(id)); },   // 只算现在还有的（去掉的传承法术不算）
+    ccLeft() { const got = this.ccGotOf(); return this.ccIdsOf(this.s.sect).filter(id => !got.includes(id)); },
     ccWudao() {   // 领悟：每天 1 次，随机一本没领悟过的
       const s = this.s; if (!this.isMaster() || s.ccDay === this.today()) return;
       const left = this.ccLeft(); if (!left.length) return this.log("本门传承功法已全部领悟。", "sys");
@@ -251,7 +253,7 @@ G.module({
       s.contrib -= g.cost; this.startGfLearn(id); this.after();
     },
     ccCard(onlyDone) {   // onlyDone：只要「已学会」卡（放页面最后）
-      const s = this.s, all = DATA.ccIds(s.sect), got = this.ccGotOf(), left = all.length - got.length, done = s.ccDay === this.today();
+      const s = this.s, all = this.ccIdsOf(s.sect), got = this.ccGotOf(), left = all.length - got.length, done = s.ccDay === this.today();
       const head = `<div class="line"><div>领悟传承<small>每天 1 次，随机领悟一本 · 已领悟 ${got.length} / ${all.length}</small></div>
         <button class="sm" onclick="G.ccWudao()" ${done || !left ? "disabled" : ""}>${!left ? "已全部领悟" : done ? "今日已领悟" : "领悟"}</button></div>`;
       const list = got.map(id => { const g = DATA.skillInfo(id), has = this.hasGongfa(id);

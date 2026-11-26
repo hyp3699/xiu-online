@@ -117,6 +117,7 @@ const G = {
   // 存档缺字段时，用模块默认值补上（以后加新功能不会坏档）
   migrate(s) {
     if (!s.sid) s.sid = this.newSid();
+    if (!DATA.ccAssignOk(s.ccAssign)) s.ccAssign = DATA.ccGenAssign();   // 宗门传承功法：每个存档第一次进游戏随机分一次，之后固定
     {   // 清理参数漏洞留下的脏数据（2026-11-25）：灵珠超格、kind 不对的材料、空壳装备、"undefined" 装备格
       const LS = (CFG.lingzhu || {}).SLOTS || 5; if (Array.isArray(s.lzSlot) && s.lzSlot.length > LS) s.lzSlot.length = LS;
       if (Array.isArray(s.spellSlots) && s.spellSlots.length > 100) s.spellSlots.length = 30;
