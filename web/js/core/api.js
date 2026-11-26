@@ -368,7 +368,7 @@ const API = {
   },
 
   async createCharacter(name, ori, sy) {
-    const j = await this.req("character", { name: String(name || "无名散修").slice(0, 12), ori: Array.isArray(ori) ? ori.slice(0, 20).map(String) : [], sy: sy ? 1 : 0 });
+    const j = await this.req("character", { name: String(name || "无名散修").slice(0, 12), ori: Array.isArray(ori) ? ori.slice(0, 200).map(String) : [], sy: sy ? 1 : 0 });
     this.serverState = j.data;
     this.syncClock(j.serverNow);
     this.installResume();
