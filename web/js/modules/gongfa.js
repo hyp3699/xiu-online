@@ -327,8 +327,8 @@ G.module({
         if (!info) continue; const p = (s.gongfa[id] || 0) + (plan[id] || 0), mx = info.max || DATA.GONGFA_MAX; if (p < mx) all.push({ id, info, plan: p, mx, ord: this.gfAutoOrd(info) }); }
       let added = 0;
       while (s.gfQueue.length < NQ) {
-        let pick = null;
-        for (const r of A.rules) {
+        let pick = null, ri = 0;
+        for (const r of A.rules) { ri++;
           let best = null;
           for (const x of all) {
             if (x.plan >= x.mx || (r.lv > 0 && x.plan >= r.lv) || !this.gfAutoMatch(x.info, r)) continue;
@@ -338,6 +338,7 @@ G.module({
         }
         if (!pick) break;
         s.gfQueue.push(pick.id); pick.plan++; added++;
+        if (!old) this.log(`自动队列：按第 ${ri} 条补《${(DATA.skillInfo(pick.id, s.gongfa[pick.id]) || {}).name || pick.id}》第 ${pick.plan} 层（计划层 ${pick.plan - 1}，候选 ${all.length} 部）。`, "sys");   // 查问题用：哪条条件补的
       }
       if (old && !added) s.gfQueue.push(...old);   // 没有可补的（如改了条件）：原样留着
       if (old) { const same = old.join(",") === s.gfQueue.join(","); if (added) s.gfQAuto = true; M.set(s, `${ids.length}|${lvSum}|${s.gfStudy ? s.gfStudy.id : ""}|${s.gfQueue.join(",")}|${JSON.stringify(A.rules)}`); if (!same && added) this.log(`自动队列：按条件改补《${(DATA.skillInfo(s.gfQueue[0], s.gongfa[s.gfQueue[0]]) || {}).name || s.gfQueue[0]}》。`, "sys"); return; }
