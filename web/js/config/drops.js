@@ -30,7 +30,7 @@ CFG.dropTotal = {
   explore: { herb: [10, 12], ore: [10, 12] },   // 凡界、四界地图探索 / 历练 / 出窍：第 1 级地图（青云山林）、练气的 [最少, 最多]（用户定）
   //   地图等级：凡界 1~9 级，仙界 / 冥界 / 魔界 10~19 级（三界同级），神界 20~29 级
   //   加的级数 n = (地图等级 − 1) + 人物大境界序号（练气 0、筑基 1 …）
-  //   实际 最多 = 上面最多 + n × EXPLORE_MAX_ADD；最少 = 上面最少 + ⌊n ÷ EXPLORE_MIN_EVERY⌋（最少不超过最多）
+  //   实际 最多 = 上面最多 + n × EXPLORE_MAX_ADD；最少 = 上面最少 + ⌊(地图等级 − 1) ÷ EXPLORE_MIN_EVERY⌋ + ⌊大境界序号 ÷ EXPLORE_MIN_EVERY⌋（两者分开算，用户定；最少不超过最多）
   EXPLORE_MAX_ADD: 1,     // 每 1 级最多加几
   EXPLORE_MIN_EVERY: 3,   // 每几级最少加 1
   mijing:  { herb: [50, 100],  ore: [40, 80] },   // 秘境（表借用 mijing.js drops 指定的地图）
