@@ -1,19 +1,22 @@
 /* =====================================================================
  * 模块：门派
  * ---------------------------------------------------------------------
- * 未入门：按 1~10 星浏览 120 个门派，境界够了即可拜入。
- * 入门后有九个去处：
- *   宗门大殿  晋升职务（外门弟子 → 宗主），每天领取职务俸禄（灵石）
- *   功法殿    用贡献学习本门功法、法术（学会为第 1 层，之后去“功法”页修炼）
- *   事务堂    每个职务一个任务；点任务后循环自动执行（离线也会进行）
- *   练功房    修炼时消耗贡献，增加修炼速度
- *   宗门宝库  用贡献兑换：杂物（一阶炼丹炉、一阶炼器炉、灵石）/ 凡界全部药材矿石（可输入数量）/ 灵药种子 / 炉子图纸
- *             种子、图纸只能兑换不高于门派星级的（一星 = 一阶）；炉子、图纸兑换后放进背包
+ * 未入门：按 1~10 星浏览门派，境界够了即可拜入。
+ * 入门后的去处（页签名可在 config/names.js 的 sectHall 改）：
+ *   宗门大殿  晋升职务（外门弟子 → 宗主，需先通过考验），每天领取职务俸禄（灵石）；宗主另有清灵丹、宗门传承
+ *   功法殿    用贡献学习本星级及以下门派的功法、法术（学会为第 1 层，之后去“功法”页修炼）
+ *   事务堂    普通任务（点任务后循环自动执行，离线也进行）/ 物品任务 / 特殊任务（每天北京时间 0 点刷新）
+ *   修炼室    每天一次免费修炼室；付费修炼室按时扣贡献，增加修炼速度
+ *   练功房    每天一次免费练功房；付费练功房按时扣贡献，缩短功法修炼时间
+ *   炼体池    每天消耗贡献、气血泡池，泡完永久加肉身属性
+ *   宗门宝库  用贡献兑换：杂物（1 星宗门一阶炉子、灵石、出窍 / 内观秘法、出窍真诀、养神露、延寿丹、凡品阵旗图纸）
+ *             / 药材、矿石（含互换）/ 灵药种子 / 图纸；只显示本宗门星级能兑换的
  *   炼丹房    学习丹方（贡献 + 时间），学会后在洞府炼丹房炼制（见 craft.js）
- *   炼器室    学习炼器（暂未开放）
- *   试炼塔    100 层，逐层挑战，首次通关得贡献
- *   讲道室    每天随机长老讲道（炼丹、炼器必出 + 随机功法），听 10 分钟加技艺经验或属性；每天一次免费，其余要贡献
- * 数值都在 js/config/ 下的数值文件 的 sect。
+ *   炼器室    学习炼器图谱（见 craft.js）
+ *   秘法殿    见 wudao.js
+ *   试炼塔    每星一座（层数见 trial.FLOORS），逐层挑战，首次通关得贡献等奖励；下面附实力测试
+ *   讲道室    每天随机长老讲道（炼丹、炼器必出 + 随机功法），每次 MIN 分钟，加技艺经验或属性；每天第一次免费，其余要贡献
+ * 数值在 js/config/sect.js（CFG.sect 等）。
  * ===================================================================== */
 G.module({
   id: "sect",
@@ -23,10 +26,10 @@ G.module({
     sect: null,       // 门派 id
     contrib: 0,       // 门派贡献
     rank: 0,          // 职务（DATA.ranks 下标）
-    room: -1,         // 正在使用的修炼室（原练功房），-1 为未使用
-    gfRoom: -1,       // v27：宗门练功房（加快功法修炼）
+    room: -1,         // 正在使用的修炼室，-1 为未使用
+    gfRoom: -1,       // 正在使用的宗门练功房（加快功法修炼），-1 为未使用
     roomAt: 0, gfRoomAt: 0,   // 修炼室 / 练功房下次扣贡献的时间（毫秒）
-    merit: 0,         // v27：功德
+    merit: 0,         // 功德
     salaryDay: "",    // 上次领取俸禄的日期
     affair: { task: -1, start: 0, count: 0 },     // 事务堂：正在循环执行的任务（-1 = 无）
     affairDay: "",    // 事务堂物品 / 特殊任务的生成日期（北京时间）
@@ -35,28 +38,29 @@ G.module({
     towers: {},       // 各星级试炼塔已通关层数 { 星级: 层数 }
     rankPass: -1,     // 已通过考验、可以晋升的职务序号（-1 = 没有）
     freeCult: { day: "", used: 0, left: 0, on: false },   // 免费修炼室：今天用了几次、本次剩余修炼次数
-    freeGf: { day: "", used: 0, end: 0 },
+    freeGf: { day: "", used: 0, end: 0 },   // 免费练功房：今天用了几次、本次结束时间
     pool: null,       // 炼体池：{ i 池子, end 结束时间, gain 泡完加的属性, day, used }
-    poolGain: {},     // 炼体池累计加的肉身属性                 // 免费练功房：今天用了几次、本次结束时间
+    poolGain: {},     // 炼体池累计加的肉身属性
     cqZj: [],         // 已学会的出窍真诀卷号（1~3），每卷地图每步 −CFG.cqzj.SEC 秒
     ngLearn: 0,       // 1 = 已学会太上内观经（才能打开经脉）
     ngL: null,        // 正在学习太上内观经 { end 学会时间 }
     cqzjL: null,      // 正在学习的出窍真诀 { v 卷号, end 学会时间 }（不进功法学习队列，学会就生效，不用修炼）
     cqLearn: 0,       // 1 = 已学会元婴出窍秘法（每天次数 = 神识强度 ssPow）
     cqDay: "", cqUsed: 0,   // 元婴出窍：今天已用次数
-    qlDay: "",        // v213 宗主清灵丹：上次领取日期
+    qlDay: "",        // 宗主清灵丹：上次领取日期
     qlEaten: {},      // 各门派清灵丹已服用颗数 { 门派id: 颗数 }
-    ccDay: "",        // v213 宗门传承：上次领悟日期
+    ccDay: "",        // 宗门传承：上次领悟日期
     ccGot: {},        // 各门派已领悟的传承功法 { 门派id: [功法id…] }（门派之间互不通用）
     ccAssign: null,   // 各门派的 5 本传承功法种类（第一次进游戏随机一次后固定，见 DATA.ccGenAssign）
     jd: null,         // 讲道室 { day, list:[{nm, k:"dan"/"qi"/功法类别, book, done}], free: 免费用掉的日期, cur: {i, end}, got: {属性: 值}, log: [] }
   }),
 
-  // 每 10 秒：事务堂任务到时间就结算一次，并自动开始下一次（离线也会补算）
+  // 每次 tick：免费房跨天、炼体池 / 讲道 / 出窍真诀 / 内观经到时结算、生成当天事务、自动任务；
+  //   事务堂任务到时间就结算一次，并自动开始下一次（离线也会补算）
   tick(offline) {
     this.freeRoomDaily(); this.poolTick(); this.jdSettle(); this.cqzjTick(); this.ngTick();
     if (this.s.sect) this.affairGen();
-    this.autoTaskCheck();   // v229 每天北京时间 0:05 自动执行任务（修炼设置）；v230 离线补算到 0:05 也执行
+    this.autoTaskCheck();   // 每天北京时间 0:05 后自动执行任务（修炼设置）；离线补算跨过 0:05 也执行
     this.wdAutoSettle();   // 自动任务的悟道读条到时结算（手动记录不动，等客户端读条）
     this.autoRoomChain();   // 免费修炼室 / 练功房用完后，按自动任务里选的付费房接续（每会话只接续一次）
     const s = this.s, a = s.affair, now = this.now();
@@ -79,23 +83,22 @@ G.module({
     // 两星一档：1~2 星第 0 档、3~4 星第 1 档、5~6 星第 2 档、7~8 星第 3 档、9~10 星第 4 档
     starStep() { const st = (this.sectInfo() || {}).star || 1; return Math.max(0, Math.floor((st - 1) / 2)); },
     // 修炼室 / 练功房境界效率：每个星级宗门对应两个大境界（1 星练气筑基、2 星金丹元婴…按 REQ_REALM），
-    //   境界每高出一档（两个大境界）加成直接减 ROOM_REALM_CUT 个百分点（20），最低 0（用户定）
+    //   境界每高出一档（两个大境界）加成直接减 ROOM_REALM_CUT 个百分点，最低 0（用户定）
     roomOver() { const C = CFG.sect, st = (this.sectInfo() || {}).star || 1, base = (C.REQ_REALM || [])[st - 1], span = +C.ROOM_REALM_SPAN || 2;
       if (base === undefined || this.s.mortal) return 0; return Math.max(0, Math.floor((this.r() - Math.max(0, base)) / span)); },   // 境界高出几档
-    roomEff(p) { return Math.max(0, p - this.roomOver() * (+CFG.sect.ROOM_REALM_CUT || 0)); },   // 每高一档直接减 ROOM_REALM_CUT 个百分点（用户定），最低 0
-    roomPct(i) { return this.roomEff(DATA.rooms[i].pct); },   // 修炼室：1~10 星宗门一样（用户定 2026-11-18，原每两星 +30），境界每高一档 −ROOM_REALM_CUT
-    roomCost(i) { return DATA.rooms[i].cost; },   // v99：写多少就是多少，不乘星级
+    roomEff(p) { return Math.max(0, p - this.roomOver() * (+CFG.sect.ROOM_REALM_CUT || 0)); },
+    roomPct(i) { return this.roomEff(DATA.rooms[i].pct); },   // 修炼室：1~10 星宗门一样（用户定），境界每高一档 −ROOM_REALM_CUT
+    roomCost(i) { return DATA.rooms[i].cost; },   // 写多少就是多少，不乘星级
     roomLocked(i) { return (DATA.rooms[i].rank || 0) > this.s.rank; },
     gfStarBonus() { return 10 * this.starStep(); },   // 练功房：每两星 +10（3~4 星 +10 … 9~10 星 +40）
-    gfRoomPct(i) { return this.roomEff(DATA.gfRooms[i].pct + this.gfStarBonus()); },   // × 境界效率
-    gfRoomCost(i) { return DATA.gfRooms[i].cost; },   // v98：写多少就是多少，不乘星级
-    gfRoomUnits() { return Math.max(1, Math.round((CFG.sect.gfRoomSec || 10) / DATA.STUDY_STEP)); },   // 几个 5 秒单位扣一次贡献
-    gfRoomSec() { return this.gfRoomUnits() * DATA.STUDY_STEP; },
+    gfRoomPct(i) { return this.roomEff(DATA.gfRooms[i].pct + this.gfStarBonus()); },   // 境界每高一档 −ROOM_REALM_CUT
+    gfRoomCost(i) { return DATA.gfRooms[i].cost; },   // 写多少就是多少，不乘星级
+    gfRoomUnits() { return Math.max(1, Math.round((CFG.sect.gfRoomSec || 10) / DATA.STUDY_STEP)); },   // CFG.sect.gfRoomSec（不写 = 10）秒折合几个修炼结算单位（DATA.STUDY_STEP 秒）
     gfRoomLocked(i) { return (DATA.gfRooms[i].rank || 0) > this.s.rank; },
     // 功法减少%（不含练功房）：同 gongfa.js studySec 的 red 口径
     //   功法 / 秘法：悟道 + 经脉 + 聚灵阵；法术：悟法（经脉不减）；开局功法书：0
     // 悟真丹：功法/法术修炼时间 -120%，持续 360 分钟；效果不叠加（pct 固定），时间可叠加（再服 end += 360 分钟）
-    //   存档字段 s.studyBuff = { pct, end }（毫秒时间戳）；功法/法术/秘法（含开局功法书 noEl）都吃
+    //   存档字段 s.studyBuff = { pct, end（毫秒时间戳）, min }；功法/法术/秘法（含开局功法书 noEl）都吃
     //   b.min：服用时的单颗持续分钟；配置改了（如测试改成 3 分钟），旧存档剩余时间压到 现在 + 新的单颗时长
     studyPillFix(b) { const m = (CFG.alchemy.recipes.wuzhen || {}).studyMin || 360; if (b.min !== m) { b.end = Math.min(b.end, this.now() + m * 60000); b.min = m; } },
     studyPillPct() { const b = this.s && this.s.studyBuff; if (!b || !b.end) return 0; this.studyPillFix(b); return this.now() < b.end ? (b.pct || 0) : 0; },
@@ -107,10 +110,10 @@ G.module({
     },
     // 练功房进度倍率：先把练功房 % 加进秘法/经脉减少%里一起除，再换算回进度倍率
     //   实际时间 = base ÷ (1 + (red + roomPct)%) = studySec ÷ mul，
-    //   所以 mul = (100 + red + roomPct) ÷ (100 + red)；每 5 秒灵气也 × mul，总灵气不变，
-    //   时间缩短多少，每 10 秒灵气就对应增加多少（不是直接 × (1 + roomPct%)）
+    //   所以 mul = (100 + red + roomPct) ÷ (100 + red)；每个结算单位（STUDY_STEP 秒）的灵气也 × mul，总灵气不变，
+    //   时间缩短多少，每个结算单位的灵气就对应增加多少（不是直接 × (1 + roomPct%)）
     gfRoomMul(red, pct) { const r = Math.max(0, red), p = Math.max(0, pct); return (100 + r + p) / (100 + r); },   // red/pct 都是 % 数：(1+(red+pct)/100) ÷ (1+red/100)
-    // 当前练功房：{ name, pct, mul, cost, cur: "contrib" } 或 null
+    // 当前练功房：{ name, pct, pill, mul, cost, cur, free / pillOnly } 或 null（pill = 悟真丹 %）
     //   g 不传时按正在修炼的那部算；没有正在修炼的按 red = 0 算（mul = 1 + pct%）
     gfRoomNow(g) {
       const s = this.s;
@@ -145,8 +148,8 @@ G.module({
       this.log(`你离开了${this.sectInfo().name}，扣除贡献 ${U.fmt(c)}。`, "bad");
       this.s.contrib -= c;
       this.s.sect = null; this.s.room = -1; this.s.roomAt = 0; this.s.gfRoom = -1; this.s.gfRoomAt = 0; this.s.affair = { task: -1, start: 0, count: 0 }; this.s.rank = 0; this.s.rankPass = -1;
-      // 免费房会话跟门派绑定：原来只清付费房，叛出后 freeCultOn/freeGfOn 的“有门派”条件
-      // 只是暂时失效，重新拜入又能接着用旧会话；清掉 left/end 后跨天刷新也不会复活它
+      // 免费房会话跟门派绑定：叛出时一并作废（只靠 freeCultOn/freeGfOn 的“有门派”条件，
+      // 重新拜入又能接着用旧会话）；清掉 left/end 后跨天刷新也不会复活它
       if (this.s.freeCult) { this.s.freeCult.on = false; this.s.freeCult.left = 0; }
       if (this.s.freeGf) this.s.freeGf.end = 0;
       this.after();
@@ -156,7 +159,7 @@ G.module({
     rankCost(i) { return DATA.ranks[i].cost; },   // 晋升贡献：就是 ranks 表的 cost，不乘宗门星级
     promote() {
       const i = this.s.rank + 1; if (i >= DATA.ranks.length) return;
-      if (this.s.contrib < this.rankCost(i)) return;   // 职务不限境界，过了考核就行（用户定 2026-11-11）
+      if (this.s.contrib < this.rankCost(i)) return;   // 职务不限境界，过了考核就行（用户定）
       if (this.s.rankPass !== i && !DATA.isTest()) return this.log("需先通过晋升考验。", "sys");   // 测试模式不用考核
       this.s.contrib -= this.rankCost(i); this.s.rank = i; this.s.rankPass = -1;
       this.log(`晋升为【${DATA.ranks[i].name}】！`, "gold"); this.after();
@@ -164,12 +167,12 @@ G.module({
     /* ---------- 晋升考验（config/sect.js 的 sect.rankTrial） ---------- */
     rankTrialCost(i) { return (CFG.sect.rankTrial.cost || [])[i] || 0; },   // 考验贡献：就是 rankTrial.cost，不乘宗门星级
     makeRankGuard(i) {
-      const sw = (CFG.mobs.STAR_WN || [])[this.sectInfo().star] || "凡界";   // 伤害减免按宗门星级算界（config/mobs.js STAR_WN）；属性倍率按 STAR_RAND_WN / STAR_RAND_KIND
-      const rw = this.starRandWn(), rkd = this.starRandKd();   // 属性倍率按 STAR_RAND_WN / STAR_RAND_KIND（用户定 2026-11-24）
+      const sw = (CFG.mobs.STAR_WN || [])[this.sectInfo().star] || "凡界";   // 伤害减免按宗门星级算界（config/mobs.js STAR_WN）
+      const rw = this.starRandWn(), rkd = this.starRandKd();   // 属性倍率按 STAR_RAND_WN / STAR_RAND_KIND（用户定）
       const b = DATA.mobStats(DATA.mobExam(this.sectInfo().star, i), DATA.mobCrit("考官")), v = (x, k) => x * DATA.mobRnd(k, rw, rkd);   // config/mobs.js 的 sect
       return Object.assign(this.addMagic({ rw: sw, name: `${DATA.ranks[i].name}考官`, img: this.npcImg(`考官${this.sectInfo().star}_${i}`, "rn"), boss: false, hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.resEl || b.res, manaBr: b.manaBr, L: b.L, crit: b.crit, randWn: rw, randKd: rkd }, "考核"), { wn: sw });
     },
-    // 考官属性生成一次后存进存档（s.rankGuard），测试和考验打同一个考官；换宗门 / 宗门星级 / 目标职务变了才重新生成（用户定 2026-11-24）
+    // 考官属性生成一次后存进存档（s.rankGuard），测试和考验打同一个考官；换宗门 / 宗门星级 / 目标职务变了才重新生成（用户定）
     starRandWn() { return (CFG.mobs.STAR_RAND_WN || CFG.mobs.STAR_WN || [])[this.sectInfo().star] || "凡界"; },
     starRandKd() { return CFG.mobs.STAR_RAND_KIND || "普通"; },
     rankGuardOf(i) {
@@ -185,7 +188,7 @@ G.module({
       s.contrib -= c;
       const hp0 = s.hp, mp0 = s.mana;
       const res = this.battle(this.rankGuardOf(i), { noXd: 1 });   // 测试不得法术心得
-      s.hp = hp0; s.mana = mp0;   // 测试打完生命、法力恢复到测试前（用户定 2026-11-25）
+      s.hp = hp0; s.mana = mp0;   // 测试打完生命、法力恢复到测试前（用户定）
       const txt = res.win ? `测试：${res.rounds}回合击败${DATA.ranks[i].name}考官（测试不算通过考验）。` : `测试：未能击败${DATA.ranks[i].name}考官${res.timeout ? "（回合耗尽）" : ""}。`;
       this.after();
       this.playBattle(res.detail, `考官测试 · ${DATA.ranks[i].name}`, txt, res.win);
@@ -212,7 +215,7 @@ G.module({
       this.log(`领取${DATA.ranks[this.s.rank].name}俸禄，灵石 +${U.fmt(n)}。`, "good"); this.after();
     },
 
-    /* ---------- v213 宗主专属：清灵丹、宗门传承（config/sect.js 的 qingling / chuancheng） ---------- */
+    /* ---------- 宗主专属：清灵丹、宗门传承（config/sect.js 的 qingling / chuancheng） ---------- */
     isMaster() { return !!this.s.sect && this.s.rank === DATA.ranks.length - 1; },
     claimQl() {
       const s = this.s; if (!this.isMaster() || s.qlDay === this.today()) return;
@@ -220,7 +223,7 @@ G.module({
       s.qlDay = this.today(); this.log(`领取宗主俸禄：${DATA.qlName(s.sect)} ×1。`, "good"); this.after();
     },
     eatQl(i, n) {
-      if (this.tribBusy && this.tribBusy()) return this.log("渡劫中不能服用丹药。", "sys");   // v259
+      if (this.tribBusy && this.tribBusy()) return this.log("渡劫中不能服用丹药。", "sys");
       const s = this.s, it = s.bag[i]; if (!it || it.t !== "ql") return;
       s.qlEaten = s.qlEaten || {};
       const used = s.qlEaten[it.sect] || 0; n = Math.min(Math.floor(+n), it.n, DATA.qlLimit(it.sect) - used);
@@ -264,11 +267,11 @@ G.module({
     },
 
     /* ---------- 功法殿 ---------- */
-    setLibEl(e) { const cur = this.libEl || "all"; this.libEl = cur === e ? "all" : e; this.render(); },   // 再点一次已选的 = 不选 = 全部属性（用户定 2026-11-14）
+    setLibEl(e) { const cur = this.libEl || "all"; this.libEl = cur === e ? "all" : e; this.render(); },   // 再点一次已选的 = 不选 = 全部属性（用户定）
     learnGongfa(id) {
       const g = DATA.skillInfo(id);
       if (!g || g.src !== "sect" || this.hasGongfa(id) || this.s.contrib < g.cost) return;
-      if (!this.lqCan("gf", id)) return;   // v173 学习队列
+      if (!this.lqCan("gf", id)) return;   // 学习队列
       if (!this.lsCheck(id)) return;   // 神识（shenshi.js）
       this.s.contrib -= g.cost; this.startGfLearn(id); this.after();
     },
@@ -293,7 +296,7 @@ G.module({
 
     /* ---------- 事务堂 · 物品任务 / 特殊任务（config/sect.js 的 affairItem / affairFight，每天北京时间 0 点重置） ---------- */
     affairGen() {
-      const s = this.s, day = this.bjDay(); if (!s.sect || (s.affairDay === day && s.affairSect === s.sect)) return;   // v257 换了宗门（升星 / 转投）当天也按新宗门重新生成
+      const s = this.s, day = this.bjDay(); if (!s.sect || (s.affairDay === day && s.affairSect === s.sect)) return;   // 换了宗门（升星 / 转投）当天也按新宗门重新生成
       const x = this.sectInfo(), I = CFG.sect.affairItem, F = CFG.sect.affairFight, SP = CFG.matsOther.SPECIAL || [];
       const pool = kind => { const L = kind === "herb" ? DATA.herbs : DATA.ores, fn = kind === "herb" ? DATA.FAN_HERB_N : DATA.FAN_ORE_N;
         return L.map((n, g) => g).filter(g => x.star <= I.FAN_STAR ? g < fn : g >= fn && !SP.includes(L[g])); };
@@ -318,7 +321,7 @@ G.module({
     },
     affairFightMul(t) { return (CFG.sect.affairFight.GROUPS[t.grp] || {}).mul || 1; },
     affairFightWin(t) { const W = CFG.sect.affairFight.WIN, m = this.affairFightMul(t); return { stone: W.stone * m, contrib: W.contrib * m }; },
-    affairFightRow(t) { return [t.realm, t.lay, t.star || 0, [1, t.pct, t.gf],   // v257 功法星级：前 3 个 = 宗门星级，后 3 个 = 宗门星级 + 1
+    affairFightRow(t) { return [t.realm, t.lay, t.star || 0, [1, t.pct, t.gf],   // 功法星级 t.star = 宗门星级 + GROUPS[grp].realm
       [2, 0, 0], [3, 0, 0], 1]; },
     fightAffair(i) {
       this.affairGen(); const s = this.s, t = (s.affairFights || [])[i]; if (!s.sect || !t || t.done || t.failed) return;
@@ -345,7 +348,7 @@ G.module({
     /* ---------- 炼体池（config/sect.js 的 sect.pool） ---------- */
     poolCost(i) { const P = CFG.sect.pool, p = P.list[i]; return { contrib: Math.floor(p.contrib * P.STAR_MULT[this.sectInfo().star - 1]), hp: p.hp }; },
     poolGainOf(i, rnd) {
-      // v237 基础值（GAIN 第 i 行）× STAR_GAIN^(宗门星级 − 1)；rnd = true 时每种再随机 ± RAND（进入炼体池时定下）
+      // 基础值（GAIN 第 i 行）× STAR_GAIN^(宗门星级 − 1)；rnd = true 时每种再随机 ± RAND（进入炼体池时定下）
       const P = CFG.sect.pool, G0 = P.GAIN || [], g = G0[i] || G0[G0.length - 1] || [], o = {};
       const mul = Math.pow(P.STAR_GAIN === undefined ? 1.2 : P.STAR_GAIN, Math.max(0, this.sectInfo().star - 1)), R = P.RAND || 0;
       (P.list[i].keys || P.KEYS || ["hp", "atk", "def"]).forEach((k, j) => { if (!g[j]) return;
@@ -380,7 +383,7 @@ G.module({
       if (fc && fc.day && fc.day !== day && fc.left > 0) { Object.assign(fc, { day, used: 1, left: CFG.sect.freeRoom.times }); this.dirty(); }
       if (fg && fg.day && fg.day !== day && fg.end > mid) { Object.assign(fg, { day, used: 1, end: mid + CFG.sect.freeGfRoom.minutes * 60000 }); this.dirty(); }
     },
-    /* ---------- v229 自动执行任务（修炼设置里开关）：每天北京时间 0:05 后执行一次；离线错过的话下次上线执行 ---------- */
+    /* ---------- 自动执行任务（修炼设置里开关）：每天北京时间 0:05 后执行一次；离线错过的话下次上线执行 ---------- */
     autoTask() {
       return this.s.autoTask || (this.s.autoTask = { day: "", free: false, gf: false, pool: false, poolI: 0, salary: false, xiulian: false, shenhun: false, zhandou: false, ex: false, exT: "", cq: false, cqT: "", roomNext: -1, gfNext: -1, roomChain: "", gfChain: 0 });
     },
@@ -429,17 +432,14 @@ G.module({
       } else if (A.free || A.gf || A.pool || A.salary) log("未加入宗门，跳过宗门任务。");
       this._autoQuiet = true;
       try { for (const d of ["xiulian", "shenhun", "zhandou"]) if (A[d] && this.wdCheck(d)) { const m0 = this.wdStarts(); if (m0[d]) continue; this.wudao(d); const m = this.wdStarts(); if (m[d]) m[d].auto = 1; } } finally { this._autoQuiet = false; }   // 自动悟道也走 5 秒读条：先记开始、标 auto，读满后由 tick 的 wdAutoSettle 结算，不直接发奖
-      const go = (tgt, cq) => { const p = (tgt || "").split(":").map(Number); if (!tgt) return log("没有选择地图。");
-        if (cq) { const r = p[2];
-          if (s.cq || (s.explore && s.explore.cq)) return log("正在出窍，跳过自动出窍。");
-          if (!s.cqLearn || this.cqLeftToday() <= 0 || !this.realmOK(CFG.chuqiao.REALM)) return log("出窍条件不足或今天次数已用完。");
-          if (!this.isTrained(p[1], r)) return log("所选地方还不能出窍。");
-          this.startChuqiao(p[1], r, this.cqLeftToday());
-        } else { if (s.explore) return log("正在探索，跳过自动探索。");
-          if (!this.isTrained(p[1], p[2])) return log("所选区域还没历练通过。");
-          this.toggleExplore(p[1], p[2], false); }
+      const go = tgt => { const p = (tgt || "").split(":").map(Number); if (!tgt) return log("没有选择地图。");
+        const r = p[2];
+        if (s.cq || (s.explore && s.explore.cq)) return log("正在出窍，跳过自动出窍。");
+        if (!s.cqLearn || this.cqLeftToday() <= 0 || !this.realmOK(CFG.chuqiao.REALM)) return log("出窍条件不足或今天次数已用完。");
+        if (!this.isTrained(p[1], r)) return log("所选地方还不能出窍。");
+        this.startChuqiao(p[1], r, this.cqLeftToday());
       };
-      if (A.cq) go(A.cqT, true);            // v231 去掉了自动探索，只剩自动出窍
+      if (A.cq) go(A.cqT);            // 自动出窍
       this.after();
     },
     enterFreeRoom() {
@@ -461,7 +461,7 @@ G.module({
       this.log(`进入${C.name}，持续 ${C.minutes} 分钟。`, "good"); this.after();
     },
 
-    /* ---------- 练功房 ---------- */
+    /* ---------- 修炼室 / 练功房 ---------- */
     /* 修炼室 / 练功房按时扣贡献：进入时先扣一次，之后每 ROOM_BILL_SEC 秒扣一次（离线也补扣），贡献不够就离开 */
     roomBillMs() { return (CFG.sect.ROOM_BILL_SEC || 60) * 1000; },
     roomPay(k, i) {   // k = "room" / "gfRoom"：进入时先扣一次；不够返回 false
@@ -568,7 +568,7 @@ G.module({
       const it = this.treasuryList()[i], c = this.treasuryCost(it);
       if (it && it.kind === "lu") return this.openLuSwap(i);   // 养神露走 luSwap
       if (!it || !this.sectInfo() || this.s.contrib < c || (it.star || 1) > this.sectInfo().star) return;
-      if (it.kind === "sy") {   // 延寿丹：直接服用，加寿元上限；每颗只能换一次
+      if (it.kind === "sy") {   // 延寿丹：兑换到背包（ysd1~ysd5），在背包服用；每种最多换 PILL_MAX 颗
         const P = (((CFG.origin || {}).SY || {}).PILLS || [])[it.v], s = this.s;
         if (!P || !this.syOn() || this.syDead() || this.syPillN(it.v) >= this.syPillMax() || P[0] !== this.sectInfo().star) return;
         if (!this.addSm("ysd" + (it.v + 1), 1)) return;
@@ -590,7 +590,7 @@ G.module({
         this.log(`开始学习${CFG.neiguan.NAME}，需 ${U.dur((CFG.neiguan.LEARN_MIN || 10) * 60)}。`, "good");
         return this.after();
       }
-      if (it.kind === "cqzj") {   // 出窍真诀：扣贡献后进功法学习队列，学完生效
+      if (it.kind === "cqzj") {   // 出窍真诀：扣贡献后学 LEARN_MIN 分钟（不进功法学习队列），学完生效
         if (!(it.v >= 1 && it.v <= (CFG.cqzj.COST || []).length) || this.cqzjHas(it.v)) return;
         this.cqzjTick();
         if (this.s.cqzjL) return this.log(`正在学习${this.cqzjName(this.s.cqzjL.v)}，学完才能学下一卷。`, "sys");
@@ -642,9 +642,8 @@ G.module({
         <div class="btns"><button class="primary" onclick="G.luSwap(${i},G.lsw.kind,G.lsw.g)" ${done || w.g < 0 ? "disabled" : ""}>${done ? "今日已换" : "兑换"}</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
     setTreasuryTab(t) { this.treasuryTab = t; this.render(); },
-    treasuryMaxG() { return this.sectInfo().star - 1; }, // 可兑换的最高 品/阶 序号
-    // v42 宗门宝库的药材、矿石、种子：凡界全部 + 四界通用（matsOther.STAR 星起；特色药材、矿石不能换）
-    //   返回 [{ g, lock }]，lock = 需要的星级（0 = 可换）
+    // 宗门宝库的药材、矿石、种子：凡界全部 + 四界通用（matsOther.STAR 星起；特色药材、矿石不能换）
+    //   返回 [{ g, lock: 0 }]，本宗门星级兑换不了的不列
     treasuryMatList(kind) {
       const fanN = kind === "herb" ? DATA.FAN_HERB_N : DATA.FAN_ORE_N, names = kind === "herb" ? DATA.herbs : DATA.ores, O = CFG.matsOther || {}, star = this.sectInfo().star;
       return names.map((n, g) => g < fanN ? { g, lock: 0 } : (O.SPECIAL || []).includes(n) ? null : { g, lock: star >= (O.STAR || 6) ? 0 : (O.STAR || 6) }).filter(x => x && !x.lock);   // 本宗门星级兑换不了的不显示
@@ -739,7 +738,7 @@ G.module({
         <input type="number" min="1" max="${max}" value="${w.n}" oninput="G.msw.n=+this.value" onchange="${re}">
         <div class="btns"><button class="primary" onclick="G.matSwap('${kind}','${mode}',G.msw.from,${to},G.msw.n)" ${max < 1 ? "disabled" : ""}>兑换</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
-    // 兑换种子（每种一次，永久可种）
+    // 兑换种子窗口：输入数量
     openExchangeSeed(g) {
       if (!this.seedOK(g)) return;
       const c = DATA.seedCost(g), max = Math.min(9999, Math.floor(this.s.contrib / Math.max(1, c)));
@@ -764,20 +763,20 @@ G.module({
       this.log(`获得${DATA.furnaceName(kind, g)}图纸。`, "gold"); this.after();
     },
 
-    /* ---------- 试炼塔（v25：1~10 星，层数见 config/sect.js 的 sect.trial） ---------- */
+    /* ---------- 试炼塔（1~10 星，层数见 config/sect.js 的 sect.trial） ---------- */
     towerFloor() { return this.s.towers[this.sectInfo().star] || 0; },
     towerMax() { return DATA.towerMax(this.sectInfo().star); },
-    // 守关者属性：config/mobs.js 的 tower（v221 按层数公式算，2 星起叠加上一星塔顶），见 DATA.towerStage
+    // 守关者属性：config/mobs.js 的 tower（按层数公式算，2 星起叠加上一星塔顶），见 DATA.towerStage
     makeTowerGuard(floor) {
       const tw = DATA.towerStage(this.sectInfo().star, floor, this.towerMax()), m = {};
       const sw = (CFG.mobs.STAR_WN || [])[this.sectInfo().star] || "凡界";   // 按宗门星级算界（STAR_WN）：属性倍率、抗性、伤害减免
-      m.rw = sw; m.randWn = this.starRandWn(); m.randKd = this.starRandKd();   // 属性倍率按 STAR_RAND_WN / STAR_RAND_KIND（用户定 2026-11-24）
+      m.rw = sw; m.randWn = this.starRandWn(); m.randKd = this.starRandKd();   // 属性倍率按 STAR_RAND_WN / STAR_RAND_KIND（用户定）
       for (const k of DATA.REF_KEYS) m[k] = k === "res" ? tw[k] : tw[k] * DATA.mobRnd(k, m.randWn, m.randKd);   // 抗性在 addMagic 里每系 × 倍率
       m.crit = tw.crit; m.manaBr = tw.manaBr; m.L = tw.L; if (tw.resEl) m.res = tw.resEl;   // 六系分开
       const ER = CFG.mobs.tower.EL_RED || {}, er = ER[floor % 10]; if (er && ER.PCT) { m.elRed = {}; er.forEach(e => m.elRed[e] = ER.PCT); }   // 层数尾数对应的几系伤害减少
       return Object.assign(this.addMagic(Object.assign(m, { name: `第${floor}层守关者`, img: this.npcImg(`塔${this.sectInfo().star}_${floor}`, "rn"), boss: false }), "tower"), { wn: (CFG.mobs.STAR_WN || [])[this.sectInfo().star] || "凡界" });   // 伤害减免按宗门星级算界（STAR_WN）
     },
-    // 第 f 层的额外奖励：{ kind: "mijue", id } 试炼塔秘诀 / { kind: "ring", r } / { kind: "rbp", g } / { kind: "extra" }（v223）
+    // 第 f 层的额外奖励：{ kind: "mijue", id } 试炼塔秘诀 / { kind: "ring", r } / { kind: "rbp", g } / { kind: "extra" }
     towerBonus(star, f) {
       const T = CFG.sect.trial, E = T.EVERY || 10, bk = DATA.towerBookAt(star, f);
       if (bk) return { kind: "mijue", id: bk };
@@ -789,7 +788,7 @@ G.module({
       }
       return { kind: "extra" };
     },
-    towerDesc(star) {   // v223 塔的奖励说明
+    towerDesc(star) {   // 塔的奖励说明
       const T = CFG.sect.trial, r = (T.RING || [])[star - 1], M = T.MIJUE || {}, i = star - 1, ev = (M.EVERY || [])[i] || 0, last = (M.LAST || [])[i] || 0, out = [];
       if (r !== undefined && r >= 0 && DATA.ringNames[r]) out.push(`第 10 层奖励${DATA.ringName(r, 0)}，第 20~100 层依次奖励它的二星~十星升级图纸`);
       if (ev > 0 && ((M.PCT || [])[i] || 0) > 0) out.push(`每 ${ev} 层奖励一本试炼塔秘诀`);
@@ -801,7 +800,7 @@ G.module({
     towerBonusText(b) { return !b ? "" : b.kind === "ring" ? DATA.ringName(b.r, 0) : b.kind === "rbp" ? DATA.ringBpName(b.g, b.r)
       : b.kind === "mijue" ? `《${DATA.gongfaInfo(b.id, 1).name}》` : `${DATA.HX} / 耀石 / 功德 随机一种`; },
     // 试炼塔秘诀：每次给下一本，放进背包（在背包里学习，占用神识；之后在「功法」页修炼升层）；给完后 火髓 / 耀石 / 功德 随机一种（config/sect.js 的 trial.EXTRA）
-    giveTowerMijue(star, id) {   // v223 id = 这一层的秘诀（已有或没写 = 改给 火髓 / 耀石 / 功德）
+    giveTowerMijue(star, id) {   // id = 这一层的秘诀（已有或没写 = 改给 火髓 / 耀石 / 功德）
       const s = this.s; if (id && this.towerHasBook(id)) id = null;
       if (id) { const nm = `《${DATA.gongfaInfo(id, 1).name}》`; const where = this.bagPutOrMail({ t: "gfb", id, n: 1 }); this.dirty(); return `${nm}（已放入${where === "mail" ? "传音" : "背包"}）`; }
       const X = CFG.sect.trial.EXTRA || {}, kinds = ["fire", "ys", "merit"].filter(k => X[k]), k = kinds[U.rand(0, kinds.length - 1)];
@@ -819,7 +818,7 @@ G.module({
       const MS = F.MAT_SEG || 20, FS = F.FIRE_SEG || 10;
       return { mat: Math.round((F.MAT_BASE ?? 3) * star * seg(MS)), fire: Math.round((F.FIRE_BASE ?? 1) * star * seg(FS)) };
     },
-    // 药材 / 矿石的序号池：1~FAN_STAR 星凡界 6 种（0~5），以上四界通用（6 起，不含各界特色）
+    // 药材 / 矿石的序号池：1~FAN_STAR 星凡界全部，以上四界通用（不含各界特色）
     towerMatPool(star, kind) {
       const fan = Object.keys(CFG.mats[kind]).length, sp = (CFG.matsOther || {}).SPECIAL || [], all = kind === "herb" ? DATA.herbs : DATA.ores;
       if (star <= (CFG.sect.trial.floor.FAN_STAR ?? 5)) return [...Array(fan).keys()];
@@ -828,7 +827,7 @@ G.module({
     },
     // 首通第 f 层的奖励，返回文字
     towerReward(f) {
-      const s = this.s, star = this.sectInfo().star, T = CFG.sect.trial, F = T.floor, i = star - 1, out = [];
+      const s = this.s, star = this.sectInfo().star, T = CFG.sect.trial, F = T.floor, out = [];
       const c = DATA.towerReward(f, star); s.contrib += c; out.push(`贡献 +${U.fmt(c)}`);
       const R = this.towerMatFire(star, f);
       if (R.fire && this.addFire(R.fire)) out.push(`${DATA.HX} ×${R.fire}`);
@@ -847,10 +846,8 @@ G.module({
       else if (b) out.push(this.giveTowerMijue(star, b.kind === "mijue" ? b.id : null));
       return out.join("，");
     },
-    // 点「挑战」：立即算出结果，打开战斗画面逐回合播放（3 秒后可跳过）
-    /* ---------- v158 实力测试（试炼塔下面）：选境界 + 层，属性同地图普通怪；不扣生命、不自动结束 ---------- */
-    // 同境界的地图普通怪那一行（功法星级 / 来源 / 层 / 倍率照抄），没有就用低一点境界的
-    // v178 选凡界地图（9 张 × 东西南北）+ 怪物种类（普通 / 精英 / 首领），属性 = 该区域该种怪
+    /* ---------- 实力测试（试炼塔下面）：不扣生命、不自动结束 ---------- */
+    // 选凡界地图（每张 × 东西南北）+ 怪物种类（普通 / 精英 / 首领），属性 = 该区域该种怪
     testPick() { if (!this._tp || this._tp.a === undefined) this._tp = { a: 0, k: "normal" }; return this._tp; },
     setTestPick(k, v) { this.testPick()[k] = v; this.render(); },
     testMapOpts() { const o = []; for (let a = 0; a < DATA.FAN_MAP_N; a++) DATA.regionDirs.forEach((d, r) => o.push([a * 4 + r, `${DATA.maps[a].name}·${d}`])); return o; },
@@ -867,9 +864,9 @@ G.module({
       return out;
     },
     testFight() {
-      const t = this.testMobT(), kd = this.testPick().k, b = DATA.mobRoll(t, DATA.mobCrit(DATA.MOB_KIND[kd]));   // v168 学哪些功法、每本几层随机
+      const t = this.testMobT(), kd = this.testPick().k, b = DATA.mobRoll(t, DATA.mobCrit(DATA.MOB_KIND[kd]));   // 学哪些功法、每本几层随机
       const v = (x, k) => x * DATA.mobRnd(k, undefined, kd, Math.floor(this.testPick().a / 4));   // 和地图怪一样每项 × 固定倍率（按种类）
-      const p = this.testPick(), a = Math.floor(p.a / 4), r = p.a % 4, mp = DATA.maps[a];   // v180 名字 / 图同地图里的怪（图按名字找）
+      const p = this.testPick(), a = Math.floor(p.a / 4), r = p.a % 4, mp = DATA.maps[a];   // 名字 / 图同地图里的怪（图按名字找）
       const nm = kd === "boss" ? DATA.regionBoss(a, r) : (kd === "elite" ? "精英·" : "") + U.pick(mp.monsters);
       const m = this.addMagic({ name: nm, a, mapA: a, kind: kd, elKey: kd === "boss" ? `b:${a}:${r}` : "", boss: kd === "boss", elite: kd === "elite", hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res: b.resEl || b.res, manaBr: b.manaBr, L: b.L, crit: b.crit }, kd);
       const res = this.battle(m, { test: true, foe: kd === "boss" ? "boss" : kd === "elite" ? "elite" : "mob" });
@@ -887,10 +884,10 @@ G.module({
         ${n ? (() => { return `<details class="desc"><summary>功法：${R.cats.map(C => DATA.mobParts(C).map(([lo, hi, P]) => `${DATA.MOB_GF_CAT[C.c]} ${lo === hi ? lo : `${lo}~${hi}`}星每种学 ${rg(P.pct)}%、每本 ${rg(P.gf)} 层`).join("，")).filter(x => x).join("；")}（共 ${n} 部可选，显示属性为平均值）</summary>${gf.map(([nm, l]) => `<p><b>${nm}</b>：${l.join("、")}</p>`).join("")}</details>`; })() : `<p class="desc">功法：无</p>`}
         <div class="btns"><button onclick="G.testFight()">开始测试</button></div></div>`;
     },
+    // 点「挑战」：立即算出结果，打开战斗画面逐回合播放
     challengeTower() {
       if (!this.sectInfo()) return this.log("尚未加入门派。", "sys");
       const star = this.sectInfo().star, f = this.towerFloor() + 1; if (f > this.towerMax()) return;
-      const st = this.stats();
       const m = this.makeTowerGuard(f);
       const res = this.battle(m);
       let txt;
@@ -899,7 +896,7 @@ G.module({
         txt = `${res.rounds}回合击败${star}星试炼塔第 ${f} 层守关者，获得 ${this.towerReward(f)}。`;
       } else { txt = `挑战试炼塔第 ${f} 层失败${res.timeout ? "（回合耗尽，未能击败）" : ""}。`; }
       this.after();
-      this.playBattle(res.detail, `试炼塔 · 第 ${f} 层`, txt, res.win, null, false, { tname: "" });   // v228 标题不再显示守关者名字   // 见 world.js
+      this.playBattle(res.detail, `试炼塔 · 第 ${f} 层`, txt, res.win, null, false, { tname: "" });   // 标题不显示守关者名字；见 world.js
     },
 
     /* ---------- 讲道室（config/sect.js 的 jiangdao） ---------- */
@@ -909,7 +906,7 @@ G.module({
     jdLabel(st) { return st.startsWith("res_") ? ((DATA.elById[st.slice(4)] || {}).name || "") + "抗" : DATA.QL_LABEL[st] || st; },
     // star 不传时用当前门派星级；听讲结算传听讲时的星级（旧存档 cur 没 star 时回退当前星级）
     jdInterp(a, b, star) { const n = star ?? (this.sectInfo() || {}).star ?? 1, t = Math.min(9, Math.max(0, n - 1)) / 9; return [Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t)]; },   // 1 星 a 到 10 星 b 按星级线性插值
-    jdVal(k, star) {   // 功法属性：n 星 = STAT_BASE + STAT_STEP×(n−1)，再 × STAT_MUL（攻防 1.5、生命法力 4）
+    jdVal(k, star) {   // 功法属性：n 星 = STAT_BASE + STAT_STEP×(n−1)，再 × STAT_MUL；没配 STAT_BASE 时按 STAT1~STAT10 插值
       const J = this.jdCfg(), st = this.jdStatOf(k), n = Math.min(10, Math.max(1, star ?? (this.sectInfo() || {}).star ?? 1));
       if (!J.STAT_BASE) return this.jdInterp(J.STAT1 || [15, 35], J.STAT10 || [70, 110], n);
       const m = (J.STAT_MUL || {})[st] || 1, d = (J.STAT_STEP || 0) * (n - 1);
@@ -960,7 +957,7 @@ G.module({
       this.log(`前往讲道室听取${L.nm}讲道${free ? "（今日免费）" : `，消耗贡献 ${U.fmt(c)}`}。`, "sys"); this.after();
     },
     jdSettle() {
-      const d = this.s.jd; if (!d || !d.cur || this.now() < d.cur.end) return;   // 不再要求有门派：听讲中途叛出也照常结算（奖励按 cur.star），否则 cur 永远清不掉
+      const d = this.s.jd; if (!d || !d.cur || this.now() < d.cur.end) return;   // 不要求有门派：听讲中途叛出也照常结算（奖励按 cur.star），否则 cur 永远清不掉
       const c = d.cur; d.cur = null;
       let gain;
       if (c.k === "dan" || c.k === "qi") {
@@ -1018,7 +1015,7 @@ G.module({
         <div class="btns"><button onclick="G.leaveSect()" ${s.contrib < this.leaveCost() ? "disabled" : ""}>叛出门派（贡献 ${U.fmt(this.leaveCost())}）</button></div>`;
     } else if (tab === "lib") {
       // 功法殿：本星级及以下全部门派的功法、法术（高星在前）；按 属性 筛选
-      const el = this.libEl || "all";   // "all" = 一个都不选 = 金木水火土雷全部；默认不选（用户定 2026-11-14）
+      const el = this.libEl || "all";   // "all" = 一个都不选 = 金木水火土雷全部；默认不选（用户定）
       const btn = g => this.gfLearnBtn(g, `G.learnGongfa('${g.id}')`, s.contrib < g.cost);
       const sects = DATA.sects.filter(o => o.star <= x.star && (el === "all" || o.el === el)).sort((p, q) => q.star - p.star);
       const cards = sects.map(o => ({ o, gs: DATA.gfTypesOf("sect", o.star).map(t => [DATA.gongfaInfo(DATA.gongfaId(o.id, t.id)), t]).concat([[DATA.spellInfo(DATA.spellId(o.id, o.el)), null]]) }));
@@ -1026,7 +1023,7 @@ G.module({
       const row = (g, t) => [this.hasGongfa(g.id), t ? `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${t.name}</span><small>每层${g.label} +${this.gfValue(g, g.perLv)}${g.label2 ? ` · ${g.label2} +${this.gfValue(g, g.perLv2)}` : ""} · ${U.fmt(g.cost)} 贡献 · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>${btn(g)}</div>`
         : `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">法术</span><small>${this.spellDmgTxt(g)} · 耗法力 ${U.fmt(g.mana)} · ${U.fmt(g.cost)} 贡献 · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>${btn(g)}</div>`];
       h += `<div class="room-grid" style="grid-template-columns:repeat(${DATA.elements.length + 1},1fr)">${DATA.elements.map(e => [e.id, e.name]).map(([k, n]) =>
-          `<button class="${el === k ? "active" : ""}" onclick="G.setLibEl('${k}')">${n}</button>`).join("")}${this.lqQBtn("gf")}</div>` +   // 学习队列放进「队列」按钮（用户定 2026-11-15）
+          `<button class="${el === k ? "active" : ""}" onclick="G.setLibEl('${k}')">${n}</button>`).join("")}${this.lqQBtn("gf")}</div>` +   // 学习队列放进「队列」按钮（用户定）
         this.gfSideWrap(cards.flatMap(c => c.gs.map(x => x[0])), U.doneCards(cards.map(({ o, gs }) => ({ head: `<h3>${o.name}<span class="tag">${o.star}星</span><span class="tag">${DATA.elById[o.el].name}</span></h3>`,
           rows: gs.filter(([g]) => this.gfSideOk(g)).map(([g, t]) => row(g, t)) }))) || `<div class="card"><p class="desc">${this.gfSide === "done" ? "还没有学会的功法" : "这一类都学会了"}。</p></div>`);
     } else if (tab === "affair") {
@@ -1080,7 +1077,7 @@ G.module({
           <button class="sm ${me ? "on" : ""}" onclick="G.enterPool(${i})" ${on || done || lock ? "disabled" : ""}>${me ? "修炼中" : lock ? "职务不足" : done ? "今日已用" : "进入"}</button></div>`;
       }).join("") + `</div>`;
     } else if (tab === "treasury") {
-      const tt = this.treasuryTab || "pill", maxG = this.treasuryMaxG();
+      const tt = this.treasuryTab || "pill";
       h += `<div class="sub-tabs">${[["pill", "杂物"], ["herb", DATA.matKinds.herb], ["ore", DATA.matKinds.ore], ["seed", "种子"], ["bp", "图纸"]].map(([k, n]) =>
         `<button class="${tt === k ? "active" : ""}" onclick="G.setTreasuryTab('${k}')">${n}</button>`).join("")}</div>`;
       if (tt === "pill") {
@@ -1114,10 +1111,10 @@ G.module({
                 : `<button class="sm" onclick="G.exchange(${i})" ${L || s.contrib < c ? "disabled" : ""}>${L ? "学习中" : "学习"}</button>`}</div>`];
           }
           if (it.kind === "lu") {
-            if ((it.star || 1) > x.star) return [0, ""];   // 星级不够的宗门不显示养神露（用户 2026-11-17）
-            const lock = false, done = this.luDone();
+            if ((it.star || 1) > x.star) return [0, ""];   // 星级不够的宗门不显示养神露（用户定）
+            const done = this.luDone();
             return [0, `<div class="line"><div>${DATA.li(DATA.smIcon("lu"))}${DATA.smName("lu")} ×${it.get}<small>${U.fmt(it.n)} 个同一种${DATA.matKinds.herb}或${DATA.matKinds.ore}${it.cost ? ` + ${U.fmt(it.cost)} 贡献` : ""} · 每天一次</small></div>
-              <button class="sm" onclick="G.openLuSwap(${i})" ${lock || done ? "disabled" : ""}>${lock ? `${it.star}星宗门可兑换` : done ? "今日已换" : "兑换"}</button></div>`];
+              <button class="sm" onclick="G.openLuSwap(${i})" ${done ? "disabled" : ""}>${done ? "今日已换" : "兑换"}</button></div>`];
           }
           if (it.maxStar && x.star > it.maxStar) return [0, ""];   // 宝库炉子只在 1 星宗门显示
           const c = this.treasuryCost(it), lock = (it.star || 1) > x.star, got = it.once && it.kind === "furnace" && (s.trFu || {})[it.fk];
@@ -1128,9 +1125,9 @@ G.module({
             <button class="sm" onclick="G.exchange(${i})" ${got || lock || s.contrib < c ? "disabled" : ""}>${got ? "已兑换" : lock ? `${it.star}星宗门可兑换` : "兑换"}</button></div>`];
         }) }, ...this.zqBpCards()]);   // 已学会的放最后一张「已学会」卡；凡品阵旗图纸按星级显示
       } else if (tt === "seed") {
-        h += `<div class="card"><h3>灵药种子<small>种一季用一颗</small></h3>` + this.seedList().map(({ g, lock }) => { const n = DATA.herbs[g], c = DATA.seedCost(g), has = false;
+        h += `<div class="card"><h3>灵药种子<small>种一季用一颗</small></h3>` + this.seedList().map(({ g }) => { const n = DATA.herbs[g], c = DATA.seedCost(g);
           return `<div class="line"><div>${DATA.li(DATA.seedImg(g))}${n}种子<small>${U.fmt(c)} 贡献 · 已有 ${U.fmt(this.seedCount(g))}</small></div>
-            <button class="sm" onclick="G.openExchangeSeed(${g})" ${has || lock || s.contrib < c ? "disabled" : ""}>${has ? "已拥有" : lock ? `${lock}星宗门可兑换` : "兑换"}</button></div>`; }).join("") + `</div>`;
+            <button class="sm" onclick="G.openExchangeSeed(${g})" ${s.contrib < c ? "disabled" : ""}>兑换</button></div>`; }).join("") + `</div>`;
       } else if (tt === "bp") {
         h += this.ringShopHtml();   // 灵犀戒图纸、灵犀晶（6 星以上宗门）
         const zfp = this.zfShopParts ? this.zfShopParts() : null;   // 只算一次，todo 和 done 共用
@@ -1143,8 +1140,8 @@ G.module({
       } else {
         const kn = DATA.matKinds[tt], ml = this.treasuryMatList(tt), fanN = tt === "herb" ? DATA.FAN_HERB_N : DATA.FAN_ORE_N;
         const row = (g, sub, btn) => `<div class="line"><div>${DATA.li(DATA.matImg(tt, g))}${DATA.matFull(tt, g)}<small>${sub} · 已有 ${U.fmt(this.countMat(tt, g))}</small></div>${btn}</div>`;
-        h += `<div class="card"><h3>贡献兑换<small>贡献 ${U.fmt(s.contrib)}</small></h3>` + ml.map(({ g, lock }) => { const c = DATA.matContrib(tt, g);
-          return row(g, `${U.fmt(c)} 贡献/个`, `<button class="sm" onclick="G.openExchangeMat('${tt}',${g})" ${lock || s.contrib < c ? "disabled" : ""}>${lock ? `${lock}星宗门可兑换` : "兑换"}</button>`); }).join("") + `</div>`;
+        h += `<div class="card"><h3>贡献兑换<small>贡献 ${U.fmt(s.contrib)}</small></h3>` + ml.map(({ g }) => { const c = DATA.matContrib(tt, g);
+          return row(g, `${U.fmt(c)} 贡献/个`, `<button class="sm" onclick="G.openExchangeMat('${tt}',${g})" ${s.contrib < c ? "disabled" : ""}>兑换</button>`); }).join("") + `</div>`;
         h += `<div class="card">` + ml.map(({ g }) =>
           row(g, `${this.matSwapRate("two")} 个其他${g < fanN ? "凡界" : "四界"}${kn}换 1 个`, `<button class="sm" onclick="G.openMatSwap('${tt}','two',${g})">兑换</button>`)).join("") + `</div>`;
         if (tt === "herb" && x.star >= this.ssSwapCfg().STAR) h += this.ssSwapCard();   // 神识功法药材互换（2 星宗门起，不到不显示）

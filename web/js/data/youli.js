@@ -26,7 +26,6 @@
 
   /* ---------- 游历功法 ---------- */
   const EL_TYPE = { jin: "zhenjue", mu: "zhenjue2", shui: "zhenjue3", huo: "zhenjue4", tu: "zhenjue5", lei: "zhenjue6" };
-  DATA.YL_GF_KEYS = ["gongjue", "xinfa", "zhenjing", "shenfa", "fajue", "dunshu", "jin", "mu", "shui", "huo", "tu", "lei"];
   DATA.ylTypeId = key => EL_TYPE[key] || key;
   DATA.gfSources.yl = { name: "游历", cfg: () => DATA.gfDerive(C.GF_PCT === undefined ? 145 : C.GF_PCT) };
   if (!DATA.GF_NEW_SRC.includes("yl")) DATA.GF_NEW_SRC.push("yl");

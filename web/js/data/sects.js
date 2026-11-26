@@ -7,7 +7,7 @@
  * prefix：功法名前缀，例如 青阳 → 青阳紫霄心法
  * 加入门派需要的境界：config/sect.js 的 REQ_REALM（按星级）
  * 改名字在 config/names.js 的 sect（下面 SECT_NAMES 是原名，[前缀, 全名, 属性]）；改属性改下面。
- * 注意：顺序决定门派 id（s星级_序号），已有存档会按 id 对应，不要调换前 10 个的顺序。
+ * 注意：顺序决定门派 id（s星级_序号），已有存档会按 id 对应，不要调换顺序。
  * ===================================================================== */
 const SECT_NAMES = [
   // 1 星
@@ -54,7 +54,7 @@ SECT_NAMES.forEach((list, i) => {
 const _SC = CFG.sect;
 DATA.ranks = _SC.ranks;
 DATA.affairs = _SC.affair.tasks;
-DATA.rooms = _SC.rooms;                 // 修炼室（原练功房）
-DATA.gfRooms = _SC.gfRooms || [];       // v27 练功房：加快功法修炼
+DATA.rooms = _SC.rooms;                 // 修炼室
+DATA.gfRooms = _SC.gfRooms || [];       // 练功房：加快功法修炼
 DATA.towerMax = star => _SC.trial.FLOORS[star - 1];   // N 星试炼塔层数
 DATA.towerReward = (floor, star) => _SC.trial.floor.contrib[star - 1] * floor;   // 首次通关奖励贡献

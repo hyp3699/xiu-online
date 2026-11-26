@@ -8,7 +8,7 @@
  *   - 1 灵石换灵气     = STONE_LING（固定）
  * cost(lv)：从 lv 升到 lv+1 需要的灵石（COST_BASE × 各级所在段 COST_RATE 连乘）
  * ===================================================================== */
-// 数值在 js/config/ 下的数值文件 的 array 部分
+// 数值在 config/array.js
 const _A = CFG.array;
 // 分段数值：第 lv 级（1 起）所在段的数值 C[key][段]（超出数组用最后一段）
 DATA.segIdx = (C, lv, key) => Math.floor((Math.max(1, lv) - 1) / ((key && C.STEPS && C.STEPS[key]) || C.STEP || 30));   // STEPS[key]：该数组单独的每段级数

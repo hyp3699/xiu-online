@@ -141,7 +141,7 @@ test("sect cultivation room and gongfa room bill contribution every minute", () 
   // 满 1 分钟（下一个 10 秒结算）各扣一次
   a = engine.advance(a.state, t0 + 70_000);
   assert.equal(a.state.contrib, 1000 - 2 * rc - 2 * gc);
-  // 修炼 / 功法修炼本身不再扣贡献：开自动修炼跑 5 分钟，扣的正好是 5 次
+  // 修炼 / 功法修炼本身不扣贡献：开自动修炼跑 5 分钟，扣的正好是 5 次
   a.state.auto = true;
   const before = a.state.contrib;
   a = engine.advance(a.state, t0 + 70_000 + 300_000);

@@ -3,9 +3,10 @@
  * ---------------------------------------------------------------------
  * 修炼页「神识」按钮进入：上面养神（人物动画、神识强度、养神丹、养神按钮），下面灵识点。
  * 神识强度 ssPow：每养神一次 +1，每天可元婴出窍次数 = 神识强度（sect.js cqMaxRuns）。
- * 剩余灵识点 = lsMax（初始 + 用灵石买的）− 已学功法 / 秘法占用的（实时算，遗忘后归还）。
- * 功法页「遗忘」：删除攻击、防御、修炼速度、肉身修炼速度类功法。
- * 存档：lsMax 灵识点总数，ssPow 神识强度
+ * 总灵识点 = lsMax（初始 + 灵石买 + 碎片换）+ 神魂之道 + 出身 + 《灵台开识篇》+ 炼神诀；剩余 = 总 − 已学功法 / 秘法占用的（实时算，遗忘后归还）。
+ * 功法页「遗忘」：删除 CFG.shenshi.TYPES 类（攻击、防御、修炼速度、肉身修炼速度）的功法。
+ * 识海空间（点人物图片）：神识功法（CFG.shenshi.GONGFA），s.ssGf。
+ * 存档：lsMax 灵识点，ssPow 神识强度，ssGf 神识功法层数，lsStoneBought / lsFragBought 灵石买 / 碎片换的点数
  * ===================================================================== */
 G.module({
   id: "shenshi",
@@ -13,7 +14,7 @@ G.module({
 
   api: {
     // 养神：消耗养神丹，神识强度 +1
-    ysNeed() { const Y = CFG.shenshi.YANGSHEN || {}, p = Math.max(0, (this.s.ssPow || 0) - (this.ssGfSum ? this.ssGfSum("pow") : 0) - (this.s.oriSs && this.oriSum ? this.oriSum("ssPow") : 0)); return Math.floor((Y.BASE || 1) + (Y.ADD || 0) * Math.floor(p / (Y.EVERY || 10))); },   // 《凝神观想诀》、出身加的神识强度不让养神丹变贵（出身的单独算，用户定 2026-11-16）
+    ysNeed() { const Y = CFG.shenshi.YANGSHEN || {}, p = Math.max(0, (this.s.ssPow || 0) - (this.ssGfSum ? this.ssGfSum("pow") : 0) - (this.s.oriSs && this.oriSum ? this.oriSum("ssPow") : 0)); return Math.floor((Y.BASE || 1) + (Y.ADD || 0) * Math.floor(p / (Y.EVERY || 10))); },   // 《凝神观想诀》、出身加的神识强度不让养神丹变贵（用户定）
     yangshen() {
       const s = this.s, need = this.ysNeed();
       if (this.smCount("yd") < need) return this.log(`${DATA.smName("yd")}不足，需要 ${need} 枚。`, "sys");
@@ -21,13 +22,13 @@ G.module({
       this._ysFx = Date.now();
       this.log(`养神成功，神识强度提升至 ${s.ssPow}${s.cqLearn ? `，每天可元婴出窍 ${s.ssPow} 次` : ""}。`, "good"); this.dirty(); this.after();
     },
-    lsCap() { const C = CFG.shenshi; return +C.BUY_MAX > 0 ? Math.max(C.INIT || 0, +C.BUY_MAX) : Infinity; },   // BUY_MAX 0 / 不写 = 不限   // 神识上限
+    lsCap() { const C = CFG.shenshi; return +C.BUY_MAX > 0 ? Math.max(C.INIT || 0, +C.BUY_MAX) : Infinity; },   // 灵识点上限；BUY_MAX 0 / 不写 = 不限
     // 这本功法 / 秘法占用多少神识（不占用 = 0）
     ssCost(id) {
       const C = CFG.shenshi, g = DATA.skillInfo(id, 1); if (!g || !g.star) return 0;
       if ((this.s.oriFreeGf || []).includes(id)) return 0;   // 出身送的不占灵识点（古修洞府、坠崖奇遇）
-      if (g.src === "yl") return 0;   // 游历功法不占灵识点；隐世宗门功法（ys）的功诀/心法/秘诀/炼体秘诀按 TYPES 占用（2026-11-06）
-      if (g.sect && g.sect.src === "wdroom") return 0;   // 悟道室功法（战斗之道、修炼之道的秘诀/炼体秘诀）都不占灵识点（2026-11-06）
+      if (g.src === "yl") return 0;   // 游历功法不占灵识点；隐世宗门功法（ys）的功诀/心法/秘诀/炼体秘诀按 TYPES 占用
+      if (g.sect && g.sect.src === "wdroom") return 0;   // 悟道室功法（战斗之道、修炼之道的秘诀/炼体秘诀）都不占灵识点
       const ok = g.kind === "mf" ? C.MIFA : g.kind === "gf" && (C.TYPES || []).includes(DATA.gfTypeKey(g.type.id));
       return ok ? ((C.STAR || [])[g.star - 1] || 0) : 0;
     },
@@ -36,12 +37,12 @@ G.module({
       const s = this.s; let n = 0;
       for (const id in s.gongfa) n += this.ssCost(id);
       if (s.gfLearn && s.gfLearn.id && !s.gongfa[s.gfLearn.id]) n += this.ssCost(s.gfLearn.id);   // 正在学习的也算
-      for (const x of (s.lq && s.lq.gf) || []) if (x.id && !s.gongfa[x.id]) n += this.ssCost(x.id);   // v173 排队的也算
+      for (const x of (s.lq && s.lq.gf) || []) if (x.id && !s.gongfa[x.id]) n += this.ssCost(x.id);   // 排队的也算
       return n;
     },
-    lsTotal() { return (this.s.lsMax || 0) + ((this.s.wd || {}).ls || 0) + (this.oriSum ? this.oriSum("ls") : 0) + this.ssGfSum("ls") + (this.lsjSum ? this.lsjSum("ls") : 0); },   // + 炼神诀每层   // + 神识功法《灵台开识篇》   // + 出身「残魂附体」   // 总灵识点 = 买的 + 神魂之道得的
+    lsTotal() { return (this.s.lsMax || 0) + ((this.s.wd || {}).ls || 0) + (this.oriSum ? this.oriSum("ls") : 0) + this.ssGfSum("ls") + (this.lsjSum ? this.lsjSum("ls") : 0); },   // 总灵识点 = lsMax + 神魂之道 + 出身「残魂附体」 + 神识功法《灵台开识篇》 + 炼神诀每层
     lsLeft() { return this.lsTotal() - this.lsUsed(); },
-    lsStoneCount() { const s = this.s; return Math.max(+s.lsStoneBought || 0, (s.lsMax || 0) - (CFG.shenshi.INIT || 0) - (s.lsFragBought || 0)); },   // lsMax 只有灵石买、碎片换会加，所以灵石买过的 = lsMax − INIT − 碎片换的（修复：defaults 曾把老存档 lsStoneBought 补成 0，阶段被重置）   // 用灵石买过的点数（老存档没有这个字段时按 lsMax − INIT 折算，阶段不变）
+    lsStoneCount() { const s = this.s; return Math.max(+s.lsStoneBought || 0, (s.lsMax || 0) - (CFG.shenshi.INIT || 0) - (s.lsFragBought || 0)); },   // 用灵石买过的点数：lsMax 只有灵石买、碎片换会加，老存档没有 lsStoneBought 时按 lsMax − INIT − 碎片换的折算（所以 defaults 不能补 lsStoneBought: 0，否则阶段被重置）
     lsBoughtAll() { return this.lsStoneCount() + (+this.s.lsFragBought || 0); },   // 灵石买 + 碎片换的总点数（两种共用阶段）
     // 第 i 个用灵石买的点要多少灵石（i 从 1 开始）
     lsPrice(i) {   // BUY = [每阶段点数, 每阶段递增灵石]：第 n 阶段每点 n × 递增（兼容旧的 [[从, 到, 灵石], …] 写法）
@@ -51,12 +52,12 @@ G.module({
       return (Math.floor((i - 1) / n) + 1) * add;
     },
     lsBuyCost(n) {
-      const bought = this.lsBoughtAll(); let c = 0;   // 阶段灵石买、碎片换共用（用户定 2026-11-25）
+      const bought = this.lsBoughtAll(); let c = 0;   // 阶段灵石买、碎片换共用（用户定）
       for (let i = 1; i <= n; i++) { const p = this.lsPrice(bought + i); if (p === null) return null; c += p; }
       return c;
     },
     buyLingshi(n) {
-      // 原来 n=0.5 时 lsBuyCost(0.5)=0（循环一次都不跑），却 lsMax += 0.5，白嫖灵识。
+      // 必须取整：n=0.5 时 lsBuyCost(0.5)=0（循环一次都不跑），却会 lsMax += 0.5，白嫖灵识。
       const s = this.s; n = Math.min(9999, Math.floor(+n), this.lsCap() - s.lsMax);
       if (!Number.isFinite(n)) return this.log("数量无效。", "sys");
       if (n <= 0) return this.log("灵识点已达上限。", "sys");
@@ -66,14 +67,14 @@ G.module({
       const bought = this.lsStoneCount(); s.stone -= c; s.lsMax += n; s.lsStoneBought = bought + n;   // 先取数再加 lsMax，老存档的折算（lsMax − INIT）才不会多算 1
       this.log(`消耗灵石 ${U.fmt(c)}，灵识点 +${n}（共 ${this.lsTotal()}）。`, "good"); this.dirty(); this.after();
     },
-    // 第 i 个用碎片换的点（i 从 1 开始）：阶段按灵石买 + 碎片换的总点数算（2026-11-25 起共用）
+    // 第 i 个用碎片换的点（i 从 1 开始）：阶段按灵石买 + 碎片换的总点数算（两种共用）
     lsFragPrice(i) {
       const C = CFG.shenshi, B = C.BUY_FRAG || [];
       const n = +B[0] || 0, add = +B[1] || 0; if (!n || i < 1) return null;
       return (Math.floor((i - 1) / n) + 1) * add;
     },
     lsFragBuyCost(n) {
-      const bought = this.lsBoughtAll(); let c = 0;   // 阶段灵石买、碎片换共用（用户定 2026-11-25）
+      const bought = this.lsBoughtAll(); let c = 0;   // 阶段灵石买、碎片换共用（用户定）
       for (let i = 1; i <= n; i++) { const p = this.lsFragPrice(bought + i); if (p === null) return null; c += p; }
       return c;
     },
@@ -127,7 +128,7 @@ G.module({
       return out;
     },
     // 功法修炼每 5 秒单位灵气（减少量按每 10 秒的数字，单位是一半）；alone=true：列表里单独估算（整份减少量都给它）
-    ssGfPer(per, alone, noZq) { return Math.max(0, per - (alone ? this.ssGfSum("ling") : this.lxShare().gf) / DATA.STUDY_SETTLE()) * (!noZq && this.zqLingK ? this.zqLingK() : 1); },   // noZq：灵脉灵气不吃阵旗   // 阵旗减消耗最后乘   // 功法修炼每 5 秒单位灵气（《敛息归元诀》按每 10 秒的数字减，单位是一半）
+    ssGfPer(per, alone, noZq) { return Math.max(0, per - (alone ? this.ssGfSum("ling") : this.lxShare().gf) / DATA.STUDY_SETTLE()) * (!noZq && this.zqLingK ? this.zqLingK() : 1); },   // noZq：灵脉灵气不吃阵旗；阵旗减消耗最后乘
     // 第 k 层的消耗（没写 = 不要）：stone 灵石，sm 专用材料 [[键, 数量]]（养神丹 yd、元魂果 yhg、凝魂芝 nhz）
     ssGfCost(k, g) {
       const mk = (st, yd, yhg, nhz) => ({ stone: Math.max(0, st || 0), sm: [["yd", yd], ["yhg", yhg], ["nhz", nhz]].filter(x => x[1] > 0) });
@@ -177,8 +178,7 @@ G.module({
         <div class="btns">${full ? "" : `<button class="primary" onclick="G.ssGfUp('${g.id}')" ${ok ? "" : "disabled"}>修炼</button>`}<button onclick="G.ssGfClose()">关闭</button></div>`);
     },
     openShenshi(on) { this.cultView = on ? "shenshi" : ""; this.render(); },
-    // 识海空间：神识页点人物图片进入，神识功法都在这里（用户定 2026-11-17）
-    // 识海空间：神识页点人物图片弹出圆形星空，只显示每本神识功法的书（不显示字），点书看信息、修炼（用户定 2026-11-17）
+    // 识海空间：神识页点人物图片弹出圆形星空，只显示每本神识功法的书（不显示字），点书看信息、修炼（用户定）
     openSsSea() {
       const L = CFG.shenshi.GONGFA || [], n = L.length || 1;
       const books = L.map((g, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / n, x = 50 + 34 * Math.cos(a), y = 50 + 34 * Math.sin(a);
@@ -190,7 +190,7 @@ G.module({
   },
 });
 
-/* 修炼 · 神识页面（cultivate.js 调用）：养神（人物动画 + 神识强度 + 养神丹 + 养神按钮）在上，灵识点在下 */
+/* 修炼 · 神识页面（cultivate.js 调用）：养神（人物动画 + 神识强度 + 养神丹 + 养神按钮）在上，点人物进识海空间；灵识点在下 */
 G.shenshiView = function () {
   const s = this.s, cap = this.lsCap(), used = this.lsUsed(), left = this.lsTotal() - used, room = cap - s.lsMax;
   const need = this.ysNeed(), have = this.smCount("yd"), fx = this._ysFx && Date.now() - this._ysFx < 1500 ? " fx" : "";
@@ -198,10 +198,6 @@ G.shenshiView = function () {
     return `<button ${c === null || s.stone < c ? "disabled" : ""} onclick="G.buyLingshi(${n})">增加 ${n > 0 ? n : ""} 点${c !== null ? `<small>消耗${U.fmt(c)}灵石</small>` : ""}</button>`; };
   const fbtn = n => { n = Math.min(n, room); const c = n > 0 ? this.lsFragBuyCost(n) : null;
     return `<button ${c === null || this.smCount("lsfrag") < c ? "disabled" : ""} onclick="G.buyLsFrag(${n})">增加 ${n > 0 ? n : ""} 点${c !== null ? `<small>消耗${U.fmt(c)}灵识碎片</small>` : ""}</button>`; };
-  // 神识功法光点：贴着人物，两侧从头到胸各 3 个（左 0~2，右 3~5）；坐标是人物图内的 %，跟人物一起浮动；名字、层数点开才显示
-  const POS = [[30, 6], [25, 20], [22, 34], [70, 6], [75, 20], [78, 34]];
-  const dots = (CFG.shenshi.GONGFA || []).slice(0, 6).map((g, i) => { const [x, y] = POS[i];
-    return `<button class="ys-dot" style="left:${x}%;top:${y}%;animation-delay:${(i * 0.4).toFixed(1)}s" onclick="G.openSsGf('${g.id}')" aria-label="${g.name}">${g.ICON ? `<img src="${DATA.iconImg(g.ICON)}" alt="">` : "<i></i>"}</button>`; }).join("");   // 书的图片（用户定 2026-11-16）
   const wisps = [8, 22, 36, 64, 78, 90, 15, 85].map((x, i) => `<i style="left:${x}%;animation-delay:${(i * 0.9).toFixed(1)}s"></i>`).join("");
   return `<div class="card ys-card">
     <div class="ys-stage${fx}"><div class="ys-pow"><span>神识强度</span><b>${U.fmt(s.ssPow || 0)}</b></div>

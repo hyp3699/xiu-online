@@ -28,11 +28,9 @@ export function readConfig(name, { original = false } = {}) {
   if (!original && configOverridden(n)) return fs.readFileSync(path.join(CONFIG_OVERRIDE_DIR, n), "utf8");
   return fs.readFileSync(path.join(CONFIG_DIR, n), "utf8");
 }
-const MAX_TICKS_PER_ADVANCE = 31_536_000;   // 10 年（用户定 2026-11-16：离线多久都一次补完；离线自动探索按平均数给掉落，1000 天约几秒）
-// 登录 / 会话 / 重连 / 动作单次最多补算的 tick 数（86400 个 10 秒 = 10 天）：
-// state.last 落后几十天时全量补算会卡住事件循环；截断后剩下的由定时结算继续补
-// （advance 截断时 s.last 不跳到现在，见 advance），所以这里可以比离线后台的 1 天大得多。
-export const ADVANCE_BUDGET_TICKS = MAX_TICKS_PER_ADVANCE;   // 用户定 2026-11-16 一次补完（原 86400 = 10 天）
+const MAX_TICKS_PER_ADVANCE = 31_536_000;   // 10 年（用户定：离线多久都一次补完；离线自动探索按平均数给掉落，1000 天约几秒）
+// act() 默认最多补算的 tick 数：等于上限，一次补完（用户定）。被截断时 s.last 不跳到现在（见 advance），剩下的由定时结算继续补。
+export const ADVANCE_BUDGET_TICKS = MAX_TICKS_PER_ADVANCE;
 
 function elementStub() {
   const classes = new Set();
@@ -185,8 +183,8 @@ export class GameEngine {
       for (const module of this.modules) if (module.tick) module.tick.call(this, offline);
     };
     this.G.modal = function () {};
-    // 战斗画面在客户端播放：服务器只记下来，随操作结果发回（一次响应里多场战斗都保留，
-    // 不再每次调用都覆盖成只剩最后一场；act()/advance() 开始时清空一次，见下）
+    // 战斗画面在客户端播放：服务器只记下来，随操作结果发回（一次响应里多场战斗都保留；
+    // act()/advance() 开始时清空一次，见下）
     this.G.playBattle = function (b, title, txt, win, logs, replay, opt) {
       (engine.battles ||= []).push(safeClone({ b, title, txt, win, logs: logs || null, replay: !!replay, opt: opt || {} }));
       // 全部信息：除实力测试、回放以外的战斗都记一条（服务器存 hist 表，见 server.mjs drainHist）
@@ -301,7 +299,7 @@ export class GameEngine {
     const last = Math.min(Number(s.last) || this.clock.now, this.clock.now);
     const totalDue = Math.floor(Math.max(0, this.clock.now - last) / TICK_MS);
     let due = Math.min(totalDue, MAX_TICKS_PER_ADVANCE, Math.max(1, Math.floor(maxTicks) || MAX_TICKS_PER_ADVANCE));
-    const truncated = due < totalDue;   // 被 maxTicks / 300 万上限截断：s.last 只能推进到已算完的位置，剩下的下一轮接着算
+    const truncated = due < totalDue;   // 被 maxTicks / MAX_TICKS_PER_ADVANCE 截断：s.last 只能推进到已算完的位置，剩下的下一轮接着算
     if (due > 0) {
       this.G.silent = false;
       this.G.runTicks(last, due);
@@ -332,7 +330,7 @@ export class GameEngine {
     if (typeof this.G.advanceTrib === "function" && s.trib) this.G.advanceTrib();
     // Preserve the partial 10-second interval; the server owns this timestamp.
     // 只有没被截断时才能把 s.last 对齐到现在：被截断时上面已把 s.last 设成 last+due*TICK_MS，
-    // 再对齐到现在会把还没算的离线时间直接丢掉（离线超过 1 天只算第 1 天、剩下 29 天永久丢失）。
+    // 再对齐到现在会把还没算的离线时间直接丢掉。
     if (!truncated) s.last = this.clock.now - ((this.clock.now - last) % TICK_MS);
     this.G._simNow = this.clock.now;
     if (s.sy && typeof this.G.syCheck === "function" && this.G.syCheck()) { s.last = realNow; s.explore = null; s.cq = null; }   // 寿元到了：人物死亡，停在这里
@@ -441,8 +439,7 @@ export class GameEngine {
   }
 
   act(state, action, args = [], now = Date.now(), maxTicks = ADVANCE_BUDGET_TICKS) {
-    // 单次操作最多补算 10 天：state.last 落后几十天时全量补算会卡住事件循环；
-    // 截断后剩下的由定时结算继续补（advance 截断时 s.last 不跳到现在）。
+    // 操作前补算最多 maxTicks 个 tick（server.mjs 按分片传入）；截断后剩下的由定时结算继续补（advance 截断时 s.last 不跳到现在）。
     // battles 在 advance 之前清空：一次响应里的多场战斗（本次 advance 的探索/渡劫 + 本次操作）都保留。
     this.battles = [];
     const advanced = this.advance(state, now, maxTicks);
@@ -452,8 +449,8 @@ export class GameEngine {
     if (action.startsWith("_") || ["init", "start", "loop", "runTicks", "offline", "tickAll", "migrate", "newSave"].includes(action)) throw new Error("不允许调用该操作");
     this.seedRandom();
     this.G._simNow = this.clock.now;
-    // 背包是固定格子，客户端不再自动排序：服务端这里也不能在操作前排序，
-    // 否则客户端按格子序号点的操作会对到排序后的另一件物品；只有点「整理」时才排序。
+    // 背包是固定格子：服务端不能在操作前排序，否则客户端按格子序号点的操作
+    // 会对到排序后的另一件物品；只有点「整理」时才排序。
     const preBad = this.insane(this.G.s);   // 旧存档本来就有问题时不拦，免得以后每个操作都被拒
     // 一键熔炼没有数量参数、按持有量逐颗循环：持有量（礼包一次最多 1e6 颗）不受 validateValue 约束，
     // 单次超过 1000 颗就拒绝，改用 bmFuse(j, n) 分批（每批 ≤1000，见 server.mjs validateValue）。
@@ -504,4 +501,3 @@ GameEngine.prototype.insane = function (s) {
   return bad[0] || "";
 };
 
-export const GAME_TICK_MS = TICK_MS;

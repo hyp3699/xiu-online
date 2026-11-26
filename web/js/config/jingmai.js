@@ -12,6 +12,8 @@
  *   属性：hp 生命 mana 法力 atk 攻击 def 防御 res_jin 金抗 res_mu 木抗 res_shui 水抗 res_huo 火抗 res_tu 土抗 res_lei 雷抗
  *
  * 每个穴位冲满 LAYERS 层：额外修炼速度、练体速度各随机 FULL_MIN~FULL_MAX（平均 FULL_AVG），直接加数值。
+ * 每个光点 10 个穴位全部冲满：修为修炼速度、炼体速度各 +NODE_SPD_PCT%。
+ * 光点页中间的窍穴（INNER）见下面 INNER 的说明。
  *
  * 每冲一层消耗（按总共已冲的层数 n 算，n = 0 是第一次）：
  *   冲脉丹 = DAN_MIN + floor(n ÷ DAN_STEP)，最多 DAN_MAX（默认 1~12 颗，每 300 层多 1 颗）
@@ -35,7 +37,7 @@ CFG.jingmai = {
   NODE_RATIO: 5,       // 最后一个光点属性 = 第一个的几倍
   FULL_MIN: 1000,      // 每个穴位冲满 10 层：额外修炼速度、练体速度各随机增加，最少
   FULL_MAX: 6000,      //   最多
-  NODE_SPD_PCT: 3,     // 每个光点 10 个穴位全部冲满：修为修炼速度、炼体速度各 +%（和聚灵阵、丹药等相加，用户定 2026-11-18）
+  NODE_SPD_PCT: 3,     // 每个光点 10 个穴位全部冲满：修为修炼速度、炼体速度各 +%（和聚灵阵、丹药等相加，用户定）
   FULL_AVG: 3000,      //   平均（FULL_AVG 要在 MIN~MAX 之间，越靠近 MIN 小数值越多）
   DAN_MIN: 1,          // 冲脉丹：第一次几颗
   DAN_MAX: 12,         // 冲脉丹：最多几颗
@@ -79,7 +81,7 @@ CFG.jingmai = {
       { name: "关元", x: 200, y: 365, xue: [["华泉", "res_shui"], ["华海", "res_mu"], ["华关", "res_jin"], ["华府", "def"], ["华门", "mana"], ["华池", "atk"], ["华庭", "res_huo"], ["华堂", "res_lei"], ["华宫", "res_tu"], ["华台", "hp"]] },
     ] },
     // 左手 6 个：每 2 个一种属性伤害 +%（金 金 木 木 水 水）
-    // elDmg 每系 2×18 = 36%（用户定 2026-11-18，原 16%）
+    // elDmg 每系 2×18 = 36%（用户定）
     { name: "阴维脉", color: "#b890ff", elDmg: [["jin", 18], ["jin", 18], ["mu", 18], ["mu", 18], ["shui", 18], ["shui", 18]], nodes: [
       { name: "天池", x: 148, y: 222, xue: [["青泉", "res_shui"], ["青海", "mana"], ["青关", "res_mu"], ["青府", "res_jin"], ["青门", "atk"], ["青池", "res_lei"], ["青庭", "res_tu"], ["青堂", "def"], ["青宫", "hp"], ["青台", "res_huo"]] },
       { name: "期门", x: 128, y: 258, xue: [["赤泉", "hp"], ["赤海", "res_lei"], ["赤关", "mana"], ["赤府", "res_jin"], ["赤门", "def"], ["赤池", "res_tu"], ["赤庭", "res_huo"], ["赤堂", "res_mu"], ["赤宫", "atk"], ["赤台", "res_shui"]] },

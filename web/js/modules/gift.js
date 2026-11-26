@@ -1,12 +1,12 @@
 /* =====================================================================
  * 模块：礼包码
  * ---------------------------------------------------------------------
- * 管理员：设置 → 生成礼包码（选物品、兑换次数；可随时删除）。礼包码存在服务器（server/server.py 的 gifts 表）。
+ * 管理员：设置 → 生成礼包码（选物品、兑换次数；可随时删除）。礼包码存在服务器（server/server.mjs 的 gifts 表）。
  * 所有玩家：设置 → 礼包码兑换。每个账号每个礼包码只能兑换一次；兑换次数用完就失效。
  * 礼包里的物品格式 { c: 类别, ... }：
  *   ori {n}                             出身点（创建角色前兑换，多选 n 个出身）
  *   stone / contrib / merit / yl {n}    灵石 / 贡献 / 功德 / 愿力
- *   gf {src, type}                      功法（来源 = 门派 / 坊市 / 试炼塔）
+ *   gf {src, type}                      功法（来源 = 宗门 / 坊市 / 四界坊市 / 功德司 / 试炼塔 / 天外天）
  *   sp {src}                            法术（门派本属性）
  *   mf {star, kind}                     秘法
  *   fabao {ft, el, g, n}                法宝（形状、属性、星：g 0~11 = 一~十二星）
@@ -14,7 +14,7 @@
  *   herb / ore {g, n}                   药材 / 矿石（不含特产）；ore 的 g ≥ 1000 = 耀石（g − 1000 = 属性序号）
  *   tc {name, n}                        四界特产
  *   dan {item: "p:类型" 修炼丹 | "d:丹方", g, n} / {item: "s:cmd", n} 冲脉丹
- *   bp {item: "f:炉子" | "r:戒指序号", g, n}   图纸
+ *   bp {item: "f:炉子" | "r:戒指序号" | "z:阵法" | "za:阵法", g, n}   图纸（za 无阶）
  *   lj / lz {ft, n}                     灵晶 / 灵珠（ft = 金木水火土 0~4）
  *   sm {k, n}                           特殊材料（神界神像物品：神源石、天道碎片、混沌灵液、周天星髓、神凰羽、龙皇鳞、九天玄露、太初神木）
  *   hx {n}                              火髓
@@ -31,10 +31,9 @@ G.module({
         ["lj", DATA.smName("lj")], ["lz", DATA.smName("lz")], ["hx", DATA.HX], ["sm", "特殊材料"], ["st", "神通"], ["bm", "本命法宝图纸"]];
     },
     giftSpecial() { return CFG.matsOther.SPECIAL; },
-    giftJie() { return DATA.JIE.map((n, i) => [i, n]); },
     // 每个类别要选的项：{ k, label, opts:[[值, 显示]] } 或 { k, label, num:true }
     giftFields(c, a) {
-      const N = { k: "n", label: "数量", num: true }, jie = this.giftJie(), xing = DATA.XING.map((n, i) => [i, n]);   // 装备、法宝、戒指、炼器炉按星（一星 ~ 十二星）
+      const N = { k: "n", label: "数量", num: true }, xing = DATA.XING.map((n, i) => [i, n]);   // 装备、法宝、戒指、炼器炉按星（一星 ~ 十二星）
       const srcName = o => `${o.star}星·${o.name}${o.book ? `·第${o.book}卷` : ""}`;
       if (c === "ori") return [{ k: "n", label: "增加几个出身", num: true }];   // 出身点：创建角色前兑换，多选几个出身
       if (c === "stone" || c === "contrib" || c === "merit" || c === "yl" || c === "hx") return [N];
@@ -55,7 +54,7 @@ G.module({
       if (c === "eq") return [{ k: "slot", label: "部位", opts: [...DATA.eqSlots6.map(x => [x, DATA.slots[x]]), ...DATA.ringList().map(r => ["ring:" + r, DATA.ringNames[r]])] }, { k: "g", label: "星", opts: xing }, N];
       if (c === "herb" || c === "ore") {
         const sp = this.giftSpecial(), list = (c === "herb" ? DATA.herbs : DATA.ores).map((n, g) => [g, n]).filter(([, n]) => !sp.includes(n));
-        if (c === "ore") list.push(...CFG.mijing.items.ys.names.map((n, i) => [1000 + i, n]));   // v152 耀石放在矿石里：g = 1000 + 属性序号
+        if (c === "ore") list.push(...CFG.mijing.items.ys.names.map((n, i) => [1000 + i, n]));   // 耀石放在矿石里：g = 1000 + 属性序号
         return [{ k: "g", label: "名称", opts: list }, N];
       }
       if (c === "tc") return [{ k: "name", label: "名称", opts: [...this.giftSpecial().filter(n => DATA.matByName[n]).map(n => [n, n]), [DATA.smName("wdg"), DATA.smName("wdg")]] }, N];   // 悟道果也放在特产里
@@ -65,7 +64,7 @@ G.module({
         const it = a.item || items[0][0];
         if (it[0] === "s") return [{ k: "item", label: "丹药", opts: items }, N];
         const R = DATA.recipes[it.slice(2)] || {};
-        // 阶数按配方行数算（悟真丹没有 val 数组，只有 1 行配方，不能按 val 算，否则阶下拉为空，giftNorm 在第 80 行崩）
+        // 阶数按配方行数算（悟真丹没有 val 数组，只有 1 行配方，不能按 val 算，否则阶下拉为空，giftNorm 会出错）
         const tiers = it[0] === "p" ? 0 : Math.max(1, (R.herbs || R.val || []).length);
         const gs = it[0] === "p" ? DATA.realms.map((n, i) => [i, DATA.realmLabel(i)]) : Array.from({ length: tiers }, (_, i) => [i, DATA.JIE[i]]);
         return [{ k: "item", label: "丹药", opts: items }, { k: "g", label: it[0] === "p" ? "品质" : "阶", opts: gs }, N];

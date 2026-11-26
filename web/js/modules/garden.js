@@ -1,13 +1,13 @@
 /* =====================================================================
  * 模块：灵药园 · 灵田（洞府）
  * ---------------------------------------------------------------------
- * - 用灵石开启灵田，最多 30 块
+ * - 用灵石开启灵田，最多 config/garden.js MAX 块
  * - 种子是背包物品：宗门宝库用贡献兑换（不限次数）、地图探索 / 出窍掉落；每开始一季（含自动续种）消耗 1 颗（config/garden.js PLANT_SEED）
  * - 每种一季消耗灵气；灵气不够就等着，够了自动开始
  * - 成熟后自动收获（药材进背包，数量在范围内随机），并自动继续种同一种
  * - 灵田管理：更换种植类型（等当前这一季成熟后才换）、铲除（立即清空，本季作废）
- * - 每种药材的 成熟时间 / 收获数量 / 消耗灵气 / 种子贡献 在 js/config/ 数值文件 的 garden.herbs
- * - 灵植夫（config/craftsman.js）阶数越高生长越快、收获越多；宗门秘法「育灵 / 丰灵」再叠加
+ * - 每种药材的 成熟时间 / 收获数量 / 消耗灵气 / 种子贡献 在 config/garden.js 的 herbs
+ * - 灵植夫（config/craftsman.js）阶数越高生长越快（不加产量）；宗门秘法「育灵 / 丰灵」、道童、地块等级再叠加
  * - 按 G.now() 计时，写在 tick 里，离线也会继续
  * 存档：
  *   seeds  旧版永久解锁（已作废，不再使用）
@@ -20,18 +20,18 @@ G.module({
 
   tick() {
     const s = this.s, now = this.now(), l0 = s.ling;
-    let nNew = 0;   // v206 本次新开始的季数（扣灵气），记日志，免得灵气突然少一截看不出原因
+    let nNew = 0;   // 本次新开始的季数（扣灵气），记日志，免得灵气突然少一截看不出原因
     s.fields.forEach(f => {
       if (f.g < 0) return;
       if (f.next != null && !DATA.herbGrow(f.next)) f.next = null;   // 换种的药材被管理员删了：不换
-      if (!DATA.herbGrow(f.g)) { f.g = -1; f.wait = false; f.next = null; if (!this.silent) this.log("一块灵田种的药材已不存在，灵田已清空。", "sys"); return; }   // 原来每 10 秒抛错卡死结算
+      if (!DATA.herbGrow(f.g)) { f.g = -1; f.wait = false; f.next = null; if (!this.silent) this.log("一块灵田种的药材已不存在，灵田已清空。", "sys"); return; }   // 不清空会每 10 秒抛错卡死结算
       if (f.wait) { if (!this.payField(f, now)) return; nNew++; }
       let guard = 0;
       while (!f.wait && now >= f.start + this.fieldTime(f.g, f) && guard++ < 1e4) {
         const end = f.start + this.fieldTime(f.g, f), Y = DATA.herbGrow(f.g).yield, lg = DATA.isLg(f.g);
         const n = lg ? this.lgYieldRoll() : Math.floor(U.rand(Y[0], Y[1]) * (1 + (this.plantYieldPct(f.g) + DATA.landYieldPct(f.lv)) / 100)), ck = this.plantCraft(f.g);
-        if (n > 0) this.mailMerge(lg ? { t: "lg", k: f.g - DATA.LG_BASE, n } : { t: "mat", kind: "herb", name: DATA.herbs[f.g], g: f.g, n }, DATA.caveName ? DATA.caveName("garden") : "灵药园");   // 灵药园产出进传音（用户定 2026-11-17）   // 背包满时进传音，不再丢药材却照算经验
-        { const K = CFG.craftsman[ck], IE = K.ITEM_EXP, lm = CFG.craftsman.LING_EXP_MULT ?? 1; this.addCraftExp(ck, n * (IE ? ((lg ? IE[(DATA.LG().EXP_TIER ?? 15) - 1] : IE[f.g]) ?? IE[IE.length - 1] ?? 0) : (f.g + 1) * (K.EXP_RATE || 0)) * lm); }   // 每株 ITEM_EXP[品级−1]，再 × 种植经验总倍率   // 品级按药材总序号（仙界药材接在凡界后面）
+        if (n > 0) this.mailMerge(lg ? { t: "lg", k: f.g - DATA.LG_BASE, n } : { t: "mat", kind: "herb", name: DATA.herbs[f.g], g: f.g, n }, DATA.caveName ? DATA.caveName("garden") : "灵药园");   // 灵药园产出进传音（用户定），背包满也不丢
+        { const K = CFG.craftsman[ck], IE = K.ITEM_EXP, lm = CFG.craftsman.LING_EXP_MULT ?? 1; this.addCraftExp(ck, n * (IE ? ((lg ? IE[(DATA.LG().EXP_TIER ?? 15) - 1] : IE[f.g]) ?? IE[IE.length - 1] ?? 0) : (f.g + 1) * (K.EXP_RATE || 0)) * lm); }   // 每株 ITEM_EXP[品级−1]，再 × 种植经验总倍率；品级按药材总序号（仙界药材接在凡界后面）
         if (f.next != null) { f.g = f.next; f.next = null; } // 当季结束才换种
         if (this.payField(f, end)) nNew++;                   // 下一季：扣灵气
       }
@@ -41,8 +41,8 @@ G.module({
   },
 
   api: {
-    // 生长时间缩短 %（灵植夫 + 秘法，没上限）、收获增加 %
-    //   g = 药材序号：凡界药材按灵植夫，仙界药材（序号 ≥ 凡界种数）按仙植师（v42）
+    // 生长时间缩短 %（灵植夫 + 秘法 + 道童，没上限）、收获增加 %
+    //   g = 药材序号：所有药材都按灵植夫（plantCraft）
     plantCraft() { return "ling"; },   // 灵植夫统一 1~30 阶（11~20 阶显示为仙植师，21~30 阶神植师）
     plantCut(g = 0) { const k = this.plantCraft(g), L = CFG.craftsman[k]; return (L.GROW_CUT[this.craftLv(k) - 1] || 0) + (this.mifaBonus().plantTime || 0) + this.servantPct("ling"); },   // 种植速度 %（没上限）
     plantYieldPct(g = 0) { return (this.mifaBonus().plantYield || 0) + (this.servantPct ? this.servantPct("ling", "YIELD_") : 0); },   // 丰灵秘法 + 道童（灵植夫不加产量，用户定）
@@ -168,7 +168,7 @@ G.module({
     },
     plantField(i, g) {
       const f = this.s.fields[i];
-      // 种子是“每种兑换一次”的永久解锁：没种子、种不了的药材直接拒绝，不能先写进
+      // 没种子、种不了的药材直接拒绝，不能先写进
       // 田里再在 payField 里对 undefined 取 .ling 抛错、把灵田卡死
       if (!Number.isInteger(i) || !f) return;
       if (!DATA.herbGrow(g)) return this.log("这种药材无法种植。", "sys");

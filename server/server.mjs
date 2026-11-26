@@ -27,7 +27,7 @@ for (const name of ACTIONS) if (typeof validationEngine.G[name] !== "function") 
 fs.mkdirSync(DATA_DIR, { recursive: true, mode: 0o750 });
 const db = new Database(DB_FILE);
 db.pragma("journal_mode = WAL");
-db.pragma("synchronous = NORMAL");   // WAL 下每次提交不再强制刷盘（断电最多丢最后几次提交，不会损坏数据库），写存档快很多
+db.pragma("synchronous = NORMAL");   // WAL 下每次提交不强制刷盘（断电最多丢最后几次提交，不会损坏数据库），写存档快很多
 db.pragma("foreign_keys = ON");
 db.exec(`
   CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, salt TEXT NOT NULL, password_hash TEXT NOT NULL, is_admin INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL);
@@ -55,7 +55,7 @@ const q = {
 };
 const clients = new Map();
 const tickets = new Map();
-const receipts = new Map();   // 按账号记已处理的操作编号（原来按连接，重连后清空）
+const receipts = new Map();   // 按账号记已处理的操作编号（重连后仍有效）
 // WS 幂等收据持久化：重启 / 内存 256 条溢出后，重发同一操作编号仍返回缓存回复、不重新执行。
 // 存时剥掉 patch/base/state 三项（回放时本来就会剥掉并重发完整状态），内存 + 库里各留最近 256 条。
 // 落盘失败只记日志、不影响本次操作回复。
@@ -128,13 +128,13 @@ function warmEngines() {
   setTimeout(() => { for (const [a, d] of [[false, false], [true, false]]) { try { const t = Date.now(); poolEngine(a, d); console.log(`engine warm ${a ? "admin" : "player"} ${Date.now() - t}ms`); } catch (err) { console.error("engine warm failed", err?.message || err); } } }, 0);
 }
 // 结算慢时记一行日志（离线太久、探索 / 出窍中逐个结算等），方便查进游戏慢的原因
-const CATCHUP_GAP_MS = 5 * 60_000;   // 存档落后超过 5 分钟 = 服务器那段时间没在跑，才按离线补算（用户定 2026-11-16）
-// 补算分片（用户定 2026-11-16）：一次 advance 最多补 1 天，同一次调用连续补到用掉 CATCHUP_SLICE_MS 毫秒为止，
+const CATCHUP_GAP_MS = 5 * 60_000;   // 存档落后超过 5 分钟 = 服务器那段时间没在跑，才按离线补算（用户定）
+// 补算分片（用户定）：一次 advance 最多补 1 天，同一次调用连续补到用掉 CATCHUP_SLICE_MS 毫秒为止，
 // 剩下的交给下一轮（在线玩家 100 毫秒定时器、离线玩家后台结算），中间让出事件循环，补算 1000 天也不会卡住其他玩家。
 // 结果与一次补完相同（advance 截断时 s.last 只推进到已算完的位置）。
 const CATCHUP_CHUNK_TICKS = 8640, CATCHUP_SLICE_MS = 100;
 // 只补算服务器没在跑的那段（停机 / 存档从别的服务器搬来）：服务器正常运行时后台每 10 秒就结算一次离线玩家，落后不会超过几十秒，
-// 这时照常逐步战斗；落后超过 CATCHUP_GAP_MS 才算「补算」，遇怪直接胜利、按平均数给掉落（用户定 2026-11-16）
+// 这时照常逐步战斗；落后超过 CATCHUP_GAP_MS 才算「补算」，遇怪直接胜利、按平均数给掉落（用户定）
 function withAutoWin(e, state, now, fn) {
   const last = Number(state && state.last) || now;
   if (e.G) e.G._autoWin = now - last > CATCHUP_GAP_MS;
@@ -168,7 +168,7 @@ function sendJson(res, status, body) {
 }
 function error(res, status, message) { return sendJson(res, status, { error: message }); }
 function hashToken(token) { return crypto.createHash("sha256").update(token).digest("hex"); }
-// PBKDF2 放到线程池异步算（原来 pbkdf2Sync 每次阻塞主线程上百毫秒）；同时在算的最多 HASH_MAX 个，多了直接回繁忙
+// PBKDF2 放到线程池异步算（同步算每次会阻塞主线程上百毫秒）；同时在算的最多 HASH_MAX 个，多了直接回繁忙
 const HASH_MAX = 4; let hashBusy = 0;
 class BusyError extends Error { constructor(m) { super(m); this.status = 503; } }
 async function passwordHash(password, salt) {
@@ -187,7 +187,7 @@ function equalHex(a, b) {
   if (!/^[a-f0-9]+$/i.test(a) || !/^[a-f0-9]+$/i.test(b) || a.length !== b.length) return false;
   return crypto.timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
 }
-const TOKEN_DAYS = 7;   // 登录令牌有效期 7 天（原来 90 天）
+const TOKEN_DAYS = 7;   // 登录令牌有效期 7 天
 function pruneLegacyTokens(userId) {
   // 吊销按旧 90 天规则签发的令牌：tokens 表没有签发时间列，但新令牌最长 7 天有效，
   // 所以 expires_at 比现在晚 7 天以上的必定是旧规则签发的；7 天内到期的旧令牌放行（反正几天内就过期）。
@@ -231,12 +231,12 @@ function drainHist(userId, state) {
   if (Array.isArray(state.histQ)) list.push(...state.histQ);
   if (!list.length || !userId) return;
   try { histSave(userId, list.filter(r => r && typeof r === "object")); } catch (err) { console.error("hist save failed:", err?.message || err); return; }
-  // 只有落盘成功才删：原来先删后存，写失败时这批历史既不在状态里也不在 hist 表里
+  // 只有落盘成功才删：先删后存的话，写失败时这批历史既不在状态里也不在 hist 表里
   delete state.exHist; delete state.histQ;
 }
 function persist(userId, state) {
-  // 先落存档、再记历史：原来先 drainHist（历史立即入库）再 saveUpsert，存档恰好在
-  // 这一步失败时，历史表里会多一条实际未生效动作的记录。历史字段不进存档，落盘前
+  // 先落存档、再记历史：先 drainHist 再 saveUpsert 的话，存档恰好在这一步失败时，
+  // 历史表里会多一条实际未生效动作的记录。历史字段不进存档，落盘前
   // 先从状态上摘下来、失败时原样装回去，成功后再 drainHist（它只在 histSave 成功后删）。
   const histQ = state.histQ, exHist = state.exHist;
   if (histQ !== undefined) delete state.histQ;
@@ -259,7 +259,7 @@ function persist(userId, state) {
 // 基线不用现建：池里的引擎就是按当前磁盘参数建的（改参数后 applyNewConfig 会清池重建），
 // 构造后玩法代码不改 CFG（写 CFG 的只有浏览器端快捷保存，服务器引擎里不跑），所以现成
 // 引擎的 CFG 就是干净基线；池里没引擎（没人在线）时才现建一份。校验只现建改动后的一份，
-// 约 1 秒，和原来“先加载一遍”的成本一样，不会把事件循环堵上几秒。
+// 约 1 秒，不会把事件循环堵上几秒。
 function validateConfigChange(overrides) {
   let before = null;
   for (const e of enginePool.values()) { before = e.CFG; break; }
@@ -292,15 +292,15 @@ function validateConfigChange(overrides) {
   if (problems.length) throw new Error("参数语义校验失败：" + problems.slice(0, 5).join("；"));
 }
 // 参数覆盖文件写盘：临时文件 + 改名（单文件原子），并显式设权限（目录已是 0o750，
-// 原来文件权限依赖 umask）；chmod 失败只记日志，不让“已保存”变“保存失败”。
+// 文件权限不依赖 umask）；chmod 失败只记日志，不让“已保存”变“保存失败”。
 function writeConfigFile(name, content) {
   fs.mkdirSync(CONFIG_OVERRIDE_DIR, { recursive: true, mode: 0o750 });
   const tmp = path.join(CONFIG_OVERRIDE_DIR, `.${name}.${process.pid}.tmp`), dest = path.join(CONFIG_OVERRIDE_DIR, name);
   fs.writeFileSync(tmp, content); fs.renameSync(tmp, dest);
   try { fs.chmodSync(dest, 0o640); } catch (err) { console.error("config chmod failed:", err?.message || err); }
 }
-// 登录失败限流：同步 PBKDF2（24 万轮）每次都阻塞事件循环，HTTP 层无限流时可被用来拖垮
-// 单线程。按 IP 和按（账号，IP）分别计：10 分钟内失败 10 次，封 15 分钟；成功登录清掉
+// 登录失败限流：PBKDF2（24 万轮）每次都很耗 CPU、同时只能算 HASH_MAX 个，HTTP 层无限流时可被用来拖垮
+// 服务器。按 IP 和按（账号，IP）分别计：10 分钟内失败 10 次，封 15 分钟；成功登录清掉
 // （账号，IP）计数。只按账号锁会被人用来锁别人的号（知道用户名连发 10 次错密码），
 // 所以账号锁必须绑定 IP：同一账号从同一 IP 连续失败才锁该组合；换 IP 撞库仍会被按 IP 的计数拦住。
 const loginFails = new Map();
@@ -324,8 +324,8 @@ function regHit(key) {
   return ++r.n > 5;
 }
 // 登录+注册全局限流（内存滑动窗口）：单靠按 IP / 按（账号，IP）限流挡不住轮换 IP/用户名
-// 打满哈希槽（HASH_MAX=4）。登录和注册合计每分钟最多 120 次，超了直接 429，不占哈希槽；
-// 注册另有全局每小时 60 次。正常玩家和现有测试的登录次数远低于这个量，不会被误拦。
+// 打满哈希槽（HASH_MAX=4）。按 IP 每分钟最多 AUTH_IP_LIMIT 次，全服登录和注册合计每分钟最多 AUTH_MIN_LIMIT 次，
+// 超了直接 429，不占哈希槽；注册另有全局每小时 REG_HOUR_LIMIT 次。正常玩家和现有测试的登录次数远低于这个量，不会被误拦。
 const AUTH_MIN_LIMIT = 3000, AUTH_IP_LIMIT = 30, AUTH_MIN_MS = 60_000,   // 全服共用只作最后防线；主要按 IP 每分钟 AUTH_IP_LIMIT 次
   REG_HOUR_LIMIT = 60, REG_HOUR_MS = 3600_000;
 const authAttempts = [], regGlobalAttempts = [];
@@ -341,13 +341,13 @@ function rateLimited(list, limit, windowMs) {
   if (list.length >= limit) return true;
   list.push(now); return false;
 }
-// 礼包物品校验（建礼包码、传音群发共用）。原来只校验数量：类别写错、必需字段缺失的礼包也能建，兑换时才进“遗失”分支
+// 礼包物品校验（建礼包码、传音群发共用）：类别、必需字段、数量都要对，否则兑换时才进“遗失”分支
 const GIFT_CATS = new Set(["ori", "stone", "contrib", "merit", "yl", "gf", "sp", "mf", "fabao", "eq", "herb", "ore", "lj", "lz", "hx", "bm", "st", "tc", "dan", "bp", "sm"]);
 function giftItemError(item) {
   if (!item || typeof item !== "object" || Array.isArray(item)) return ("礼包物品格式无效");
   if (!GIFT_CATS.has(item.c)) return (`礼包物品类别无效：${String(item.c)}`);
   const count = Number(item.n || 1);
-  const cap = ["stone", "contrib", "merit", "yl"].includes(item.c) ? 10_000_000_000 : ["eq", "fabao", "bp"].includes(item.c) ? 100 : 1_000_000;   // 灵石 / 贡献 / 功德 / 愿力最多 100 亿（用户定 2026-11-12）
+  const cap = ["stone", "contrib", "merit", "yl"].includes(item.c) ? 10_000_000_000 : ["eq", "fabao", "bp"].includes(item.c) ? 100 : 1_000_000;   // 灵石 / 贡献 / 功德 / 愿力最多 100 亿（用户定）
   if (!Number.isFinite(count) || count < 1 || count > cap) return (`礼包物品数量超过限制（最多 ${cap}）`);
   if (item.c === "ori" && count > 100) return ("礼包出身点最多 100 个");
   if ((item.c === "dan" || item.c === "bp") && !String(item.item || "").includes(":")) return ("礼包丹药/图纸缺少 item");
@@ -388,12 +388,11 @@ function validUsername(raw) {
 }
 // 服务端统一兜底：所有 WebSocket 操作参数里的数字必须是整数。
 // 负数一律拒绝，只放行确实用 -1 当哨兵的操作：
-//   bsetMove(dir=-1 上移)、jmSwap(n=-1 全部)。
-//   灵矿已删除，出窍的 r=-1 不再是合法哨兵，不再放行。
+//   bsetMove(dir=-1 上移)、jmSwap(n=-1 全部)、gridQuick(a, -1)。
 // 其它 -1 以外、以及 -999 这类负数，仍会被挡下；小数、非整数同样被挡下，
 // 这样 sellItem(i, -999)、buyLingshi(0.5) 在进引擎前就失败，状态用的是出错前的工作副本，
 // 不会落盘。sellItem(i, 1e12) 是整数、能过这一层，靠 sellItem 内部按格 clamp 挡下。
-// 数量上限仍保留原来的 1e12，
+// 数量上限 1e12，
 // 因为 cultSetSave 的灵石阈值这类设置本身就可能超过 1e9，真正防超卖靠下面各函数的按格 clamp。
 const NEGATIVE_ONE_ACTIONS = new Set(["bsetMove", "jmSwap", "gridQuick"]);   // gridQuick(a, -1) = 合并地图整张图一起快速游历
 function validateValue(value, depth = 0, action = "") {
@@ -409,7 +408,7 @@ function validateValue(value, depth = 0, action = "") {
   }
   if (typeof value === "number") {
     if (!Number.isFinite(value) || !Number.isInteger(value) || Math.abs(value) > 1e12) throw new Error("操作参数无效");
-    // 逐件循环类操作的数量参数第二道防线：buy(i,n)/bmFuse(j,n)/buyMat/exchangeMat/buySgDan/buyWdFruit/sjBuyMat/sjBuyItem/exchangeSeed/ssSwap/matSwap/buyRingSm/buyLingshi 的 n 在引擎里还会 clamp（≤9999，bmFuse 另 ≤持有量），
+    // 逐件循环类操作的数量参数第二道防线：buy(i,n)/bmFuse(j,n)/buyMat/exchangeMat/buySgDan/buyWdFruit/sjBuyMat/sjBuyItem/exchangeSeed/ssSwap/matSwap/buyRingSm/buyLingshi/buyLsFrag 的 n 在引擎里还会 clamp（≤9999，bmFuse 另 ≤持有量），
     // 但这里先拦住超大数，避免单条请求在引擎里逐件循环卡死事件循环；其它操作（如 cultSetSave 的阈值）不受影响。
     if ((action === "buy" || action === "bmFuse" || action === "buyMat" || action === "exchangeMat" || action === "buySgDan" || action === "buyWdFruit" || action === "sjBuyMat" || action === "sjBuyItem" || action === "exchangeSeed" || action === "ssSwap" || action === "matSwap" || action === "buyRingSm" || action === "buyLingshi" || action === "buyLsFrag") && value > 9999) throw new Error("操作参数无效");
     if (value < 0 && !(value === -1 && NEGATIVE_ONE_ACTIONS.has(action))) throw new Error("操作参数无效");
@@ -501,9 +500,8 @@ const server = http.createServer(async (req, res) => {
     // 游戏参数脚本（浏览器和服务器用同一份；管理员改过的优先）。
     // config-loader.js 每次都不缓存，按内容哈希写出参数包的地址：参数一改地址就变，
     // 不会被浏览器 / Cloudflare 缓存住旧参数；地址带对哈希的包可以长期缓存。
-    // 以前是 35 个参数文件各一个 document.write 脚本、串行加载；现在合成一个包，
-    // 顺序和原来 configNames() 的顺序完全一致，内容用 "\n;\n" 隔开（防上一文件末尾
-    // 没分号和下一文件首句连在一起），进游戏少 34 个请求。
+    // 所有参数文件合成一个包（一个请求），顺序同 configNames()，内容用 "\n;\n" 隔开（防上一文件末尾
+    // 没分号和下一文件首句连在一起）。
     const configBundle = () => {
       const code = configNames().map(name => readConfig(name)).join("\n;\n");
       return { code, hash: configHash(code) };
@@ -540,7 +538,7 @@ const server = http.createServer(async (req, res) => {
       const on = clients.get(user.id);
       let data;
       if (on) {
-        // 单次最多补 10 天：剩下的由 WS 定时结算继续补（advance 截断时 s.last 不跳到现在）
+        // 按 CATCHUP_SLICE_MS 分片补算：没补完的由 WS 定时结算继续补（advance 截断时 s.last 不跳到现在）
         const advanced = timedAdvance(on.engine, on.state, Date.now(), `session u${user.id}`);
         on.state = advanced.state; on.nextCheck = Math.min(Date.now() + CHECK_MS, Math.max(Date.now() + 50, (advanced.nextDue || 0) + DUE_MARGIN_MS));
         data = on.state; persist(user.id, data);
@@ -565,7 +563,7 @@ const server = http.createServer(async (req, res) => {
       if (q.save.get(user.id)) return error(res, 409, "角色已经创建");
       const name = [...String(body.name || "无名散修").trim().replace(/[^\p{L}\p{N}_·-]/gu, "")].slice(0, 12).join("") || "无名散修";
       const data = getEngine(user.id).createState(name, Date.now(), Array.isArray(body.ori) ? body.ori.slice(0, 200).map(String) : [], oriExtraOf(user.id), !!body.sy); persist(user.id, data);
-      db.prepare("DELETE FROM settings WHERE key=?").run(`ori_extra:${user.id}`);   // 出身点创建角色时用掉，删档重来不保留（用户定 2026-11-16）
+      db.prepare("DELETE FROM settings WHERE key=?").run(`ori_extra:${user.id}`);   // 出身点创建角色时用掉，删档重来不保留（用户定）
       return sendJson(res, 201, { data, serverNow: Date.now() });
     }
     if (req.method === "POST" && route === "/api/character/reset") {
@@ -574,8 +572,8 @@ const server = http.createServer(async (req, res) => {
       if (!equalHex(await passwordHash(String(body.password || ""), user.salt), user.password_hash)) { loginFail("ua:" + user.username + "@" + ip); return error(res, 401, "密码错误"); }
       db.prepare("DELETE FROM saves WHERE user_id=?").run(user.id);
       db.prepare("DELETE FROM hist WHERE user_id=?").run(user.id);
-      db.prepare("DELETE FROM receipts WHERE user_id=?").run(user.id); receipts.delete(user.id);
-      db.prepare("DELETE FROM gift_uses WHERE user_id=?").run(user.id);   // 每个礼包码每个人物只能用一次：删档后是新人物，可以重新兑换（用户定 2026-11-20）   // 旧存档的操作收据也清掉，新存档不沿用（2026-11-17）
+      db.prepare("DELETE FROM receipts WHERE user_id=?").run(user.id); receipts.delete(user.id);   // 旧存档的操作收据也清掉，新存档不沿用
+      db.prepare("DELETE FROM gift_uses WHERE user_id=?").run(user.id);   // 每个礼包码每个人物只能用一次：删档后是新人物，可以重新兑换（用户定）
       const online = clients.get(user.id);
       if (online) { clients.delete(user.id); online.socket.close(4004, "角色已重置"); }
       dropEngine(user.id);
@@ -686,7 +684,7 @@ const server = http.createServer(async (req, res) => {
     if (user.is_admin && req.method === "POST" && route === "/api/admin/user/del") {
       const body = await readBody(req), id = Number(body.id);
       if (!Number.isSafeInteger(id) || id === user.id) return error(res, 400, "不能删除该账号");
-      // 主号连同小号一起删：原来只删一行，小号行本身留下成孤儿——仍是管理员、能继续
+      // 主号连同小号一起删：只删主号一行的话，小号行会留下成孤儿——仍是管理员、能继续
       // 游戏，却永远无法新建人物，管理员界面也看不到（存档、令牌、历史靠外键级联清掉）
       const subs = db.prepare("SELECT id FROM users WHERE owner_id=?").all(id);
       db.transaction(() => {
@@ -743,7 +741,7 @@ const server = http.createServer(async (req, res) => {
     if (user.is_admin && req.method === "POST" && route === "/api/admin/gift/mail") {
       const body = await readBody(req), items = Array.isArray(body.items) ? body.items : [];
       if (!items.length || items.length > 100) return error(res, 400, "礼包物品数量需为 1–100 件");
-      for (const item of items) { const bad = giftItemError(item); if (bad) return error(res, 400, bad); }   // 原来几乎不校验，一次能发全服 1e12 灵石
+      for (const item of items) { const bad = giftItemError(item); if (bad) return error(res, 400, bad); }   // 与建礼包码同一套校验，免得一次给全服发超量物品
       let n = 0;
       for (const { user_id: uid } of offlineIds.all()) {
         try {
@@ -782,8 +780,8 @@ const server = http.createServer(async (req, res) => {
         if (!gift || !state || (gift.expires_at && gift.expires_at < Date.now()) || gift.used_count >= gift.max_uses) return false;
         if (db.prepare("SELECT 1 FROM gift_uses WHERE code=? AND user_id=?").get(code, user.id)) return false;
         const items = JSON.parse(gift.payload).items || [], playerEngine = getEngine(user.id);
-        // 在线时也先结算到现在：原来直接用内存状态发奖，内存状态落后时按旧状态结算；
-        // 与 /api/session 一致，单次最多补 10 天，剩下的由定时结算继续补。
+        // 在线时也先结算到现在（内存状态可能落后），再发奖；
+        // 与 /api/session 一致，按分片补算，没补完的由定时结算继续补。
         state = timedAdvance(playerEngine, state, Date.now(), `gift u${user.id}`).state;
         playerEngine.bindState(state, Date.now());
         const got = [], lost = [];
@@ -796,7 +794,7 @@ const server = http.createServer(async (req, res) => {
         return { items, got, lost, state: updatedState };
       });
       const result = redeem();
-      // 内存状态和推送移到事务提交之后：原来 pushState 在事务回调里，pushState 抛错会回滚事务、
+      // 内存状态和推送放在事务提交之后：放在事务回调里的话，pushState 抛错会回滚事务、
       // 但内存状态已换、客户端已收到，之后定时落盘会把“未记 gift_uses”的状态写回去，留下重复兑换的口子。
       if (result) {
         const online = clients.get(user.id);
@@ -825,8 +823,8 @@ const server = http.createServer(async (req, res) => {
       applyNewConfig();
       return sendJson(res, 200, { ok: true, name, overridden: configOverridden(name), online: clients.size });
     }
-    // 快捷修改一次保存多个文件：原来先存 rates.js 再存 realm.js，每步都立即广播全服重载，
-    // 第二步失败时第一步已生效，成了“地图收益已改、突破属性未改”的半生效状态
+    // 快捷修改一次保存多个文件：先全部校验，再一起写盘、只广播一次重载；逐个保存的话
+    // 第二个失败时第一个已生效，会成“地图收益已改、突破属性未改”的半生效状态
     if (user.is_admin && req.method === "POST" && route === "/api/admin/config/save-multi") {
       const body = await readBody(req, MAX_CONFIG_BODY), files = Array.isArray(body.files) ? body.files : [];
       if (!files.length || files.length > 10) return error(res, 400, "一次最多保存 10 个参数文件");
@@ -914,8 +912,8 @@ wss.on("connection", (socket, session) => {
     try { persist(user.id, previous.state); } catch {}
     previous.socket.close(4001, "账号已在其他连接中进入");
   }
-  // 读档、建引擎、结算、落盘全包进 try：原来 getState 在 try 外，存档损坏（JSON.parse 抛错）
-  // 时整个服务器进程直接崩溃，所有在线玩家断线、重连再崩
+  // 读档、建引擎、结算、落盘全包进 try：存档损坏（JSON.parse 抛错）时只拒这一个连接，
+  // 否则整个服务器进程会崩溃，所有在线玩家断线、重连再崩
   let state, playerEngine, advanced;
   try {
     state = getState(user.id);
@@ -966,7 +964,7 @@ wss.on("connection", (socket, session) => {
       const t1 = performance.now();
       const outcome = client.engine.act(working, action, args, Date.now());   // 引擎直接改 working，另返回一份副本
       const t2 = performance.now();
-      // 先落盘再回复：原来先回 ok 再异步存档，存档失败时客户端已以为成功、继续在未落盘的状态上玩，重启就回档
+      // 先落盘再回复：先回 ok 再存档的话，存档失败时客户端已以为成功、继续在未落盘的状态上玩，重启就回档
       try { persist(user.id, outcome.state); } catch (err) {
         console.error("save failed", err?.message || err);
         send(socket, { type: "result", id, ok: false, error: "存档失败，操作未生效，请重试", serverNow: Date.now(), revision: client.revision });
@@ -999,7 +997,7 @@ wss.on("connection", (socket, session) => {
 
 // 服务器推送：只在状态变化时推，最多 10 秒一次心跳。
 // 每 100ms 检查一次是否到了下一个结算点（修炼周期 / 探索步 / 劫雷），到点立刻结算推送，
-// 进度条走满就能马上看到结算；其它计时系统每秒检查一次。
+// 进度条走满就能马上看到结算。
 const PUSH_IDLE_MS = 10_000, CHECK_MS = 10_000, DUE_MARGIN_MS = 15, SLOW_MS = Number(process.env.XIU_SLOW_MS) || 80;   // 操作超过 SLOW_MS 毫秒在日志里打印各步耗时
 // CHECK_MS：兜底复查间隔。下一次会变的时间（nextDue）已包含每 10 秒结算、探索/出窍下一步、渡劫、修炼室扣费、功法修炼结束，到点就算；不用每秒空算一遍（每次都要整份复制存档）
 function pushState(client, now, logs = [], force = false, full = false, snap = null) {
@@ -1015,7 +1013,7 @@ function pushState(client, now, logs = [], force = false, full = false, snap = n
   let pre;
   if (!full && client.lastSent) {
     drainHist(client.userId, client.state);
-    pre = diffState(client.lastSent, client.state);   // 只比较，不再整份序列化
+    pre = diffState(client.lastSent, client.state);   // 只比较，不整份序列化
     if (!force && !logs.length && !pre && now - client.lastPush < PUSH_IDLE_MS) { if (snap) { delete snap.histQ; delete snap.exHist; client.lastSent = snap; } return; }
   }
   client.lastPush = now;
@@ -1154,9 +1152,8 @@ async function ghRestore(repoIn, tokenIn) {
         t.pragma("journal_mode = DELETE");
       } finally { t.close(); }
     } catch (err) { throw new Error(/SQLITE|file is not a database/i.test(String(err.message)) ? "备份文件不是有效的数据库" : err.message); }
-    // 当前数据库先备份一份（就算恢复错了也能找回来）
     // 先停服（拒绝新请求、踢下线），再把当前数据库备份一份（就算恢复错了也能找回来）：
-    //   原来先备份后停服，备份期间玩家的进度既不在备份里也不在恢复后的库里
+    //   先备份后停服的话，备份期间玩家的进度既不在备份里也不在恢复后的库里
     restoring = true;
     clearInterval(timer);
     for (const [userId, client] of clients) { try { persist(userId, client.state); } catch {} try { client.socket.close(1012, "服务器正在恢复存档"); } catch {} }
@@ -1199,11 +1196,11 @@ setInterval(backupDb, BACKUP_MS).unref();
 
 // 离线玩家后台结算：间隔读 config/rates.js 的 OFFLINE_SEC（秒，默认 10；后台结算不能关，配成 0 或无效值时按默认 10 秒），管理员改了下一轮就生效。
 // 不在线的角色读出来、结算到现在、落盘，再进游戏时只补最后一小段，不用一次性补算整段离线时间。
-// 每人每次一个 JSON 读写 + 一个周期结算；整轮超过 1 秒会记日志，玩家多了再改成分批。
+// 每人每次一个 JSON 读写 + 一次结算；每轮最多用 CATCHUP_SLICE_MS 毫秒，整轮超过 1 秒会记日志。
 const offlineIds = db.prepare("SELECT user_id FROM saves"), offlineBad = new Map();   // 结算出错的角色 30 分钟内不再后台算（免得反复刷错误），之后重试；上线时照常结算
 let offlineAt = 0;   // 后台结算轮转起点：每轮最多用 CATCHUP_SLICE_MS 毫秒补算，下一轮从没轮到的人接着
 function offlineSec() { try { const v = Number(poolEngine(false, false).CFG.rates?.OFFLINE_SEC ?? 10); return Number.isFinite(v) && v > 0 ? Math.max(1, v) : 10; } catch { return 10; } }   // 后台结算不能关：0 / 缺失 / 无效一律按默认 10 秒
-let offlineBacklog = false;   // 有人还没补完（停机很久 / 离线很久）：下一轮 0.2 秒后接着补，不等 10 秒（用户定 2026-11-16 补算要快）
+let offlineBacklog = false;   // 有人还没补完（停机很久 / 离线很久）：下一轮 50 毫秒后接着补，不等 10 秒（用户定：补算要快）
 function offlineSettle() {
   const t0 = Date.now(); let n = 0; offlineBacklog = false;
   const ids = offlineIds.all(), N = ids.length; let k = 0;
@@ -1230,7 +1227,7 @@ function offlineSettle() {
 
 let lastHousekeeping = 0;
 let lastBeat = 0;
-function beat() {   // 服务器心跳（settings.heartbeat）：运行时每 10 秒写一次，供重启时算停机窗口
+function beat() {   // 服务器心跳（settings.heartbeat）：运行时每 10 秒写一次（停机窗口平移 migrateDowntime 目前不调用，见文件末尾）
   const now = Date.now();
   if (now - lastBeat < 10_000) return;
   lastBeat = now;
@@ -1242,14 +1239,14 @@ const timer = setInterval(() => {
     if (client.socket.readyState !== WebSocket.OPEN) continue;
     try {
       if (now >= client.nextCheck) {
-        // 单次最多补 10 天：截断后 nextDue = s.last+10 秒（已过去），下次检查（最快 50 毫秒后）继续补，直到追上现在
+        // 按分片补算：没补完时 nextDue = s.last+10 秒（已过去），下次检查（最快 50 毫秒后）继续补，直到追上现在
         // 补算中（落后超过 CATCHUP_GAP_MS）：这一轮定时器已经用掉 CATCHUP_SLICE_MS 就留到下一轮，免得几个人同时补算把服务器卡住
         const lagging = now - (Number(client.state && client.state.last) || now) > CATCHUP_GAP_MS;
         if (lagging && Date.now() - now > CATCHUP_SLICE_MS) continue;
         const old = client.state, outcome = timedAdvance(client.engine, old, now, `online u${userId}`); client.state = outcome.state;   // old 已被引擎改成和新状态一样，拿来当 lastSent
         client.nextCheck = Math.min(now + CHECK_MS, Math.max(now + 50, (outcome.nextDue || 0) + DUE_MARGIN_MS));
-        // 先落盘再推送：原来先推送、30 秒才落盘一次，进程在这窗口内崩溃时，客户端已看到
-        // 的进度会回滚，且重算的随机结果可能与已推送的不一致；每次结算都落盘
+        // 先落盘再推送，每次结算都落盘：否则进程崩溃时客户端已看到的进度会回滚，
+        // 且重算的随机结果可能与已推送的不一致
         try { persist(userId, client.state); } catch (err) { console.error("timed save failed:", err?.message || err); }   // 定时落盘失败不踢人：下一次动作落盘（先落盘再回复）会把完整状态补上
         client.lastPersist = now;
         client.revision += 1;
@@ -1259,7 +1256,7 @@ const timer = setInterval(() => {
   }
   if (now - lastHousekeeping >= 1000) {
     lastHousekeeping = now;
-    beat();   // 运行时心跳：停机窗口的起点，重启时据此跳过停机期
+    beat();   // 运行时心跳
     for (const [key, r] of loginFails) if (now - r.first > 10 * 60_000 && (!r.until || now > r.until)) loginFails.delete(key);
     for (const [key, r] of regHits) if (now - r.first > 60 * 60_000) regHits.delete(key);
     for (const [key, r] of authIpHits) if (now - r.first > AUTH_MIN_MS) authIpHits.delete(key);
@@ -1279,8 +1276,8 @@ function shutdown(signal) {
 }
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
-// 停机不补算：启动时把所有存档里属于停机窗口 [lastHeartbeat, now] 的时间锚点整体平移，
-// 心跳前的 backlog 不动（后台每天一轮正常补）。整个迁移 + 心跳更新包在一个事务里，
+// 停机不补算（目前不调用，见下）：启动时把所有存档里属于停机窗口 [lastHeartbeat, now] 的时间锚点整体平移，
+// 心跳前的 backlog 不动（由后台正常补）。整个迁移 + 心跳更新包在一个事务里，
 // 中途崩溃全部回滚，下次启动重新算同一段停机、重新迁移，不会重复平移。
 // 引擎建不起来就不迁移、也不动心跳，下次启动再试；无心跳（首次启动）或时钟拨回时不迁移、只写心跳。
 function migrateDowntime() {
@@ -1311,8 +1308,8 @@ function migrateDowntime() {
   if (n) console.log(`downtime skip: ${n} saves shifted by ${Math.round((now - hb) / 1000)}s`);
   return n;
 }
-// 用户定 2026-11-16：停机 / 游戏停止运行期间改为按时间补算（不再平移时间锚点），由后台离线结算每轮每人补 1 天接着算；
-// 补算中的探索战斗直接按胜利算。只写一次心跳，migrateDowntime 保留不调用。
+// 停机 / 游戏停止运行期间按时间补算、不平移时间锚点（用户定）：由后台离线结算分片补算，
+// 补算中的探索战斗直接按胜利算。启动时只写一次心跳，migrateDowntime 保留不调用。
 try { setSetting("heartbeat", Date.now()); } catch (err) { console.error("heartbeat write failed:", err?.message || err); }
 server.listen(PORT, HOST, () => {
   console.log(`xiu-online authoritative server listening on http://${HOST}:${PORT}`);

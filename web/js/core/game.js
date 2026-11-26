@@ -11,9 +11,9 @@
  *     view() { return "<html>"; },   // （可选）页面内容
  *   });
  *
- * 每 10 秒 G 会依次调用所有模块的 tick()。
- * 打开网页时，会按“离开的时间 ÷ 10 秒”把 tick 全部补算一遍，
- * 所以以后加炼丹、炼器，只要写在 tick 里，离线就会自动继续进行。
+ * 服务器（server/game-engine.mjs）每 10 秒依次调用所有模块的 tick()，离线时间也由服务器补算
+ * （core/fastsim.js 加速），所以以后加炼丹、炼器，只要写在 tick 里，离线就会自动继续进行。
+ * 浏览器不执行 tick，只显示服务器推送的状态。
  * ===================================================================== */
 const G = {
   s: null,             // 当前存档（整个游戏状态都在这里，会存到服务器）
@@ -22,7 +22,7 @@ const G = {
   tab: "cultivate",    // 当前底部标签
   silent: false,       // 离线补算时为 true，不刷新界面
   _ver: 0, _cache: null,
-  _lastTick: 0, _lastUpload: 0, _dirtySave: false,
+  _lastTick: 0,
 
   /* ---------- 模块注册 ---------- */
   module(m) {
@@ -36,7 +36,7 @@ const G = {
   calc() {
     if (!this._cache) {
       this._calcBusy = true;
-      try { this._cache = { stats: this.computeStats() }; } finally { this._calcBusy = false; }   // 先算属性（计算中 ownAtk 不再回调，避免循环）
+      try { this._cache = { stats: this.computeStats() }; } finally { this._calcBusy = false; }   // 先算属性（计算中 ownAtk 不回调，避免循环）
       this._cache.speed = this.computeSpeed();         // 修炼速度依赖属性（神识）
     }
     return this._cache;
@@ -84,12 +84,12 @@ const G = {
     if (this.lgYsInit) this.lgYsInit(s);   // 灵果种子：哪些隐世宗门换哪种，第一次进游戏随机定死（world.js）
     s._nm = DATA.nmSnap();   // 新存档记下当前用的名字（config/names.js），以后改名读档时对照
     s.ssGfS6 = 1;   // 凝神观想诀已是 6 段加成（见 migrate）
-    s._oreV2 = 1;   // v254 矿石表新版（见 migrate）
-    s.sid = this.newSid(); s.sidNew = 1; s.hero = "";   // 存档编号：本机 localStorage 里的存档设置（隐藏丹方等）按它分开，新存档不继承旧存档的（用户 2026-11-17）
-    s.lzB1000 = true; s.lzV3 = true; s.lzV4 = true;   // lzV3：灵珠 3000 / 每强化 +24（见 migrate）   // 新存档的灵珠直接按 v261 后的 1000 算（见 migrate 的补 +990：只补老存档，新存档不再补）
+    s._oreV2 = 1;   // 矿石表新版（见 oreV2）
+    s.sid = this.newSid(); s.sidNew = 1; s.hero = "";   // 存档编号：本机 localStorage 里的存档设置（隐藏丹方等）按它分开，新存档不继承旧存档的（用户定）
+    s.lzB1000 = true; s.lzV3 = true; s.lzV4 = true;   // 新存档的灵珠已按当前 config 算：migrate 里的灵珠重算只对老存档做
     return s;
   },
-  // v254 矿石表：去掉仙 / 冥 / 魔特色矿石（仙霞玉髓、冥河寒晶、魔焰晶），三者都并入新的通用矿石（序号 11），神辉金及神界矿石序号 -2
+  // 矿石表新版：去掉仙 / 冥 / 魔特色矿石（仙霞玉髓、冥河寒晶、魔焰晶），三者都并入新的通用矿石（序号 11），神辉金及神界矿石序号 -2
   //   老存档里所有 { kind: "ore", g, name } 和收获表的 "ore|名字" 键都换成新序号、新名字（背包里同名的几格不合并，数量按名字合计照常可用）
   oreV2(s) {
     if (!s || s._oreV2) return;
@@ -114,7 +114,7 @@ const G = {
     if (s._nm) s._nm.ore = cur.slice();
     s._oreV2 = 1;
   },
-  // 存档缺字段时，用模块默认值补上（以后加新功能不会坏档）
+  // 读档时的存档迁移：清理脏数据、老存档改格式，最后用模块默认值补上缺的字段（以后加新功能不会坏档）
   migrate(s) {
     if (!s.sid) s.sid = this.newSid();
     if (!DATA.ccAssignOk(s.ccAssign)) s.ccAssign = DATA.ccGenAssign();   // 宗门传承功法：每个存档第一次进游戏随机分一次，之后固定
@@ -123,15 +123,15 @@ const G = {
       if (Array.isArray(s.spellSlots) && s.spellSlots.length > 100) s.spellSlots.length = 30;
       if (Array.isArray(s.bag)) s.bag = s.bag.map(it => it && ((it.t === "mat" && it.kind !== "herb" && it.kind !== "ore") || (it.t === "eq" && !(it.e && it.e.slot))) ? null : it);
       if (s.equip && typeof s.equip === "object") for (const k of Object.keys(s.equip)) if (k === "undefined" || (s.equip[k] && !s.equip[k].slot)) delete s.equip[k];
-    }   // 老存档补存档编号
+    }
     this.oreV2(s);   // 要在 nmMigrate 之前：矿石序号变了
     DATA.nmMigrate(s);   // 存档里的旧名字 → config/names.js 的新名字
-    if (!s.ssGfS6) {   // 凝神观想诀 3 段（36 层 ×1/×2/×3）→ 6 段（18 层 ×1~×6）（用户定 2026-11-16）：层数不变，神识强度按新旧加成差补
+    if (!s.ssGfS6) {   // 凝神观想诀 3 段（36 层 ×1/×2/×3）→ 6 段（18 层 ×1~×6）（用户定）：层数不变，神识强度按新旧加成差补
       const G6 = s.ssGf && typeof s.ssGf === "object" ? s.ssGf : null, o = G6 ? Math.max(0, Math.min(108, Math.floor(+G6.ningshen || 0))) : 0;
       if (o) { const ov = Math.min(o, 36) + 2 * Math.max(0, Math.min(o, 72) - 36) + 3 * Math.max(0, o - 72); let nv = 0; for (let k = 1; k <= o; k++) nv += Math.ceil(k / 18);
         s.ssPow = Math.max(0, (+s.ssPow || 0) - ov + nv); }
       s.ssGfS6 = 1; }
-    if (Array.isArray(s.servants) && DATA.lkSvN) {   // 灵矿道童 1 个 → 最多 SV_N 个（用户定 2026-11-17）：存档格式不变（job "lk" + lkA），旧的那 1 个照样在位；lkA 不是凡界图的、超出 SV_N 个的改回空闲
+    if (Array.isArray(s.servants) && DATA.lkSvN) {   // 灵矿道童 1 个 → 最多 SV_N 个（用户定）：存档格式不变（job "lk" + lkA），旧的那 1 个照样在位；lkA 不是凡界图的、超出 SV_N 个的改回空闲
       const F = (DATA.worldMapIdx || {}).fan || [], N = DATA.lkSvN(), c = {};
       for (const d of s.servants) { if (!d || d.job !== "lk") { if (d && d.lkA !== undefined) delete d.lkA; continue; }
         const a = +d.lkA; if (!F.includes(a) || (c[a] = (c[a] || 0) + 1) > N) { d.job = null; delete d.lkA; } else d.lkA = a; } }
@@ -140,7 +140,7 @@ const G = {
       if (s.cqzjL && !(s.cqzjL.v >= 1 && s.cqzjL.v <= n)) s.cqzjL = null; }
     { const K = ["contrib", "stone", "merit"], BIG = 1e15;   // 测试模式（config/rates.js TEST）：贡献、灵石、功德随便花；打开时记下原数，关掉恢复
       // _testBak 随 s 一起落盘（服务端存的就是整份 s），所以只快照三种货币，绝不塞整份 s（整份快照会让存档体积翻倍）；
-      // 关掉时恢复 = 快照值 + 测试期净赚的部分（当前值 − BIG，>0 才算），测试期挣的合法收益不再被一刀切回快照值；
+      // 关掉时恢复 = 快照值 + 测试期净赚的部分（当前值 − BIG，>0 才算），测试期挣的合法收益保留；
       // 不恢复：修为 / 肉身 / 功法 / 装备 / 背包 / 丹方等测试期所得全部保留——测试模式不改动这些字段，无需快照，恢复它们反而会抹掉测试期进度。
       if (DATA.isTest()) { if (!s._testBak) s._testBak = Object.fromEntries(K.map(k => [k, s[k] || 0])); for (const k of K) s[k] = BIG; }
       else if (s._testBak) { for (const k of K) { const bak = s._testBak[k] || 0, gain = (s[k] || 0) - BIG; s[k] = bak + (Number.isFinite(gain) && gain > 0 ? gain : 0); } delete s._testBak; } }
@@ -148,15 +148,15 @@ const G = {
     if (+s.lingye > 0 && Array.isArray(s.bag) && this.addSm) {   // 灵液改成背包专用材料：旧存档的 s.lingye 转进背包（放不下的进传音）
       const o = this.s, n = Math.floor(+s.lingye); this.s = s; try { this.addSm("lingye", n); } finally { this.s = o; } }
     if ("lingye" in s) delete s.lingye;
-    {   // v261 灵珠初始聚灵 10 → 1000：已放入的灵珠补上差值（强化部分不变），只补一次
-      if (Array.isArray(s.forgeKnown) && s.forgeKnown.some(k => /^zq:\d$/.test(k))) s.forgeKnown = s.forgeKnown.map(k => /^zq:\d$/.test(k) ? `zqt:${+k.slice(3) * 30}` : k);   // 阵旗图纸改成每阶一张（2026-11-19）：旧的整种图纸换成凡品一阶
+    {   // 灵珠初始聚灵 10 → 1000：已放入的灵珠补上差值（强化部分不变），只补一次
+      if (Array.isArray(s.forgeKnown) && s.forgeKnown.some(k => /^zq:\d$/.test(k))) s.forgeKnown = s.forgeKnown.map(k => /^zq:\d$/.test(k) ? `zqt:${+k.slice(3) * 30}` : k);   // 阵旗图纸改成每阶一张：旧的整种图纸换成凡品一阶
       if (!s.lzB1000 && Array.isArray(s.lzSlot)) s.lzSlot.forEach(z => { if (z && Number.isFinite(z.v)) z.v += 990; });
       s.lzB1000 = true; }
-    {   // 2026-11-12 灵珠初始 1000 → 3000、每强化 +3 → +24：已放入的按强化次数重算（老灵珠没记次数：(聚灵 − 1000) ÷ 3），只算一次
+    {   // 灵珠初始 1000 → 3000、每强化 +3 → +24：已放入的按强化次数重算（老灵珠没记次数：(聚灵 − 1000) ÷ 3），只算一次
       if (!s.lzV3 && Array.isArray(s.lzSlot)) { const C = CFG.lingzhu; s.lzSlot.forEach(z => { if (!z || !Number.isFinite(z.v)) return; const n = Number.isFinite(z.n) ? z.n : Math.max(0, Math.round((z.v - 1000) / 3)); z.n = n; z.v = (C.BASE || 0) + n * (C.ENH || 0); }); }
       s.lzV3 = true; }
-    if (!s.lzV4 && Array.isArray(s.lzSlot)) { const C = CFG.lingzhu; s.lzSlot.forEach(z => { if (z && Number.isFinite(z.n)) z.v = (C.BASE || 0) + z.n * (C.ENH || 0); }); s.lzV4 = true; }   // 灵珠 BASE 3000→10000（2026-11-25）：已放入的按强化次数重算
-    {   // v259 渡劫准备格子去掉：老存档的格子记录删掉；进行中的渡劫护盾、格子冷却清掉
+    if (!s.lzV4 && Array.isArray(s.lzSlot)) { const C = CFG.lingzhu; s.lzSlot.forEach(z => { if (z && Number.isFinite(z.n)) z.v = (C.BASE || 0) + z.n * (C.ENH || 0); }); s.lzV4 = true; }   // 灵珠 BASE 3000→10000：已放入的按强化次数重算
+    {   // 渡劫准备格子去掉：老存档的格子记录删掉；进行中的渡劫护盾、格子冷却清掉
       delete s.tribSlots; if (s.trib) { s.trib.shield = null; delete s.trib.cd; delete s.trib.used; } }
     {   // 炼器仙炉（xqi）删掉：清掉老存档里的图纸、炉子、背包图纸 / 炉子、学习和炼制队列
       const X = o => o && (o.kind === "xqi" || o.k === "xqi");
@@ -182,7 +182,7 @@ const G = {
     return s;
   },
   save() { /* 服务器持有唯一权威存档；禁止浏览器保存或上传状态。 */ },
-  // 账号在别的设备进入了游戏：本设备停止运行和上传，点按钮重新读取服务器上的最新进度
+  // 账号在别的设备进入了游戏：本设备停止运行，点按钮重新读取服务器上的最新进度
   kicked() {
     this._stopped = true; this._lockModal = true;
     this.modal(`<h2>已在其他设备登录</h2><p>账号已在其他设备进入游戏，本设备已暂停。</p><div class="btns"><button class="primary" onclick="location.reload()">重新进入</button></div>`);
@@ -190,22 +190,18 @@ const G = {
   setSync(t) { const el = $("#sync"); if (el) el.textContent = t; },
 
   /* ---------- 每 10 秒的结算 ---------- */
-  tickAll() { /* 浏览器不能执行游戏 tick；Node 服务端运行原始 tickAll。 */ },
+  tickAll() { /* 浏览器不能执行游戏 tick；Node 服务端（game-engine.mjs）换成真正逐模块调用 tick 的版本。 */ },
 
-  // 离线补算：离开多久就补多久，不封顶
-  offline() { /* 离线结算由服务器根据其时钟完成。 */ },
-  // 背包里每种物品的数量（按名字），用来算离线新增
+  // 背包里每种物品的数量（按名字），用来算离开期间新增
   bagCount() { const m = {}; for (const it of this.s.bag) { if (!it) continue; const k = this.itemName(it); m[k] = (m[k] || 0) + (it.n || 1); } return m; },
 
-  // 离开收益（服务器一直在结算，离线不再单独补算）：客户端在前台时每 30 秒记一次快照，
+  // 离开收益（服务器一直在结算）：客户端在前台时每 30 秒记一次快照，
   // 打开游戏 / 切回前台时和快照比，离开超过 AWAY_MIN_SEC 秒且有变化就弹窗。
   AWAY_MIN_SEC: 60,
   awayKey() { return "xiuAway_" + ((this.s && (this.s.sid || this.s.name || this.s.id)) || ""); },
-  // 本机存的「每个存档自己的」设置（隐藏丹方 / 配方、隐藏探索记录等）：键后加 @存档编号，换存档 / 删档重来不会串。
-  //   不再接手旧的不带编号的键（会串到新存档，用户 2026-11-18）。
+  // 新存档编号 s.sid
   newSid() { return Date.now().toString(36) + Math.floor(Math.random() * 1e9).toString(36); },
-  saveKey(k) { const s = this.s; return s && s.sid ? k + "@" + s.sid : k; },
-  // 存档设置（隐藏丹方 / 配方、隐藏探索出窍地图、功法法术排序、背景）全部存在服务器存档 s.ui 里，不存手机（用户 2026-11-18）；删档就一起没了
+  // 存档设置（隐藏丹方 / 配方、隐藏探索出窍地图、功法法术排序、背景）全部存在服务器存档 s.ui 里，不存手机（用户定）；删档就一起没了
   UI_KEYS: ["xiu_runhide_", "xiu_hide_", "xiu_gf_pref", "xiu_sp_pref", "xiu_bg", "xiu_slotinfo"],
   uiKeyOk(k) { return typeof k === "string" && k.length <= 40 && this.UI_KEYS.some(p => k.startsWith(p)); },
   saveLsGet(k) {
@@ -230,20 +226,16 @@ const G = {
     const now = this.bagCount(), gain = [];
     for (const k in now) { const d = now[k] - ((b.bag || {})[k] || 0); if (d > 0) gain.push(`${k}×${f(d)}`); }
     // 没有收益：不动基线——api.js 切回前台 20 秒超时兜底可能先于服务器推送触发，那时手里的还是旧状态；
-    // 基线留给推送到达后的那次 awayCheck 再算（见 api.js 侧配合点：超时后推送到达时需再调一次 awayCheck）。
+    // 基线留给推送到达后的那次 awayCheck 再算（api.js 在超时后完整状态到达时会再调一次 awayCheck）。
     if (!dExp && !dStone && !dLing && !dContrib && !kills && !gain.length) return;
     rows.push(`<b>总计</b>`, `修为 ${sign(dExp)}　灵石 ${sign(dStone)}　灵气 ${sign(dLing)}${s.sect || dContrib ? `　贡献 ${sign(dContrib)}` : ""}`);
     if (kills > 0) rows.push(`<b>探索</b>`, `击败 ${f(kills)} 只${s.explore ? "，自动探索仍在继续" : ""}${s.cq ? "，出窍仍在继续" : ""}`);
     if (s.explore && s.explore.step) rows.push(`当前这次已走 ${s.explore.step} 步，收获在走完后结算`);
     if (gain.length) rows.push(`<b>新增物品</b>`, gain.join("、"));
     this.log(`你离开了 ${U.dur(sec)}，期间收益：修为 ${sign(dExp)}，灵石 ${sign(dStone)}${kills > 0 ? `，击败 ${f(kills)} 只` : ""}。`, "gold");
-    this.lastOffline = rows;
     try { this.modal(`<h2>离开 ${U.dur(sec)}</h2><div class="explore-log">${rows.map(r => `<p>${r}</p>`).join("")}</div><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`); } catch (e) {}
     this.awaySnap();   // 弹窗已按旧基线算完差值：这时才把基线推到当前状态，下次不再重复报同一笔收益
   },
-
-  /* ---------- 主循环（每 0.2 秒检查一次） ---------- */
-  loop() { if (!this._stopped) { this.render(); this.bars(); } },
 
   // 进度条：每一帧按时间直接算宽度（不用 CSS 过渡），页面每秒重绘也不会一顿一顿
   bars() {
@@ -330,16 +322,16 @@ const G = {
     // 三项满 1 兆（1 万亿）显示「1.5236兆」（用户定）
     const topN = v => { v = Math.floor(v || 0); return v >= 1e12 ? (Math.floor(v / 1e8) / 1e4).toFixed(4) + "兆" : v >= 1e8 ? (Math.floor(v / 1e4) / 1e4).toFixed(4) + "亿" : String(v); };
     $("#p-stone").textContent = topN(s.stone);
-    $("#p-contrib").textContent = topN(s.contrib);   // v27：贡献、功德
-    { const ym = (+CFG.player.YEAR_MIN || 15) * 60000; $("#p-years").textContent = `${U.fmt(s.born ? Math.max(0, Math.floor((this.now() - s.born) / ym)) : 0)}年`; }   // 功德换成修炼年数（用户定 2026-11-16）：现实 15 分钟 = 1 年
+    $("#p-contrib").textContent = topN(s.contrib);
+    { const ym = (+CFG.player.YEAR_MIN || 15) * 60000; $("#p-years").textContent = `${U.fmt(s.born ? Math.max(0, Math.floor((this.now() - s.born) / ym)) : 0)}年`; }   // 修炼年数（用户定）：现实 CFG.player.YEAR_MIN 分钟 = 1 年
     { const mb = $("#p-mailbox"); if (mb) { let n = 0; try { n = this.mailboxCount ? this.mailboxCount() : 0; } catch {} mb.textContent = n ? `(${n})` : ""; } }
     document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === (this.tab === "fshop" || this.tab === "aset" ? "cultivate" : this.tab)));
-    // 顶部（道号、灵石、贡献、功德）和信息栏只在修炼页显示
+    // 顶部（道号、灵石、贡献、修炼年数）和信息栏只在修炼页显示
     const main = this.tab === "cultivate";
     $("#top").style.display = main ? "" : "none";
     $("#log-wrap").style.display = main && !this.cultView ? "" : "none";   // 神识 / 肉身 / 设置页不显示信息栏
     const v = $("#view"), top = v.scrollTop;
-    // 某个页面出错时不再整页空白：显示错误信息，其它页面照常可用
+    // 某个页面出错时不整页空白：显示错误信息，其它页面照常可用
     // 内容没变就不重绘：避免每秒重绘时按钮被替换、点了没反应，也省手机电量
     // 手指 / 鼠标按住时先不替换页面：否则按下和抬起之间按钮被换掉，这次点击就丢了
     if (this._pressing && v.innerHTML !== "") { this._renderDeferred = true; return; }
@@ -347,22 +339,22 @@ const G = {
     if (this._innerScrollAt && Date.now() - this._innerScrollAt < 250 && v.innerHTML !== "") { this._renderDeferred = true; clearTimeout(this._innerScrollT); this._innerScrollT = setTimeout(() => { if (this._renderDeferred) { this._renderDeferred = false; this.render(); } }, 260); return; }
     // 正在输入框里打字时也先不替换页面：否则输入框被换掉，手机输入法会自动收起
     if (this.editing(v)) { this._renderDeferred = true; return; }
-    const lg0 = document.getElementById("exov-log"), lgTop = lg0 ? lg0.scrollTop : -1;
+    const lg0 = document.getElementById("exov-log"), lgTop = lg0 ? lg0.scrollTop : -1;   // 探索信息浮层：重绘后保持位置，或「跟随最新」滚到底
     const bg0 = document.getElementById("bag-grid"), bgTop = bg0 ? bg0.scrollTop : 0, gs0 = document.getElementById("gf-scroll"), gsTop = gs0 ? gs0.scrollTop : 0; const fx0 = v.querySelector(".fxbody"), fxTop = fx0 ? fx0.scrollTop : 0;   // 背包储物格 / 功法列表：页面固定，只有格子框内滑动，重绘后保持位置
-    const mw0 = document.getElementById("mgwrap"), mwPos = mw0 ? [mw0.scrollLeft, mw0.scrollTop] : null;   // 地图格子：重绘后保持拖动位置   // 探索信息浮层：重绘后保持位置，或「跟随最新」滚到底
+    const mw0 = document.getElementById("mgwrap"), mwPos = mw0 ? [mw0.scrollLeft, mw0.scrollTop] : null;   // 地图格子：重绘后保持拖动位置
     try { const html = this.views[this.tab] ? this.views[this.tab].call(this) : ""; if (html !== this._viewHtml || v.innerHTML === "") { v.innerHTML = html; this._viewHtml = html; v.classList.remove("fxview");
       this._gfCdT = 0;   // 功法页倒计时/进度条是空位：重绘后同一帧立刻由 bars() 填上，否则空白最多半秒，看起来一闪一闪
       const lg = document.getElementById("exov-log"); if (lg) lg.scrollTop = this.exFollow === false && lgTop >= 0 ? lgTop : 0;
       const bg = document.getElementById("bag-grid"); if (bg && bgTop) bg.scrollTop = bgTop; const gs = document.getElementById("gf-scroll"); if (gs && gsTop) gs.scrollTop = gsTop;
       const mw = document.getElementById("mgwrap");
       if (mw) this.gridFit(mw);
-      const fxb = this.fixHead(v); if (fxb && fxTop) fxb.scrollTop = fxTop;   // 上面的按钮固定，只滑下面（用户定 2026-11-14）
+      const fxb = this.fixHead(v); if (fxb && fxTop) fxb.scrollTop = fxTop;   // 上面的按钮固定，只滑下面（用户定）
       const gsd = v.querySelector(".gf-side"); if (gsd) this.gfSideFit(gsd, gsd.closest(".fxbody") || v);   // 功法类型侧栏：占满下面空着的高度
       if (mw) { if (mwPos) { mw.scrollLeft = mwPos[0]; mw.scrollTop = mwPos[1]; }
         else { const n = +mw.dataset.n || 9, c = +mw.dataset.c || 0, cw = mw.scrollWidth / n;   // 第一次进入：上次游历的格子放在中间
           mw.scrollLeft = (c % n + .5) * cw - mw.clientWidth / 2; mw.scrollTop = (Math.floor(c / n) + .5) * cw - mw.clientHeight / 2; } }
       this.syncLoopAnims(v); }
-      this.exovFit(); }   // 最新一条在最上面
+      this.exovFit(); }
     catch (err) { console.error(err); this._viewHtml = null; v.innerHTML = `<div class="card"><h3>页面出错</h3><p class="desc">${String(err && err.message || err)}<br>如果刚改过 js/config/ 里的数值，请检查有没有写错（例如少了小数点、多了问号）。</p></div>`; }
     v.scrollTop = top;
   },
@@ -371,7 +363,7 @@ const G = {
     if (typeof API === "undefined" || !API._battleQueue) return false;
     return API._battleQueue.length > 0 || !!(this._bp && typeof document !== "undefined" && document.querySelector("#modal-box .btv"));
   },
-  // 所有页面：滑动时上面的按钮（标题、页签按钮）固定不动，只有下面的内容滑动（用户定 2026-11-14）
+  // 所有页面：滑动时上面的按钮（标题、页签按钮）固定不动，只有下面的内容滑动（用户定）
   //   页面（或 .mpage）前 6 个子元素里最后一个按钮行 / 标题算「头部」，后面的内容移进 .fxbody 单独滑动
   //   已经自带框内滑动的页面（功法页 gf-scroll、背包格子、地图格子、铺满的地图页）不动
   fixHead(v) {
@@ -381,19 +373,19 @@ const G = {
     let j = -1; kids.slice(0, 6).forEach((k, i) => { if (k.matches(HEAD)) j = i; });
     const rest = kids.slice(j + 1).filter(k => !k.matches(".fback, .exov, script, style"));
     if (j < 0 || !rest.length) return null;
-    if (kids[j].getBoundingClientRect().bottom - kids[0].getBoundingClientRect().top > v.clientHeight * 0.55) return null;   // 从页面顶算头部高度：原来按屏幕位置算，页面滑下去后头部"变矮"，下一次重绘突然固定，滑动位置被清零跳回顶部（2026-11-14 修）   // 头部太高（按钮在很下面）就不固定，免得下面滑动区太小
+    if (kids[j].getBoundingClientRect().bottom - kids[0].getBoundingClientRect().top > v.clientHeight * 0.55) return null;   // 从页面顶算头部高度（按屏幕位置算的话，页面滑下去后头部"变矮"，下一次重绘突然固定，滑动位置被清零跳回顶部）；头部太高（按钮在很下面）就不固定，免得下面滑动区太小
     const body = document.createElement("div"); body.className = "fxbody"; body.id = "fx-scroll";
     c.insertBefore(body, rest[0]); rest.forEach(k => body.appendChild(k));
     c.classList.add("fxon"); v.classList.add("fxview");
     return body;
   },
-  // 功法殿 / 坊市 / 功德司左侧功法类型按钮：从按钮顶到页面底部（不滑动时）全部占满，按钮平分高度（用户定 2026-11-14）
+  // 功法殿 / 坊市 / 功德司左侧功法类型按钮：从按钮顶到页面底部（不滑动时）全部占满，按钮平分高度（用户定）
   gfSideFit(sd, v) {
     const ref = sd.parentNode || sd, mn = ref.querySelector(".gf-side-main");
     if (mn) { let nx; while ((nx = ref.nextElementSibling) && !nx.matches(".fback,.exov")) mn.appendChild(nx); }
-    const pb = parseFloat(getComputedStyle(v).paddingBottom) || 0;   // 滑动区底部留白（给返回按钮）算进侧栏外框：滑到底侧栏不被顶上去挡住（用户 2026-11-14）
-    if (mn && pb > 0 && !mn.querySelector(":scope>.gf-pad")) { const d = document.createElement("div"); d.className = "gf-pad"; d.style.height = pb + "px"; mn.appendChild(d); ref.style.marginBottom = -pb + "px"; }   // 侧栏下面的卡片（丹方、图纸等）也放进右边：滑到底时侧栏不再被外框带着往上跑（用户 2026-11-14）
-    const off = ref.getBoundingClientRect().top - v.getBoundingClientRect().top + v.scrollTop, n = sd.children.length || 1;   // 用外框算位置：侧栏是 sticky，滑下去后它自己的位置会变，高度就被算小（2026-11-14 修）
+    const pb = parseFloat(getComputedStyle(v).paddingBottom) || 0;   // 滑动区底部留白（给返回按钮）算进侧栏外框：滑到底侧栏不被顶上去挡住（用户定）
+    if (mn && pb > 0 && !mn.querySelector(":scope>.gf-pad")) { const d = document.createElement("div"); d.className = "gf-pad"; d.style.height = pb + "px"; mn.appendChild(d); ref.style.marginBottom = -pb + "px"; }   // 侧栏下面的卡片（丹方、图纸等）也放进右边：滑到底时侧栏不被外框带着往上跑（用户 2026-11-14）
+    const off = ref.getBoundingClientRect().top - v.getBoundingClientRect().top + v.scrollTop, n = sd.children.length || 1;   // 用外框算位置：侧栏是 sticky，滑下去后它自己的位置会变，高度就被算小
     sd.style.height = Math.max(n * 34, v.clientHeight - off - 2) + "px";
     if (!this._gfSideRs) { this._gfSideRs = 1; window.addEventListener("resize", () => { const vv = document.getElementById("view"), d = vv && vv.querySelector(".gf-side"); if (d) { d.style.height = ""; this.gfSideFit(d, d.closest(".fxbody") || vv); } }); }
   },
@@ -435,9 +427,9 @@ const G = {
 
   /* ---------- 启动 ---------- */
   start() {
-    this._gfPref = null; this._spPref = null; if (this.applyBg) this.applyBg();   // 本机设置按存档读（用户 2026-11-17）
+    this._gfPref = null; this._spPref = null; if (this.applyBg) this.applyBg();   // 本机设置按存档读（用户定）
     this.dirty();
-    this._lastTick = this.s.last && this.s.last <= Date.now() ? this.s.last : Date.now();   // v208 接着离线补算后的结算时间
+    this._lastTick = this.s.last && this.s.last <= Date.now() ? this.s.last : Date.now();   // 接着服务器上次结算的时间
     this.render(); this.renderLog(); this.bars();
     this.awayCheck(); clearInterval(this._awayTimer);
     this._awayTimer = setInterval(() => { if (typeof document === "undefined" || (!document.hidden && document.hasFocus())) this.awaySnap(); }, 30000);
@@ -457,7 +449,7 @@ const G = {
   },
 
   init() {
-    const bt = document.getElementById("boot"); if (bt) bt.remove();   // v245 网页加载完：去掉「加载中」
+    const bt = document.getElementById("boot"); if (bt) bt.remove();   // 网页加载完：去掉「加载中」
     document.querySelectorAll("#tabs button").forEach(b => {   // 底部导航按钮名字在 config/names.js 的 tab
       const n = DATA.nmPick(CFG.names.tab, b.dataset.tab, ""), t = b.lastChild;
       if (n && t && t.nodeType === 3) t.textContent = n;
@@ -484,7 +476,7 @@ const G = {
     document.addEventListener("focusout", () => setTimeout(() => {
       if (this._renderDeferred && !this._pressing && !this.editing($("#view"))) { this._renderDeferred = false; this.render(); }
     }, 0), true);
-    // 点弹窗外面关闭；锁定只在真正需要时生效（登录、数据修改、恢复存档、战斗画面），别的弹窗盖掉战斗画面后不再被旧的锁卡住
+    // 点弹窗外面关闭；锁定只在真正需要时生效（登录、数据修改、恢复存档、战斗画面），别的弹窗盖掉战斗画面后不会被旧的锁卡住
     $("#modal").onclick = e => {
       if (e.target.id !== "modal" || !this.s) return;
       const lock = this._lockModal && (document.body.classList.contains("nologin") || this._cfgOpen || this._restoring || this._stopped || !!document.querySelector("#modal-box .btv"));

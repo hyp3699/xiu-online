@@ -48,7 +48,7 @@ const API = {
     let r;
     try { r = await fetch(this.BASE + path, opt); }
     catch (e) { clearTimeout(tmo); if (e && e.name === "AbortError") throw new Error("连接服务器超时"); console.warn("fetch failed:", e); throw new Error("网络连接失败（可能是网络不稳或服务器正在重启），请稍后再试"); }   // 浏览器原文是英文 Failed to fetch / Load failed
-    // body 不是 JSON 时按失败处理：原来 200 配非法 body 会把 { error } 当成功数据返回，
+    // body 不是 JSON 时按失败处理：否则 200 配非法 body 时，
     // 调用方（如 loadSave）会拿到没有 data 的“成功”结果。
     let j;
     try { j = await r.json(); } catch { clearTimeout(tmo); throw new Error("服务器无响应"); }
@@ -92,12 +92,12 @@ const API = {
 
   // 显示用时钟（经服务器同步、平滑后）：倒计时、进度条等显示读它，不要读 Date.now()。
   // 计时/超时（看门狗、重试拦截、悟道读条）一律用原生时间 this._nativeNow() / performance.now()，
-  // 绝不能用这个会被拉伸/压缩的显示时钟。注意：这里不再覆盖全局 Date.now——
-  // 全局覆盖会让全站约 49 处共用被拉伸/压缩的时钟，计时全部失真。
+  // 绝不能用这个会被拉伸/压缩的显示时钟。注意：不要覆盖全局 Date.now——
+  // 全局覆盖会让全站计时共用被拉伸/压缩的时钟，计时全部失真。
   now() {
     if (!this.serverNow) return this._nativeNow();
     const perf = typeof performance !== "undefined" ? performance.now() : 0;
-    // 校准不再一下跳过去（倒计时会一秒跳 2~3 秒或倒退），而是让时钟稍快 / 稍慢走，几秒内追上；
+    // 校准时让时钟稍快 / 稍慢走，几秒内追上（一下跳过去的话倒计时会一秒跳 2~3 秒或倒退）；
     // 差距超过 3 秒（首次同步、休眠恢复）才直接跳。时钟永不倒退。
     const target = this.serverNow + Math.max(0, perf - this._clockPerf), dt = Math.max(0, perf - this._shownPerf);
     if (!this._shownNow || Math.abs(target - this._shownNow) > 3000) this._shownNow = target;
@@ -112,7 +112,7 @@ const API = {
     if (!patch || patch.$p !== 1 || !target || typeof target !== "object" || Array.isArray(target)) return patch;
     for (const k of patch.d || []) delete target[k];
     for (const [k, v] of Object.entries(patch.s || {})) {
-      // 客户端缺失该嵌套键时，原来会把补丁对象本身 {$p:1,...} 当成状态值；改成从空对象展开
+      // 客户端缺失该嵌套键时从空对象展开（不能把补丁对象本身 {$p:1,...} 当成状态值）
       const base = v && v.$p === 1 ? (target[k] && typeof target[k] === "object" && !Array.isArray(target[k]) ? target[k] : {}) : null;
       target[k] = v && v.$p === 1 ? this.patchState(base, v) : v;
     }
@@ -148,8 +148,7 @@ const API = {
     if (typeof G === "undefined" || !G.s) return true;
     const tab = G.tab;
     // 空闲心跳（补丁为空、无待恢复的本地先改）：状态什么都没变，不重绘、不重算属性；
-    // 进度条由每帧的 bars() 自己刷，日志由调用方 toastLogs 单独处理，不会漏。
-    // 注意：空闲心跳不再冲掉本地先改——以前单布尔 _localEdit 让任何一次心跳都整份复制覆盖。
+    // 进度条由每帧的 bars() 自己刷，日志由调用方 toastLogs 单独处理，不会漏；也不会冲掉本地先改。
     if (viaPatch && !message.patch && message.ok !== false && !pruned && !revertKeys.size) return true;
     if (message.state || (viaPatch && !message.patch)) {
       // 完整状态 / 空补丁（失败恢复）：整份复制一次，下面再把仍在途的本地先改写回
@@ -227,7 +226,7 @@ const API = {
   },
 
   // 记住最近一次打开弹窗的函数：服务器操作完成后弹窗还开着，就用新状态重新打开它，
-  // 弹窗里的按钮、数量、状态立即刷新（以前只有少数弹窗会刷新）。
+  // 弹窗里的按钮、数量、状态立即刷新。
   trackModalOpeners() {
     if (this._modalTracking || typeof G === "undefined") return;
     this._modalTracking = true;
@@ -287,7 +286,7 @@ const API = {
     this._clickTracking = true;
   },
 
-  // 按钮不再显示「处理中…」：结果由服务器很快推回，界面直接刷新
+  // 按钮不显示「处理中…」（空实现）：结果由服务器很快推回，界面直接刷新
   markButtonPending() { return { button: null }; },
   finishButtonPending() {},
 
@@ -314,7 +313,7 @@ const API = {
 
   // 需要玩家确认的操作：先在本地弹确认框，取消就不发给服务器（服务器端 confirm 一律视为确定）
   CONFIRMS: {
-    breakthrough: () => !G.s.trib && G.canBreak() && G.needTrib() ? "本次突破要渡雷劫，确定开始渡劫？" : "",   // 用户定 2026-11-20
+    breakthrough: () => !G.s.trib && G.canBreak() && G.needTrib() ? "本次突破要渡雷劫，确定开始渡劫？" : "",   // （用户定）
     startTrib: () => !G.s.trib && G.canBreak() && G.needTrib() ? "本次突破要渡雷劫，确定开始渡劫？" : "",
     leaveSect: () => G.s.sect && G.s.contrib >= G.leaveCost() ? `叛出门派将扣除贡献 ${U.fmt(G.leaveCost())}、清空职务（已学功法保留），确定？` : "",
     svFire: () => "遣散这个道童？",
@@ -377,8 +376,8 @@ const API = {
     return j.data;
   },
 
-  // 断线后循环重连（带退避），而不是只试一次：服务器重启/更新的空档
-  // 往往超过 1.5 秒，一次失败就停会导致客户端卡在断线状态，只能重启 App。
+  // 断线后循环重连（带退避）：服务器重启/更新的空档往往超过 1.5 秒，
+  // 一次失败就停会导致客户端卡在断线状态，只能重启 App。
   // 会话已死：令牌吊销 / 过期后 ws-ticket 一律 401，再试也连不上，停掉循环并让玩家重新登录。
   sessionExpired() {
     this.cancelReconnect();
@@ -453,7 +452,7 @@ const API = {
         if (event.code === 4001 && typeof G !== "undefined" && G.kicked) G.kicked();
         else if ([4003, 4004, 4005].includes(event.code)) {
           // 终结性关闭：密码已改 / 账号或人物已删 / 存档异常——令牌已吊销或存档不存在，
-          // 重连永远连不上，必须停掉循环并让玩家重新登录（原来会静默循环请求 ws-ticket）
+          // 重连永远连不上，必须停掉循环并让玩家重新登录
           this.sessionExpired();
         }
         else if (this.token && this.serverState && event.code !== 1000) {
@@ -492,7 +491,7 @@ const API = {
     this.finishButtonPending(pending);
     // 失败的动作：它乐观改过的键在 applyState 里按服务器值恢复（本条补丁可能没碰这些键）
     if (!message.ok && pending.optKeys) this._revertKeys = new Set(pending.optKeys);
-    // 除了日志什么都没变 = 条件不足没执行（有补丁就看补丁改了哪些键，不再把整个状态序列化两次）
+    // 除了日志什么都没变 = 条件不足没执行（有补丁就看补丁改了哪些键，不用把整个状态序列化两次）
     const onlyLog = p => !p || (p.$p === 1 && !(p.d || []).length && Object.keys(p.s || {}).every(k => k === "log"));
     const noLog = st => st ? JSON.stringify({ ...st, log: 0 }) : "";
     const before = "patch" in message ? "" : noLog(this.serverState);
@@ -507,7 +506,7 @@ const API = {
       pending.reject(new Error(error)); return;
     }
     this.afterRemoteAction(pending.name, pending.args, pending.refresh, message.result, pending.exStart, message.logs || [], pending.cqStart);
-    // 服务器打完的战斗在这里播放：一次回多场时按顺序逐场播（以前只取最后一场，前面的直接丢了）
+    // 服务器打完的战斗在这里播放：一次回多场时按顺序逐场播
     if (battles.length && typeof G !== "undefined" && G.playBattle) this._pumpBattles();
     else if (pending.name !== "wudaoDone") this.toastLogs(message.logs, true, failed);
     pending.resolve(message);
@@ -517,10 +516,6 @@ const API = {
   // playBattle 会顶掉正在播的一场（旧场只记日志），所以这里一次只播一场：
   // G._bp 还在（播着、或播完等玩家点「关闭」）就等着，玩家关闭后（_bp 清掉）再播下一场。
   // 新到的战斗排到队尾，不丢。登出时清队。
-  queueBattles(list) {
-    for (const bt of list || []) if (bt && bt.b) this._battleQueue.push(bt);
-    this._pumpBattles();
-  },
   _pumpBattles() {
     if (this._battlePump || !this._battleQueue.length) return;
     const tick = () => {
@@ -577,8 +572,7 @@ const API = {
     if (typeof G !== "undefined" && G.s) {
       // 炼法宝还没选类型 / 属性：在本地打开选择窗口，选好后再发给服务器
       if (name === "craftFurnace" && args[2] === "fabao" && !(DATA.fabaoTypes[args[3]] && DATA.elById[args[4]])) { G.openFabaoPick(args[1]); return false; }
-      // 突破要渡劫（如练气十层 → 筑基）：渡劫准备页只在本地打开，点「开始突破」才发 startTrib 给服务器
-      // v259 去掉准备页：有渡劫在进行就看渡劫页，否则直接开始渡劫
+      // 突破要渡劫（如练气十层 → 筑基）：有渡劫在进行就在本地打开渡劫页，否则直接发 startTrib 开始渡劫
       if (name === "breakthrough" && G.s.trib) { G.openTrib(); return false; }
       if (name === "breakthrough" && G.canBreak() && G.needTrib()) return this.sendAction("startTrib", []);
       // 悟道：先发一次 wudao 让服务器记下开始时间（服务端 wudaoDone 会校验是否读满），
@@ -602,7 +596,7 @@ const API = {
       }
     }
     // 上次同名同参数的操作超时后结果还没同步回来：先拦住重试，等完整状态到了再放行
-    // （超时注释里本来就写着“先重同步再允许重试”，这里把它落到实处；否则慢服务器 + 手快重试会重复执行）
+    // （否则慢服务器 + 手快重试会重复执行）
     const blockKey = this._blockKey(name, args);
     const blocked = this._retryBlock.get(blockKey);
     if (blocked) {
@@ -630,8 +624,8 @@ const API = {
     const id = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `${this._nativeNow().toString(36)}-${(++this._actionCounter).toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
     let optKeys = [];
     if (this.OPTIMISTIC.has(name) && typeof G !== "undefined" && G.s) {
-      // 乐观动作：先在本地改好显示，记下改动过的键/子字段（按动作跟踪，不是单布尔），
-      // 服务器结果到了只对这些键按服务器值恢复，其余补丁和空闲心跳不再冲掉本地先改
+      // 乐观动作：先在本地改好显示，按动作记下改动过的键/子字段，
+      // 服务器结果到了只对这些键按服务器值恢复，其余补丁和空闲心跳不会冲掉本地先改
       optKeys = this._optimisticKeys(name, args);
       const before = new Map(optKeys.map(k => [k, structuredClone(G.s[k])]));
       try { this._originalActions.get(name).apply(G, args); G.dirty(); G.render(); G.bars(); this.refreshOpenModal(); } catch {}
@@ -659,8 +653,6 @@ const API = {
     });
   },
 
-  async upload() { throw new Error("客户端存档上传已关闭，所有进度保存在服务器"); },
-  beacon() {},
   async resetCharacter(password) { return this.req("character/reset", { password: String(password || "") }, "POST"); },
 
   // 管理员与账号 API
@@ -670,7 +662,7 @@ const API = {
   async giftCreate(d) { return this.req("admin/gift", d); },
   async giftMail(d) { return this.req("admin/gift/mail", d); },
   async giftDelete(code) { return this.req("admin/gift/del", { code }); },
-  async giftRedeem(code) { const j = await this.req("gift", { code }); if (j.state) this.applyState(j); return j; },   // 不再发 resync：HTTP 响应本身就是完整状态，服务器端兑换时在线客户端还会再推一次完整状态，再发一次等于同一份完整状态传三遍
+  async giftRedeem(code) { const j = await this.req("gift", { code }); if (j.state) this.applyState(j); return j; },   // 不用发 resync：HTTP 响应本身就是完整状态，服务器端兑换时在线客户端还会再推一次完整状态，再发一次等于同一份完整状态传三遍
   async changePassword(oldPw, newPw) { return this.req("password", { old: oldPw, new: newPw }); },
   async userList() { return this.req("admin/users"); },
   async setRegOpen(open) { return this.req("admin/reg", { open }); },
@@ -680,9 +672,9 @@ const API = {
   async charNew(debug) { return this.req("admin/char/new", { debug: !!debug }); },
   async charSwitch(id) { return this.req("admin/char/switch", { id }); },
   async charDel(id) { return this.req("admin/char/del", { id }); },
-  // ---- 从后台切回游戏：显示「加载游戏中…」，等服务器把离开这段时间结算完、推回完整状态再关闭 ----
-  _hiddenAt: 0, _resumeWait: false, _resumeShow: 0, _resumeTimer: 0, _resumeKick: 0, _resumeRetry: 0, _resumePendingAway: false, // 超时兜底先关了提示：基线未动，待完整状态到达再补算一次离开收益（见 snapshot 分支）
-  RESUME_MIN_MS: 1500,   // 离开不到 1.5 秒（如下拉通知栏）不显示
+  // ---- 从后台切回游戏：马上重连，等服务器把离开这段时间结算完、推回完整状态后弹离开收益 ----
+  _hiddenAt: 0, _resumeWait: false, _resumeTimer: 0, _resumeRetry: 0, _resumePendingAway: false, // 超时兜底先结束了等待：基线未动，待完整状态到达再补算一次离开收益（见 snapshot 分支）
+  RESUME_MIN_MS: 1500,   // 离开不到 1.5 秒（如下拉通知栏）不处理
   installResume() {
     if (this._resumeInstalled || typeof document === "undefined") return;
     this._resumeInstalled = true;
@@ -702,17 +694,15 @@ const API = {
     if (!(awayMs >= this.RESUME_MIN_MS)) return;
     this._resumeWait = true;
     this._resumePendingAway = false; // 新一轮切回，清除上一轮超时留下的待补弹窗标记
-    // 安卓版后台保持连接时，切回来服务器几百毫秒就推回状态：0.8 秒内完成就不显示「加载游戏中…」
-    clearTimeout(this._resumeShow);
-    // 用户定（2026-11-16）：切回不再显示「加载游戏中…」，只在后台重连结算
-    // 切后台后连接可能已经悄悄断了但 readyState 还是 OPEN：不再信任它，直接关掉旧连接马上重连
+    // 切回不显示「加载游戏中…」，只在后台重连结算（用户定）
+    // 切后台后连接可能已经悄悄断了但 readyState 还是 OPEN：不信任它，直接关掉旧连接马上重连
     //   （新连接一接通服务器就会结算并推完整状态）；看门狗计时也从现在重新算
     this._lastMessageAt = this._nativeNow();
     clearTimeout(this._reconnectTimer); this._reconnectAttempts = 0;
     const s = this._socket;
     if (s) { this._socket = null; s.onmessage = null; try { s.close(4000, "resume"); } catch {} clearInterval(this._watchdogTimer); this._watchdogTimer = null; }
     this.connectSocket().catch(() => {});
-    // 连不上就每 3 秒再试一次；最多等 20 秒，之后关掉提示（后台继续自动重连）
+    // 连不上就每 3 秒再试一次；最多等 20 秒，之后结束等待（后台继续自动重连）
     clearInterval(this._resumeRetry);
     this._resumeRetry = setInterval(() => {
       if (!this._resumeWait) return clearInterval(this._resumeRetry);
@@ -721,26 +711,15 @@ const API = {
     clearTimeout(this._resumeTimer);
     this._resumeTimer = setTimeout(() => {
       if (!this._resumeWait) return;
-      this._resumePendingAway = true; // 20 秒还没等到完整状态：先关提示，基线不动，等完整状态到了再补算离开收益
+      this._resumePendingAway = true; // 20 秒还没等到完整状态：先结束等待，基线不动，等完整状态到了再补算离开收益
       this.resumeDone();
       this.showActionFeedback("连接服务器较慢，正在后台重试…", "bad");
     }, 20_000);
   },
   resumeDone() {
     this._resumeWait = false;
-    clearTimeout(this._resumeShow); clearTimeout(this._resumeTimer); clearTimeout(this._resumeKick); clearInterval(this._resumeRetry);
-    this.showResume(false);
+    clearTimeout(this._resumeTimer); clearInterval(this._resumeRetry);
     if (typeof G !== "undefined" && G.awayCheck) G.awayCheck();   // 离开收益弹窗
-  },
-  showResume(on) {
-    let el = document.getElementById("resume-load");
-    if (!el) {
-      if (!on) return;
-      el = document.createElement("div"); el.id = "resume-load";
-      el.innerHTML = "<span>加载游戏中…</span>";
-      document.body.appendChild(el);
-    }
-    el.classList.toggle("show", !!on);
   },
 
   /* ---------- 游戏线路（服务器地址） ----------
@@ -752,13 +731,13 @@ const API = {
     try {
       const app = typeof window !== "undefined" && window.XiuApp;
       if (!app || !app.setLines) return;
-      const j = await this.req("lines"); this.lines = j;
+      const j = await this.req("lines");
       app.setLines(JSON.stringify(j.lines || []));
       const def = j.def ? this.lineKey(j.def) : "", seen = localStorage.getItem("xiu_line_def") || "";
       if (def && def !== seen) { localStorage.setItem("xiu_line_def", def); if (def !== this.curLine()) this.goLine(def); }
     } catch (e) {}
   },
-  // 换线路时带上登录，不用重新登录。90 天令牌绝不再放进 URL hash：
+  // 换线路时带上登录，不用重新登录。长效令牌绝不放进 URL hash：
   // 同源用 sessionStorage 一次交接（30 秒有效、读一次就删），跨域用 30 秒一次性 ws-ticket
   // 向目标线路的 POST api/line-redeem（server/server.mjs）换登录令牌，一次消费、30 秒过期。
   // 注意：ticket 只存在发券进程的内存 Map 里，目标线路若是另一台独立后端进程就换不到，

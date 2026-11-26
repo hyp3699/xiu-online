@@ -2,7 +2,7 @@
  * ★ 数值设置 · 灵地 ★（代码：modules/world.js，和秘境共用 mjXxx 函数，k = "ld"；怪物属性、境界要求在 config/mobs.js 的 lingdi）
  * 发现：仙冥魔神任一界第 find.map 张地图（0 起）走完一次历练 / 探索，按 find.chance% 判定，一次最多发现一处；w 只决定分组、灵石和药材矿石表
  * 共 12 处，怪物境界跟发现地图一致：第 1~10 处 = 仙冥魔第 find.map+1 张图的怪物境界（境界序号 10、10、11、11、12、12、13、14、15、16 = 渡劫~太乙金仙），
- *   第 11、12 处（神界）17、18 = 大罗金仙、玄仙；具体在 config/mobs.js 的 lingdi，不限进入境界
+ *   第 11、12 处（和第 10 处一样是神界、在第 10 张图发现）17、18 = 大罗金仙、玄仙；具体在 config/mobs.js 的 lingdi，不限进入境界
  * 一次 TIME 步：普通怪 MONSTERS + 精英 ELITES + 灵药 HERB + 矿脉 ORE（个数可写数字或 [最少, 最多]），其余空步，最后 BOSS 步是首领
  * 灵石：config/drops.js 的 RUN_STONE.lingdi（按本界列表顺序）
  * 药材矿石：总数见 config/drops.js 的 dropTotal.lingdi，从发现它的四界地图药材 / 矿石表（含特产）等概率抽

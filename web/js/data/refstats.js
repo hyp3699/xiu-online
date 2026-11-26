@@ -4,13 +4,13 @@
  * DATA.refStats(境界, 层, 功法层数, 星级, 来源) = 人物在该境界第几层（1~10）的属性（含升级成长）
  *   + 1 ~ 星级 的全部功法（来源 1 宗门 / 2 +凡界坊市 / 3 +仙魔冥神坊市 / 4 +功德司，所有类别）都练到「功法层数」
  *   不算丹药、肉身、灵根、装备；功法层数 0 = 不算功法
- * 用到的地方：试炼塔守关者 config/mobs.js 的 tower、雷劫 config/trib.js 的 trib；
- *   怪物（地图、秘境、灵地、天将星君界主、宗门考官）另见 js/data/mobs.js（数值 config/mobs.js）
+ * 用到的地方：js/data/mobs.js 算怪物（地图、秘境、灵地、天将星君界主、宗门考官等）和试炼塔守关者的基础属性（数值 config/mobs.js），
+ *   现在都只算修为突破（功法层数 0）
  * ===================================================================== */
 DATA.REF_KEYS = ["hp", "atk", "def", "speed", "hit", "dodge", "mana", "res"];   // res：每系抗性（RES_BASE + 修为突破 + 全部真诀）
 DATA._ref = {};
 DATA.refStar = realm => (CFG.sect.REQ_REALM || []).filter(x => x <= realm).length;   // 该境界能进的最高星级
-// v105：star = 算 1 ~ star 星的功法（不写 = 该境界能进的最高星）；src = 算哪些来源（1 宗门 2 +凡界坊市 3 +仙魔冥神坊市 4 +功德司，不写 = 1）
+// star = 算 1 ~ star 星的功法（不写 = 该境界能进的最高星）；src = 算哪些来源（1 宗门 2 +凡界坊市 3 +仙魔冥神坊市 4 +功德司，不写 = 1）
 DATA.refSrcList = src => [DATA.sects, src >= 2 ? DATA.shopSources : [], src >= 3 ? ((DATA.jieGf || {}).jshop || []).filter(x => !x.old) : [], src >= 4 ? ((DATA.jieGf || {}).gd || []).filter(x => !x.old) : []].flat();
 DATA.refStats = (realm, layer, gf, star, src) => {
   realm = Math.max(0, Math.min(DATA.realms.length - 1, realm)); layer = Math.max(1, Math.min(DATA.LAYERS, layer));

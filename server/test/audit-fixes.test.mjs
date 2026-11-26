@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { GameEngine } from "../game-engine.mjs";
 
-// 2026-11-04 审计修复中不属于战斗三项的部分：S-16 别名取表、#5 讲道星级、#7 叛出清免费房。
+// 审计修复中不属于战斗三项的部分：S-16 别名取表、#5 讲道星级、#7 叛出清免费房。
 
 function newPlayer() {
   const engine = new GameEngine();

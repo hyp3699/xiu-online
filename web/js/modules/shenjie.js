@@ -1,10 +1,10 @@
 /* =====================================================================
- * 模块：神界（九重天）—— 每重天一张图：东西南北四域 + 大殿 / 天尊殿 / 愿力祠 / 神市 / 道场（数值 config/shenjie.js）
+ * 模块：神界（九重天，共 10 重天）—— 每重天一张图：东西南北四域 + 大殿 / 天尊殿 / 愿力祠 / 神市 / 道场（数值 config/shenjie.js）
  * ---------------------------------------------------------------------
- * 存档：s.yuanli 愿力；s.sj = { day 北京日期, dcDay 上次感悟日期, gwN 感悟总次数, dcN { "a_0": 本重天感悟次数 },
- *        attr { 属性: 值 } 感悟累计固定属性, zy [{ k 种类, lv 级数 0~36, a 哪重天 }], v 3, sxDay 神像愿力发放日 }
- * 2026-11-12 道场改感悟（愿力 + 灵石，随机 3 种属性），真意 36 级、加突破属性百分比（v 3，旧真意级数截到 36）。
- * 2026-11-12 去掉格子探索、尊者、神将殿、神纹（旧存档里的 p / jd / n / sw 不再使用）。
+ * 存档：s.yuanli 愿力；s.sj = { day 北京日期, dcDayM { "a_0": 本重天上次感悟日期 }, gwN 感悟总次数, dcN { "a_0": 本重天感悟次数 },
+ *        attr { 属性: 值 } 感悟累计固定属性, zy [{ k 种类, lv 级数 0~ZY_MAX, a 哪重天 }], v 3, sxDay 神像产出发放日, sg 神功（见下方神功段） }
+ * 道场感悟：花愿力 + 灵石，随机 GW_PICK 种属性；真意加突破属性百分比（v 3：旧真意级数截到 ZY_MAX）。
+ * 旧存档里的 p / jd / n / sw 字段不再使用。
  * ===================================================================== */
 G.module({
   id: "shenjie",
@@ -19,15 +19,15 @@ G.module({
       if (J.day !== d) J.day = d;
       for (const k of ["dcN", "attr"]) if (!J[k] || typeof J[k] !== "object" || Array.isArray(J[k])) J[k] = {};
       if (J.v !== 2 && J.v !== 3) { J.zy = []; J.dcN = {}; delete J.buy; }   // 旧真意（含买的防御真意、闪避暴击真意）作废
-      if (J.v !== 3) { J.v = 3; for (const z of Array.isArray(J.zy) ? J.zy : []) z.lv = Math.min(this.sjC().ZY_MAX || 36, Math.max(0, Math.floor(+z.lv) || 0)); }   // 2026-11-12 真意改 36 级百分比
+      if (J.v !== 3) { J.v = 3; for (const z of Array.isArray(J.zy) ? J.zy : []) z.lv = Math.min(this.sjC().ZY_MAX || 36, Math.max(0, Math.floor(+z.lv) || 0)); }   // 旧真意级数截到 ZY_MAX
       if (!Array.isArray(J.zy)) J.zy = [];
       if (typeof s.yuanli !== "number" || !isFinite(s.yuanli)) s.yuanli = 0;
-      if (J.sxDay !== d) {   // 神像：每座每天 SX_YL 愿力，按过去的天数补
+      if (J.sxDay !== d) {   // 神像：每座每天 等级 × SX_YL 愿力 + 本界物品，按过去的天数补（最多 SX_MAX_DAY 天）
         const n = this.sjSxCount(), C = this.sjC();
         if (J.sxDay && n > 0) { const days = Math.max(1, Math.min(C.SX_MAX_DAY || 30, Math.round((Date.parse(d) - Date.parse(J.sxDay)) / 86400000) || 1)), y = this.sjSxDayYl() * days;
           const got = {};   // 每座神像按所在界产一种物品
           for (const x of this.sjSxItems()) got[x.k] = (got[x.k] || 0) + x.n * days;
-          const it = Object.keys(got).filter(k => got[k] > 0); it.forEach(k => this.mailMerge({ t: "sm", k, n: got[k] }, "神像产出"));   // 神像产出进传音（用户定 2026-11-17）
+          const it = Object.keys(got).filter(k => got[k] > 0); it.forEach(k => this.mailMerge({ t: "sm", k, n: got[k] }, "神像产出"));   // 神像产出进传音（用户定）
           if (y > 0) this.mailMerge({ t: "cur", k: "yuanli", n: y }, "神像产出");
           if (y > 0 || it.length) this.log(`${n} 座神像${days > 1 ? ` ${days} 天` : "今日"}共提供${[y > 0 ? `愿力 ${U.fmt(y)}` : ""].concat(it.map(k => `${DATA.smName(k)} ${U.fmt(got[k])}`)).filter(Boolean).join("、")}，已存入传音。`, "gold"); }
         J.sxDay = d;
@@ -40,14 +40,14 @@ G.module({
     // 每域 2 界：格子游历用 r = 4 + 域 × 2 + j（4 ~ 11），和四域 0 ~ 3 的格子分开存
     sjJieOf(a, r, j) { const N = (this.sjC().JIE_NAMES || [])[this.sjWi(a)] || []; return N[r * 2 + (j ? 1 : 0)] ? N[r * 2 + (j ? 1 : 0)] + "界" : ""; },
     // 界的征服：s.grids["a_g"].m = 怪物格子（第一次进入时随机 JIE_MOB 个，不含中间神像格），.k = 已打败，.sx = 神像等级（0 级没有效果）
-    //   神像固定在界地图正中间那格（sjSxCell），一开始 0 级；全部怪物打败（已占领）后才能升级（用户定 2026-11-12）
+    //   神像固定在界地图正中间那格（sjSxCell），一开始 0 级；全部怪物打败（已占领）后才能升级（用户定）
     sjSxSeen(a, g) { const o = (this.s.grids || {})[a + "_" + g]; return !!(o && ((Array.isArray(o.v) && o.v.includes(this.sjSxCell(g))) || (+o.sx || 0) > 0)); },   // 神像要探索到那格才显示（老存档已升级过的算发现）
     sjSxCell(g) { const N = this.gridN(g); return Math.floor(N * N / 2); },
     sjJieG(a, g) {
       const s = this.s, N = this.gridN(g), M = Math.min(N * N - 1, this.sjC().JIE_MOB || 33), C0 = this.sjSxCell(g);
       if (!s.grids || typeof s.grids !== "object") s.grids = {};
       const k = a + "_" + g, o = s.grids[k] && typeof s.grids[k] === "object" ? s.grids[k] : (s.grids[k] = { v: [] });
-      if (Array.isArray(o.m) && o.m.length && o.m.length !== M) {   // 怪物数改了（33 → 36）：保留已打败的，少了补随机空格，多了去掉没打败的
+      if (Array.isArray(o.m) && o.m.length && o.m.length !== M) {   // 老存档怪物数和 JIE_MOB 不一致：保留已打败的，少了补随机空格，多了去掉没打败的
         const km = new Set(o.k || []), cur = o.m.filter(i => i !== C0);
         if (cur.length < M) { const vs = new Set(o.v || []), free = [], seen = [];   // 补的怪优先放没走过的格子（放到走过的格子上玩家看不到）
           for (let i = 0; i < N * N; i++) if (i !== C0 && !cur.includes(i)) (vs.has(i) ? seen : free).push(i);
@@ -58,13 +58,13 @@ G.module({
       }
       if (!Array.isArray(o.m) || o.m.length !== M) { const all = Array.from({ length: N * N }, (_, i) => i).filter(i => i !== C0); for (let i = all.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; } o.m = all.slice(0, M).sort((x, y) => x - y); o.k = []; }
       if (!Array.isArray(o.k)) o.k = [];
-      // 每只怪第一次进入时随机一次、以后固定（用户定 2026-11-13）：o.fx[格] = { sd 属性种子, el 属性, mf 秘法, tf 天赋 }
+      // 每只怪第一次进入时随机一次、以后固定（用户定）：o.fx[格] = { sd 属性种子, el 属性, mf 秘法, tf 天赋 }
       if (!o.fx || typeof o.fx !== "object") o.fx = {};
       const STL = (this.ysStCfg ? this.ysStCfg().LIST : []) || [], SP = this.sjC().JIE_MOB_ST || [12, 36], UPM = (this.ysStCfg ? this.ysStCfg().UP_MAX : 100) || 100;
-      const stRoll = () => { const d = U.pick(STL); if (!d) return null; const mx = (d.up && d.up.max) || UPM; return [d.id, Math.max(1, Math.round(mx * (SP[0] + Math.random() * (SP[1] - SP[0])) / 100))]; };   // 再加一种神通：等级 = 满级 × 12% ~ 36%
+      const stRoll = () => { const d = U.pick(STL); if (!d) return null; const mx = (d.up && d.up.max) || UPM; return [d.id, Math.max(1, Math.round(mx * (SP[0] + Math.random() * (SP[1] - SP[0])) / 100))]; };   // 再加一种神通：等级 = 满级 × JIE_MOB_ST（12% ~ 36%）
       for (const i of o.m) if (o.fx[i] && !o.fx[i].st) o.fx[i].st = stRoll();
       for (const i of o.m) if (!o.fx[i]) { const R = this.mobRandCfg ? this.mobRandCfg("首领") : {}; o.fx[i] = { sd: Math.floor(Math.random() * 2147483647) + 1, el: (U.pick(DATA.elements) || {}).id, mf: this.rollMf ? this.rollMf(R) : [], tf: this.rollTf ? this.rollTf(R, "小世界") : [], st: stRoll() }; }
-      if (this.lingFix) for (const i of o.m) if (o.fx[i]) o.fx[i].tf = this.lingFix(o.fx[i].tf, "小世界");   // X灵天赋 1~3 个，以后固定（用户定 2026-11-15）
+      if (this.lingFix) for (const i of o.m) if (o.fx[i]) o.fx[i].tf = this.lingFix(o.fx[i].tf, "小世界");   // X灵天赋 1~3 个，以后固定（用户定）
       if (o.m.includes(C0)) {   // 老存档：中间格是怪物的，挪到别的空格（打败过的一起挪）
         const vs = new Set(o.v || []), free0 = [], seen0 = []; for (let i = 0; i < N * N; i++) if (i !== C0 && !o.m.includes(i)) (vs.has(i) ? seen0 : free0).push(i);
         const free = free0.length ? free0 : seen0, to = free.length ? free[Math.floor(Math.random() * free.length)] : -1;
@@ -90,7 +90,7 @@ G.module({
     },
     sjSxCount() { return this.sjSxList().length; },
     sjSxDayYl() { return this.sjSxList().reduce((t, lv) => t + lv * (this.sjC().SX_YL || 0), 0); },
-    // 征服度：每只 JIE_PCT%，全部打败 =「已占领」
+    // 征服度 = 已打败 ÷ 怪物总数（最多显示 99%），全部打败 =「已占领」
     sjJiePct(a, g) { const o = this.sjJieG(a, g); return o.k.length >= o.m.length ? "已占领" : `征服度 ${Math.min(99, Math.floor(o.k.length * 100 / Math.max(1, o.m.length)))}%`; },
     // 神像用的 3 种神界矿石（按界轮换本图矿石）
     //   全部 80 个界（10 重天 × 8）按序号依次取 6 选 3 的 20 种组合（排成每段用量尽量平均），每种矿石正好用 40 次
@@ -141,7 +141,7 @@ G.module({
     sjKey(a) { return a + "_0"; },
     sjMapOk(a) { return this.isShen(a) && this.worldOpen("shen") && this.realmOK(DATA.mapReq(a)); },   // 默认全开：达到境界就能进
 
-    // 道场：从第一重天起，前一重天 10 种真意都得到了才去下一重天得真意（还要境界够）；全部得到后仍可每天感悟（在最高能进的那重天）
+    // 道场：每重天单独感悟、单独得真意（境界够才能进）；本重天真意全部得到后仍可每天感悟
     sjZyKinds() { return this.sjC().ZY_KINDS || []; },
     sjZyOf(a) { return this.sjS().zy.filter(z => z.a === a); },
     sjGwN() { const J = this.sjS(); return Math.max(0, Math.floor(+J.gwN || 0)); },   // 已感悟总次数
@@ -149,7 +149,7 @@ G.module({
     // 每重天单独计次：本重天第 n 次 = n × GW_YL / GW_STONE × 重天倍率（第一重天 1 倍 → 最后一重天 GW_LAST 倍）
     sjGwCost(a) { const C = this.sjC(), n = (this.sjS().dcN[this.sjKey(a)] || 0) + 1, M = DATA.worldMapIdx.shen || [], f = M.length > 1 ? Math.max(0, M.indexOf(a)) / (M.length - 1) : 0, k = 1 + f * ((C.GW_LAST || 1) - 1);
       return { yl: Math.round(n * (C.GW_YL || 81) * k), stone: Math.round(n * (C.GW_STONE || 108) * k) }; },
-    // 在第 a 重天道场感悟（每重天独立计数；本重天 10 种真意拿齐后还能无限感悟，只是不再得真意）
+    // 在第 a 重天道场感悟（每重天独立计数、每天一次；本重天真意拿齐后还能感悟，只是不再得真意）
     sjWudao(a) {
       a = +a; const J = this.sjS(), C = this.sjC(), s = this.s;
       if (!this.sjMapOk(a)) return this.log("还不能在这里的道场感悟（境界不够）。", "sys");
@@ -175,11 +175,11 @@ G.module({
     sjZyName(k) { return `${(this.sjC().ZY_NAME || {})[k] || this.sjAttrName(k)}真意`; },
     // 重天倍率：第一重天 1 倍 → 最后一重天 ZY_LAST 倍
     sjZyK(z) { const n = Math.max(1, (DATA.worldMapIdx.shen || []).length - 1); return 1 + Math.min(1, this.sjWi(z.a) / n) * ((this.sjC().ZY_LAST || 3) - 1); },
-    // 每级 %：按重天倍率分（第一重天 1 份、最后一重天 ZY_LAST 份），10 重天同一种全满合计 ZY_PCT[种类]%
+    // 每级 %：按重天倍率分（第一重天 1 份、最后一重天 ZY_LAST 份），10 重天同一种全满合计 ZY_PCT[种类]%（没列出的用 ZY_PCT_MAX）
     sjZyStep(z) { const C = this.sjC(); if ((C.ZY_MAP_PCT || {})[z.k] != null) return C.ZY_MAP_PCT[z.k] / (C.ZY_MAX || 36);   // 修炼 / 炼体真意：每重天固定
       const M = DATA.worldMapIdx.shen || [], sum = M.reduce((t, a) => t + this.sjZyK({ a }), 0) || 1; return (((C.ZY_PCT || {})[z.k]) ?? (C.ZY_PCT_MAX || 27)) * this.sjZyK(z) / (sum * (C.ZY_MAX || 36)); },
     sjZyVal(z, lv) { return Math.round(this.sjZyStep(z) * (lv == null ? z.lv : lv) * 1000) / 1000; },   // 这条真意加的 %
-    // 每条真意（第几重天 × 哪种）固定用 2 种神像物品：全部 10 重天 × 10 种依次取 8 选 2 的组合，挑用得最少的，打乱顺序（固定种子），每种物品用的次数一样多
+    // 每条真意（第几重天 × 哪种）固定用 2 种神像物品：全部重天 × 全部种类依次取 SX_ITEM 两两组合里用得最少的（固定种子打乱），每种物品用的次数一样多；前 10 种的序号不变，后加的种类（cult / body）排在后面
     sjZyItems(z) {
       const L = this.sjC().SX_ITEM || [], K = this.sjZyKinds(), nM = (DATA.worldMapIdx.shen || []).length || 10;
       if (L.length < 2) return L.slice();
@@ -214,7 +214,7 @@ G.module({
       const w = this.sjSwBonus(); for (const k in w) if (typeof w[k] === "number" && w[k] && !["ling", "gfStudy", "spStudy", "spDmg"].includes(k)) b[k] = (b[k] || 0) + w[k];   // 辅神纹固定属性
       return b;
     },
-    // 真意百分比 { atk: %, res_jin: % … }：只乘修为突破、肉身突破给的属性（player.js computeStats）
+    // 真意百分比 { atk: %, res_jin: % … }：只乘修为突破、肉身突破给的属性（player.js computeStats）；cult / body 加修炼、炼体速度 %
     sjPct() {
       const J = (this.s && this.s.sj) || {}, b = {}; if (J.v !== 3 || !Array.isArray(J.zy)) return b;
       for (const z of J.zy) b[z.k] = (b[z.k] || 0) + this.sjZyVal(z);
@@ -246,7 +246,6 @@ G.module({
         const info = !ok2 ? "未开启" : this.sjJiePct(a, g) + ` · 神像 ${Math.floor(+o.sx) || 0} 级`;
         const sx = ok2 && done && this.sjSxSeen(a, g) && (Math.floor(+o.sx) || 0) < (this.sjC().SX_MAX || 12) ? `<button class="sm" onclick="event.stopPropagation();G.openSjSx(${a},${g})">升级神像</button>` : "";
         return `<div class="sjz sjz${j + 1}${ok2 ? "" : " off"}" ${ok2 ? `onclick="G.closeModal();G.openGrid(${a},${g})"` : ""}><div class="sjjie"><b>${this.sjJieOf(a, r, j)}</b><small>${info}</small>${sx}</div></div>`; }).join("");
-      // 图分三块：上半本域（点图进本域格子，按钮历练 / 探索），下面左右两个界（点图进界，用小世界令牌开格子）
       this.modal(`<div class="sjrgw"><img src="img/map/sjrg_${RG[r]}.webp?v=1" alt=""><div class="sjz sjz0${go ? "" : " off"}" ${go ? `onclick="G.closeModal();G.openGrid(${a},${r})"` : ""}><div class="sjyu"><b>${this.sjJieName(a)} · ${d}</b><small>${ok ? "已通过历练" : "未历练"}${q ? " · 出窍中" : ""}</small><div class="btns">${btns}</div></div></div>${jie}</div><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
     // 愿力祠兑换：悟道果、小世界令牌（config/shenjie.js YL_SHOP）
@@ -266,7 +265,7 @@ G.module({
       if (!this.addSm(k, n)) return;
       s.yuanli -= c * n; this.log(`兑换${DATA.smName(k)} ×${n}。`, "good"); this.after();
     },
-    // 四界坊市（神界神市）药材 / 矿石：本图贡献换本图药材矿石（含本图特色），价格 CFG.shenjie.MAT_GX（用户定 2026-11-15）
+    // 四界坊市（神界神市）药材 / 矿石：本图贡献换本图药材矿石（含本图特色），价格 CFG.shenjie.MAT_GX（用户定）
     jsMatGx(a, name) {
       const C = this.sjC().MAT_GX, m = DATA.matByName[name]; if (!m) return 0;
       if (typeof C === "number") return C;
@@ -315,12 +314,12 @@ G.module({
       // 等服务器结算回来再恢复按钮，避免先闪一下旧消耗
       setTimeout(async () => { try { await this.sjWudao(a); } finally { this._gwAnim = 0; this.render(); } }, 3000);
     },
-    /* ---------- 神功（大帝殿，每重天 9 本）：s.sj.sg = { "重天_本": { n 已学次数, t 上次学习时间戳（毫秒）, lit [已点亮神纹格] } } ---------- */
+    /* ---------- 神功（大帝殿，每重天 9 本）：s.sj.sg = { "重天_本": { n 已学次数, t 上次学习时间戳（毫秒）, lv { 神纹序号: 已修等级 } } }（lit 是旧字段） ---------- */
     sjSgId(a, j) { return this.sjWi(a) + "_" + j; },
     sjSgName(a, j) { return ((this.sjC().SG_LIST || [])[this.sjWi(a)] || [])[j] || "神功"; },
     sjSgImg(a, j) { return `img/icons/sg_${this.sjWi(a)}_${j % 3}.png?v=2`; },   // 第 4~9 本复用本重天前 3 本的图
     sjSgSt(a, j) { const J = this.sjS(); if (!J.sg || typeof J.sg !== "object" || Array.isArray(J.sg)) J.sg = {}; const id = this.sjSgId(a, j); const o = J.sg[id] && typeof J.sg[id] === "object" ? J.sg[id] : (J.sg[id] = { n: 0, t: 0, lit: [] }); if (!Array.isArray(o.lit)) o.lit = []; o.n = Math.max(0, Math.floor(+o.n) || 0);
-      // 旧存档 d 是最后学习日（"2026-11-12"）：按当天 0 点（北京时间）转成时间戳，之后只用 t
+      // 旧存档 d 是最后学习日（如 "2026-11-12"）：按当天 0 点（北京时间）转成时间戳，之后只用 t
       if (typeof o.d === "string" && o.d) { const t = Date.parse(o.d + "T00:00:00+08:00"); if (Number.isFinite(t)) o.t = t; delete o.d; }
       o.t = Math.max(0, Math.floor(+o.t) || 0); return o; },
     sjSgDone(a, j) { return this.sjSgSt(a, j).n >= (this.sjC().SG_LEARN_N || 12); },
@@ -371,9 +370,9 @@ G.module({
         <div class="card"><h3>学习一次需要</h3>${ln(DATA.iconImg("yuanli"), "愿力", this.s.yuanli || 0, c.yl)}${c.items.map(x => ln(DATA.smIcon(x.k), DATA.smName(x.k), this.smCount(x.k), x.n)).join("")}</div>
         <div class="btns"><button class="primary" onclick="G.sjSgLearn(${a},${j})" ${left <= 0 && ok ? "" : "disabled"}>${left > 0 ? this.sjSgCdTxt(left) : "学习"}</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
-    // 神纹点亮图：全屏星空背景（img/sw_bg.webp），画布 720 × 1880，可上下左右滑动
+    // 神纹点亮图：全屏星空背景（img/sw_bg.webp），按 720 × 1880 设计、整体 × 0.52（374 × 978），可上下左右滑动
     //   顶部核心 -1（学会就亮）→ 3 段，每段 12 个辅神纹（菱形网格）+ 1 个主神纹；节点序号 0~38，links 里 -1 = 核心
-    //   SW_LAYOUT 每项 [x, y, 主?, 相连的节点…]；o.lv = { 节点序号: 已点等级 }，等级 > 0 = 已点亮（点亮消耗、数值待定）
+    //   SW_LAYOUT 每项 [x, y, 主?, 相连的节点…]；o.lv = { 节点序号: 已点等级 }，等级 > 0 = 已点亮
     sjSwGraph() {
       if (this._swG) return this._swG;
       const L = [
@@ -387,7 +386,7 @@ G.module({
         [360, 1330, 0, 24], [240, 1420, 0, 26], [480, 1420, 0, 26], [120, 1510, 0, 27], [360, 1510, 0, 27, 28], [600, 1510, 0, 28],
         [240, 1600, 0, 29, 30], [480, 1600, 0, 30, 31], [120, 1700, 0, 32], [600, 1700, 0, 33], [120, 1800, 0, 34], [600, 1800, 0, 35], [360, 1730, 1, 32, 33],
       ];
-      const K = 0.52;   // 整张图缩小（用户 2026-11-13：太大了）
+      const K = 0.52;   // 整张图缩小（用户定）
       this._swG = L.map(([x, y, main, ...links]) => ({ x: Math.round(x * K), y: Math.round(y * K), main, links }));
       return this._swG;
     },

@@ -2,9 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { GameEngine } from "../game-engine.mjs";
 
-// 离线分批结算的回归测试：advance(state, now, maxTicks) 被截断时，s.last 只能推进到
-// 已算完的位置，剩下的下一轮接着算；原来收尾的 s.last 对齐到现在会把剩余离线时间丢掉
-// （离线超过 1 天只算第 1 天，剩下 29 天永久丢失）。
+// 离线分批结算：advance(state, now, maxTicks) 被截断时，s.last 只能推进到
+// 已算完的位置，剩下的下一轮接着算；若收尾把 s.last 对齐到现在，剩余离线时间会永久丢失。
 const DAY_MS = 86400_000, TICK_MS = 10_000, CHUNK = 8640; // 8640 个 10 秒 = 1 天
 
 test("offline advance in chunks never drops progress beyond the first day", () => {
@@ -20,7 +19,7 @@ test("offline advance in chunks never drops progress beyond the first day", () =
   const remainMs = now - first.state.last;
   assert.ok(remainMs > 28 * DAY_MS && remainMs < 30 * DAY_MS, `剩余离线时间应约 29 天，实际 ${remainMs / DAY_MS} 天`);
 
-  // 第二轮：继续补算，不再是 0
+  // 第二轮：继续补算（processedTicks 不是 0）
   const second = engine.advance(first.state, now, CHUNK);
   assert.equal(second.processedTicks, CHUNK);
   assert.equal(second.truncated, true);

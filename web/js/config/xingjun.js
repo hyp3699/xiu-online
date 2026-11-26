@@ -1,6 +1,6 @@
 /* ★ 四界官位：界主 jz / 星君 xj / 天将 tj（代码 modules/xingjun.js；属性与境界要求在 config/mobs.js）
  * 职位：1 = 天将，2~8 = 星君（SEATS 名单从低到高），界主按 JZ_POS 算；每界同时只能任一个官位。
- * 俸禄每 HOUR 秒结算（离线也算）：天将/星君功德 = MERIT[地图][职位−1]；界主 = JZ_MERIT / JZ_STONE / JZ_HX[地图]；都 × 本界 PAY_MULT 后四舍五入。
+ * 俸禄每 HOUR 秒结算（离线也算）：天将/星君功德 = MERIT[地图][职位−1]；界主 = JZ_MERIT / JZ_STONE / JZ_HX[地图]；都 × 本界 PAY_MULT 后四舍五入；神界改发愿力（config/shenjie.js 的 XJ_YL 等）。
  * 挑战消耗本图贡献 = CH_BASE × 职位 × 第几张地图（1~10），开打即扣、失败不退；界主需先任过本图天将和全部星君，连战打完所有星君再打界主。
  * 下面「地图」= 本界第几张地图（0 起，最多 10 张）。 */
 window.CFG = window.CFG || {};

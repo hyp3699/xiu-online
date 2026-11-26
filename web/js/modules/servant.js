@@ -1,8 +1,8 @@
 /* =====================================================================
  * 模块：洞府 · 道童居（数值在 config/servant.js）
  * 存档：
- *   servants   [{ uid, star 资质, el 五行, lv 等级, job 差事 id 或 null, av 头像, paid 俸禄发到哪天(北京日期) }]
- *   svPick     选拔中 { end } | 选拔完成待处理 { star, el, av } | null
+ *   servants   [{ uid, q 资质（0 天 1 地 2 玄 3 黄；旧存档是 star 1~10）, el 五行, name, lv 等级, job 差事 id 或 null, lkA 驻守的灵矿, av 头像, paid 俸禄发到哪天(北京日期) }]
+ *   svPick     选拔中 { end, n 次数 } | 选拔完成待处理 { list: [{ q, el, av, name }] }（旧存档是单个结果）| null
  *   svAuto     自动发放俸禄
  *   svPity     连续未出天品的选拔次数（天品几率保底）
  * ===================================================================== */
@@ -12,7 +12,7 @@ G.module({
   tick() {
     const s = this.s, C = CFG.servant, p = s.svPick;
     if (p && p.end && this.now() >= p.end) {
-      const list = [];   // 连续选拔 n 次（用户定 2026-11-23）：到点一起出结果，保底几率逐个累计
+      const list = [];   // 连续选拔 n 次（用户定）：到点一起出结果，保底几率逐个累计
       for (let i = 0; i < Math.max(1, p.n || 1); i++) {
         const av = Math.floor(Math.random() * C.AVATARS);
         const q = U.weighted(this.svPickW());   // 权重全 0 / 为空时 weighted 返 -1，按最低资质黄品（3）算，不静默取天品（0）
@@ -62,7 +62,7 @@ G.module({
     },
     svEffTxt(job, v, flat, y) { if (job === "lk") { const F = (DATA.worldMapIdx || {}).fan || []; return `管理 ${F.reduce((t, a) => t + this.lkSvIdxs(a).length, 0)} 位道童 · ${F.filter(a => this.lkOutA(a) > 0).length} / ${F.length} 座灵矿产出`; } if (job === "ling") return `种植速度 +${U.num(v)}%，产量 +${U.num(y || 0)}%`; return job === "zhen" ? `${v ? `聚灵 +${U.num(v)}%，` : ""}固定聚灵 +${U.fmt(flat || 0)}` : `${job === "cult" || job === "dan" || job === "qi" || job === "ling" ? "+" : "−"}${U.num(v)}%`; },
     svJobTotal(job) { if (job === "lk") return this.svEffTxt("lk"); return job === "zhen" ? `聚灵 +${U.num(this.gatherServant() + this.servantFlat())}` : this.svEffTxt(job, this.servantPct(job), 0, this.servantPct(job, "YIELD_")); },   // 差事按钮：阵法辅助显示所有道童合计增加的聚灵（每 10 秒）
-    svFull() { const m = +CFG.servant.MAX || 0; return m > 0 && this.s.servants.length >= m; },   // MAX 0 = 不限数量（用户定 2026-11-18）
+    svFull() { const m = +CFG.servant.MAX || 0; return m > 0 && this.s.servants.length >= m; },   // MAX 0 = 不限数量（用户定）
     servantPct(job, f = "") { return (this.s.servants || []).filter(d => d.job === job).reduce((t, d) => t + this.svEff(d, job, f), 0); },
     svPickList(p) { return !p || p.end ? [] : p.list || [p]; },   // 旧存档单个结果 { q, el, av, name }
     svPickMax() { const C = CFG.servant; return Math.max(1, Math.floor(C.PICK_MAX ?? 10)); },
@@ -107,7 +107,7 @@ G.module({
       s.stone -= c; d.paid = this.bjDay();
       this.log(`给${this.svName(d)}发放俸禄 ${U.fmt(c)} 灵石。`, "good"); this.after(); this.openSv(i);
     },
-    svAutoToggle(i) { this.s.svAuto = !this.s.svAuto; /* 不再调 tickAll：每切一次多结算一个周期（可刷修为） */ this.after(); if (i != null) this.openSv(i); },
+    svAutoToggle(i) { this.s.svAuto = !this.s.svAuto; /* 不调 tickAll：否则每切一次多结算一个周期（可刷修为） */ this.after(); if (i != null) this.openSv(i); },
     svUp(i) {
       const s = this.s, d = s.servants[i]; if (!d || d.lv >= CFG.servant.MAX_LV) return;
       const c = this.svUpCost(d), ly = this.svUpLy(d), ft = this.svLyFt(d); if (s.stone < c) return this.log("灵石不足。", "sys");
@@ -173,5 +173,5 @@ G.caveViews.servant = function () {
   const jobs = Object.keys(C.JOB).map(k => `<button onclick="G.openSvJob('${k}')">${C.JOB[k].name}</button>`).join("");
   return `<div class="card"><h3>${DATA.caveName("servant")}<small>道童 ${n}${+C.MAX > 0 ? ` / ${C.MAX}` : ""}</small></h3>
     ${rows}
-    <div class="room-grid sv-pickrow">${pickBtn}</div></div><div class="room-grid sv-jobs">${jobs}</div>`;   // 选拔道童放在道童列表下面（用户 2026-11-17）
+    <div class="room-grid sv-pickrow">${pickBtn}</div></div><div class="room-grid sv-jobs">${jobs}</div>`;   // 选拔道童放在道童列表下面（用户定）
 };

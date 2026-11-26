@@ -32,7 +32,7 @@ test("取消精炼放回背包，只放一件", () => {
 
 test("出炉时同一件已在身上，就地 +1，不再放一件", () => {
   const { G, s, w } = setup(), n0 = count(s);
-  G.refineEq(w.uid); s.equip.weapon = w;   // 模拟旧问题：拿走后原格还留着
+  G.refineEq(w.uid); s.equip.weapon = w;   // 模拟拿走后原格还留着
   G.now = () => T0 + 1e12; G.craftTick();
   assert.equal(count(s), n0); assert.equal(w.rj, 1);
 });

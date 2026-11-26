@@ -39,7 +39,7 @@ test("S-5 删当前所有者后切到别人，Symbol 占位不留侧栏", () => 
   const e = new GameEngine();
   e.use("A"); e.G.bagFilter = "dan";
   e.drop("A");   // _owner 置空后 use(Symbol("none")) 占位
-  e.use("B");    // 旧实现会在这里把 Symbol 当 owner 存一份 side，永不清理
+  e.use("B");    // 这里不能把 Symbol 当 owner 存一份 side（否则永不清理）
   for (const k of e._sides.keys()) assert.equal(typeof k, "string", "Symbol 侧栏泄漏");
   assert.equal(e._sides.has("A"), false);
 });
@@ -47,7 +47,7 @@ test("S-5 删当前所有者后切到别人，Symbol 占位不留侧栏", () => 
 test("删当前所有者后重进，界面字段为空且不复活", () => {
   const e = new GameEngine();
   e.use("A"); e.G.bagFilter = "dan";
-  e.drop("A");   // 此时 A 恰是当前 owner，旧实现会把 bagFilter 重新存回 _sides
+  e.drop("A");   // 此时 A 恰是当前 owner，不能把 bagFilter 重新存回 _sides
   assert.equal(e._sides.has("A"), false);
   e.use("A"); assert.equal(e.G.bagFilter, undefined);
   // 删非当前所有者仍正常，且不影响当前玩家

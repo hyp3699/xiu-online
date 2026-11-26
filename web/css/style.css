@@ -11,7 +11,6 @@ body{color:var(--t-main);font-family:"Songti SC","Noto Serif SC","Source Han Ser
 .top-id{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;line-height:1.2}
 .top-line b{color:var(--t-gold);font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #p-realm{color:var(--t-gold2);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.top-set{flex:none;padding:3px 9px;font-size:12px;line-height:1.2}
 .res3{display:flex;justify-content:flex-end;gap:10px;margin-top:3px;font-size:12px}
 .res3>span{white-space:nowrap}
 .row{display:flex;justify-content:space-between;gap:8px}
@@ -99,16 +98,11 @@ button.sel i{font-style:normal;color:#c9a45c;font-size:12px}
 .room-grid button.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}
 .room-grid.three{grid-template-columns:repeat(3,1fr)}
 .room-grid.five{grid-template-columns:repeat(5,1fr)}
-.room-grid.six{grid-template-columns:repeat(6,1fr)}
 .trib-log{max-height:34vh;overflow-y:auto;font-size:12px;background:var(--c-deep);border:1px solid var(--c-line);border-radius:6px;padding:6px;margin-top:6px}
 .trib-log p{margin:0 0 2px}
 .bar.trib>div{background:linear-gradient(90deg,#6a5acd,#b8a6ff)}
 .equip.four{grid-template-columns:repeat(4,1fr)}
 .slot-eq.lock{opacity:.4;font-size:11px}
-/* 修炼速度加成小标签（实时显示） */
-.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
-.chips span{font-size:12px;padding:2px 8px;border-radius:10px;border:1px solid #4a3d2e;color:var(--t-dim)}
-.chips span.on{border-color:#c9a45c;color:#f3d48b;background:#3a2c18}
 
 /* 浮动提示 */
 #toast{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;max-width:90%;background:var(--c-toast);color:var(--t-main);border:1px solid #c9a45c;border-radius:8px;padding:6px 12px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50}
@@ -124,13 +118,12 @@ button.sel i{font-style:normal;color:#c9a45c;font-size:12px}
 .explore-log b{color:var(--t-dim);font-weight:normal;margin-right:4px}
 .explore-log .good{color:var(--t-good)}.explore-log .bad{color:var(--t-bad)}.explore-log .gold{color:var(--t-gold)}
 
-/* v21 装备属性颜色：白 绿 紫 金 */
+/* 装备属性颜色：白 绿 紫 金 */
 .fb-sum{display:block;margin:6px 0 8px;padding:6px 8px;border-radius:6px;background:rgba(242,201,76,.12);border:1px solid rgba(242,201,76,.35);color:#f2e3b3}
 .ac0{color:var(--t-main)}.ac1{color:#7ddc7d}.ac2{color:#c58bff}.ac3{color:#f2c94c}
-button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24 功法排序按钮选中 */
-/* v26：药材、矿石图片；背包分类、出售页 */
+button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* 功法排序按钮选中 */
+/* 药材、矿石图片；背包分类、出售页 */
 .cell img.mi{width:58%;height:auto;margin-bottom:1px;pointer-events:none}
-.cell img.mi.mold{filter:grayscale(1) sepia(.35) brightness(.85)}   /* 法宝模具：灰色的法宝图 */
 .item-img{display:block;width:72px;height:72px;margin:0 auto 6px}
 .bag-tabs{display:flex;gap:4px;flex-wrap:wrap;margin:-2px 0 8px}
 .bag-tabs button{flex:1;padding:4px 2px;font-size:12px;min-width:0}
@@ -138,7 +131,7 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 .bag-tabs button.sell{color:var(--t-gold)}
 /* 物品、功法图标 */
 .slot-eq img.si{display:block;width:34px;height:34px;margin:0 auto 2px}
-.slot-eq.field-cell,.slot-eq.sv-cell{aspect-ratio:1;min-height:0;padding:4px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;line-height:1.25;cursor:pointer}
+.slot-eq.field-cell{aspect-ratio:1;min-height:0;padding:4px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;line-height:1.25;cursor:pointer}
 .fc-bar{width:82%;height:5px;margin-top:3px;border-radius:3px;background:rgba(0,0,0,.12);overflow:hidden;flex:none}   /* 360px 宽手机上 margin-top 8px 会把进度条底部约 3px 顶出格子被裁掉，只剩细线 */
 .fc-bar>div{height:100%;background:#3fae5a;border-radius:3px}
 .fc-bar.bad>div,.bar.fc-pop.bad>div{background:#d9483b}
@@ -148,7 +141,6 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 .sv-row img{width:44px;height:44px;border-radius:50%;background:radial-gradient(circle,var(--c-line),#1a1511);border:1px solid var(--c-edge);object-fit:cover}
 .sv-row>span{text-align:center;font-size:13px}
 .sv-nm small{display:block;color:var(--t-sub);font-size:11px}
-.sv-head{color:var(--t-sub);font-size:12px;padding:2px 0}
 .sv-pick{display:flex;gap:12px;align-items:center;margin:8px 0}
 .sv-pick img{width:84px;height:84px;border-radius:50%;background:radial-gradient(circle,var(--c-line),#1a1511);border:1px solid #c9a45c}
 .sv-li{display:flex;align-items:center;gap:6px}
@@ -176,13 +168,13 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 /* 列表里的物品小图 */
 .li{width:34px;height:34px;float:left;margin:0 6px 0 0;object-fit:contain}
 
-/* ---------- 炼制装备 / 法宝按阶的外观（DATA.eqCls）：一阶灰暗粗糙 → 十阶金红流光 ---------- */
+/* ---------- 炼制装备 / 法宝按阶的外观（DATA.eqCls）：一阶灰暗粗糙 → 十二阶金白神光 ---------- */
 .eqt{position:relative}
 .eqt img,img.eqt{transition:none}
 .eqt0 img,img.eqt0{filter:grayscale(.7) brightness(.8) contrast(.9)}
 .eqt1 img,img.eqt1{filter:grayscale(.4) brightness(.9)}
 .eqt2 img,img.eqt2{filter:saturate(1.05)}
-/* 丹药图本身已按品质画好颜色光华：低阶（eqt0~2）不再压暗 */
+/* 丹药图本身已按品质画好颜色光华：低阶（eqt0~2）不压暗 */
 .eqt0 img.dan,img.dan.eqt0,.eqt1 img.dan,img.dan.eqt1,.eqt2 img.dan,img.dan.eqt2{filter:none}
 .eqt3 img,img.eqt3{filter:saturate(1.2) drop-shadow(0 0 2px #7fc0a8)}
 .eqt4 img,img.eqt4{filter:saturate(1.3) brightness(1.05) drop-shadow(0 0 3px #6f9cff)}
@@ -231,7 +223,7 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 .slot-eq.eqt{overflow:hidden}
 @media (prefers-reduced-motion:reduce){.eqt img,img.eqt,.eqt::after{animation:none!important}}
 
-/* v49 仙界地图 7 处地点 */
+/* 仙冥魔神地图上的地点（.xscene，按界 xs-界id） */
 .xscene{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 6px;margin:8px 0;padding:12px 8px 10px;border-radius:14px;border:1px solid rgba(232,200,120,.25);
   background:radial-gradient(ellipse at 50% 0%,rgba(255,224,150,.22),transparent 55%),radial-gradient(ellipse at 50% 100%,rgba(120,200,170,.14),transparent 60%),linear-gradient(180deg,#1e2744,#151b2e)}
 .xscene button{width:33.3%;box-sizing:border-box;background:none;border:0;padding:2px;display:flex;flex-direction:column;align-items:center;gap:2px;color:#f1e3c2;font-size:13px;cursor:pointer;min-width:0}
@@ -271,27 +263,12 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 .tj-stage::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 50% 18%,#b9a8ff22,transparent 45%);animation:tjPulse 3s ease-in-out infinite;pointer-events:none}
 .tj-stage::after{content:"";position:absolute;inset:0;background:#e6e0ff;opacity:0;pointer-events:none}
 .tj-stage.tj-flash::after{animation:tjFlash .4s ease-out}
-.tj-stage.calm{filter:saturate(.85) brightness(.9)}
 @keyframes tjPulse{0%,100%{opacity:.4}50%{opacity:1}}
 @keyframes tjFlash{0%{opacity:.45}30%{opacity:.1}45%{opacity:.3}100%{opacity:0}}
 .tj-mid{position:absolute;left:3%;bottom:2%;z-index:3;pointer-events:none}
 .tj-cd{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);z-index:6;font-size:64px;font-weight:bold;color:#f3e7c4;text-shadow:0 0 18px #7d6bff,0 3px 6px #000;opacity:0;pointer-events:none}
 .tj-cd.on{opacity:1;animation:tjCd 1s ease-out infinite}
 @keyframes tjCd{0%{transform:translate(-50%,-50%) scale(1.3);opacity:.4}30%{opacity:1}100%{transform:translate(-50%,-50%) scale(1);opacity:.9}}
-.tj-shield{position:absolute;left:50%;top:55%;height:150%;aspect-ratio:1;transform:translate(-50%,-50%) scale(.6);border-radius:50%;border:2px solid #9fd8ff99;background:radial-gradient(circle,transparent 55%,#7cc4ff22 75%,#9fd8ff55 100%);box-shadow:0 0 18px #7cc4ff88,inset 0 0 22px #9fd8ff66;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none;z-index:3}
-.tj-shield.on{opacity:1;transform:translate(-50%,-50%) scale(1);animation:tjShield 2.4s ease-in-out infinite}
-.tj-shield.hit{animation:tjShieldHit .35s ease-out}
-@keyframes tjShield{0%,100%{box-shadow:0 0 14px #7cc4ff77,inset 0 0 18px #9fd8ff55}50%{box-shadow:0 0 26px #9fd8ffaa,inset 0 0 30px #9fd8ff88}}
-@keyframes tjShieldHit{0%{border-color:#fff;box-shadow:0 0 40px #fff,inset 0 0 40px #cfeaff}100%{border-color:#9fd8ff99}}
-.tj-slot.sm{position:relative}
-.tj-slot.cd{opacity:.55}
-.tj-cdn{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;text-shadow:0 0 4px #000;background:#0006;border-radius:8px}
-.tj-timer{color:#f3e7c4;text-shadow:0 0 12px #7d6bff,0 2px 4px #000}
-.tj-timer b{font-size:20px;line-height:1;font-weight:bold}
-.tj-timer small{font-size:11px}
-.tj-timer .tj-res{font-size:16px;letter-spacing:2px}
-.tj-stage.win .tj-res{color:#ffe08a;text-shadow:0 0 16px var(--t-gold),0 2px 4px #000}
-.tj-stage.dead .tj-res{color:var(--t-bad);text-shadow:0 0 12px #000}
 .tj-hero{position:absolute;left:0;right:0;bottom:-2%;height:34%;display:flex;justify-content:center;z-index:2}
 .tj-hero img{height:100%;width:auto;max-width:100%;object-fit:contain;filter:drop-shadow(0 0 10px #000)}
 .tj-aura{position:absolute;left:50%;bottom:12%;width:62%;aspect-ratio:1;transform:translateX(-50%);border-radius:50%;background:radial-gradient(circle,#e9c46a40 0%,#e9c46a14 45%,transparent 70%);animation:tjPulse 2.6s ease-in-out infinite}
@@ -322,29 +299,9 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* v24
 .tj-bolt.el-lei polyline.g{stroke:#7a5cff}.tj-bolt.el-lei polyline.m{stroke:#b9a8ff}.tj-bolt.el-lei polyline.c{stroke:#ffffff}.tj-bolt.el-lei .tj-hitglow{background:radial-gradient(circle,#b9a8ffaa,transparent 70%)}.tj-dmg.el-lei{color:#c3b2ff}
 .tj-dmg.crit{font-size:21px;text-shadow:0 0 8px #fff8,0 0 6px #000,0 1px 2px #000}
 @keyframes tjDmg{0%{opacity:0;transform:translateY(8px) scale(.8)}15%{opacity:1;transform:translateY(0) scale(1.1)}100%{opacity:0;transform:translateY(-46px) scale(1)}}
-.tj-info{margin:8px 0}
-.tj-slots{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:10px 0 6px}
-.tj-slot{aspect-ratio:1;border:1px dashed var(--c-edge);border-radius:8px;background:var(--c-bar);display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;padding:3px;text-align:center;cursor:pointer}
-.tj-slot.on{border:1px solid #c9a45c;background:var(--c-card2)}
-.tj-slot.lost{border-color:#7a3b33}
-.tj-slot img{width:60%;height:auto;max-height:60%;object-fit:contain}
-.tj-slot small{font-size:10px;line-height:1.2;color:var(--t-logt);max-height:2.4em;overflow:hidden}
-.tj-plus{color:var(--c-edge);font-size:22px}
-.tj-ic{width:28px;height:28px;border-radius:50%;background:var(--c-line);color:var(--t-gold);display:flex;align-items:center;justify-content:center;font-size:14px}
 @keyframes tjDraw{to{stroke-dashoffset:0}}
-.tj-slots.run{margin-top:8px}
-.tj-prep .tj-slots{grid-template-columns:repeat(3,1fr);max-width:420px;margin:10px auto 6px}
-.tj-slots.run{grid-template-columns:repeat(3,1fr);max-width:420px;margin:8px auto 6px}
-.tj-prep{min-height:calc(100vh - 40px);display:flex;flex-direction:column;justify-content:center}
-.tj-prep-title{text-align:center;color:var(--t-gold);font-size:20px;letter-spacing:4px;margin-bottom:10px}
 .bar.mp>div{background:linear-gradient(90deg,#3d5a99,#6c8fd8)}
 
-/* 背包装备 / 法宝 / 法术栏：一排 6 格，和储物格一样大小（正方形）；名字最多两行 */
-.equip.bagslots{grid-template-columns:repeat(6,1fr);gap:6px}
-.equip.bagslots .slot-eq{aspect-ratio:1;min-height:0;padding:2px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;font-size:11px;line-height:1.2;background:var(--c-cell)}
-.equip.bagslots .slot-eq b{margin:0;font-size:11px}
-.equip.bagslots .slot-eq img.si{width:58%;height:auto;margin:0 auto 1px}
-.equip.bagslots .slot-eq .nm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-all}
 /* 小按钮文字不换行；列表行左边文字可收缩，按钮不被挤压 */
 button.sm{white-space:nowrap;flex-shrink:0}
 .line>div:first-child{min-width:0;flex:1 1 auto}
@@ -358,7 +315,7 @@ button.sm{white-space:nowrap;flex-shrink:0}
 .fb-huo,.fb-huo .nm{color:#ff6a4a}.cell.fb-huo,.slot-eq.fb-huo,.ico.fb-huo{border-color:#a84a32}
 .fb-tu,.fb-tu .nm{color:#d8a868}.cell.fb-tu,.slot-eq.fb-tu,.ico.fb-tu{border-color:#8a6a3a}
 .fb-lei,.fb-lei .nm{color:#b98aff}.cell.fb-lei,.slot-eq.fb-lei,.ico.fb-lei{border-color:#6e4fa8}
-/* ---------- 法宝按星级（DATA.eqCls 的 fbt1~10）：每星一张手绘图（img/icons/fb形状s星.png），图本身不加滤镜；六星起流光（光色按属性） ---------- */
+/* ---------- 法宝按星级（DATA.eqCls 的 fbt1~12）：每星一张手绘图（img/icons/fb形状s星.png），图本身不加滤镜；六星起流光（光色按属性） ---------- */
 .fbel.fbt img,img.fbel.fbt{filter:none;animation:none}
 /* 十一、十二星沿用十星图，图本身按星换色（--tint 见 eqt9~11 处：十一星青紫、十二星金色） */
 .fbel.fbt.eqt10 img,img.fbel.fbt.eqt10,.fbel.fbt.eqt11 img,img.fbel.fbt.eqt11{filter:var(--tint) saturate(1.5) brightness(1.12)}
@@ -370,7 +327,6 @@ button.sm{white-space:nowrap;flex-shrink:0}
 .fbw>img{display:block;width:100%;height:100%;object-fit:contain;margin:0}
 .cell .fbw.mi{width:58%;margin-bottom:1px;pointer-events:none}
 .slot-eq .fbw.si{width:34px;margin:0 auto 2px}
-.equip.bagslots .slot-eq .fbw.si{width:58%;margin:0 auto 1px}
 .bagstage .slot-eq .fbw.si{width:84%;max-height:84%;margin:0 auto}
 .fbw.item-img{height:72px;width:72px}
 /* 六星起流光：一道光沿法宝形状（遮罩 = 法宝图）慢慢划过，光色按属性（金木水火土雷），星级越高越亮越快 */
@@ -424,7 +380,6 @@ body.nologin #app, body.nologin #toast { display: none; }
 .btv-u.l{left:4%;width:36%}.btv-u.r{right:7%;width:30%}
 .btv-u.r img{max-height:62%}
 .btv-u img{max-height:72%;max-width:100%;object-fit:contain;filter:drop-shadow(0 4px 6px #0006)}
-.btv-nm{margin-top:2px;padding:1px 12px;background:linear-gradient(#fbf3dc,#e7d3a5);border:1px solid #b89a63;border-radius:10px;color:#8a2b1c;font-size:13px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .btv-fx{position:absolute;inset:0;pointer-events:none}
 .btv-fx .l{left:22%}.btv-fx .r{left:76%}
 .btv-skill{position:absolute;top:24%;transform:translateX(-50%);color:#d8261b;font-size:20px;font-weight:bold;white-space:nowrap;text-shadow:0 0 4px #fff,0 0 8px #fff;animation:btv-up calc(1.2s * var(--bs,1)) ease-out forwards}
@@ -433,9 +388,7 @@ body.nologin #app, body.nologin #toast { display: none; }
 .btv-pop.gray{color:#555;font-size:18px}
 @keyframes btv-up{0%{opacity:0;margin-top:14px}15%{opacity:1;margin-top:0}75%{opacity:1}100%{opacity:0;margin-top:-26px}}
 .btv-lunge-l{animation:btv-lunge-l calc(.8s * var(--bs,1)) ease-in-out;z-index:3}
-.btv-lunge-r{animation:btv-lunge-r calc(.5s * var(--bs,1)) ease-in-out}
 @keyframes btv-lunge-l{0%,100%{transform:none}35%,72%{transform:translateX(var(--dx,120%))}}
-@keyframes btv-lunge-r{50%{transform:translateX(-80%)}}
 .btv-hit{animation:btv-hit calc(.45s * var(--bs,1))}
 @keyframes btv-hit{0%,100%{transform:none;filter:none}20%{transform:translateX(8px);filter:brightness(1.8) sepia(1) hue-rotate(-40deg) saturate(4)}40%{transform:translateX(-8px)}60%{transform:translateX(5px)}80%{transform:translateX(-3px)}}
 .btv-dodge{animation:btv-dodge calc(.5s * var(--bs,1))}
@@ -445,21 +398,6 @@ body.nologin #app, body.nologin #toast { display: none; }
 .btv-cast img{animation:btv-cast calc(.6s * var(--bs,1))}
 .btv-u.l.btv-cast .btv-body{animation:btv-cast calc(.6s * var(--bs,1))}
 @keyframes btv-cast{50%{filter:drop-shadow(0 0 14px #ffd36b) drop-shadow(0 0 24px #ffb43a) brightness(1.3)}}
-.btv-orb{position:absolute;top:52%;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:radial-gradient(#fff,#ffe37a 35%,#ff9a2a 70%,transparent 72%);box-shadow:0 0 18px 8px #ffb43acc}
-.btv-orb.el-jin{background:radial-gradient(#fff,#ffe9a0 35%,#d8b13a 70%,transparent 72%);box-shadow:0 0 18px 8px #f3d36bcc}
-.btv-orb.el-mu{background:radial-gradient(#fff,#b8f39a 35%,#3fae4a 70%,transparent 72%);box-shadow:0 0 18px 8px #5fd46bcc}
-.btv-orb.el-shui{background:radial-gradient(#fff,#9fd8ff 35%,#2e7fd9 70%,transparent 72%);box-shadow:0 0 18px 8px #4aa3ffcc}
-.btv-orb.el-huo{background:radial-gradient(#fff,#ffb27a 35%,#e8401c 70%,transparent 72%);box-shadow:0 0 18px 8px #ff6a2acc}
-.btv-orb.el-tu{background:radial-gradient(#fff,#e9c99a 35%,#a8742e 70%,transparent 72%);box-shadow:0 0 18px 8px #c9954acc}
-.btv-orb.go-r{animation:btv-go-r calc(.55s * var(--bs,1)) ease-in forwards}
-.btv-orb.go-l{animation:btv-go-l calc(.55s * var(--bs,1)) ease-in forwards}
-@keyframes btv-go-r{0%{left:24%;transform:scale(.4)}100%{left:76%;transform:scale(1.3)}}
-@keyframes btv-go-l{0%{left:76%;transform:scale(.4)}100%{left:24%;transform:scale(1.3)}}
-.btv-fb{position:absolute;top:46%;width:56px;height:10px;margin:-5px 0 0 -28px;background:linear-gradient(90deg,#8b5a1a,#ffe9a8 30%,#fff 60%,#ffd36b);clip-path:polygon(0 30%,78% 0,100% 50%,78% 100%,0 70%);filter:drop-shadow(0 0 6px #ffd36b) drop-shadow(0 0 12px #ffb43a)}
-.btv-fb.go-r{animation:btv-fb-r calc(.65s * var(--bs,1)) ease-in forwards}
-.btv-fb.go-l{animation:btv-fb-l calc(.65s * var(--bs,1)) ease-in forwards}
-@keyframes btv-fb-r{0%{left:24%;top:30%;transform:rotate(-30deg) scale(.6)}50%{top:20%;transform:rotate(0) scale(1.1)}100%{left:76%;top:52%;transform:rotate(25deg) scale(1.2)}}
-@keyframes btv-fb-l{0%{left:76%;top:30%;transform:rotate(210deg) scale(.6)}50%{top:20%;transform:rotate(180deg) scale(1.1)}100%{left:24%;top:52%;transform:rotate(155deg) scale(1.2)}}
 .btv-shield{position:absolute;top:58%;width:42%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;border:2px solid #9fd8ffcc;background:radial-gradient(transparent 55%,#9fd8ff66);box-shadow:0 0 16px #9fd8ff;animation:btv-sh calc(1s * var(--bs,1)) ease-out forwards}
 .btv-shield.gold{border-color:#ffd36bcc;background:radial-gradient(transparent 55%,#ffd36b66);box-shadow:0 0 16px #ffd36b}
 @keyframes btv-sh{0%{opacity:0;transform:translate(-50%,-50%) scale(.6)}30%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.1)}}
@@ -483,23 +421,19 @@ body.nologin #app, body.nologin #toast { display: none; }
 .lz-cell img{width:70%;max-width:56px;aspect-ratio:1}
 .lz-cell small{font-size:11px;line-height:1.2;white-space:nowrap}
 
-/* v146 计时类数值固定宽度：倒计时 / 进度数字变化时框不再变大变小 */
+/* 计时类数值固定宽度：倒计时 / 进度数字变化时框不会变大变小 */
 body{font-variant-numeric:tabular-nums}
 .cd{display:inline-block;min-width:7.6em;white-space:nowrap;font-variant-numeric:tabular-nums;text-align:left;vertical-align:bottom}
 .cdn{display:inline-block;min-width:3.6em;white-space:nowrap;font-variant-numeric:tabular-nums;text-align:right;vertical-align:bottom}
 .line>b .cd,.row>span:last-child>.cd,button small .cd,h3 small .cd{text-align:right}
 button small .cd{min-width:0}
-/* v149 修炼页 自动修炼 / 神识 / 修炼肉身 一行三个 */
-.btns button.b3{flex:1 1 0;min-width:0;white-space:nowrap;padding-left:4px;padding-right:4px}
-.line>div.pg{flex:1}   /* v155 进度框占满一行 */
-.fb-bad{color:#e05a4f}   /* v157 法宝属性不合（红字） */
-.btv-sum{flex:none;padding:4px 10px;background:#efe3c4;color:#5a3b1c;font-size:13px;border-bottom:1px solid #d8c597}   /* v158 实力测试累计伤害 */
+.line>div.pg{flex:1}   /* 进度框占满一行 */
+.fb-bad{color:#e05a4f}   /* 法宝属性不合（红字） */
+.btv-sum{flex:none;padding:4px 10px;background:#efe3c4;color:#5a3b1c;font-size:13px;border-bottom:1px solid #d8c597}   /* 实力测试累计伤害 */
 
-/* v159 战斗动作：人物站立持剑，挥剑；怪物扑 / 挥手 */
+/* 战斗动作：怪物扑 / 挥手 */
 .btv-u.l img{max-height:76%;transform-origin:45% 95%}
 .btv-u.r img{transform-origin:50% 95%}
-@keyframes btv-swing{0%,100%{transform:none}35%{transform:rotate(-7deg)}60%{transform:rotate(11deg) translateX(6%)}}
-@keyframes btv-swing-hit{0%,36%,100%{transform:none}45%{transform:rotate(-10deg)}56%{transform:rotate(16deg) translateX(8%)}68%{transform:none}}
 .btv-pounce-r{animation:btv-pounce-r calc(.8s * var(--bs,1)) ease-in-out;z-index:3}
 @keyframes btv-pounce-r{0%,100%{transform:none}10%{transform:translateY(4%) scaleY(.92)}30%{transform:translate(calc(var(--dx,-120%) * .55),-22%) rotate(-10deg)}48%{transform:translateX(var(--dx,-120%)) rotate(-16deg) scale(1.1)}58%{transform:translateX(var(--dx,-120%)) rotate(-4deg)}72%{transform:translateX(var(--dx,-120%))}}
 .btv-claw-r,.btv-wave-r{animation:btv-claw-r calc(.8s * var(--bs,1)) ease-in-out;z-index:3}
@@ -514,54 +448,42 @@ button small .cd{min-width:0}
 @keyframes btv-mwave{0%,100%{transform:none}35%{transform:rotate(8deg)}60%{transform:rotate(-12deg) translateX(-5%)}}
 .btv-mwave.btv-cast img{animation:btv-mwave calc(.6s * var(--bs,1)) ease-in-out,btv-cast calc(.6s * var(--bs,1))}
 
-/* v161 名字不显示，人物 / 怪物往下；人物空手 + 单独的剑，攻击时挥剑 */
-.btv-nm{display:none}
+/* 人物 / 怪物往下；人物图：外框 .btv-hero，里面 .btv-body */
 .btv-u{bottom:2.5%}
 .btv-u.l .btv-hero{position:relative;height:80%;aspect-ratio:269/560}
 .btv-u.l .btv-hero.bth-f .btv-body{object-fit:contain;object-position:center bottom}
 .btv-u.l .btv-hero .btv-body{position:absolute;inset:0;width:100%;height:100%;max-height:none;filter:drop-shadow(0 4px 6px #0006)}
-.btv-u.l .btv-hero .btv-sword{position:absolute;left:24.4%;top:52.4%;width:94%;height:auto;max-height:none;max-width:none;transform-origin:12.3% 50%;transform:rotate(40deg);filter:drop-shadow(0 2px 3px #0005)}
-@keyframes btv-slash{0%,100%{transform:rotate(40deg)}40%{transform:rotate(-110deg)}62%{transform:rotate(75deg)}80%{transform:rotate(40deg)}}
-@keyframes btv-slash-hit{0%,34%,100%{transform:rotate(40deg)}46%{transform:rotate(-110deg)}58%{transform:rotate(80deg)}72%{transform:rotate(40deg)}}
 
-/* v163 轻轻一挥：按人物方向往他的左边（画面右前方）挥，剑不翻到背后；手跟着往前送一下 */
-.btv-u.l .btv-hero .btv-arm{position:absolute;inset:0;transform-origin:35.8% 51%}
-.btv-u.l .btv-hero .btv-hand{position:absolute;inset:0;width:100%;height:100%;max-height:none;max-width:none;filter:none}
-@keyframes btv-sweep{0%,100%{transform:rotate(40deg)}30%{transform:rotate(52deg)}62%{transform:rotate(2deg)}82%{transform:rotate(30deg)}}
-@keyframes btv-armsw{0%,100%{transform:none}30%{transform:translate(-2%,1%) rotate(3deg)}62%{transform:translate(5%,-1.5%) rotate(-6deg)}}
-@keyframes btv-sweep-hit{0%,32%,100%{transform:rotate(40deg)}44%{transform:rotate(52deg)}62%{transform:rotate(2deg)}80%{transform:rotate(30deg)}}
-@keyframes btv-armsw-hit{0%,32%,100%{transform:none}44%{transform:translate(-2%,1%) rotate(3deg)}62%{transform:translate(5%,-1.5%) rotate(-6deg)}}
-
-/* v165 护盾光圈：一直显示到护盾破碎 */
+/* 护盾光圈：一直显示到护盾破碎 */
 .btv-ring{position:absolute;border-radius:50%;border:2px solid #9fd8ffcc;background:radial-gradient(transparent 58%,#9fd8ff55);box-shadow:0 0 14px #9fd8ffaa,inset 0 0 10px #9fd8ff66;pointer-events:none;z-index:4;animation:btv-ring-in calc(.5s * var(--bs,1)) ease-out,btv-ring-glow 2s ease-in-out infinite alternate}
 .btv-ring.mob{border-color:#ffb36bcc;background:radial-gradient(transparent 58%,#ffb36b55);box-shadow:0 0 14px #ffb36baa,inset 0 0 10px #ffb36b66}
 .btv-ring.off{animation:btv-ring-out .5s ease-in forwards}
 @keyframes btv-ring-in{0%{opacity:0;transform:scale(.6)}100%{opacity:1;transform:scale(1)}}
 @keyframes btv-ring-glow{0%{opacity:.75}100%{opacity:1}}
 @keyframes btv-ring-out{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.25)}}
-/* v169 怪物放大 */
+/* 怪物放大 */
 .btv-u.r{right:3%;width:40%}
 .btv-u.r img{max-height:82%}
 
-/* v170 人物不挥剑：攻击 / 法术 / 法宝 = 抖动 + 放大，结束恢复原大小 */
+/* 人物攻击 / 法术 / 法宝 = 抖动 + 放大，结束恢复原大小 */
 .btv-u.l.btv-hact{animation:btv-hact calc(.8s * var(--bs,1)) ease-in-out;transform-origin:50% 100%;z-index:3}
 @keyframes btv-hact{0%,100%{transform:none}18%{transform:scale(1.2)}26%{transform:scale(1.2) translateX(-5px)}34%{transform:scale(1.2) translateX(5px)}42%{transform:scale(1.2) translateX(-5px)}50%{transform:scale(1.2) translateX(5px)}58%{transform:scale(1.2) translateX(-3px)}66%{transform:scale(1.2) translateX(3px)}78%{transform:scale(1.2)}}
 
-/* v181 战斗画面点怪物看属性 */
+/* 战斗画面点怪物看属性 */
 .btv-u.r{cursor:pointer}
 .btv-info{position:absolute;left:3%;right:3%;top:6px;bottom:6px;overflow-y:auto;-webkit-overflow-scrolling:touch;z-index:20;background:rgba(20,16,10,.92);border:1px solid #a8864a;border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.6;color:#eee}
 .btv-info b{color:#f0c060}.btv-info p{margin:0}.btv-info small{opacity:.6}
 
-/* v193 学习列表：已学会的排到最后并变灰 */
+/* 学习列表：已学会的排到最后并变灰 */
 .line.ld { color: #8a8a8a; }
 .line.ld small, .line.ld .tag, .line.ld b { color: #8a8a8a; }
 .line.ld img, .line.ld .tag { opacity: .55; }
 
-/* v196 功法层数：绿色「第N层」 */
+/* 功法层数：绿色「第N层」 */
 .tag.gf-lv { color: #6fd46f; border-color: #3f8f3f; }
 .tag.gf-to { color: #ff5a5a; border-color: #d04545; margin-left: 0; }
 
-/* v199 神识 · 养神：人物打坐动画 */
+/* 神识 · 养神：人物打坐动画 */
 #view:has(.ys-card) { display: flex; flex-direction: column; overflow: hidden; }
 .ys-card { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; box-sizing: border-box; padding: 0 0 8px; overflow: hidden; }
 .ys-card > .btns { padding: 0 10px; }
@@ -577,7 +499,6 @@ button small .cd{min-width:0}
   background: radial-gradient(ellipse at 50% 40%, #e8f6ff 0%, #8fc8ff 45%, #4a8fe066 75%, transparent 100%); box-shadow: 0 0 10px #8fc8ff; opacity: 0; animation: ys-rise 7s linear infinite; }
 .ys-hbox { position: absolute; left: 50%; bottom: 6%; height: 86%; transform: translateX(-50%); animation: ys-float 4s ease-in-out infinite; }
 .ys-hbox .ys-hero { position: static; display: block; height: 100%; max-width: none; width: auto; transform: none; animation: none; }
-.ys-dots { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
 .ys-dot { position: absolute; width: 26px; height: 26px; transform: translate(-50%, -50%); pointer-events: auto; background: none; border: 0; padding: 0; margin: 0; min-width: 0; min-height: 0; box-shadow: none; display: flex; align-items: center; justify-content: center; animation: ys-dot 2.4s ease-in-out infinite; }
 .ys-dot i { display: block; width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle, #fffbe8 0%, #ffe28a 38%, #ffb92e 62%, transparent 74%); box-shadow: 0 0 8px #ffd760, 0 0 16px #ffb52ecc, 0 0 26px #ffa21a88; }
 .ys-dot img { display: block; width: 20px; height: 20px; object-fit: contain; filter: drop-shadow(0 0 4px #ffd760) drop-shadow(0 0 8px #ffb52ecc); }
@@ -603,7 +524,7 @@ button small .cd{min-width:0}
 .wd-card + .card .ys-need { margin-top: 8px; }
 .wd-run { margin-top: 8px; } .wd-run div { width: 0; animation: wd-run linear forwards; } @keyframes wd-run { from { width: 0; } to { width: 100%; } }
 .wd-stage.fx .ys-aura { animation: ys-burst 1.6s ease-out infinite; }
-/* 修炼页 · 打坐（v243 参考布局：仙山背景、人物打坐、金丹法轮、左右圆钮、总修为横幅、境界/肉身/灵气三行） */
+/* 修炼页 · 打坐（参考布局：仙山背景、人物打坐、金丹法轮、左右圆钮、总修为横幅、境界/肉身/灵气三行） */
 #view:has(.cult-stage){display:flex;flex-direction:column;padding:0}
 .cult-stage{position:relative;flex:1 1 auto;min-height:300px;overflow:hidden;
   background:url(../img/bg/xuanzhi.webp?v=25) center 30%/cover no-repeat,#e9dcc0}
@@ -684,9 +605,9 @@ button small .cd{min-width:0}
 #top .res3{justify-content:space-between;margin-top:6px;padding:0 6px;font-size:12px;line-height:1.4;background:#d6c9ae99;border-radius:3px}
 #top .res3,#top .res3 b{color:#3a2c1e}
 .res3 i{display:inline-block;width:9px;height:9px;margin-right:3px;border-radius:2px;transform:rotate(45deg)}
-.res3 .r-st{background:#4ab0b8}.res3 .r-ct{background:#c87ab0}.res3 .r-mt{background:#e0a83a}
+.res3 .r-st{background:#4ab0b8}.res3 .r-ct{background:#c87ab0}
 
-/* v217 高阶丹药流光（DATA.danImg）：圆形图标上斜扫一道光，品质越高越亮越快 */
+/* 高阶丹药流光（DATA.danImg）：圆形图标上斜扫一道光，品质越高越亮越快 */
 .dsh{position:relative;display:inline-block;border-radius:50%;vertical-align:middle;line-height:0}
 .dsh img{margin:0!important;width:100%!important;height:auto}
 .dsh::after{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;background-size:250% 100%;animation:eqShine 3.2s linear infinite;
@@ -733,25 +654,20 @@ html[data-bg="xuanzhi"] .bar-img,html[data-bg="xinghuang"] .bar-img,html[data-bg
 #resume-load{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;background:rgba(14,12,10,.6)}
 #resume-load.show{display:flex}
 #resume-load span{padding:14px 28px;background:#2a2219f2;border:1px solid #c9a45c;border-radius:10px;color:#f3e6c8;font-size:22px;font-weight:900;letter-spacing:3px;text-shadow:0 1px 2px #000;box-shadow:0 4px 18px #000a}
-/* v248 两张卡片放一行（炼丹师 + 丹炉）；炼制数量窗口 */
+/* 两张卡片放一行（炼丹师 + 丹炉）；炼制数量窗口 */
 .card-row{display:flex;gap:8px;align-items:stretch}.card-row>.card{flex:1 1 0;min-width:0}
 .qty-box{display:flex;justify-content:center;align-items:center;gap:6px;margin:12px 0 4px}
 .qty-box button{min-width:42px;padding:6px 8px}
 .qty-box input{width:90px;text-align:center;font-size:16px}
-/* v249 炼丹房 / 炼器室顶部小卡片（点开看详情） */
+/* 炼丹房 / 炼器室顶部小卡片（点开看详情） */
 .card.mini{padding:5px 10px;margin-bottom:8px;cursor:pointer}
 .card.mini h3{margin:0;font-size:13px}
 .card.mini h3 small{font-size:11px}
-/* v250 炼丹房 / 炼器室：三个框固定大小 */
+/* 炼丹房 / 炼器室：三个框固定大小 */
 .card.mini{height:34px;box-sizing:border-box;overflow:hidden;display:flex;align-items:center}
 .card.mini h3{width:100%;white-space:nowrap;overflow:hidden}
-.job-card{height:112px;box-sizing:border-box;display:flex;gap:8px;align-items:stretch;overflow:hidden}
-.job-info{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:4px;overflow:hidden;font-size:13px}
-.job-info small{color:var(--t-sub);font-size:11px}
-.job-btns{display:flex;flex-direction:column;justify-content:space-between;align-items:stretch;flex:0 0 auto}
-.job-btns .sm{white-space:nowrap}
 .craft-log{max-height:60vh;overflow-y:auto}
-/* v247 法术 / 法宝特效（world.js btVfx / btFx）：画布粒子 .vx-cv；剑类法宝三把飞剑仍用 CSS（.vx-sword）。--x0 出手方、--x1 目标，--d 方向 */
+/* 法术 / 法宝特效（world.js btVfx / btFx）：画布粒子 .vx-cv；剑类法宝三把飞剑仍用 CSS（.vx-sword）。--x0 出手方、--x1 目标，--d 方向 */
 .vx-cv{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:3}
 .vx{position:absolute;pointer-events:none;--c:#ff7a2a;--c2:#ffe0a0}
 .vx-jin{--c:#e6b830;--c2:#fff4c0}.vx-mu{--c:#3fae4a;--c2:#d4ffb0}.vx-shui{--c:#2e8fe0;--c2:#d0f0ff}.vx-huo{--c:#ff5a1c;--c2:#ffe0a0}.vx-tu{--c:#a8742e;--c2:#f0d8a8}.vx-lei{--c:#9a6aff;--c2:#f0e6ff}
@@ -774,8 +690,6 @@ html[data-bg="xuanzhi"] .bar-img,html[data-bg="xinghuang"] .bar-img,html[data-bg
 .room-grid.sv-jobs button{height:100%;min-height:44px;padding:6px 2px}
 .room-grid.sv-jobs button small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* ===== 六界图 / 地图卷轴 / 探索信息浮层 ===== */
-.wbar{display:flex;align-items:center;gap:8px;margin:2px 0 6px;padding:6px 8px;border-radius:10px;background:var(--c-card);border:1px solid var(--c-line)}
-.wbar b{font-size:16px;letter-spacing:2px}.wbar small{color:var(--t-dim);font-size:12px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;min-width:0}
 /* 六界图铺满整个页面区（抵消 #view 的内边距，高度到底部图标栏） */
 .atlas{position:relative;overflow:hidden;margin:-10px -12px;height:calc(100% + 20px);min-height:420px}
 .atlas img{display:block;width:100%;height:100%;object-fit:cover}
@@ -817,8 +731,6 @@ button.sm.pill{padding:4px 12px}
 .atl-l p{margin:0;padding:2px 8px;border-radius:10px;background:rgba(10,8,6,.62);color:#f1e3c2;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;align-self:flex-start;max-width:80%;box-sizing:border-box}
 .atl-l p i{font-style:normal;color:#ffd77a;margin-right:4px}
 .atl-r{position:absolute;right:2.5%;top:2%;display:flex;gap:6px}
-.atl-bl{position:absolute;left:3%;bottom:1.2%}
-.atl-br{position:absolute;right:3%;bottom:1.2%}
 .fback{position:sticky;bottom:12px;height:72px;margin-top:-72px;display:flex;justify-content:space-between;padding:0 2px;align-items:flex-end;z-index:5;pointer-events:none}
 .fback button{pointer-events:auto;width:52px;height:52px;min-width:0;padding:0;border-radius:50%!important;display:flex;align-items:center;justify-content:center;line-height:1;font-size:14px;letter-spacing:0;background:radial-gradient(circle at 35% 30%,rgba(96,72,40,.97),rgba(30,22,14,.97));border:1px solid rgba(232,200,120,.75);color:#f6e6bd;box-shadow:0 4px 12px rgba(0,0,0,.55)}
 .pghead{font-size:16px;font-weight:bold;letter-spacing:2px;color:var(--t-gold);margin:4px 2px 8px}
@@ -910,9 +822,6 @@ button.sm.pill{padding:4px 12px}
 .ori-tip-box p{margin:0 0 10px;line-height:1.5}
 html.bg-light .ori-tip-box{background:#fbf6ea;border-color:#b8862b}html.bg-light .ori-tip-box h3{color:var(--t-gold)}
 
-/* 三个一行的按钮（法术详情：精研 融合 进阶 / 卸下 更换 关闭） */
-.btns.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
-.btns.g3 button{min-width:0}
 /* 两个一行（法术详情：精研 融合 / 卸下 更换），关闭单独一行 */
 .btns.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
 .btns.g2 button{min-width:0}
@@ -948,7 +857,7 @@ html.bg-light .ori-tip-box{background:#fbf6ea;border-color:#b8862b}html.bg-light
 .top-btns{gap:10px;align-items:center}
 .top-ic{font-size:11px;line-height:1.15;margin:-5px 0}
 .top-ic i{width:30px;height:30px;font-size:15px}
-/* 传音不用 ✉ 字符了：字符字形的基线会让信封沉到圆圈下半部分。改用 SVG 信封，flex 居中后正好在圆圈正中，大小和右边两个图标一样满 */
+/* 传音图标用 SVG 信封，不用 ✉ 字符：字符字形的基线会让信封沉到圆圈下半部分；SVG flex 居中后正好在圆圈正中，大小和右边两个图标一样满 */
 .top-ic.mail i{font-size:0;line-height:1}
 .top-ic.mail i svg{width:20px;height:20px;display:block}
 /* 经脉（modules/jingmai.js） */
@@ -963,13 +872,11 @@ html.bg-light .ori-tip-box{background:#fbf6ea;border-color:#b8862b}html.bg-light
 .jm-pt{cursor:pointer}
 .jm-pt.fl>circle:nth-child(2){animation:jm-pulse 1.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
 @keyframes jm-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.5)}}
-.jm-lb{font-size:13px;fill:#ffe8b0;paint-order:stroke;stroke:#000a;stroke-width:3px;pointer-events:none}
 .jm-stage.fx{animation:jm-fx .9s ease-out}
 @keyframes jm-fx{0%{box-shadow:inset 0 0 70px #ffd070}100%{box-shadow:inset 0 0 0 transparent}}
 .jm-xn{font-size:14px;fill:#ffe8b0;text-anchor:middle;paint-order:stroke;stroke:#000b;stroke-width:3px;pointer-events:none}
 .jm-xs{font-size:11px;fill:#d8c8a8;text-anchor:middle;paint-order:stroke;stroke:#000b;stroke-width:3px;pointer-events:none}
 .jm-cn{font-size:22px;fill:#fff2d0;text-anchor:middle;font-weight:bold;paint-order:stroke;stroke:#000a;stroke-width:3px}
-.jm-sum{position:absolute;left:8px;right:8px;bottom:34px;z-index:2;text-align:center;font-size:12px;color:#ffe8b0;text-shadow:0 0 4px #000}.jm-sum small{color:#d8c8a8}
 .jm-btns{margin:0;padding:6px 8px;display:flex;gap:8px}.jm-btns button{flex:1}
 .cult-dan{cursor:pointer;pointer-events:auto}
 
@@ -1140,16 +1047,6 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .sttabs{display:flex;gap:6px;margin:0 0 8px}
 .sttabs button{flex:1 1 0;padding:6px 4px}
 .sttabs button.on{background:var(--t-gold);color:#222}
-.strow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.08)}
-.strow:last-child{border-bottom:0}
-.strow .sti{flex:1 1 auto;min-width:0}
-.strow .sti b{font-size:15px}
-.strow .sti small{margin-left:6px;opacity:.7}
-.strow .sti p{margin:3px 0 0;font-size:12px;opacity:.85}
-.strow button{flex:0 0 auto;padding:6px 12px}
-.strow.on .sti b{color:var(--t-gold)}
-.strow .sti p.stc{opacity:.6}
-.strow .stb{display:flex;flex-direction:column;gap:6px;flex:0 0 auto}
 
 /* 神通秘术：上面出战格子，下面已领悟图标 */
 .stslots{display:flex;gap:10px;justify-content:space-around}
@@ -1240,9 +1137,9 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .cpk-ico .ico{background:none!important;border:none!important;box-shadow:none!important;outline:none!important}
 .cpk-ico .ico::before,.cpk-ico .ico::after{display:none!important}
 
-/* 选择窗口固定大小：整框 92vh，下方选中信息固定高，上方格子占剩下的（选不同配方不再变高变矮） */
+/* 选择窗口固定大小：整框 92vh，下方选中信息固定高，上方格子占剩下的（选不同配方不会变高变矮） */
 .modal-box:has(.cpk){height:92vh}
-/* 地块升级窗口固定大小：整框 84vh（和灵药园一页满时一样高），列表在框内滑动，换页/空页不再变高变矮 */
+/* 地块升级窗口固定大小：整框 84vh（和灵药园一页满时一样高），列表在框内滑动，换页/空页不会变高变矮 */
 .modal-box:has(.landup-list){display:flex;flex-direction:column;height:84vh;overflow:hidden}
 .landup-list{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
 .cpk-grid{flex:1 1 0}
@@ -1251,7 +1148,7 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .job-row>div:first-child{position:relative;padding-left:50px;min-height:44px}
 .job-ico{position:absolute;left:0;top:50%;transform:translateY(-50%);width:42px;height:42px;object-fit:contain}
 
-/* 下方布局（2026-11-07 晚）：名字在框外和成功率同一行；图片框与右栏（材料到开始按钮）上下对齐，图在框正中；格子不拉伸，少了就空着 */
+/* 下方布局：名字在框外和成功率同一行；图片框与右栏（材料到开始按钮）上下对齐，图在框正中；格子不拉伸，少了就空着 */
 .cpk-grid{align-content:start;grid-auto-rows:min-content}
 .cpk-foot{grid-template-rows:auto 1fr;row-gap:6px;overflow:hidden}
 .cpk-name{grid-column:1;grid-row:1;align-self:center;text-align:center;color:var(--t-gold);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1344,7 +1241,6 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .sjmk.lock{opacity:.5;filter:grayscale(.9)}
 .sjmk.mine{border-color:#7fe08a;box-shadow:0 0 10px rgba(127,224,138,.8)}
 .sjmk-rg{font-size:15px;padding:3px 12px;background:rgba(60,30,80,.78)}
-.sjrgm .rgt{border:0;background:none}
 
 .sjfit{padding:0}
 .sjfit>.pghead{position:absolute;left:12px;top:8px;margin:0;z-index:3;color:#ffe7a6;text-shadow:0 1px 3px #000,0 0 6px rgba(0,0,0,.8)}
@@ -1442,14 +1338,14 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .swp .btns{display:flex;gap:8px;margin-top:12px}
 .swp .btns button{flex:1}
 
-/* 功法殿 / 坊市 / 功德司 左侧功法类型（字竖排，用户定 2026-11-14） */
+/* 功法殿 / 坊市 / 功德司 左侧功法类型（字竖排，用户定） */
 .gf-side-wrap{display:flex;gap:5px;align-items:flex-start}
 .gf-side{position:sticky;top:0;flex:0 0 34px;display:flex;flex-direction:column;gap:4px;z-index:2}
 .gf-side button{flex:1 0 auto;min-height:0;padding:2px 0;width:34px;min-width:0;line-height:1.15;font-size:14px;border-radius:6px;display:flex;align-items:center;justify-content:center}
 .gf-side-main{flex:1 1 auto;min-width:0}
 .gf-side button.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}
 
-/* 所有页面：上面按钮固定，下面 .fxbody 单独滑动（game.js fixHead，用户定 2026-11-14） */
+/* 所有页面：上面按钮固定，下面 .fxbody 单独滑动（game.js fixHead，用户定） */
 #view.fxview{display:flex;flex-direction:column;overflow:hidden}
 #view.fxview>*{flex-shrink:0}
 #view.fxview>.fxbody,.mpage.fxon>.fxbody{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
@@ -1458,7 +1354,7 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .mpage.fxon>.fback{position:absolute;left:12px;right:12px;bottom:6px;margin:0;height:auto}
 .mpage.fxon>.fxbody{padding-bottom:62px}
 
-/* 学习队列压缩：每本一行，时间跟在功法名字后面（用户定 2026-11-14） */
+/* 学习队列压缩：每本一行，时间跟在功法名字后面（用户定） */
 .lq-card{padding:6px 10px}
 .lq-card h3{margin-bottom:2px}
 .lq-card .line{padding:2px 0}
@@ -1473,7 +1369,7 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .bq-quick{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .bq-quick button{padding:8px 4px}
 
-/* 出身页全屏（用户定 2026-11-16） */
+/* 出身页全屏（用户定） */
 .modal-box.ori-fs{max-width:none;max-height:none;width:100vw;height:100vh;height:100dvh;border:0;border-radius:0;box-shadow:none;display:flex;flex-direction:column;overflow:hidden;position:relative;padding:calc(10px + env(safe-area-inset-top)) 14px calc(10px + env(safe-area-inset-bottom))}
 .modal-box.ori-fs>*{flex:0 0 auto}
 .modal-box.ori-fs .ori-box{max-height:none;flex:1 1 auto;min-height:0;align-content:start}
@@ -1486,7 +1382,7 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .modal-box.ori-fs.pn-on>*{display:none}
 .modal-box.ori-fs.pn-on>.ori-pn.on{display:block;flex:1 1 auto;min-height:0;overflow-y:auto}
 .ori-pk{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:8px}
-/* 凡界每张图一整幅地图（用户 2026-11-17）：上北、左西、右东、下南、正中灵矿，各自独立可点；没有方框 */
+/* 凡界每张图一整幅地图（用户定）：上北、左西、右东、下南、正中灵矿，各自独立可点；没有方框 */
 .rgmapc{padding:0;overflow:hidden}
 .rgmapc>h3{position:relative;z-index:2;margin:6px 10px 0}
 .rgmap{position:relative;width:100%;aspect-ratio:928/1152;background:center/cover no-repeat;border-radius:inherit}
@@ -1496,7 +1392,7 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .rgmap .rgs b,.rgmap .rgs small,.rgmap .rgs>div:not(.rgs-hit){position:relative;z-index:1}
 .rgmap .rgs b,html.bg-light .rgmap .rgs b{color:#ffe7a6;font-size:16px;text-shadow:0 0 3px #000,0 1px 4px #000}
 .rgmap .rgs small,html.bg-light .rgmap .rgs small{color:#f3e6c6;text-shadow:0 0 3px #000,0 1px 3px #000;margin:0 0 3px}
-/* 凡界整图四域：对角线 X 分成上北/左西/右东/下南四块三角，整块可点（用户 2026-11-17：点不进去） */
+/* 凡界整图四域：对角线 X 分成上北/左西/右东/下南四块三角，整块可点（用户定） */
 html .rgmap .rgs{inset:0}
 .rgmap .rgs b,.rgmap .rgs small{pointer-events:none}
 html .rgmap .rgs.q-bei{clip-path:polygon(0 0,100% 0,50% 50%);justify-content:flex-start;padding:16% 0 0}
@@ -1512,14 +1408,14 @@ html .rgmap .rgs.q-dong.cur{background:radial-gradient(ellipse at 80% 50%,rgba(2
 .rglk img{display:none}
 .rglk b{color:#ffe7a6;font-size:13px;line-height:1.1;text-shadow:0 0 3px #000,0 1px 3px #000}
 .rglk small{color:#f3e6c6;font-size:11px;line-height:1.1;text-shadow:0 0 3px #000}
-/* 凡界整幅地图铺满屏幕、无边框（用户 2026-11-17） */
+/* 凡界整幅地图铺满屏幕、无边框（用户定） */
 .mpage.fmfull{padding:0;position:relative;height:calc(100% + 20px)}
 .fmfull .rgmapc,html.bg-light .fmfull .rgmapc{flex:1 1 auto;margin:0;padding:0;border:0;border-radius:0;box-shadow:none;background:none;display:flex}
 .fmfull .rgmap{flex:1 1 auto;aspect-ratio:auto;height:auto;min-height:100%;border-radius:0}
 .fm-name{position:absolute;left:12px;top:8px;z-index:3;color:#ffe7a6;font-size:20px;font-weight:700;text-shadow:0 0 4px #000,0 1px 4px #000;pointer-events:none}
 .room-grid.sv-pickrow{grid-template-columns:1fr;margin:8px 0 0}
 
-/* 识海空间：圆形星空弹窗（用户定 2026-11-17） */
+/* 识海空间：圆形星空弹窗（用户定） */
 .modal-box.ss-sea-box{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;max-width:none;width:auto;overflow:visible}
 .ss-sea{display:flex;align-items:center;justify-content:center}
 .ss-sea-c{position:relative;width:min(86vw,420px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 50% 50%,rgba(120,90,220,.35),rgba(7,6,13,.2) 60%),url(../img/sw_bg.webp) center/cover,#07060d;box-shadow:0 0 40px rgba(140,110,255,.55),inset 0 0 50px rgba(0,0,0,.8);border:1px solid rgba(180,160,255,.45);overflow:hidden}
@@ -1533,7 +1429,7 @@ html .rgmap .rgs.q-dong.cur{background:radial-gradient(ellipse at 80% 50%,rgba(2
 .cfged{max-width:100%;overflow-x:hidden;box-sizing:border-box}
 .cfged *{max-width:100%;box-sizing:border-box}
 .cfged textarea{overflow:auto;touch-action:pan-x pan-y}
-/* 自动队列（2026-11-24） */
+/* 自动队列 */
 .gf-info{display:flex;gap:8px;align-items:stretch}
 .gf-info-l{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:space-between}
 .gf-info .gf-btns{display:flex;flex-direction:column;justify-content:space-between;gap:4px;flex-shrink:0}

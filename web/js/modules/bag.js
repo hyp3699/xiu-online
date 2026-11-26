@@ -3,16 +3,18 @@
  * ---------------------------------------------------------------------
  * 上方三个分页：
  *   装备：头盔 护甲 武器 腿甲 靴 吊坠 + 6 个戒指
- *   法宝：每个大境界开启 1 格，最多 12 格
- *   法术：每个大境界开启 1 格，最多 12 格（放入的法术在战斗中轮流施放）
- * 下方：储物格（扩充以后另做）。
+ *   法宝：开局 SLOT_START 格，每 SLOT_EVERY 个大境界多开 1 格，最多 SLOT_MAX 格（config/equip.js，现 2 / 2 / 12）
+ *   法术：格数同法宝（放入的法术在战斗中轮流施放）
+ *   人物左右圆钮：神通秘术、本命法宝（单独页面）
+ * 下方：储物格（固定格子，用掉留空；空间石可扩充格数），满了的物品进传音。
  * 背包物品格式：
  *   丹药 { t: "pill", type: "juqi", g: 境界品质, n: 数量 }        同种同品质堆叠
  *   装备 { t: "eq", e: { slot, g, q, name } }                     每件占一格（法宝 slot = "fabao"）
  *   材料 { t: "mat", kind: "herb"|"ore", name, g, n }  药材、矿石，同名堆叠（g = 序号）
- *   属性丹 { t: "dan", type: "atk", g: 阶, n }                    见 craft.js
- *   炉子 { t: "fu", kind: "dan"|"qi", g: 阶, n }   点「使用」装进洞府
- *   图纸 { t: "bp", kind: "dan"|"qi", g: 阶 }      点「学习」后才能在炼器室炼制
+ *   属性丹 { t: "dan", type: "atk", g: 阶, n, sg? }                见 craft.js（sg = 上古丹）
+ *   炉子 { t: "fu", kind: "dan"|"qi"|"xdan"|"sdan", g: 阶, n }   点「使用」装进洞府
+ *   图纸 { t: "bp", kind: "dan"|"qi"|"xdan"|"sdan", g: 阶 }      点「学习」后才能在炼器室炼制
+ *   其余（秘境材料 sm、自定义物品 cu、空间石 ss、戒指图纸 rbp、火髓 hx 等）见 itemName
  * ===================================================================== */
 G.module({
   id: "bag",
@@ -39,12 +41,10 @@ G.module({
       const s = this.s, f = e => { if (e && e.slot === "fabao" && e.attrs) { e.name = DATA.fabaoName(e.ft, e.g); if (!e.uid) e.uid = DATA.newUid(); } };
       s.bag.forEach(it => it && it.t === "eq" && f(it.e)); (s.fabao || []).forEach(f); [s.bm && s.bm.e, s.bmJob && s.bmJob.e].forEach(e => { if (e) { const nm = e.name; f(e); e.name = nm; } });
     },
-    // 法宝栏、法术栏当前开启格数：每个大境界 1 格
     // 背包是固定格子：用掉一件后该格留空（null），后面的物品不往前挪；
     // 只有手动整理时才把非空物品按原规则排序并紧缩到前面，空位留在最后。
-    // 背包排序：先按类型（修炼丹 → 属性丹 → 药材 → 矿石 → 装备），同类型再按品阶从低到高
-    // 秘境材料（t = "sm"，灵元 / 灵晶 / 耀石等）以前排序键全是 0 / ""，分不出种类和属性，只能保持获得顺序，
-    // 所以点整理后还是三种混在一起；现在先按种类（灵元 → 灵晶 → 耀石 → 其他秘境材料），同种再按属性（金木水火土雷）排
+    // 背包排序：先按类型（修炼丹 → 属性丹 → 药材 / 种子 / 灵果 → 矿石 → 炉子 → 图纸 / 空间石 / 秘境材料等 → 装备 → 法宝 → 自定义物品），同类型再按品阶从低到高
+    // 秘境材料（t = "sm"）先按种类（灵元 → 灵晶 → 耀石 → 其他秘境材料），同种再按属性（金木水火土雷）排
     sortBag() {
       const order = it => it.t === "pill" ? 0 : it.t === "dan" || it.t === "ql" || it.t === "ysd" ? 1 : it.t === "mat" ? (it.kind === "herb" ? 2 : 3) : it.t === "seed" ? 2.5 : it.t === "lg" ? 2.6 : it.t === "fu" ? 4 : it.t === "bp" || it.t === "ss" || it.t === "rbp" || it.t === "bmbp" || it.t === "dfb" || it.t === "hx" || it.t === "sm" ? 5 : it.t === "eq" ? (it.e.slot === "fabao" ? 7 : 6) : it.t === "cu" ? 8 : 9;
       const smKind = it => { if (it.t !== "sm") return -1; const main = ["ly", "lj", "ys"]; const i = main.indexOf(it.k); if (i >= 0) return i; const keys = Object.keys(CFG.mijing.items || {}); const j = keys.indexOf(it.k); return 3 + (j >= 0 ? j : 99); };   // 非秘境材料先排（-1），秘境材料整块在后，不被图纸/空间石等隔开
@@ -55,7 +55,7 @@ G.module({
       items.sort((a, b) => order(a) - order(b) || smKind(a) - smKind(b) || grade(a) - grade(b) || (sub(a) < sub(b) ? -1 : sub(a) > sub(b) ? 1 : 0) || smFt(a) - smFt(b));
       this.s.bag.splice(0, this.s.bag.length, ...items);
     },
-    // 手动整理：只有点背包里的「整理」按钮才排序并紧缩；打开背包不再自动整理，
+    // 手动整理：只有点背包里的「整理」按钮才排序并紧缩；打开背包不自动整理，
     // 物品保持获得 / 上次整理后的顺序，不会每次进背包都换位置。
     sortBagNow() { this.sortBag(); this.after(); },
     // 物品加锁：点物品打开详情，弹窗右上角的锁点一下锁上 / 解开（格子上不显示）；锁上的不出现在出售页、也不能出售。
@@ -73,7 +73,7 @@ G.module({
       const path = on ? "M7 10V7a5 5 0 0 1 10 0v3" : "M7 10V7a5 5 0 0 1 9.6-2";
       return `<span class="ilk${on ? " on" : ""}" title="${on ? "已锁定，点击解锁" : "点击锁定"}" onclick="event.stopPropagation();G.itemLock('${k}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="${path}"/><rect x="4.5" y="10" width="15" height="11" rx="2.5" fill="currentColor"/></svg></span>`;
     },
-    slotCount() { return Math.min(DATA.SLOT_MAX, Math.floor(this.r() / DATA.SLOT_EVERY) + DATA.SLOT_START); },
+    slotCount() { return Math.min(DATA.SLOT_MAX, Math.floor(this.r() / DATA.SLOT_EVERY) + DATA.SLOT_START); },   // 法宝栏、法术栏当前开启格数（config/equip.js SLOT_*）
 
     /* ---------- 装备属性 ---------- */
     equipStats(e) {
@@ -117,7 +117,7 @@ G.module({
     // 一格最多叠几个（config/bag.js）
     stackMax(it) { const S = CFG.stack; return S.ONE.includes(it.t) || (it.t === "sm" && S.ONE_SM.includes(it.k)) ? 1 : it.t === "sm" && (S.BIG_SM || []).includes(it.k) ? 1e12 : S.MAX; },
     // ---------- 传音：背包放不下的物品先放这里，30 天未领自动清除 ----------
-    MAILBOX_DAYS: 30,   // 用户定 2026-11-18（原 10）
+    MAILBOX_DAYS: 30,   // 传音保留天数（用户定）
     MAILBOX_MAX: 300,   // 传音最多几件
     mailboxDue(it) { return (it && it.at || 0) + this.MAILBOX_DAYS * 86400000; },
     mailboxList() { return Array.isArray(this.s.mailbox) ? this.s.mailbox : (this.s.mailbox = []); },
@@ -140,14 +140,14 @@ G.module({
     mailboxAdd(it, quiet, src) {   // src：来源说明（如「练气期奖励」），传音里显示
       const list = this.mailboxList(); this.mailboxPrune();
       const e = { id: DATA.newUid(), it, at: this.now() }; if (src) e.src = String(src); list.push(e);
-      // 上限 MAILBOX_MAX 件，超出丢最早的：原来只增不减，存档超过 4MB 后服务器拒绝保存，账号进不去
+      // 上限 MAILBOX_MAX 件，超出丢最早的：不封顶的话存档超过 4MB 后服务器拒绝保存，账号进不去
       const MAX = this.MAILBOX_MAX; if (list.length > MAX) { const k = list.length - MAX; list.splice(0, k); if (!this.silent) this.log(`传音已满（最多 ${MAX} 件），最早的 ${k} 件已清除。`, "bad"); }
       if (!quiet && !this.silent) this.log(`背包已满，已暂存到传音，${this.MAILBOX_DAYS} 天内领取。`, "bad");
       return true;
     },
     // 单件物品：能进背包就进背包，否则进传音；返回 "bag" / "mail"
     bagPutOrMail(it) { return this.bagPut(it) ? "bag" : (this.mailboxAdd(it), "mail"); },
-    // 放进背包：先补满同种的格子，剩下的每 stackMax 个开一格；make(k) 造一格 k 个。背包放不下的剩余部分进传音，不再静默丢失、也不再部分成功却按失败算账（原来先补堆叠、装不下返回 false，调用方按失败处理就白嫖了已补的部分）。
+    // 放进背包：先补满同种的格子，剩下的每 stackMax 个开一格；make(k) 造一格 k 个。背包放不下的剩余部分进传音并返回 true（不能返回 false：已补进堆叠的部分会被调用方当失败白拿）。lost 参数现已不用。
     // 新开的格子先填第一个空格，不往后追加（固定格子）。
     bagAdd(match, make, n, lost, noMail) {
       n = Math.floor(+n); if (!(n >= 1)) return true;   // 小数向下取整，负数/0 不加（防控制台直接调 add 系函数刷物品）
@@ -259,7 +259,7 @@ G.module({
     },
     removeAt(i, n = 1) {
       const it = this.s.bag[i]; if (!it) return;
-      // 中央关口：小数向下取整，负数/0 直接不扣（原来负数会让 it.n -= 负数 = 反向加物品），
+      // 中央关口：小数向下取整，负数/0 直接不扣（否则 it.n -= 负数 = 反向加物品），
       // 超过格子数量时只扣整格，不按请求数算账（算账在调用方先 clamp，见 sellItem）。
       // 固定格子：整格扣完后该格留空（null），不 splice，后面的物品不往前挪。
       n = Math.floor(+n); if (!(n >= 1)) return;
@@ -269,12 +269,12 @@ G.module({
       if (it.t === "cur") return it.k === "merit" ? "功德" : it.k === "yuanli" ? "愿力" : "灵石";   // 传音里的灵石、功德
       if (it.t === "pill") return `${DATA.realms[it.g]}·${DATA.pills[it.type].name}`;
       if (it.t === "dan") return DATA.danName(it.type, it.g, it.sg);
-      if (it.t === "ql") return DATA.qlName(it.sect);   // v213 宗主清灵丹
+      if (it.t === "ql") return DATA.qlName(it.sect);   // 宗主清灵丹
       if (it.t === "ylb") return DATA.ybName(it.k, it.g);   // 游历宝物（data/youli.js）
       if (it.t === "ysd") return this.ysDanName(it.ys, it.k);   // 隐世宗门炼丹房丹药
-      if (it.t === "stp") return this.ysFragName(it.id);
-      if (it.t === "cxp") return DATA.cxpName(it.k);
-      if (it.t === "xd") { const x = this.xdItem(it); return this.xdName(x.k, x.src, x.id, x.v); }   // 隐世宗门心得   // 炼丹 / 炼器经验（宗门秘境）   // 神通碎片（隐世宗门秘境）
+      if (it.t === "stp") return this.ysFragName(it.id);   // 神通碎片（隐世宗门秘境）
+      if (it.t === "cxp") return DATA.cxpName(it.k);   // 炼丹 / 炼器经验（宗门秘境）
+      if (it.t === "xd") { const x = this.xdItem(it); return this.xdName(x.k, x.src, x.id, x.v); }   // 隐世宗门心得
       if (it.t === "mat") return DATA.matFull(it.kind, it.g);
       if (it.t === "fu") return DATA.furnaceName(it.kind, it.g);
       if (it.t === "bp") return DATA.furnaceName(it.kind, it.g) + "图纸";
@@ -347,8 +347,8 @@ G.module({
       return Math.max(1, Math.min(P.FALLBACK_MAX || 100, Math.floor(v)));
     },
     sellPriceRaw(it) {
-      if (it.t === "seed") return DATA.seedSell(it.g);
-      if (it.t === "lg") return DATA.LG().SELL ?? 100;   // 灵果（config/garden.js LINGGUO.SELL）   // 种子 = 药材出售价 × config/garden.js SEED_SELL_MUL
+      if (it.t === "seed") return DATA.seedSell(it.g);   // 种子 = 药材出售价 × config/garden.js SEED_SELL_MUL
+      if (it.t === "lg") return DATA.LG().SELL ?? 100;   // 灵果（config/garden.js LINGGUO.SELL）
       if (it.t === "eq" && !it.e.attrs) return 0;
       const cv = this.craftValue(it);
       if (cv >= 0) return Math.floor(cv * (CFG.price.CRAFT_SELL || 1.1));
@@ -449,7 +449,6 @@ G.module({
     },
     bmMifaCard(a) {
       if (!this.bmMapOK(a)) return "";
-      const s = this.s, B = this.bmCfg(), h = this.bmBpHave();
       const r = this.bmMifaRow(a);
       return r[0] ? "" : `<div class="card"><h3>图纸</h3>${r[1]}</div>`;   // 已学会的放页面最后「已学会」卡（jieGfView）
     },
@@ -482,7 +481,7 @@ G.module({
     // 取消炼制：法宝和矿石原样退回
     bmCancel() {
       const s = this.s, j = s.bmJob; if (!j) return;
-      // 背包满时法宝和矿石进传音，不再以“至少 1 格”校验后丢掉后面的矿石；日志说退回即包含传音
+      // 背包满时法宝和矿石进传音（日志说的退回包含传音）
       this.addEquip(j.e); this.giveBack(j.mats || this.bmMats()); s.bmJob = null;
       this.log(`取消炼制${this.bmCfg().NAME}，法宝和矿石已退回${this.bagFull() ? "（背包满的部分在传音）" : ""}。`, "sys"); this.dirty(); this.after();
     },
@@ -583,7 +582,7 @@ G.module({
       this.modal(`<h2>精炼</h2><p class="desc">已精炼 ${n0} / ${M} 次，伤害 攻击×${U.fmt(DATA.bmPct(e))}%${full ? "" : ` → ${U.fmt(DATA.bmPct(Object.assign({}, e, { bmRf: n0 + 1 })))}%`}。${full ? "" : `下一次每种 ${U.fmt(n)} 个。`}</p>${rows}<div class="btns"><button onclick="G.bmRefine()" ${ok ? "" : "disabled"}>${full ? "已满级" : "精炼"}</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
     bmShield(e) { return !!(DATA.fabaoTypes[e.ft] || {}).shield; },   // 盾不能炼成本命法宝
-    // 本命法宝的 5 种特效（img/icons/bmfx1~5.png）；数值、解锁方式待定，先只显示
+    // 本命法宝的特效列表（config/benming.js 的 FX，图 img/icons/bmfx1~5.png）；强化见 bmFxModes / bmFxUp
     bmFx() { return this.bmCfg().FX || []; },
     bmTick() {
       const s = this.s, j = s.bmJob; if (s.bm && s.bm.e) { this.bmFix(s.bm.e); if (!s.bm.b || typeof s.bm.b.res === "number") s.bm.b = this.bmRoll(); }   // 老存档补随机属性
@@ -657,7 +656,7 @@ G.module({
     },
     openSellPage() { this.bagSell = true; this.render(); },
     closeSellPage() { this.bagSell = false; this.render(); },
-    // v26：出售页（按上面的分类筛选），只有这里能卖东西
+    // 出售页（按上面的分类筛选），只有这里能卖东西
     sellPageView(match) {
       const s = this.s, flt = this.bagFilter || "all";
       const rows = s.bag.map((it, i) => [it, i]).filter(([it]) => it && match(it) && !it.lq && !this.isLocked(it)).map(([it, i]) => {
@@ -681,7 +680,7 @@ G.module({
       const it = this.s.bag[i]; if (!it || it.t !== "gfb") return;
       const g = DATA.skillInfo(it.id, 1); if (!g) return;
       if (this.hasGongfa(it.id)) return this.log("已经学会了。", "sys");
-      if (it.lq || !this.lqCan("gf", it.id)) return;   // v173 学习队列：学完才从背包消失
+      if (it.lq || !this.lqCan("gf", it.id)) return;   // 学习队列：学完才从背包消失
       if (!this.lsCheck(it.id)) return;   // 神识（shenshi.js）
       it.lq = 1; this.lqAdd("gf", { id: it.id, k: "gfb", ms: DATA.gfLearnMin(g.star) * 60000 }); this.closeModal(); this.after();
     },
@@ -693,7 +692,7 @@ G.module({
       if (it.lq || !this.lqCan("dan", key)) return;
       it.lq = 1; this.lqAdd("dan", { key, k: "dfb", type: it.type, g: it.g, ms: DATA.danGdLearnMs(it.g, s.ssPow) }); this.closeModal(); this.after();
     },
-    // v173 背包里功法 / 图纸的学习按钮：学习中显示进度，排队中，学完才从背包消失
+    // 背包里功法 / 图纸的学习按钮：学习中显示进度，排队中，学完才从背包消失
     bagLearnBtn(it, ch, key, on, has, ms) {
       if (has) return `<button class="primary" disabled>已学会</button>`;
       const st = it.lq ? this.lqHas(ch, key) : 0;
@@ -705,10 +704,7 @@ G.module({
     /* ---------- 弹窗：点储物格 ---------- */
     openItem(i) {
       const it = this.s.bag[i]; if (!it) return;
-      const sell = "";   // v26：背包里不能直接出售，去「出售」页
-      const _sell = it.n > 1
-        ? `<button onclick="G.sellItem(${i},1)">出售1个（${U.fmt(this.sellPrice(it))}）</button><button onclick="G.sellItem(${i},${it.n})">全部出售</button>`
-        : `<button onclick="G.sellItem(${i},1)">出售（${U.fmt(this.sellPrice(it))}）</button>`;
+      const sell = "";   // 背包里不能直接出售，去「出售」页
       const cq = it.t === "cu" ? ((this.cuDef(it.name) || {}).q || 0) : it.t === "ysd" ? 5 : it.t === "xd" ? (x => this.xdQ(x.src, x.id, x.v))(this.xdItem(it)) : it.t === "ylb" ? DATA.ybQ(it.g) : 0;
       const big = it.t === "mat" ? "" : this.itemIcon(it);
       let h = this.lockIco("b" + i, this.isLocked(it)) + (big ? (it.t === "dan" || it.t === "ql" ? DATA.danImg(big, it.t === "dan" ? DATA.danCls(it.type, it.g) : DATA.qlCls(it.sect), "big") : (it.t === "eq" ? DATA.fbArt(it.e, big, "item-img" + DATA.eqCls(it.e)) : `<img class="item-img" src="${big}" alt="">`)) : "") + `<h2 class="q${it.t === "eq" ? it.e.q : cq}${it.t === "eq" ? DATA.fbElCls(it.e) : ""}">${this.itemName(it)}${it.n ? " ×" + it.n : ""}${it.t === "eq" && it.e.attrs ? `<br><small>${DATA.rjName(it.e)}</small>` : ""}</h2>`;
@@ -824,7 +820,7 @@ G.module({
 
     /* ---------- 强化（config/forge.js 的 forge.enhance）：每条属性分别强化 ---------- */
     canEnhance(e) { return !!(e && e.attrs); },
-    // v152/v153 强化：整件一个等级，没有上限；只要火髓 + 耀石（法宝同属性，装备 / 戒指任意一种）
+    // 强化：整件一个等级，没有上限；消耗灵石 + 火髓 + 耀石（法宝用同属性，装备 / 戒指可选一种或自动）
     // 装备 / 法宝 / 戒指共用 config/forge.js 的 enhance.COST：每强化 UP.N 级，之后每次 灵石 / 火髓 / 耀石 + 固定值
     enhCost(e, ys) { const E = CFG.forge.enhance.COST || {}, P = E.UP || {}, n = e.enh || 0, k = P.N > 0 ? Math.floor(n / P.N) : 0;
       return { stone: (E.STONE || 0) + k * (P.STONE || 0), fire: ((E.FIRE || [])[e.g] || 1) + k * (P.FIRE || 0), jj: ((E.SPECIAL || [])[e.g] || 0) + k * (P.SPECIAL || 0), sk: "ys", sf: e.slot !== "fabao" && this.ysArg(ys) >= 0 ? this.ysArg(ys) : this.ysFor(e) }; },   // 装备 / 戒指：ys = 玩家选的耀石，不选 = 自动
@@ -858,7 +854,7 @@ G.module({
       this.after(); this.drawEnhance();
     },
 
-    /* ---------- v25 火髓 ---------- */
+    /* ---------- 火髓 ---------- */
     fireCount() { return this.bagNum(x => x.t === "hx"); },
     addFire(n) { return this.bagAdd(x => x.t === "hx", k => ({ t: "hx", n: k }), n, `背包已满，${DATA.HX}遗失了。`); },
     takeFire(n) { return this.bagTake(x => x.t === "hx", n); },
@@ -914,7 +910,7 @@ G.module({
         ${wash ? `<p class="desc">炼制、购买得到的法宝属性最高绿色，紫色、金色只能洗练得到。</p>` : ""}
         <div class="btns"><button class="primary" onclick="G.doReset('${this._resetSource}',${JSON.stringify(L)})" ${this.fireCount() >= cost && this.canWash(e, L) ? "" : "disabled"}>${nm}</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
-    // v164 全部锁定时，附加属性没满（< 附加属性上限）也能洗练：再洗出新的附加属性补到满
+    // 全部锁定时，附加属性没满（< 附加属性上限）也能洗练：再洗出新的附加属性补到满
     canWash(e, L) { return L.length < e.attrs.length || DATA.washRange(e, L)[1] > 0; },
     toggleLock(i) { const L = this._locks || (this._locks = []), j = L.indexOf(i); j >= 0 ? L.splice(j, 1) : L.push(i); this.drawReset(); },
     doReset(src, locks = []) {
@@ -951,7 +947,7 @@ G.module({
     unequip(key) {
       key = String(key);
       if (/^fb\d+$/.test(key)) { const k = +key.slice(2); if (!(k < this.s.fabao.length)) return; if (!this.s.fabao[k]) return; this.addEquip(this.s.fabao[k]); this.s.fabao[k] = null; }   // 法宝卸下不补位：该格留空，后面的法宝不往前挪
-      else { if (!DATA.equipSlots.includes(key) || !this.s.equip[key]) return; this.addEquip(this.s.equip[key]); this.s.equip[key] = null; }   // 装备（含戒指）本来就是按格位存，卸下只清该格，不补位；背包满时卸下的装备进传音，不再塞入 e:null 的幻影物品
+      else { if (!DATA.equipSlots.includes(key) || !this.s.equip[key]) return; this.addEquip(this.s.equip[key]); this.s.equip[key] = null; }   // 装备（含戒指）按格位存，卸下只清该格，不补位；背包满时卸下的装备进传音
       this.closeModal(); this.after();
     },
     // 宗门秘境掉的炼丹 / 炼器经验：每个 +MJ.CXP_VAL 点
@@ -964,8 +960,8 @@ G.module({
       this.log(`使用${DATA.cxpName(ck)} ×${n}，${CFG.craftsman[ck].name}经验 +${U.fmt(v * n)}。`, "good"); this.closeModal(); this.after();
     },
     sellItem(i, n) {
-      const it = this.s.bag[i]; if (!it || it.lq || it.t === "bmbp" || this.isLocked(it)) return;   // 加锁的不能卖；v173 学习中 / 排队中的不能卖；本命图纸不能卖
-      // 先 clamp 再算钱：原来直接用请求数算钱，n=1e12 时只删 1 个却按 1e12 个结算；
+      const it = this.s.bag[i]; if (!it || it.lq || it.t === "bmbp" || this.isLocked(it)) return;   // 加锁的不能卖；学习中 / 排队中的不能卖；本命图纸不能卖
+      // 先 clamp 再算钱：否则 n=1e12 时只删 1 个却按 1e12 个结算；
       // n 为负数时算出负价、再经 removeAt 反向加物品。装备没有 n，按 1 个算。
       n = Math.floor(+n); if (!(n >= 1)) return;
       n = Math.min(n, it.n || 1);
@@ -983,7 +979,7 @@ G.module({
         this._spPref = { lvUp: p.lvUp !== false, starUp: p.starUp === true, by: p.by === "star" ? "star" : "lv" }; }
       return this._spPref;
     },
-    // 只能选一个：点没选中的改用它，点已选中的切换方向（用户定 2026-11-14）
+    // 只能选一个：点没选中的改用它，点已选中的切换方向（用户定）
     setSpPickSort(k) { const p = this.spPickPref(); k = k === "star" ? "star" : "lv"; if (p.by !== k) p.by = k; else if (k === "lv") p.lvUp = !p.lvUp; else p.starUp = !p.starUp; this.saveLsSet("xiu_sp_pref", JSON.stringify(p)); this.openSpellPick(this._spPickRep); },
     // rep：更换第几格（不写 = 放入空格）
     openSpellPick(rep) {
@@ -1027,7 +1023,7 @@ G.module({
       s.fabao[k] = it.e; s.bag[i] = { t: "eq", e: old };
       this.log(`装备了${it.e.name}。`, "good"); this.closeModal(); this.after();
     },
-    // v239 法术精研界面：用该系法术心得精研，每次 + 属性伤害（config/gongfa.js 的 JY_DMG / JY_COST）
+    // 法术精研界面：用该系法术心得精研，每次 + 属性伤害（config/gongfa.js 的 JY_DMG / JY_COST）
     openSpellJy(id) {
       const s = this.s, g = DATA.spellInfo(id, s.gongfa[id]); if (!g || !s.gongfa[id]) return;
       const have = (s.spXd || {})[g.el.id] || 0, add = DATA.jyStep(g.star, "JY_DMG"), c = DATA.jyCost(g.star, g.jy);
@@ -1053,23 +1049,23 @@ G.module({
         <button onclick="G.unslotSpell(${i})">卸下</button><button onclick="G.openSpellPick(${i})">更换</button><button class="row-full" onclick="G.closeModal()">关闭</button></div>`);
     },
 
-    /* ---------- 法术融合 / 进阶、法宝融合（config/gongfa.js FUSE）---------- */
+    /* ---------- 法术融合（config/gongfa.js FUSE）---------- */
     spMax() { return DATA.GONGFA_MAX || 10; },
     spOwned() { return Object.keys(this.s.gongfa).filter(id => DATA.isSpell(id) && DATA.spellInfo(id, this.s.gongfa[id])); },
-    // 法术从各处拿掉（被融合 / 进阶用掉）；to = 换成哪本（进阶）
-    spDrop(id, to) {
+    // 法术从各处拿掉（被融合用掉）
+    spDrop(id) {
       const s = this.s;
       delete s.gongfa[id]; if (s.spJy) delete s.spJy[id]; if (s.spFuse) delete s.spFuse[id];
-      // 法术栏也是固定格子：卸下 / 换成新法术只改该格，留空不补位；原来 filter 会把全部空位闭合，后面的法术整体前移
-      s.spellSlots = s.spellSlots.map(x => x === id ? to || null : x);
+      // 法术栏也是固定格子：只把该格清空，留空不补位（不能用 filter，会把空位闭合、后面的法术整体前移）
+      s.spellSlots = s.spellSlots.map(x => x === id ? null : x);
       // 战斗设置里也引用了法术键名（sp:id），不更新会一直指向已删除的法术。
       const b = s.bset;
       if (b) {
-        const key = "sp:" + id, toKey = to ? "sp:" + to : null;
-        if (Array.isArray(b.r)) b.r = b.r.map(x => x === key ? (toKey || "auto") : x);
-        if (b.lowKey === key) b.lowKey = toKey || "";
-        if (Array.isArray(b.off)) b.off = b.off.map(x => x === key ? toKey : x).filter(Boolean);
-        if (Array.isArray(b.order)) b.order = b.order.map(x => x === key ? toKey : x).filter(Boolean);
+        const key = "sp:" + id;
+        if (Array.isArray(b.r)) b.r = b.r.map(x => x === key ? "auto" : x);
+        if (b.lowKey === key) b.lowKey = "";
+        if (Array.isArray(b.off)) b.off = b.off.map(x => x === key ? null : x).filter(Boolean);
+        if (Array.isArray(b.order)) b.order = b.order.map(x => x === key ? null : x).filter(Boolean);
       }
     },
     fuseRow(fu, maxStar) {
@@ -1095,7 +1091,7 @@ G.module({
       if (!s.gongfa[id] || !g || !f || g.lv < M || f.lv < M || f.star >= g.star) return;
       const fu = (s.spFuse = s.spFuse || {})[id] = s.spFuse[id] || {};
       if ((fu[f.star] || 0) >= C.PER_STAR) return this.log(`${f.star}星法术已融合 ${C.PER_STAR} 本。`, "sys");
-      // 被融合法术的融合数量、精研次数按两边较高的保留（融合按星取较大，上限 PER_STAR；用户定 2026-11-25，取代法术进阶）
+      // 被融合法术的融合数量、精研次数按两边较高的保留（融合按星取较大，上限 PER_STAR；用户定）
       const fuF = (s.spFuse || {})[fid] || {}, jyF = (s.spJy || {})[fid] || 0;
       for (const k in fuF) fu[k] = Math.min(C.PER_STAR || 99, Math.max(fu[k] || 0, fuF[k] || 0));
       if (jyF > ((s.spJy || {})[id] || 0)) (s.spJy = s.spJy || {})[id] = jyF;
@@ -1118,9 +1114,9 @@ G.module({
     // 格子：有装备 = 图片 + 名字；空 = 只显示格子名称（头盔、法宝……）
     const sInfo = this.slotInfoOn();   // 设置 → 其他设置 可关；显示时图片上移 10%
     const cell = (key, label, e) => { const src = DATA.eqIcon(e); return `<div class="slot-eq ${e ? "q" + e.q + (sInfo ? " sp-slot" : "") : ""}${DATA.eqCls(e)}" onclick="G.openEquip('${key}')">
-        ${e ? `${src ? DATA.fbArt(e, src, "si") : ""}<span class="nm">${e.name}</span>${sInfo ? (t => `<span class="spl${t.length > 7 ? " lg" : ""}">${t}</span>`)(`${(e.g || 0) + 1}星 精炼${DATA.rjCount(e)}`) : ""}` : `<b>${label}</b>`}</div>`; };   // 格子底部绿字：星级 + 已精炼次数（用户定 2026-11-23） // 只显示名字，点击看详细
+        ${e ? `${src ? DATA.fbArt(e, src, "si") : ""}<span class="nm">${e.name}</span>${sInfo ? (t => `<span class="spl${t.length > 7 ? " lg" : ""}">${t}</span>`)(`${(e.g || 0) + 1}星 精炼${DATA.rjCount(e)}`) : ""}` : `<b>${label}</b>`}</div>`; };   // 格子底部绿字：星级 + 已精炼次数（用户定）；点击看详细
 
-    // v（仿立绘界面）：格子围着人物站立图，左右两列；装备 12 格 = 外侧 4 + 内侧上下各 1，法宝 / 法术 8 格 = 外侧左右各 4
+    // 仿立绘界面：格子围着人物站立图，左右两列；装备、法宝、法术都是 12 格 = 左右外侧各 4 + 内侧上下各 1
     const sCells = [], at = (c, r, h) => sCells.push(h.replace('<div class="slot-eq', `<div style="grid-column:${c};grid-row:${r}" class="slot-eq`));
     if (tab === "eq") {
       const P = { pendant: [1, 1], helmet: [2, 1], armor: [1, 2], weapon: [1, 3], legs: [1, 4], boots: [2, 4], ring0: [4, 1], ring1: [5, 1], ring2: [5, 2], ring3: [5, 3], ring4: [5, 4], ring5: [4, 4] };
@@ -1138,13 +1134,13 @@ G.module({
     }
     const top = `<div class="card bagstage"><div class="bs-hero" style="grid-column:2/5;grid-row:1/5"><img src="${this.heroImg("ys")}?v=${DATA.IMG_V}" alt=""></div>
       <div class="bs-top" style="grid-column:3;grid-row:1">${tabs}</div><div class="bs-bot" style="grid-column:3;grid-row:4">${spBtn}</div>${orb("shentong", "神通秘术", 2)}${orb("benming", "本命法宝", 4)}${sCells.join("")}</div>`;
-    // 背包不再自动整理：打开背包不重排、不补位，只有手动点「整理」才按原规则排序。
-    // v26：储物格分类（全部 丹药 药材 矿石）+ 出售页
+    // 打开背包不重排、不补位，只有手动点「整理」才排序。
+    // 储物格分类（全部 丹药 药材 矿石）+ 出售页
     const flt = this.bagFilter || "all", match = it => flt === "all" || (flt === "dan" ? it.t === "pill" || it.t === "dan" || it.t === "ql" || it.t === "ylb" || it.t === "ysd" : flt === "herb" ? (it.t === "mat" && it.kind === "herb") || it.t === "seed" || it.t === "lg" || (it.t === "cu" && !!((this.cuDef(it.name) || {}).herb)) : (it.t === "mat" && it.kind === flt) || (flt === "ore" && it.t === "cu" && !!((this.cuDef(it.name) || {}).ore)));
     const ftabs = `<div class="bag-tabs">${[["all", "全部"], ["dan", "丹药"], ["herb", DATA.matKinds.herb], ["ore", DATA.matKinds.ore]].map(([k, t]) =>
       `<button class="${flt === k && !this.bagSell ? "active" : ""}" onclick="G.setBagFilter('${k}')">${t}</button>`).join("")}
       <button class="sell ${this.bagSell ? "active" : ""}" onclick="G.openSellPage()">出售</button>
-      <button onclick="G.sortBagNow()">整理</button>${this.lqQBtn("gf")}</div>`;   // 学习队列按钮（用户定 2026-11-15）
+      <button onclick="G.sortBagNow()">整理</button>${this.lqQBtn("gf")}</div>`;   // 学习队列按钮（用户定）
     if (this.bagSell) return top + `<div class="card"><h3>储物格<small>${this.bagUsed()} / ${s.bagCap}</small></h3>${ftabs}</div>` + this.sellPageView(match);
     let cells = "", shown = 0;
     for (let i = 0; i < s.bagCap; i++) {

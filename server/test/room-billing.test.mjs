@@ -16,7 +16,7 @@ test("离开再进：重新立刻扣，倒计时从头算", () => {
   h.act("enterRoom", [0], T0 + 1000);                 // -R
   h.adv(T0 + 50_000);
   h.act("enterRoom", [0], T0 + 50_000);               // 离开，不扣
-  h.act("enterRoom", [0], T0 + 55_000);               // 再进 -R，下次 1:55
+  h.act("enterRoom", [0], T0 + 55_000);               // 再进 -R，下次 = 55 秒 + MIN
   assert.equal(h.get().contrib, 10_000 - 2 * R);
   assert.equal(h.get().roomAt, T0 + 55_000 + MIN);
   h.adv(T0 + 45_000 + MIN); assert.equal(h.get().contrib, 10_000 - 2 * R);   // 还没到
@@ -45,7 +45,7 @@ test("两个房间各自计时，互不影响", () => {
 
 test("贡献刚好够 / 差 1：刚好够的那次扣完才离开", () => {
   const R = new GameEngine().DATA.rooms[1].cost;
-  const h = base(R * 4);                               // 进入 1 次 + 3 分钟
+  const h = base(R * 4);                               // 进入 1 次 + 之后 3 次
   h.act("enterRoom", [1], T0);
   h.adv(T0 + 3 * MIN); assert.equal(h.get().room, 1); assert.equal(h.get().contrib, 0);
   h.adv(T0 + 4 * MIN); assert.equal(h.get().room, -1); assert.equal(h.get().contrib, 0);
@@ -101,7 +101,7 @@ test("旧存档（在房间里但没有扣费时间）：不重复立刻扣，�
   h.adv(T0 + 10_000 + MIN); assert.equal(h.get().contrib, 1000 - R);
   const h2 = base(1000); h2.get().room = 0; delete h2.get().roomAt;
   h2.adv(T0 + 3 * 86_400_000);                         // 旧存档直接离线 3 天：也能正常补扣
-  assert.equal(h2.get().contrib, 1000 % R); assert.equal(h2.get().room, -1);   // 3 天要扣 4000 多次，1000 贡献扣完就离开
+  assert.equal(h2.get().contrib, 1000 % R); assert.equal(h2.get().room, -1);   // 3 天要扣 1400 多次，1000 贡献扣完就离开
 });
 
 test("进入免费修炼室：付费修炼室自动离开，不再扣；练功房照常扣", () => {

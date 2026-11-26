@@ -4,13 +4,14 @@
  * - 只显示已学会的，可按 心法/功诀/真经/秘诀/身法/法诀/法术 分类查看
  * - 已学会的功法全部生效，加成为固定数值
  * - 法术需放进背包“法术”栏才会在战斗中施放
- * - 每部 12 层，学会时为第 1 层
- * - 修炼升层需要时间，修炼期间每 5 秒消耗一次灵气（v246；灵气不够就暂停，等有灵气再继续）
- * - 修炼队列最多 15 个，当前这部练完自动开始下一个；离线也会继续
+ * - 每部最多 CFG.gongfa.MAX 层（10），学会时为第 1 层
+ * - 修炼升层需要时间，每 STUDY_STEP 秒（10 秒）结算并消耗一次灵气（灵气不够就暂停，等有灵气再继续）
+ * - 修炼队列最多 CFG.gongfa.QUEUE 个（20，不算正在修炼的），当前这部练完自动开始下一个；离线也会继续
  * 存档字段：
  *   gongfa:  { "s1_0:mijue": 3, "s1_0:sp:huo": 1, ... }  已学 → 层数
- *   gfStudy: { id, total, done, at, per, spent } | null
- *            正在修炼：总时长、已修炼时长（毫秒）、上次结算时间、每 5 秒消耗、已消耗灵气
+ *   gfStudy: { id, total, done, at, per, spent, u, stalled, stone, sc, su, spentStone } | null
+ *            正在修炼：总时长、已修炼时长（毫秒）、上次结算时间、每单位（STUDY_STEP 秒）消耗灵气、已消耗灵气、单位秒数、是否暂停；
+ *            秘法另有 每单位灵石、这层总灵石、已走单位、已扣灵石
  *   gfQueue: [id, ...]   排队中的（同一部可排多次，每次升一层）
  * 学习入口在门派“功法殿”（modules/sect.js）。
  * ===================================================================== */
@@ -20,23 +21,23 @@ G.module({
 
   defaults: () => ({ gongfa: {}, gfStudy: null, gfQueue: [], gfLearn: null, lq: { gf: [], dan: [], forge: [] }, gfAuto: { on: false, rules: [] } }),   // gfLearn：正在学习（首次习得）{ id, end }
 
-  // 每 10 秒结算修炼：按 5 秒一步扣灵气、累计进度
+  // 每 10 秒结算修炼：按 STUDY_STEP 秒一单位扣灵气、累计进度
   tick() {
     const s = this.s, STEP = DATA.STUDY_STEP * 1000;
-    this.lqTick("gf");   // v173 学习（首次习得）+ 学习队列
+    this.lqTick("gf");   // 学习（首次习得）+ 学习队列
     this.gfAutoFill();   // 自动队列：排队空了按条件补 AUTO_Q 个
     if (!s.gfStudy) this.nextStudy();
     while (s.gfStudy) {
       const st = s.gfStudy;
-      if (st.ling !== 1) { const inf = DATA.skillInfo(st.id, s.gongfa[st.id] || 1); if (inf) st.per = DATA.studyPer(inf); st.spent = 0; st.ling = 1; }   // v246 旧存档：正在修炼的改成按灵气算
-      if ((st.u || 5) !== DATA.STUDY_STEP) { const u0 = st.u || 5, inf = DATA.skillInfo(st.id, s.gongfa[st.id] || 1); if (inf) st.per = DATA.studyPer(inf); if (st.stone) { st.stone = st.sc ? st.sc / Math.ceil(st.total / 1000 / DATA.STUDY_STEP) : st.stone * DATA.STUDY_STEP / u0; st.su = (st.su || 0) * u0 / DATA.STUDY_STEP; } st.u = DATA.STUDY_STEP; }   // 结算单位改了（5 秒 → 10 秒，用户定 2026-11-22）：正在修炼的按新单位重算
-      // v247 每 10 秒结算一次（= 2 个 5 秒单位）；消耗仍按 5 秒单位计，最后不足 10 秒只扣剩下的单位，每层总消耗不变
+      if (st.ling !== 1) { const inf = DATA.skillInfo(st.id, s.gongfa[st.id] || 1); if (inf) st.per = DATA.studyPer(inf); st.spent = 0; st.ling = 1; }   // 旧存档：正在修炼的改成按灵气算
+      if ((st.u || 5) !== DATA.STUDY_STEP) { const u0 = st.u || 5, inf = DATA.skillInfo(st.id, s.gongfa[st.id] || 1); if (inf) st.per = DATA.studyPer(inf); if (st.stone) { st.stone = st.sc ? st.sc / Math.ceil(st.total / 1000 / DATA.STUDY_STEP) : st.stone * DATA.STUDY_STEP / u0; st.su = (st.su || 0) * u0 / DATA.STUDY_STEP; } st.u = DATA.STUDY_STEP; }   // 旧存档结算单位和 STUDY_STEP 不一致：正在修炼的按新单位重算
+      // 每 10 秒结算一次（= STUDY_SETTLE() 个 STUDY_STEP 单位）；消耗按单位计，最后一段只扣剩下的单位，每层总消耗不变
       // 练功房：先把练功房 % 加进秘法/经脉减少%里一起除，进度 × mul，每单位灵气同比例多扣，总消耗不变
       let R = this.gfRoomNow(DATA.skillInfo(st.id, s.gongfa[st.id] || 1));
       const mul = R ? R.mul : 1, per = this.ssGfPer(st.per * mul);   // 神识功法《敛息归元诀》减灵气
       const rem = Math.ceil((st.total - st.done) / (STEP * mul));
       // 最后不足 10 秒的一段：倒计时到 0 立刻结算，不再等满 10 秒
-      const SE = DATA.STUDY_SETTLE(), endMs = Math.ceil((st.total - st.done) / mul), fin = !st.stalled && rem <= SE && this.now() >= st.at + endMs;   // 最后一段按实际剩余时间到点就结算
+      const SE = DATA.STUDY_SETTLE(), endMs = Math.ceil((st.total - st.done) / mul), fin = !st.stalled && rem <= SE && this.now() >= st.at + endMs;
       const steps = fin ? 1 : Math.floor((this.now() - st.at) / (SE * STEP));
       if (steps <= 0) break;
       st.at += fin ? endMs : steps * SE * STEP;
@@ -52,7 +53,7 @@ G.module({
       let can = lmOk ? lmN : Math.max(0, Math.min(want, per > 0 ? Math.floor(s.ling / per) : Infinity, sp ? Math.floor(s.stone / sp) : Infinity));   // per 可能被《敛息归元诀》减到 0：灵气 0 时 0/0 = NaN
       if (can < rem) can -= can % SE;   // 只按整 10 秒走（最后一次除外）
       if (lmOk) st.spent += can * lmPer; else { s.ling -= can * per; st.spent += can * per; } st.done = can >= rem ? st.total : Math.min(st.total, st.done + can * STEP * mul);
-      if (sp) {   // 秘法灵石：按已走的 5 秒单位四舍五入累计，这层走完正好扣满 sc
+      if (sp) {   // 秘法灵石：按已走的单位四舍五入累计，这层走完正好扣满 sc
         const C = st.sc || Math.round(st.stone * Math.ceil(st.total / STEP)); st.su = (st.su || 0) + can * mul;
         const tgt = st.done >= st.total ? C : Math.min(C, Math.round(st.stone * st.su)), pay = Math.max(0, tgt - (st.spentStone || 0));
         s.stone -= pay; st.spentStone = (st.spentStone || 0) + pay; }
@@ -62,7 +63,7 @@ G.module({
       // 完成，升一层
       s.gongfa[st.id] = (s.gongfa[st.id] || 1) + 1;
       const info = DATA.skillInfo(st.id, s.gongfa[st.id]);
-      if (this._off) this._off.gfUp[`《${info.name}》`] = info.lv;   // v173 离线账本
+      if (this._off) this._off.gfUp[`《${info.name}》`] = info.lv;   // 离线账本
       this.log(`修炼有成，《${info.name}》提升至第 ${info.lv} 层！共消耗灵气 ${U.fmt(st.spent)}${st.spentStone ? `、灵石 ${U.fmt(st.spentStone)}` : ""}。`, "gold");
       s.gfStudy = null; this.dirty();
       this.nextStudy(st.at);
@@ -76,27 +77,27 @@ G.module({
       const g = DATA.skillInfo(id); if (!g) return;
       this.lqAdd("gf", { id, k: "gf", ms: DATA.gfLearnMin(g.star) * 60000 });
     },
-    // 功法殿 / 坊市 / 功德司左边一列「功法类型」按钮（字竖排，用户定 2026-11-14）：this.gfSide = all / 类别 id（base）/ spell
+    // 功法殿 / 坊市 / 功德司左边一列「功法类型」按钮（字竖排，用户定）：this.gfSide = all / 类别 id（base）/ spell
     gfSideKey(g) { return g.kind === "sp" ? "spell" : g.type ? (g.type.base || g.type.id) : ""; },
-    // 选了类型：只列这一类没学会的；「已学会」（最下面）：列全部已学会的（用户定 2026-11-14，去掉「全部」）
+    // 选了类型：只列这一类没学会的；「已学会」（最下面）：列全部已学会的（用户定）
     gfSideOk(g) { const k = this.gfSide; return k === "done" ? this.hasGongfa(g.id) : (!k || this.gfSideKey(g) === k) && !this.hasGongfa(g.id); },   // k = "" 一个都不选 = 全部类型（没学会的）
     // gs = 这一页全部功法（决定显示哪些按钮），html = 右边内容（调用前先 gfSideFix）
     gfSideKeys(gs) { const have = new Set(gs.map(g => this.gfSideKey(g)));
       return [...DATA.gongfaTypes.filter(t => !t.base && have.has(t.id)).map(t => [t.id, t.id === "tijue" ? "炼体" : t.name]), ...(have.has("spell") ? [["spell", "法术"]] : []), ["done", "已学会"]]; },
-    gfSideFix(gs) { const keys = this.gfSideKeys(gs); if (this.gfSide === undefined || (this.gfSide !== "" && !keys.some(([k]) => k === this.gfSide))) this.gfSide = "";  /* 默认不选 = 全部类型（用户定 2026-11-14） */ return gs; },
+    gfSideFix(gs) { const keys = this.gfSideKeys(gs); if (this.gfSide === undefined || (this.gfSide !== "" && !keys.some(([k]) => k === this.gfSide))) this.gfSide = "";  /* 默认不选 = 全部类型（用户定） */ return gs; },
     gfSideWrap(gs, html) {
       const keys = this.gfSideKeys(gs), cur = this.gfSide, v = n => [...n].join("<br>");
       return `<div class="gf-side-wrap"><div class="gf-side">${keys.map(([k, n]) => `<button class="${cur === k ? "active" : ""}" onclick="G.setGfSide('${k}')">${v(n)}</button>`).join("")}</div><div class="gf-side-main">${html}</div></div>`;
     },
-    setGfSide(k) { this.gfSide = this.gfSide === k ? "" : k; this.render(); },   // 再点一次已选的 = 不选 = 全部（用户定 2026-11-14）
+    setGfSide(k) { this.gfSide = this.gfSide === k ? "" : k; this.render(); },   // 再点一次已选的 = 不选 = 全部（用户定）
     // 功法殿 / 坊市 / 功德司的学习按钮
     gfLearnBtn(g, on, poor) {
       if (this.hasGongfa(g.id)) return `<button class="sm" disabled>已学会</button>`;
       return this.lqBtn("gf", g.id, on, poor);
     },
 
-    /* ---------- v173 学习队列 ----------
-     * 一条队列（2026-11-15 起同时只学一个）：gf 功法 / 法术 / 秘法 / 背包秘诀，dan 丹方，forge 炼器图谱 / 背包图纸
+    /* ---------- 学习队列 ----------
+     * 一条队列（同时只学一个）：gf 功法 / 法术 / 秘法 / 背包秘诀，dan 丹方，forge 炼器图谱 / 背包图纸
      * 正在学的放在 s.gfLearn / s.danStudy / s.forgeStudy（{ id 或 key, end, ms, k }），后面排队的在 s.lq[队列]
      * 点学习就扣费，不能取消；排队最多 CFG.gongfa.LEARN_Q.MAX 个（不算正在学的）；前一个学完，下一个接着开始（离线也是） */
     lqSlot(ch) { return { gf: "gfLearn", dan: "danStudy", forge: "forgeStudy" }[ch]; },
@@ -105,7 +106,7 @@ G.module({
     lqKey(x) { return x.id !== undefined ? x.id : x.key; },
     // 0 = 没有，1 = 正在学，2 = 排队中
     lqHas(ch, key) { const c = this.s[this.lqSlot(ch)]; if (c && this.lqKey(c) === key) return 1; return this.lqList(ch).some(x => this.lqKey(x) === key) ? 2 : 0; },
-    // 三条只是存放位置，实际是一条队列：同时只学一个，按加入顺序（x.sq）轮流学（用户定 2026-11-15）
+    // 三条只是存放位置，实际是一条队列：同时只学一个，按加入顺序（x.sq）轮流学（用户定）
     lqChs() { return ["gf", "dan", "forge"]; },
     // 学习队列最早学完的时刻（服务器据此准点结算，不等 10 秒周期；没有返回 null）
     lqEnd() { const s = this.s; let e = null; for (const c of this.lqChs()) { const x = s[this.lqSlot(c)]; if (x && +x.end > 0 && (e == null || x.end < e)) e = +x.end; } return e; },
@@ -194,7 +195,7 @@ G.module({
       if (this.lqFull(ch)) return `<button class="sm" disabled>队列已满</button>`;
       return `<button class="sm" onclick="${on}" ${poor ? "disabled" : ""}>${this.lqCur() ? "排队" : "学习"}</button>`;
     },
-    // 学习队列卡片（没有就空）；每本一行、时间跟在名字后面（.lq-card，用户定 2026-11-14）
+    // 学习队列卡片（没有就空）；每本一行、时间跟在名字后面（.lq-card，用户定）
     lqCard(ch, title) {
       const c = this.lqCur(), q = this.lqQueued(); if (!c) return "";
       const left = Math.max(0, c.end - this.now());
@@ -202,8 +203,7 @@ G.module({
         <div class="line"><div class="pg">${this.pgFill(left, c.ms)}<span>${this.lqName(c)}<small>学习中 · 剩余 ${U.cd(left / 1000)}</small></span></div></div>` +
         q.map((o, i) => `<div class="line"><div>${i + 1}. ${this.lqName(o.x)}<small>排队中 · 需 ${U.dur(this.lqMs(o.ch, o.x) / 1000)}</small></div></div>`).join("") + `</div>`;
     },
-    // 「队列」按钮：点开弹窗看学习队列（坊市功法、功法殿用，用户定 2026-11-15）
-    // 「队列」按钮：后面显示正在学 + 排队的总数；点开弹窗看全部学习队列（功法 / 丹方 / 图纸，含背包里学的）（用户定 2026-11-15）
+    // 「队列」按钮：后面显示正在学 + 排队的总数；点开弹窗看全部学习队列（功法 / 丹方 / 图纸，含背包里学的）（用户定）
     lqAll() { return this.lqChs().reduce((t, c) => t + (this.s[this.lqSlot(c)] ? 1 : 0) + this.lqList(c).length, 0); },
     lqQBtn(ch, cnt) { const n = this.lqAll(); return `<button onclick="G.openLqQ('${ch}')">${cnt ? "学习队列" : "队列"}${n ? ` ${n}` : ""}</button>`; },
     lqBar(ch) { return `<div class="room-grid lq-bar">${this.lqQBtn(ch, 1)}</div>`; },   // 没有按钮行的页面：单独一个「队列」按钮
@@ -213,13 +213,13 @@ G.module({
     // 所有已学功法的加成合计（法术不算）
     gongfaBonus() {
       const b = { def: 0, atk: 0, hp: 0, cultivate: 0, speed: 0, hit: 0, dodge: 0, mana: 0, body: 0, res: {} };   // body：炼体秘诀加的肉身修炼速度 // res：真诀加的各系抗性
-      const raw = { res: {} };   // 不含灵根的功法原值：主神纹 % 按原值加（灵根 % 与神纹 % 相加，不相乘，用户定 2026-11-18）
+      const raw = { res: {} };   // 不含灵根的功法原值：主神纹 % 按原值加（灵根 % 与神纹 % 相加，不相乘，用户定）
       for (const id in this.s.gongfa) {
         if (DATA.isSpell(id)) continue;
         const info = DATA.gongfaInfo(id, this.s.gongfa[id]);
         if (!info || info.lsj) continue;   // 炼神诀不加战斗属性（神识、灵识点另算）
         const lgOn = !(info.kind === "mf" || info.noEl || !info.el), lgK = (st) => lgOn ? this.lingenSpd(st, info.el.id) : 1;
-        const v = info.value * lgK(info.type.stat);  // 灵根加成：修炼速度类走 GONGFA，其他功法走 OTHER（用户定 2026-11-14）
+        const v = info.value * lgK(info.type.stat);  // 灵根加成：修炼速度类走 GONGFA，其他功法走 OTHER（用户定）
         if (info.type.stat === "res") { b.res[info.el.id] = (b.res[info.el.id] || 0) + v; raw.res[info.el.id] = (raw.res[info.el.id] || 0) + info.value; }
         else { b[info.type.stat] += v; raw[info.type.stat] = (raw[info.type.stat] || 0) + info.value; }
         if (info.type.stat2) { b[info.type.stat2] += info.value2 * lgK(info.type.stat2); raw[info.type.stat2] = (raw[info.type.stat2] || 0) + info.value2; }
@@ -228,11 +228,11 @@ G.module({
       return b;
     },
     hasGongfa(id) { return !!this.s.gongfa[id]; },
-    // 这一层的修炼时间（秒）= STUDY_MIN ÷ (1 + 减少%)，最少 STUDY_MIN_SEC（秘法和功法一样：悟道 + 经脉 + 聚灵阵）
-    //   功法：悟道秘法 + 经脉光点冲满（jingmai.js jmGfCut）；法术：悟法秘法（经脉不减法术）；减少% 可以超过 100%
+    // 这一层的修炼时间（秒）= STUDY_MIN × 星级倍率 ÷ (1 + 减少%)，最少 STUDY_MIN_SEC（基础时间本来更短就按基础时间）
+    //   功法 / 秘法：悟道秘法 + 主神纹 + 经脉光点冲满（jingmai.js jmGfCut）+ 聚灵阵 + 神识功法；法术：悟法秘法 + 主神纹 + 神识功法（经脉不减法术）；减少% 可以超过 100%
     studySec(g) {
       if (g.noEl && !g.lsj) return Math.max(1, ((g.studyMin || [])[g.lv - 1] || 1) * 60);   // 开局功法书：config/start.js 的 STUDY_MIN
-      const sw = this.sjSwBonus ? this.sjSwBonus() : {}, m = this.mifaBonus(), red = g.kind === "sp" ? m.spStudy + this.ssGfSum("sp") + (sw.spStudy || 0) : (sw.gfStudy || 0) + m.gfStudy + (this.jmGfCut ? this.jmGfCut() : 0) + (this.arrayGfCut ? this.arrayGfCut() : 0) + this.ssGfSum("gf");   // + 神识功法
+      const sw = this.sjSwBonus ? this.sjSwBonus() : {}, m = this.mifaBonus(), red = g.kind === "sp" ? m.spStudy + this.ssGfSum("sp") + (sw.spStudy || 0) : (sw.gfStudy || 0) + m.gfStudy + (this.jmGfCut ? this.jmGfCut() : 0) + (this.arrayGfCut ? this.arrayGfCut() : 0) + this.ssGfSum("gf");
       const base = DATA.studyMin[g.lv - 1] * 60 * (1 + (CFG.gongfa.STUDY_STAR_PCT ?? 10) * Math.max(0, (g.star || 1) - 1) / 100);   // 1 星 100%，每高一星 + STUDY_STAR_PCT%
       return Math.max(Math.min(CFG.wudao.STUDY_MIN_SEC || 10, base), base / (1 + Math.max(0, red) / 100));
     },
@@ -265,13 +265,13 @@ G.module({
         if (!lv || !info || lv >= (info.max || DATA.GONGFA_MAX)) continue;
         const total = this.studySec(info) * 1000;
         const sc = info.layerStone || 0;
-        s.gfStudy = { id, total, done: 0, at: at || this.now(), per: DATA.studyPer(info), u: DATA.STUDY_STEP, spent: 0, stone: sc ? sc / Math.ceil(total / 1000 / DATA.STUDY_STEP) : 0, sc, su: 0, ling: 1 };   // stone：秘法每 5 秒灵石（这层 sc 平均分）   // per：每 5 秒消耗灵气（v246）；stone：秘法每 5 秒灵石
+        s.gfStudy = { id, total, done: 0, at: at || this.now(), per: DATA.studyPer(info), u: DATA.STUDY_STEP, spent: 0, stone: sc ? sc / Math.ceil(total / 1000 / DATA.STUDY_STEP) : 0, sc, su: 0, ling: 1 };   // per：每单位（STUDY_STEP 秒）消耗灵气；stone：秘法每单位灵石（这层 sc 平均分）
       }
       this.gfAutoFill();   // 取走一个后再补满
       if (!s.gfStudy && s.gfQueue.length && !(+at2 > 2)) return this.nextStudy(at, (+at2 || 0) + 1);   // 队列里的都丢弃了（如已满层）、刚补的马上开练，不用等下一轮
     },
     // 立即减功法修炼时间（现实毫秒）：等于让修炼直接多走 ms 这么久——把开始时间往前挪 ms 再结算，
-    // 灵气 / 灵石（秘法）按这段时间照常扣（灵气不够照常暂停）；修炼中的走完立即完成，剩下的接着走队列；队列空了剩余作废（用户定 2026-11-22）。
+    // 灵气 / 灵石（秘法）按这段时间照常扣（灵气不够照常暂停）；修炼中的走完立即完成，剩下的接着走队列；队列空了剩余作废（用户定）。
     // 返回实际用掉的毫秒（悟道室神魂之道用）
     gfCutTime(ms) {
       const s = this.s, M = (this.modules || []).find(x => x.id === "gongfa"), tick = () => { if (M && M.tick) M.tick.call(this); };
@@ -289,7 +289,7 @@ G.module({
       }
       return used;
     },
-    /* ---------- 自动队列（用户定 2026-11-24） ----------
+    /* ---------- 自动队列（用户定） ----------
      * s.gfAuto = { on, rules: [{ t, lv, star }] }，最多 CFG.gongfa.AUTO_RULES 条
      *   t：all 全部 / 功法类别 id（xinfa、gongjue…，含第 2、3 本）/ spell 法术 / mifa 秘法
      *   lv：低于第几层（计划层 = 当前 + 修炼中 + 排队中 < lv 才补；0 = 不限，补到满层）
@@ -297,7 +297,7 @@ G.module({
      * 排队里没有功法了才补，补 AUTO_Q 个：按条件先后，第一条没有可补的才看第二条；同一条里先补计划层最低的，再按星级高的。
      */
     gfAutoTypes() { const o = t => this.gfAutoOrd({ kind: "gf", type: t }); return [["all", "全部"], ...DATA.gongfaTypes.filter(t => !t.base).sort((a, b) => o(a) - o(b)).map(t => [t.id, t.name]), ["spell", "法术"], ["mifa", "秘法"]]; },
-    // 「全部」的补充顺序（用户定 2026-11-24）：心法 攻诀 抗性（6 种） 生命 秘诀 法力 命中 闪避 速度，之后 炼体秘诀、法术、秘法
+    // 「全部」的补充顺序（用户定）：心法 攻诀 抗性（6 种） 生命 秘诀 法力 命中 闪避 速度，之后 炼体秘诀、法术、秘法
     gfAutoOrd(g) { if (g.kind === "sp") return 20; if (g.kind === "mf") return 21; const st = g.type && g.type.stat, L = ["def", "atk", "res", "hp", "cultivate", "mana", "hit", "dodge", "speed", "body"], i = L.indexOf(st); return i < 0 ? 19 : i; },
     gfAutoCfg() { const s = this.s; if (!s.gfAuto || typeof s.gfAuto !== "object") s.gfAuto = { on: false, rules: [] }; if (!Array.isArray(s.gfAuto.rules)) s.gfAuto.rules = []; return s.gfAuto; },
     gfAutoMatch(g, r) {
@@ -314,7 +314,7 @@ G.module({
       const ids = Object.keys(s.gongfa); let lvSum = 0; for (const id of ids) lvSum += s.gongfa[id] || 0;
       const sig = `${ids.length}|${lvSum}|${s.gfStudy ? s.gfStudy.id : ""}|${s.gfQueue.join(",")}|${JSON.stringify(A.rules)}`, M = this._gfaMiss || (this._gfaMiss = new WeakMap());   // 按存档分开记（服务器一个引擎轮流算多个玩家）
       if (M.get(s) === sig) return;
-      // 每部只查一次 skillInfo，计划层数一次算好（之前每条条件 × 每补一个都重算）
+      // 每部只查一次 skillInfo，计划层数一次算好
       const plan = {}; for (const id of s.gfQueue) plan[id] = (plan[id] || 0) + 1;
       if (s.gfStudy) plan[s.gfStudy.id] = (plan[s.gfStudy.id] || 0) + 1;
       const all = [];
@@ -371,7 +371,7 @@ G.module({
     },
     gfAutoBtn() { const A = this.s.gfAuto; return `<button class="sm ${A && A.on ? "active" : ""}" onclick="G.openGfAuto()">自动队列${A && A.on ? "·开" : ""}</button>`; },
     removeQueue(i) { this.s.gfQueue.splice(i, 1); this.after(); },
-    // 「功法加成」：所有正在生效、减少功法 / 法术修炼时间的来源（v261 替代原来的「中断」）
+    // 「功法加成」：所有正在生效、减少功法 / 法术修炼时间的来源
     gfBonusView() {
       const m = this.mifaBonus(), ori = this.oriSum ? this.oriSum("gfStudyPct") : 0, K = id => (DATA.mifaKinds.find(k => k.id === id) || {}).name || id;
       const pill = this.studyPillPct ? this.studyPillPct() : 0, R = this.gfRoomNow ? this.gfRoomNow() : null;
@@ -389,7 +389,7 @@ G.module({
     setGfFilter(t) { this.gfFilter = t; this.render(); const g = typeof document !== "undefined" && document.getElementById("gf-scroll"); if (g) g.scrollTop = 0; },   // 换分类时列表回到顶部
     // 排序 / 隐藏满级：「按等级」「按星级」只选一个（by），再点切换方向
     //   默认 等级 低层 → 高层（lvUp = true）、星级 高星 → 低星（starUp = false）
-    //   三个设置存在浏览器本地（localStorage），刷新网页不变；按存档分开（用户 2026-11-17）
+    //   三个设置存在浏览器本地（localStorage），刷新网页不变；按存档分开（用户定）
     gfPref() {
       if (!this._gfPref) { let p = {}; try { p = JSON.parse(this.saveLsGet("xiu_gf_pref2") || "{}") || {}; } catch (e) {}
         let hide = p.hide; if (hide === undefined) { try { hide = !!(JSON.parse(this.saveLsGet("xiu_gf_pref") || "{}") || {}).hide; } catch (e) { hide = false; } }
@@ -397,17 +397,16 @@ G.module({
       return this._gfPref;
     },
     toggleGfPref(k) { const p = this.gfPref(); p[k] = !p[k]; this.saveLsSet("xiu_gf_pref2", JSON.stringify(p)); this.render(); },
-    // 按等级 / 按星级只能选一个（用户定 2026-11-14）：点没选中的 → 改用它排序；点已选中的 → 切换方向
+    // 按等级 / 按星级只能选一个（用户定）：点没选中的 → 改用它排序；点已选中的 → 切换方向
     setGfSort(k) { const p = this.gfPref(); k = k === "star" ? "star" : "lv";
       if (p.by !== k) { p.by = k; this.saveLsSet("xiu_gf_pref2", JSON.stringify(p)); return this.render(); }
       this.toggleGfPref(k === "lv" ? "lvUp" : "starUp"); },
     toggleGfHideMax() { this.toggleGfPref("hide"); },
 
-    // 数值显示：身法是闪避（两位小数），其余取整
     // 正在修炼的这一层什么时候结算完（毫秒）；暂停中返回 null（服务器据此准点结算）
     gfStudyEnd() {
       const st = this.s.gfStudy; if (!st || st.stalled) return null;
-      const R = this.gfRoomNow(DATA.skillInfo(st.id, this.s.gongfa[st.id] || 1)), mul = R ? R.mul : 1, STEP = DATA.STUDY_STEP * 1000;
+      const R = this.gfRoomNow(DATA.skillInfo(st.id, this.s.gongfa[st.id] || 1)), mul = R ? R.mul : 1;
       return st.at + Math.ceil((st.total - st.done) / mul);   // 按实际剩余时间（最后一段不满 10 秒也到点就完成）
     },
     gfValue(info, v) { return U.num(v); },
@@ -416,9 +415,7 @@ G.module({
       const t = Math.max(0, Math.ceil(ms / 1000)), h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60;
       return (h ? h + "小时" : "") + (h || m ? m + "分" : "") + s + "秒";
     },
-    // 第3层 → 第4层（目标层红框）
-    gfYears(sec) { const y = sec / ((+CFG.player.YEAR_MIN || 15) * 60); return `${y >= 100 ? Math.round(y) : +y.toFixed(1)}年`; },   // 游戏时间：现实 15 分钟 = 1 年（用户定 2026-11-16）
-    // 「修炼队列」页：正在修炼（倒计时、进度、消耗）+ 排队中的
+    gfYears(sec) { const y = sec / ((+CFG.player.YEAR_MIN || 15) * 60); return `${y >= 100 ? Math.round(y) : +y.toFixed(1)}年`; },   // 游戏时间：现实 CFG.player.YEAR_MIN 分钟 = 1 年（用户定）
     // 当前修炼进度：{ done, left, mul }（无修炼返回 null），倒计时卡片与队列累计共用
     gfStudyProg() {
       const s = this.s, st = s.gfStudy; if (!st) return null;
@@ -432,8 +429,8 @@ G.module({
     gfStudyCard() {
       const s = this.s, st = s.gfStudy; if (!st) return "";
       const info = DATA.skillInfo(st.id, s.gongfa[st.id]), p = this.gfStudyProg(), mul = p.mul;
-      // “共 X 灵气”按当前练功房倍率估算：每 5 秒单位灵气 ×mul，总单位数 ÷mul（mul=1 时与旧式一致）
-      // 星级 + 修到第几层（只显示目标层），不换行（用户定 2026-11-16）
+      // 「已消耗 / 总灵气」按当前练功房倍率估算：每单位灵气 ×mul，总单位数 ÷mul
+      // 星级 + 修到第几层（只显示目标层），不换行（用户定）
       return `<div class="card"><h3 class="gf-cur-h"><span class="gf-cur-l">修炼中 ·《${info ? info.name : st.id}》</span><span class="gf-tags">${info && !info.noEl ? `<span class="tag">${info.star}星</span>` : ""}${info ? `<span class="tag gf-to">第${info.lv + 1}层</span>` : ""}</span></h3>
         <div class="bar tick"><div id="gf-cd-bar"></div></div>
         <div class="gf-info"><div class="gf-info-l"><div class="row small"><span>${st.stalled ? `<b class='q5'>${st.stone ? "灵气或灵石" : "灵气"}不足，暂停中</b>` : `${info ? `<span class="c-green">${this.gfGainTxt(info)}</span> · ` : ""}倒计时 <b><span class="cd" id="gf-cd"></span></b>`}</span></div>
@@ -448,7 +445,7 @@ G.module({
       if (s.gfStudy) lvPlan[s.gfStudy.id] = (s.gongfa[s.gfStudy.id] || 1) + 1;
       const rows = s.gfQueue.map(id => {
         const lv = lvPlan[id] || s.gongfa[id] || 1, info = DATA.skillInfo(id, lv); lvPlan[id] = lv + 1;
-        // 排队中的每一部按自己的种类算练功房倍率（秘法/经脉减少%不同，倍率也不同），不再共用当前那部的 mul
+        // 排队中的每一部按自己的种类算练功房倍率（秘法/经脉减少%不同，倍率也不同）
         const mq = info ? (this.gfRoomNow(info) || {}).mul || 1 : mul;
         // 四舍五入到秒：各行累计 = 正在修炼的剩余 + 整秒，所有倒计时在同一刻跳秒，不会一个快一个慢（向上取整会让“全部完成约”每部多估最多 1 秒）
         const ms = info && lv < (info.max || DATA.GONGFA_MAX) ? Math.round(this.studySec(info) / mq) * 1000 : 0; acc += ms;
@@ -456,7 +453,7 @@ G.module({
       });
       return { rows, total: acc };
     },
-    // 修炼队列一行：这一层修完加多少（如「防御 +156」），代替原来的「需 X · 约」（用户定 2026-11-14）
+    // 修炼队列一行：这一层修完加多少（如「防御 +156」）（用户定）
     gfGainTxt(g) {
       if (!g) return "";
       if (g.kind === "sp") return `伤害 +${U.dec(g.next - g.pct)}%`;
@@ -473,7 +470,7 @@ G.module({
       html += `<div class="card"><h3>排队中<small>${s.gfQueue.length} / ${DATA.GF_QUEUE}${s.gfQueue.length ? ` · 全部完成约 <span class="cd" id="gf-q-total"></span>` : ""}</small></h3>` +
         (s.gfQueue.length ? `<div class="gf-qlist">` + s.gfQueue.map((id, i) => {
           const q = DATA.skillInfo(id); if (!q) return "";
-          // 一张网格排所有行：星级/层数一列对齐，下面对齐放剩余时间+后完成；按钮只留「移除」（用户定 2026-11-16）
+          // 一张网格排所有行：星级/层数一列对齐，下面对齐放剩余时间+后完成；按钮只留「移除」（用户定）
           return `<div class="gf-qrow"><div class="gf-qn">${i + 1}. 《${q.name}》</div><div class="gf-tags gf-q-tg">${q.noEl ? "" : `<span class="tag">${q.star}星</span>`}<span class="tag gf-to">第${rows[i].lv + 1}层</span></div><div class="gf-qb"><button class="sm" onclick="G.removeQueue(${i})">移除</button></div><small class="gf-qs c-green">${this.gfGainTxt(DATA.skillInfo(id, rows[i].lv))}</small><small class="gf-qt"><span class="cd" id="gf-q-${i}-acc"></span>后完成</small></div>`; }).join(`<div class="gf-qsep"></div>`) + `</div>`
           : `<p class="desc">队列为空。</p>`) + `</div>`;
       return html;
@@ -501,7 +498,7 @@ G.module({
         ? `${this.spellDmgTxt(g)}，耗法力 ${U.fmt(g.mana)}，每场战斗 ${g.uses} 次${max ? "" : `，下一层 攻击×${U.dec(g.next)}%`}`
         : `${g.label} ${cv("+" + this.gfValue(g, g.value * lgK))}${lgTxt}${max ? "" : `，下一层 ${cv("+" + this.gfValue(g, g.next * lgK))}`}` +
           (g.label2 ? `；${g.label2} ${cv("+" + this.gfValue(g, g.value2 * lgK))}${max ? "" : `，下一层 ${cv("+" + this.gfValue(g, g.next2 * lgK))}`}` : "");
-      const nxV = [], nx = { v: nxV, d: desc.replace(/，下一层 ([^，；]*)/g, (_, v) => { nxV.push(v); return ""; }) };   // 描述里的「下一层 X」移到下一层那行（用户定 2026-11-16）
+      const nxV = [], nx = { v: nxV, d: desc.replace(/，下一层 ([^，；]*)/g, (_, v) => { nxV.push(v); return ""; }) };   // 描述里的「下一层 X」移到下一层那行（用户定）
       const sec = max ? 0 : this.studySec(g), n = Math.ceil(sec / DATA.STUDY_STEP), per = max ? 0 : this.ssGfPer(DATA.studyPer(g), !(this.s.gfStudy && this.s.gfStudy.id === g.id)), sp = max ? 0 : g.layerStone || 0;
       return `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》${g.noEl ? "" : `<span class="tag">${g.star}星</span>`}${g.kind === "mf" || g.noEl ? "" : `<span class="tag">${g.el.name}</span>`}<span class="tag gf-lv">第${g.lv}层</span><div class="c-red" style="white-space:nowrap;min-height:1.4em">${plan > g.lv ? `已排至第${plan}层` : ""}</div>
         <small>${nx.d}${max ? "" : `<br>下一层：${nx.v.length ? nx.v.join("；") + " · " : ""}${this.gfYears(sec)} · 每10秒 ${U.fmt(per * DATA.STUDY_SETTLE())} 灵气${sp ? ` + ${U.fmt(Math.round(sp * DATA.STUDY_SETTLE() / n))} 灵石` : ""}`}</small></div>
@@ -539,10 +536,10 @@ G.module({
     // 按选中的（等级或星级）排，相同再按另一个
     const byLv = (a, b) => P.lvUp ? a.lv - b.lv : b.lv - a.lv, bySt = (a, b) => P.starUp ? a.star - b.star : b.star - a.star;
     const sortFn = P.by === "star" ? (a, b) => bySt(a, b) || byLv(a, b) : (a, b) => byLv(a, b) || bySt(a, b);   // 选中的为主，相同再按另一个
-    // v195「全部」：不分类型，一张卡片按排序显示（元婴出窍秘法放最前）
+    // 「全部」：不分类型，一张卡片按排序显示
     const body = filter === "all" ? (all.length ? `<div class="card"><h3>全部功法<small>${full.length} 部</small></h3>${all.sort(sortFn).map(g => this.skillLine(g)).join("")}</div>` : "") :
       groups.filter(gr => gr.key === filter).map(gr => {
-      if (!gr.items.length) return filter === "all" ? "" : `<div class="card"><p class="desc">${hide && gr.total ? `${gr.title}共 ${gr.total} 部，都已满级（已隐藏）` : `尚未学会任何${gr.title}`}。</p></div>`;
+      if (!gr.items.length) return `<div class="card"><p class="desc">${hide && gr.total ? `${gr.title}共 ${gr.total} 部，都已满级（已隐藏）` : `尚未学会任何${gr.title}`}。</p></div>`;
       gr.items.sort(sortFn);
       return `<div class="card"><h3>${gr.title}<small>${gr.total} 部</small></h3>${gr.items.map(g => this.skillLine(g)).join("")}</div>`;
     }).join("");

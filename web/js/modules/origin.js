@@ -3,10 +3,11 @@
  * ---------------------------------------------------------------------
  * 创建角色时选最多 PICK 个出身，存进 s.ori（id 数组），之后不能改。
  * 开局一次性奖励在 oriApply（服务器 createState 调用）；永久效果用 oriSum(键) 读，
- * 各处接入：wudao.js mifaBonus（探索每步、功法修炼时间、炼丹/炼器成功率、肉身速度）、gongfa.js lqAdd（功法学习时间）、
- * trib.js（雷属性伤害、失败不掉修为）、world.js incMul（秘境收益）、data/gongfa.js gfLearnCost + world.js 坊市（价格）、
- * shenshi.js lsTotal（神识）、sect.js joinSect（宗门遗孤）。
- * 存档：ori [id...]，oriSect 1 = 宗门遗孤已经用过
+ * 各处接入：wudao.js mifaBonus（探索每步、功法 / 法术修炼时间、炼丹/炼器成功率、修炼 / 肉身速度）、gongfa.js（修炼时间显示）、
+ * craft.js（炼丹额外出丹）、trib.js（雷属性伤害、失败不掉修为）、world.js（秘境收益、元婴出窍收益）、data/gongfa.js（坊市价格）、
+ * jingmai.js oriEl（灵体伤害 / 减伤）、shenshi.js（灵识点、神识强度）、sect.js joinSect（宗门遗孤）。
+ * 存档：ori [id...]，oriExtra 礼包码加的出身点，oriSect 1 = 宗门遗孤已经用过，oriSs 1 = 已加过出身神识强度，
+ *   oriFreeGf 出身送的不占灵识点功法，sy 寿元
  * ===================================================================== */
 G.module({
   id: "origin",
@@ -23,14 +24,14 @@ G.module({
     oriSsFix() { const s = this.s; if (!s || s.oriSs) return; s.oriSs = 1; const v = this.oriSum("ssPow"); if (v > 0) s.ssPow = (s.ssPow || 0) + v; },
     // 出身灵体：k = "Dmg"（造成该系伤害 +%）或 "Cut"（受到该系伤害 −%）
     oriEl(k, el) { if (!el) return 0; let t = 0; for (const o of this.oriOf()) t += (o.el === el ? +o["el" + k] || 0 : 0) + (+o["allEl" + k] || 0); return t; },
-    // 人物头像弹窗里点出身按钮：弹窗内浮层显示具体效果（用户定 2026-11-16）
+    // 人物头像弹窗里点出身按钮：弹窗内浮层显示具体效果（用户定）
     oriTip(id) { const o = this.oriList().find(x => x.id === id), b = $("#modal-box"); if (!o || !b) return; const old = b.querySelector(".ori-tip"); if (old) old.remove();
       const d = document.createElement("div"); d.className = "ori-tip"; d.onclick = e => { if (e.target === d) d.remove(); };
       d.innerHTML = `<div class="ori-tip-box"><h3>${o.name}</h3><p>${o.desc || ""}</p><div class="btns"><button onclick="this.closest('.ori-tip').remove()">关闭</button></div></div>`; b.appendChild(d); },
-    // ---------- 寿元（CFG.origin.SY）：存档 sy = { at 开启时间, cut 扣掉的寿元上限年数, dead 死亡时间 } ----------
+    // ---------- 寿元（CFG.origin.SY）：存档 sy = { at 开启时间, cut 扣掉的寿元上限年数, ext 延寿丹加的年数, dead 死亡时间 } ----------
     syOn(s = this.s) { return !!(s && s.sy); },
     syDead(s = this.s) { return !!(s && s.sy && s.sy.dead); },
-    syLife() { const L = ((CFG.origin || {}).SY || {}).LIFE || [], r = this.r(); return r < L.length ? (+L[r] || Infinity) + (+(this.s.sy || {}).ext || 0) - (+(this.s.sy || {}).cut || 0) : Infinity; },   // 修为境界 + 延寿丹 − 扣掉的寿元（扣上限，用户定 2026-11-20）
+    syLife() { const L = ((CFG.origin || {}).SY || {}).LIFE || [], r = this.r(); return r < L.length ? (+L[r] || Infinity) + (+(this.s.sy || {}).ext || 0) - (+(this.s.sy || {}).cut || 0) : Infinity; },   // 修为境界 + 延寿丹 − 扣掉的寿元（扣上限，用户定）
     syYearMs() { return (+CFG.player.YEAR_MIN || 60) * 60000; },
     syAge(t = this.now()) { const y = this.s.sy; return (+((CFG.origin || {}).SY || {}).AGE0 || 0) + Math.max(0, t - y.at) / this.syYearMs(); },
     syDeathAt() { const y = this.s.sy, life = this.syLife(); if (!y || y.dead || !isFinite(life)) return Infinity; return y.at + (life - (+((CFG.origin || {}).SY || {}).AGE0 || 0)) * this.syYearMs(); },
@@ -108,7 +109,7 @@ G.module({
         const on = a.includes(o.id), off = !on && a.length >= P;
         return `<div class="ori-it${on ? " on" : ""}${off ? " off" : ""}" onclick="G.oriToggle('${o.id}')"><b>${o.name}</b><small>${o.desc || ""}</small></div>`;
       }).join("");
-      // 出身可以不选满（基础和礼包码出身点都是，用户定 2026-11-16）；没选满开始时弹确认
+      // 出身可以不选满（基础和礼包码出身点都是，用户定）；没选满开始时弹确认
       const b = $("#start-btn"); if (b) { b.disabled = false; b.textContent = "开始修仙"; }
     },
   },

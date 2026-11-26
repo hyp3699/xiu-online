@@ -3,7 +3,7 @@
 //   test   = 调试人物测试模式（炼制 1 秒、不限境界、四界全开），最快跑到后期内容
 //   boost  = 正常规则，但定期给大量灵石 / 灵气 / 材料 / 装备、提升境界、拨快时间
 //   normal = 不作弊，只拨快时间
-// 发现问题写到 out/<seed>.json（含复现用的操作序列），同类问题只记前几次。
+// 发现问题写到 out/<mode>-<seed>.json（含复现用的操作序列），同类问题只记前几次。
 import { GameEngine } from "../../server/game-engine.mjs";
 import fs from "node:fs";
 import path from "node:path";
@@ -30,7 +30,7 @@ e.bindState(s, now); s = e.G.s;
 
 const WL = JSON.parse(fs.readFileSync(new URL("../../server/action-whitelist.json", import.meta.url), "utf8"))
   .filter(a => typeof G[a] === "function");
-// 不点的：重置存档（会把进度清掉，单独低频点）
+// 低频点的：重置存档、退出宗门、遗忘功法、辞官等（会清掉进度，只保留 2%）
 const RARE = new Set(["doReset", "leaveSect", "forgetGongfa", "xjResign", "svFire"]);
 const WL_COMMON = WL.filter(a => !RARE.has(a));
 const params = {};
@@ -122,12 +122,12 @@ function checkState(act) {
 // ---------- 主循环 ----------
 let step = 0, CUR = {};
 const junky = args => args.some(a => a === null || a === "" || a === "x" || a === 999 || a === -1);
-const t0 = Date.now(), stats = { ok: 0, err: 0, perAct: {} };
+const t0 = Date.now(), stats = { ok: 0, err: 0 };
 for (step = 0; step < STEPS; step++) {
   if (MODE !== "normal" && step % 150 === 0) boost();
   // 拨快时间：多数操作间隔几秒，偶尔跳几分钟到几小时（推动炼制、种田、修炼、离线结算）
   const r = rnd(); now += r < .7 ? ri(1, 20) * 1000 : r < .95 ? ri(1, 30) * 60000 : ri(1, 12) * 3600000;
-  let act = pick(WL); if (RARE.has(act) && rnd() > .02) act = pick(WL_COMMON);   // 稀有操作只保留 2%（原来判断和取用的是两次不同的随机，等于没节流）
+  let act = pick(WL); if (RARE.has(act) && rnd() > .02) act = pick(WL_COMMON);   // 稀有操作只保留 2%
   const args = params[act].map(genArg);
   trail.push([now, act, args]); if (trail.length > 60) trail.shift();
   // 和服务器一样：在副本上执行，出错就丢弃副本（存档不变）
@@ -143,7 +143,6 @@ for (step = 0; step < STEPS; step++) {
     else if (!/未知操作|不允许调用/.test(m) && ["TypeError", "RangeError", "ReferenceError", "SyntaxError"].includes(err && err.name)) report(junky(args) ? "坏参数报错（服务器会回滚）" : "操作报错", err, { act, args });
     s = backup; e.bindState(s, now); s = e.G.s;
   }
-  (stats.perAct[act] = stats.perAct[act] || 0), stats.perAct[act]++;
   try { if (checkState(act)) { s = backup; e.bindState(s, now); s = e.G.s; } }   // 坏状态：记下后回到操作前，免得一个错连锁卡死后面
   catch (err) { report("检查出错", err, { act }); }
   // 存档往返：序列化再读回（模拟重启服务器 / 重新登录）

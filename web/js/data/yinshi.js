@@ -1,6 +1,6 @@
 /* =====================================================================
  * 数据：隐世宗门功法阁功法（数值在 config/yinshi.js）
- * 来源 id「ys_宗门id」（src = "ys"），每个宗门 12 本，星级 = list 里的 star，效果 = 同星级宗门功法 × GF_PCT%；功诀/心法/秘诀/炼体秘诀占灵识点（不能遗忘），其余不占
+ * 来源 id「ys_宗门id」（src = "ys"），每个宗门 16 本（config GF_KEYS），星级 = list 里的 star，效果 = 同星级宗门功法 × GF_PCT%；功诀/心法/秘诀/炼体秘诀占灵识点（不能遗忘），其余不占
  * ===================================================================== */
 (() => {
   const C = CFG.yinshi || {};
@@ -19,7 +19,7 @@
     DATA.gfSrcById[id] = o;
   });
   DATA.ysGfName = (o, type) => { const S = C.GF_SUFFIX || {}, key = type.fam === "zhenjue" ? (o.els || {})[type.id] : type.id; return o.prefix + (S[key] || type.suffix); };
-  // 宗门的 12 本功法 id（按 GF_KEYS 顺序）
+  // 宗门的全部功法 id（按 GF_KEYS 顺序）
   DATA.ysGfIds = ysId => (C.GF_KEYS || []).map(k => DATA.gongfaId("ys_" + ysId, DATA.ysTypeId(k))).filter(id => DATA.gongfaInfo(id, 1));
 })();
 

@@ -34,8 +34,7 @@ G.module({
       this.enterGame();
     },
     async enterGame() {
-      // 服务器重启/更新时刷新正好撞上空档会失败一次：以前直接锁死在登录框，
-      // 服务器恢复后也不会自动再试，只能重启 App。现在先自动重试几次，
+      // 服务器重启/更新时刷新正好撞上空档会失败一次：先自动重试几次（最多 10 次），
       // 只有登录过期才立即回登录框，其它网络失败重试完才提示。
       let data, lastErr = null;
       for (let attempt = 0; attempt < 10; attempt++) {
@@ -73,8 +72,8 @@ G.module({
       API.resetCharacter(pw).then(() => location.reload()).catch(e => { this._stopped = false; this.modal(`<h2>重置失败</h2><p>${e.message}</p><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`); });
     },
 
-    // 创建角色（不再随机灵根；灵根在「灵根」页用灵石提升）
-    // 出身页占满屏幕（用户定 2026-11-16）。右上角「管理员」（管理员全部功能，页内显示）；「增加出身点」输入礼包码多选出身
+    // 创建角色（灵根不随机，在「灵根」页用灵石提升）
+    // 出身页占满屏幕（用户定）。右上角「管理员」（管理员全部功能，页内显示）；「增加出身点」输入礼包码多选出身
     // keep = 弹窗被别的弹窗（确认框、数据修改、创建失败）盖掉后重开：保留已选出身、道号、打开的面板
     intro(keep) {
       this._lockModal = true; this._introOn = true;
@@ -94,7 +93,7 @@ G.module({
       this.oriPaint(); this.introPn(this._introPn || "");
       $("#start-btn").onclick = async () => {
         const name = ($("#name-input").value || "").trim() || "无名散修";
-        { const left = this.oriPick() - (this._oriSel || []).length; if (left > 0 && !(await this.ask(`还有 ${left} 个出身没选，开始后不能再选。确定开始修仙？`))) return; }   // 没用完先确认（用户定 2026-11-16）
+        { const left = this.oriPick() - (this._oriSel || []).length; if (left > 0 && !(await this.ask(`还有 ${left} 个出身没选，开始后不能再选。确定开始修仙？`))) return; }   // 没用完先确认（用户定）
         try {
           if (this._oriSy && !(await this.ask(`开启寿元后岁数到上限人物会死亡，只能删档。确定开启？`))) return;
           this.s = await API.createCharacter(name, this._oriSel, !!this._oriSy);
@@ -120,7 +119,7 @@ G.module({
         if (el) el.value = ""; this.oriPaint(); const n = $("#ori-pk-n"); if (n) n.textContent = this.oriPick();
       } catch (e) { if (msg) msg.textContent = "兑换失败：" + e.message; }
     },
-    // 出身页的管理员面板：菜单 + 各子页（礼包码、账号管理、服务器信息用原来的页面；render() 没有存档时转到这里重画）
+    // 出身页的管理员面板：菜单 + 各子页（礼包码、账号管理、服务器信息用各自的管理页面；render() 没有存档时转到这里重画）
     introAdmPaint() {
       const box = $("#ori-pn-adm"); if (!box) return;
       const A = this.adminInfo || {}, back = `<div class="ori-head"><h2>管理员</h2><button class="ori-rs-btn" onclick="G.introPn('')">返回</button></div>`;

@@ -1,21 +1,21 @@
 /* =====================================================================
- * 模块：世界（六界：凡界 仙界 魔界 冥界 神界 天外天，目前只开放凡界）
- * 凡界内：9 张地图（练气 → 渡劫），每张分 东 西 南 北 四个区域；坊市、设置
+ * 模块：世界（六界：凡界 仙界 魔界 冥界 神界 天外天；凡界一直开放，仙魔冥神按 config/worldmaps.js 的 open 开放，天外天未开放）
+ * 凡界 9 张地图（练气 → 渡劫），仙魔冥神每界 10 张；每张分 东 西 南 北 四个区域。另有地图格子游历、灵矿、隐世宗门、秘境 / 灵地、元婴出窍、坊市 / 功德司、战斗
  * ---------------------------------------------------------------------
- * 每个区域的 普通怪 / 精英怪 / 首领 属性在 js/config/ 数值文件 的 config/mobs.js 单独设置。
- * 历练：和自动探索一样走 100 步，但只走一次；走完且没战败 = 通过，解锁该区域的自动探索。
- * 自动探索：每次 TIME 步，每步 STEP_SEC 秒（config/explore.js）；固定遇到 10 个普通怪、3 个精英怪、灵药 5~10 次、矿石 5~10 次，
+ * 每个区域的 普通怪 / 精英怪 / 首领 属性在 config/mobs.js 单独设置。
+ * 历练：和自动探索一样走 TIME 步，但只走一次；走完且没战败 = 通过，解锁该区域的自动探索。
+ * 自动探索：每次 TIME 步，每步 STEP_SEC 秒（config/explore.js）；普通怪 MONSTERS、精英怪 ELITES、灵药 HERB、矿脉 ORE 个数按配置随机，
  *   最后一步遇到首领，其余无事发生（顺序随机）。怪物掉 灵石、药材、矿石（不掉丹药、装备）。
- *   历练、自动探索期间都不能修炼。
- * 战斗：速度高者先手，判闪避、暴击；法术栏法术轮流施放（耗法力），不足时普通攻击；战败遗失部分灵石。
- *   法术 / 法宝伤害 = 威力 − (对方防御 × RES_RATE + 对方该系抗性 × RES_EL_RATE)；普通攻击只算 防御 × DEF_RATE（v235）。
+ *   历练、自动探索期间都不能修炼（元婴出窍可以）。
+ * 战斗：速度高者先手，判闪避、暴击；法术栏法术轮流施放（耗法力），不足时普通攻击；战败只丢本次收获。
+ *   减免公式见 config/battle.js 的 FORMULA："sub" 时 法术 / 法宝伤害 = 威力 − (对方防御 × RES_RATE + 对方该系抗性 × RES_EL_RATE)，普通攻击 = 攻击 − 防御 × DEF_RATE；"ratio" 按比例减免。
  *   怪物也有法力、六系抗性、法术和法宝（见 config/mobs.js 的 mobs.magic）。
  *   一次探索中获得的东西先记下，走完后一起放进背包；
- *   生命够（≥ 三成）就继续下一次，不够就原地休养到满血再自动继续（v186）；探索时不能修炼；离线也继续。
+ *   生命、法力不低于战斗设置的「继续探索」就继续下一次，不够就原地休养到够了再自动继续；离线也继续。
  *   探索信息栏显示每一步发生的事，每秒刷新。
  * 秘境（config/mijing.js）：历练探索时有几率发现；每处每天进一次，先历练通过才能自动探索；探索中 x.mj = 秘境序号、x.queue = 一键探索还没走的秘境。
  * 灵地（config/lingdi.js）：和秘境共用同一套（mjXxx 函数多一个参数 k = "ld"）；探索中 x.mk = "ld"、x.mj = 灵地序号；存档 s.ld。
- * 数值全部在 js/config/ 下的数值文件 的 monster / explore / mijing 部分。
+ * 数值在 js/config/ 下：mobs.js、explore.js、drops.js、mijing.js、lingdi.js、youli.js、yinshi.js 等。
  * ===================================================================== */
 G.module({
   id: "world",
@@ -41,27 +41,27 @@ G.module({
 
     setHall(h) { this.hallSel = h; this.render(); },
     setWHall(h) { if (h) this.wsSave(); this.hallSel = h; this.render(); if (h) this.viewScroll(0); else this.wsBack(); },
-    // 地图卷轴：进某张图前记住滑到哪，返回时回到原位置（用户 2026-11-17：返回后又滑到最上面）
+    // 地图卷轴：点进一张图或左下角的 灵地 / 悟道碑 前记住滑到哪，返回时回到原位置（用户定）
     wsSave() { if (typeof document === "undefined") return; const v = document.getElementById("view"); if (v && v.querySelector(".wscroll")) (this._wsTop = this._wsTop || {})[this.worldId || "fan"] = v.scrollTop; },
     wsBack() { const y = (this._wsTop || {})[this.worldId || "fan"]; if (y == null) return this.viewScroll(this.mapRev(this.worldId || "fan") ? -1 : 0);
-      this._vsT = 0; this.viewScroll(y); if (typeof document !== "undefined") { const v = document.getElementById("view"); [80, 300, 800].forEach(ms => setTimeout(() => { if (v && !this.mapPage && v.scrollTop < y - 4) v.scrollTop = y; }, ms)); } },   // 地图卷轴左下角的 灵地 / 悟道碑
+      this._vsT = 0; this.viewScroll(y); if (typeof document !== "undefined") { const v = document.getElementById("view"); [80, 300, 800].forEach(ms => setTimeout(() => { if (v && !this.mapPage && v.scrollTop < y - 4) v.scrollTop = y; }, ms)); } },
     // 一张地图的东西南北四域（历练 / 探索 / 出窍）
     regionsCard(sel, noTitle) {
-      if (this.lkMap(sel)) {   // 凡界（用户 2026-11-17）：每张图一整幅地图 img/map/fm_<图>.webp（风格随图名），东西南北四域 + 正中灵矿各自是独立按钮；点域进去还是各自的格子图
+      if (this.lkMap(sel)) {   // 凡界（用户定）：每张图一整幅地图 img/map/fm_<图>.webp（风格随图名），东西南北四域 + 正中灵矿各自是独立按钮；点域进去还是各自的格子图
         const Q = ["dong", "xi", "nan", "bei"], lv = this.lkLv(sel), fi = ((DATA.worldMapIdx || {}).fan || []).indexOf(sel);
         const rows = DATA.regionDirs.map((d, r) => this.rgTile(sel, r, "q-" + (Q[r] || "dong"), true)).join("");
         const lk = `<button class="rglk" onclick="G.openLk(${sel})"><img src="${DATA.iconImg("stone")}" alt=""><b>灵矿</b><small>${!this.lkEnter(sel) ? "未开启" : !this.lkOwned(sel) ? "有守卫" : lv + " 级"}</small></button>`;
         return `<div class="card rgcard rgmapc">${noTitle ? "" : `<h3>${DATA.maps[sel].name}</h3>`}<div class="rgmap" style="background-image:url(img/map/fm_${fi < 0 ? 0 : fi}.webp)">${rows}${lk}</div></div>`;
       }
-      const tile = true, rows = DATA.regionDirs.map((d, r) => this.rgTile(sel, r)).join("");   // 凡界、四界都用图片格子
-      return `<div class="card${tile ? " rgcard" : ""}">${noTitle ? "" : `<h3>${DATA.maps[sel].name}</h3>`}${tile ? `<div class="rggrid">${rows}</div>` : rows}</div>`;
+      const rows = DATA.regionDirs.map((d, r) => this.rgTile(sel, r)).join("");   // 四界：四域图片格子
+      return `<div class="card rgcard">${noTitle ? "" : `<h3>${DATA.maps[sel].name}</h3>`}<div class="rggrid">${rows}</div></div>`;
     },
     // 一个域的图片格子（历练 / 探索按钮）；出窍不在这里开：统一用六界图左上「元婴出窍」（openRunList）
     rgTile(sel, r, cls, spot) {   // spot：凡界整图上的一块（不放域图片，整块可点进格子图）
       const s = this.s, map = DATA.maps[sel], lock = !this.realmOK(DATA.mapReq(sel)), unl = this.mapUnlocked(sel), tile = true, d = DATA.regionDirs[r];
       const RG = ["dong", "xi", "nan", "bei"];   // 东西南北四域图 img/map/rg_*.webp
       {
-        const R = DATA.region(sel, r), ok = this.isTrained(sel, r), x = s.explore && s.explore.map === sel && (s.explore.reg || 0) === r ? s.explore : null, q = s.cq && s.cq.map === sel && (s.cq.reg || 0) === r ? s.cq : null;
+        const ok = this.isTrained(sel, r), x = s.explore && s.explore.map === sel && (s.explore.reg || 0) === r ? s.explore : null, q = s.cq && s.cq.map === sel && (s.cq.reg || 0) === r ? s.cq : null;
         const btns = lock ? `<button class="sm" disabled>需${DATA.realmLabel(DATA.mapReq(sel))}</button>` : !unl || !this.regionOpen(sel, r) ? `<button class="sm" disabled>未开启</button>` : `<div><button class="sm ${x && x.once ? "on" : ""}" onclick="G.toggleExplore(${sel},${r},true)">${x && x.once ? "停止" : "历练"}</button>
               <button class="sm ${x && !x.once ? "on" : ""}" onclick="G.toggleExplore(${sel},${r})" ${ok ? "" : "disabled"}>${x && !x.once ? "停止" : "探索"}</button></div>`;
         const info = `${ok ? "已通过历练" : "未历练"}${q ? " · 出窍中" : ""}`;   // 不显示首领名
@@ -95,10 +95,9 @@ G.module({
       const N = this.gridN(r);
       if (!Number.isInteger(a) || !Number.isInteger(r) || !Number.isInteger(i) || i < 0 || i >= N * N) throw new Error("格子不存在");
       if (!this.gridOpen(a, r)) throw new Error("该区域尚未开启");
-      if (this.isLkCell(a, r, i)) return this.log("这里是灵矿，点灵矿查看 / 升级。", "sys");   // 凡界大图正中的灵矿格不能游历
       if (this.gridJie(r)) {   // 神界界：每走一格耗小世界令牌
         if (i === this.sjSxCell(r) && this.sjSxSeen(a, r)) return this.log("中间是神像，点神像查看 / 升级。", "sys");   // 神像格：发现后不走、不耗令牌
-        const c = (CFG.shenjie || {}).JIE_LP || 1, o = this.sjJieG(a, r), known = this.gridJieKnown(a, r, i);   // 已发现的怪（打输过）：直接打，不耗令牌（用户定 2026-11-13）
+        const c = (CFG.shenjie || {}).JIE_LP || 1, o = this.sjJieG(a, r), known = this.gridJieKnown(a, r, i);   // 已发现的怪（打输过）：直接打，不耗令牌（用户定）
         if (!known) {
           if (this.smCount("sjlp") < c) { this.log(`${DATA.smName("sjlp")}不足（每步消耗 ${c} 个），去愿力祠兑换。`, "sys"); return; }
           this.takeSm("sjlp", c);
@@ -117,7 +116,7 @@ G.module({
           this.log(`击败${nm}（${this.sjJiePct(a, r)}），获得${txt}。${done ? `${this.gridName(a, r)}已占领，可以升级神像。` : ""}`, "gold"); this.dirty(); this.render(); return;
         }
         const txt = this.gridOnce(a, r, i);
-        if (i === this.sjSxCell(r)) { this.log(`探索${this.gridName(a, r)}，发现了神像！获得${txt}。`, "gold"); this.dirty(); this.render(); return; }   // 神像要探索一次才显示（用户定 2026-11-13）
+        if (i === this.sjSxCell(r)) { this.log(`探索${this.gridName(a, r)}，发现了神像！获得${txt}。`, "gold"); this.dirty(); this.render(); return; }   // 神像要探索一次才显示（用户定）
         this.log(`探索${this.gridName(a, r)}，获得${txt}。`, "gold"); this.dirty(); this.render(); return;
       }
       const d = this.gridToday();
@@ -132,8 +131,8 @@ G.module({
     gridJieMobName(a, r, i) { const k = this.gridJieMobIdx(a, r, i); return k >= 0 ? DATA.maps[a].monsters[k] : ""; },
     // 界里已发现（格子亮着）但还没打败的怪
     gridJieKnown(a, r, i) { const g = (this.s.grids || {})[a + "_" + r]; return !!(g && Array.isArray(g.v) && g.v.includes(i) && Array.isArray(g.m) && g.m.includes(i) && !(g.k || []).includes(i)); },
-    // 界里的怪：所属域首领属性 × sjJieMobMul（90% ~ 126%），名字用本图普通怪名
-    makeJieMob(a, R0, r, i) {   // 第一次进入时随机一次、以后固定（用户定 2026-11-13）：属性按平均值 × 存档种子定死的浮动，属性 / 秘法 / 天赋 / 加的神通读存档 o.fx
+    // 界里的怪：所属域 JIE_MOB_KIND（默认首领）属性 × sjJieMobMul（JIE_MOB_PCT，90% ~ 126%），名字用本图普通怪名
+    makeJieMob(a, R0, r, i) {   // 第一次进入时随机一次、以后固定（用户定）：属性按平均值 × 存档种子定死的浮动，属性 / 秘法 / 天赋 / 加的神通读存档 o.fx
       const SC = CFG.shenjie || {}, kind = SC.JIE_MOB_KIND || "boss", f = this.sjJieMobMul ? this.sjJieMobMul(a, r, i) : 1, fx = ((this.sjJieG(a, r).fx || {})[i]) || {};
       let x = (fx.sd || (a * 977 + r * 131 + i * 7 + 1)) >>> 0;
       const sr = () => { x = (x + 0x6D2B79F5) >>> 0; let t = x; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -149,24 +148,22 @@ G.module({
       m.a = a; return m;
     },
     // 快速游历：一次用完今日剩余次数，优先点亮还黑着的格子（都亮了就随机）
-    //   凡界大图 r = -1：在已开启的几个域里一起挑（灵矿格不算）
     gridQuick(a, r) {
       a = Number(a); r = Number(r);
-      const all = r === -1 && this.gridMerged(a);
-      if (!Number.isInteger(a) || !Number.isInteger(r) || !(all ? this.gridOpen(a, 0) : this.gridOpen(a, r))) throw new Error("该区域尚未开启");
-      if (!all && this.gridJie(r)) throw new Error("界里不能快速游历");
+      if (!Number.isInteger(a) || !Number.isInteger(r) || !this.gridOpen(a, r)) throw new Error("该区域尚未开启");
+      if (this.gridJie(r)) throw new Error("界里不能快速游历");
       const d = this.gridToday(), left = this.gridDaily() - d.n, N = this.gridN();
       if (left <= 0) { this.log(`今日游历次数已用完（${this.gridDaily()} 次）。`, "sys"); return; }
-      const RS = all ? [...Array(DATA.regionCount).keys()].filter(x => this.gridOpen(a, x)) : [r], got = [];
+      const RS = [r], got = [];
       for (let k = 0; k < left; k++) {
         const dark = [], every = [];
         for (const rr of RS) { const g = (this.s.grids || {})[a + "_" + rr], lit = new Set(g && Array.isArray(g.v) ? g.v : []);
-          for (let i = 0; i < N * N; i++) { if (this.isLkCell(a, rr, i)) continue; every.push([rr, i]); if (!lit.has(i)) dark.push([rr, i]); } }
+          for (let i = 0; i < N * N; i++) { every.push([rr, i]); if (!lit.has(i)) dark.push([rr, i]); } }
         const [r1, i1] = U.pick(dark.length ? dark : every);
         d.n++; got.push(this.gridOnce(a, r1, i1));
       }
       d.last = got.join("、");
-      this.log(`快速游历${all ? DATA.maps[a].name : this.gridName(a, r)} ${left} 次，获得${d.last}。`, "gold");
+      this.log(`快速游历${this.gridName(a, r)} ${left} 次，获得${d.last}。`, "gold");
       this.dirty(); this.render();
     },
     // 游历一格：点亮格子、发奖励、记进今日「已获机缘」，返回收获文字（不扣次数）
@@ -177,8 +174,7 @@ G.module({
       const gk = a + "_" + r, g0 = s.grids[gk] && typeof s.grids[gk] === "object" ? s.grids[gk] : {};
       const lit = Array.isArray(g0.v) ? g0.v.filter(n => Number.isInteger(n) && n >= 0 && n < N * N) : (Number.isInteger(g0.p) ? [g0.p] : []);
       if (!lit.includes(i)) lit.push(i);
-      s.grids[gk] = Object.assign({}, g0, { p: i, v: lit });   // 保留界的怪物 / 征服 / 神像（m k sx）   // v = 已点亮（游历过）的格子
-      if (this.gridMerged(a)) { if (!s.gridLR || typeof s.gridLR !== "object") s.gridLR = {}; s.gridLR[a] = r; }   // 凡界大图：上次游历在哪个域（只标这一格「当前位置」）
+      s.grids[gk] = Object.assign({}, g0, { p: i, v: lit });   // 保留界的怪物 / 征服 / 神像（m k sx）；p = 上次游历的格子，v = 已点亮（游历过）的格子
       this.ysEnsure();
       const R = (v, lo, hi) => Array.isArray(v) ? U.rand(v[0], v[1]) : v === undefined ? U.rand(lo, hi) : v;
       const pool = DATA.mapPool(a);
@@ -202,7 +198,7 @@ G.module({
         txt = this.giveLoot(loot);
       }
       if (rec && !this.gridJie(r)) this.ylGotAdd(Object.assign(rec, { a, w: this.gridName(a, r) }));   // 已获机缘：只记宝物、功法（永久）
-      if (!this.gridJie(r) && this.gridYbHit()) { const t2 = this.gridYbGive(a, r, grades); if (t2) txt = txt ? txt + "、" + t2 : t2; }   // 宝物单独算（用户定 2026-11-13）
+      if (!this.gridJie(r) && this.gridYbHit()) { const t2 = this.gridYbGive(a, r, grades); if (t2) txt = txt ? txt + "、" + t2 : t2; }   // 宝物单独算（用户定）
       return txt;
     },
     // 今天第几次游历出宝物：当天第一次用到时定好（YB_DAY），s.gridDay.yb = [第几次, …]
@@ -253,7 +249,6 @@ G.module({
       this._glRun = { a, r, i }; this.render();
       setTimeout(() => { this._glRun = null; try { this.gridYouli(a, r, i); } finally { this.render(); } }, 1500);
     },
-    // 已获机缘：今日游历收获（纯界面）
     // 已获机缘（永久，按地图分开）：s.ylGot["地图|yb_种类_级" / "地图|gf功法id"] = { t, k, g, id, a 地图, w 首次得自, n 本图共得几个 }；灵石材料火髓不记
     //   功法是否得到过：s.ylGot 里任意地图有这本即算（ylGfOwned）
     ylGotAdd(x) {
@@ -271,7 +266,7 @@ G.module({
       return Object.values(s.ylGot || {}).filter(x => x && x.a === a && (x.t === "yb" ? DATA.YB[x.k] : x.t === "gf" && DATA.gongfaInfo(x.id, 1)))
         .sort((a, b) => a.t === b.t ? (a.t === "yb" ? a.g - b.g || a.k - b.k : 0) : a.t === "yb" ? -1 : 1);
     },
-    // 本图机缘收集进度（%，一位小数）：宝物按个数算，每种每阶最多算 YB_MAX 个（种类 × 本图品阶 × YB_MAX）+ 游历功法每本 1 个（本图 4 域 12 本）（用户定 2026-11-13）
+    // 本图机缘收集进度（%，一位小数）：宝物按个数算，每种每阶最多算 YB_MAX 个（种类 × 本图品阶 × YB_MAX）+ 游历功法每本 1 个（本图 4 域 12 本）（用户定）
     ylGotPct(a) {
       a = Number(a); const grades = DATA.ybGradesOf(a) || [], gf = [0, 1, 2, 3].flatMap(r => DATA.ylGfIds(a, r) || []), M = DATA.YB_MAX || 100, all = DATA.YB.length * grades.length * M + gf.length; if (!all) return 0;
       const yb = this.gridRecList(a).filter(x => x.t === "yb" && grades.includes(x.g)).reduce((t, x) => t + Math.min(M, x.n || 1), 0), g = gf.filter(id => this.ylGfOwned(id)).length;
@@ -293,10 +288,9 @@ G.module({
     // 打开 / 关闭格子页（纯界面）
     openGrid(a, r) { this.ysPick = null; this.gridSel = a === undefined || a === null ? null : { a: Number(a), r: Number(r) }; this.render(); this.viewScroll(0); },
     gridView(a, r, wid) {
-      if (this.gridMerged(a) && !this.gridJie(r)) return this.gridViewM(a, r, wid);
       const s = this.s, N = this.gridN(r), g = (s.grids || {})[a + "_" + r], d = s.gridDay && s.gridDay.day === this.bjDay() ? s.gridDay : { n: 0, last: "" }, jie = this.gridJie(r);
       const D = this.gridDaily(), full = !jie && d.n >= D, cells = [];
-      const lit = new Set(DATA.isTest() && !jie ? [...Array(N * N).keys()] : g ? (Array.isArray(g.v) ? g.v : Number.isInteger(g.p) ? [g.p] : []) : []), cur =   // 测试号：地图格子全亮，不用游历（用户定 2026-11-19，界格子仍按走过的）
+      const lit = new Set(DATA.isTest() && !jie ? [...Array(N * N).keys()] : g ? (Array.isArray(g.v) ? g.v : Number.isInteger(g.p) ? [g.p] : []) : []), cur =   // 测试号：地图格子全亮，不用游历（用户定，界格子仍按走过的）
         g && Number.isInteger(g.p) ? g.p : Math.floor(N * N / 2);
       const ys = this.ysAt(a, r);   // 隐世宗门：发现后格子上显示宗门模型，点进去
       for (let i = 0; i < N * N; i++) { const on = lit.has(i);
@@ -304,53 +298,23 @@ G.module({
         if (jie && i === this.sjSxCell(r) && this.sjSxSeen(a, r)) { const sl = Math.floor(+this.sjJieG(a, r).sx) || 0; cells.push(`<button class="gc on ys sx" onclick="G.openSjSx(${a},${r})"><img src="img/map/sjsx.webp?v=1" alt=""><span>神像 ${sl} 级</span></button>`); continue; }   // 界中间固定神像格（0 级起）
         if (ys && ys.i === i && (ys.fixed || on)) { cells.push(`<button class="gc on ys${g && g.p === i ? " me" : ""}" onclick="G.ysOpen('${ys.id}')"><img src="img/icons/ys_sect.png" alt=""><span>${ys.name}</span></button>`); continue; }
         const mob = jie && on && !run && g && Array.isArray(g.m) && g.m.includes(i) && !(g.k || []).includes(i);   // 走过但怪还在的格子（老存档补怪落在走过的格子上）：标出来，点它打
-        cells.push(`<button class="gc${on ? " on" : ""}${mob ? " mob" : ""}${g && g.p === i ? " me" : ""}${run ? " run" : ""}" onclick="G.gridTap(${a},${r},${i})" ${full ? "disabled" : ""}>${run ? (jie ? "<span>探索中</span>" : "<span>游历中</span>") : mob ? `<img src="img/mob/${a}_${this.gridJieMobIdx(a, r, i)}.webp?v=${DATA.IMG_V}" onerror="this.src='img/mob/m${a}.webp?v=${DATA.IMG_V}'" alt="">` : ""}</button>`); }   // 打输的怪：格子里显示怪物图（用户定 2026-11-13）
+        cells.push(`<button class="gc${on ? " on" : ""}${mob ? " mob" : ""}${g && g.p === i ? " me" : ""}${run ? " run" : ""}" onclick="G.gridTap(${a},${r},${i})" ${full ? "disabled" : ""}>${run ? (jie ? "<span>探索中</span>" : "<span>游历中</span>") : mob ? `<img src="img/mob/${a}_${this.gridJieMobIdx(a, r, i)}.webp?v=${DATA.IMG_V}" onerror="this.src='img/mob/m${a}.webp?v=${DATA.IMG_V}'" alt="">` : ""}</button>`); }   // 打输的怪：格子里显示怪物图（用户定）
       return `<div class="gridbar gt"><span>${jie ? `${DATA.smName("sjlp")} ${U.fmt(this.smCount("sjlp"))} 个 · 每步消耗 ${(CFG.shenjie || {}).JIE_LP || 1} 个 · ${this.sjJiePct(a, r)}` : `今日游历 ${d.n} / ${D} 次`}</span></div>
         <div id="mgwrap" class="mgwrap" data-c="${cur}" data-n="${N}"><div class="mgrid${this._glRun ? " busy" : ""}" style="background-image:url(img/map/grid_${wid || "fan"}.webp);grid-template-columns:repeat(${N},var(--gcw));grid-template-rows:repeat(${N},var(--gcw))">${cells.join("")}</div></div>`;
     },
 
-    /* ---------- 凡界大图（config/youli.js LK 上面的说明）：东西南北四域拼成一整张 (2N)×(2N)，存档仍按域存（s.grids["地图_域"] 的格子序号不变，老存档不用转换）
-     *   四块：左上北域、右上东域、左下西域、右下南域；大图 (X, Y) → 域 gridGQ(块)、本域格子 (Y % N) × N + X % N
-     *   正中 2×2 = 灵矿（四个域各自贴着中心的那个角格），不能游历 ---------- */
-    gridGQ(q) { return [3, 0, 1, 2][q]; },   // 块（0 左上 1 右上 2 左下 3 右下）→ 域（0 东 1 西 2 南 3 北）
-    gridMerged(a) { return false; },   // 用户 2026-11-17：格子图改回每域独立（大图 gridViewM 留着不用）；拼成一张的是外面的四域图（regionsCard）
     lkMap(a) { const m = DATA.maps[a]; return !!m && m.w === "fan"; },   // 凡界九张图：四域图正中有灵矿
-    gridQuad(r) { return [1, 2, 3, 0][r]; },
-    lkCell(r) { const N = this.gridN(r), q = this.gridQuad(r); return ((q >> 1) ? 0 : N - 1) * N + ((q & 1) ? 0 : N - 1); },
-    isLkCell(a, r, i) { return r >= 0 && r < DATA.regionCount && this.gridMerged(a) && i === this.lkCell(r); },
-    gridViewM(a, r0, wid) {
-      const s = this.s, N = this.gridN(0), M = 2 * N, d = s.gridDay && s.gridDay.day === this.bjDay() ? s.gridDay : { n: 0, last: "" };
-      const D = this.gridDaily(), full = d.n >= D, cells = [], RN = DATA.regionCount;
-      const G0 = [...Array(RN).keys()].map(r => (s.grids || {})[a + "_" + r]), open = G0.map((g, r) => this.gridOpen(a, r)), ys = G0.map((g, r) => this.ysAt(a, r));
-      const lit = G0.map(g => new Set(DATA.isTest() ? [...Array(N * N).keys()] : g ? (Array.isArray(g.v) ? g.v : Number.isInteger(g.p) ? [g.p] : []) : []));   // 测试号全亮
-      const lr0 = (s.gridLR || {})[a], lr = Number.isInteger(lr0) && lr0 >= 0 && lr0 < RN ? lr0 : r0, gl = G0[lr];
-      const glob = (r, i) => { const q = this.gridQuad(r); return ((q >> 1) * N + Math.floor(i / N)) * M + (q & 1) * N + i % N; };
-      const cur = gl && Number.isInteger(gl.p) && open[lr] ? glob(lr, gl.p) : (N - 1) * M + N - 1, lv = this.lkLv(a);
-      for (let Y = 0; Y < M; Y++) for (let X = 0; X < M; X++) {
-        if ((X === N - 1 || X === N) && (Y === N - 1 || Y === N)) {   // 正中 2×2：灵矿（一个按钮占四格）
-          if (X === N - 1 && Y === N - 1) cells.push(`<button class="gc on lk" style="grid-column:${N} / span 2;grid-row:${N} / span 2" onclick="G.openLk(${a})"><img src="${DATA.iconImg("stone")}" alt=""><span>灵矿 ${lv} 级</span></button>`);
-          continue; }
-        const q = (Y >= N ? 2 : 0) + (X >= N ? 1 : 0), r = this.gridGQ(q), i = (Y % N) * N + X % N, g = G0[r];
-        if (!open[r]) { cells.push(`<button class="gc lock" disabled>${i === Math.floor(N * N / 2) ? `<span>${DATA.regionDirs[r]}域<br>未开启</span>` : ""}</button>`); continue; }   // 没开的域：整块锁着
-        const on = lit[r].has(i), me = r === lr && g && g.p === i, y = ys[r];
-        if (y && y.i === i && (y.fixed || on)) { cells.push(`<button class="gc on ys${me ? " me" : ""}" onclick="G.ysOpen('${y.id}')"><img src="img/icons/ys_sect.png" alt=""><span>${y.name}</span></button>`); continue; }
-        const run = this._glRun && this._glRun.a === a && this._glRun.r === r && this._glRun.i === i;
-        cells.push(`<button class="gc${on ? " on" : ""}${me ? " me" : ""}${run ? " run" : ""}" onclick="G.gridTap(${a},${r},${i})" ${full ? "disabled" : ""}>${run ? "<span>游历中</span>" : ""}</button>`);
-      }
-      return `<div class="gridbar gt"><span>今日游历 ${d.n} / ${D} 次 · 灵矿 ${lv} 级${lv ? this.lkSv(a) ? ` · 每天 ${U.fmt(Math.round(this.lkOutA(a)))} 灵石` : " · 未派道童" : ""}</span></div>
-        <div id="mgwrap" class="mgwrap mg2" data-c="${cur}" data-n="${M}" data-fit="${N}"><div class="mgrid${this._glRun ? " busy" : ""}" style="background-image:url(img/map/grid_${wid || "fan"}.webp);grid-template-columns:repeat(${M},var(--gcw));grid-template-rows:repeat(${M},var(--gcw))">${cells.join("")}</div></div>`;
-    },
     /* ---------- 灵矿：s.lk[地图] = 等级；s.lkAt = 上次结算时刻，s.lkF = 不足 1 块的灵石零头；每 STEP_MIN 分钟按有道童管理的灵矿合计产量结算，灵石进传音 ---------- */
-    // 道童「灵矿管理」：servants 里 job === "lk"、lkA = 地图序号，每座灵矿最多 LK.SV_N（3）个，至少 1 个才产出；每个道童按等级加产量（DATA.lkSvPct，用户定 2026-11-17）
+    // 道童「灵矿管理」：servants 里 job === "lk"、lkA = 地图序号，每座灵矿最多 LK.SV_N（3）个，至少 1 个才产出；每个道童按等级加产量（DATA.lkSvPct，用户定）
     lkLv(a) { return Math.max(0, Math.min(DATA.LK().MAX, Math.floor(+((this.s.lk || {})[a]) || 0))); },
-    // 进灵矿：本图东西南北四域都历练通过；占领：打败灵矿守卫（s.lkOwn[地图] = 1），旧存档已升过级的算已占领（用户定 2026-11-17）
+    // 进灵矿：本图东西南北四域都历练通过；占领：打败灵矿守卫（s.lkOwn[地图] = 1），旧存档已升过级的算已占领（用户定）
     lkEnter(a) { return this.lkMap(a) && DATA.regionDirs.every((d, r) => this.isTrained(a, r)); },
     lkOwned(a) { return !!((this.s.lkOwn || {})[a]) || this.lkLv(a) > 0; },
     lkBossName(a) { return `${DATA.maps[a].name}灵矿守卫`; },
     // 灵矿守卫：本图北域（r = 3）首领的平均属性 × RAND × MAP_RATE（同本图首领）× BOSS_MUL；秘法 / 天赋同北域首领
     lkBoss(a) {
       const r = DATA.regionCount - 1, R = DATA.region(a, r), t = R && R._t && R._t.boss, b = t ? DATA.mobStats(t, DATA.mobCrit(DATA.MOB_KIND.boss)) : DATA.mobMeet(R, "boss");
-      const wn = DATA.mobWn(a), v = (x, k) => x * DATA.mobRnd(k, wn, "boss", a);   // 和本图首领一样 × RAND（首领 + 界）× 地图倍率 MAP_RATE（用户定 2026-11-24）
+      const wn = DATA.mobWn(a), v = (x, k) => x * DATA.mobRnd(k, wn, "boss", a);   // 和本图首领一样 × RAND（首领 + 界）× 地图倍率 MAP_RATE（用户定）
       const r0 = b.resEl || b.res, res = {}; for (const e of DATA.elements) res[e.id] = v(r0 && typeof r0 === "object" ? +r0[e.id] || 0 : +r0 || 0, "res_" + e.id);
       const m = this.addMagic({ name: this.lkBossName(a), mapA: a, Lm: R.L, kind: "boss", boss: true, elite: false, elKey: `b:${a}:${r}`,
         hp: v(b.hp, "hp"), atk: v(b.atk, "atk"), def: v(b.def, "def"), speed: v(b.speed, "speed"), hit: v(b.hit, "hit"), dodge: v(b.dodge, "dodge"), mana: v(b.mana, "mana"), res, manaBr: b.manaBr, L: b.L, crit: b.crit, stl: b.stl }, "boss", { res });
@@ -482,12 +446,7 @@ G.module({
     ysEnsure() {
       const s = this.s, N = this.gridN(); if (!s.ysPos || typeof s.ysPos !== "object") s.ysPos = {};
       for (const y of this.ysList()) { const p = s.ysPos[y.id];
-        if (!p || !(p.r >= 0 && p.r < DATA.regionCount) || !(p.i >= 0 && p.i < N * N)) s.ysPos[y.id] = { r: U.rand(0, DATA.regionCount - 1), i: U.rand(0, N * N - 1) };
-        const q = s.ysPos[y.id];
-        if (this.isLkCell(y.a, q.r, q.i)) {   // 落在凡界大图正中的灵矿格上：往本域里挪一格（已发现的照样算发现）
-          const Q = this.gridQuad(q.r), ni = ((Q >> 1) ? 1 : N - 2) * N + ((Q & 1) ? 1 : N - 2), g = (s.grids || {})[y.a + "_" + q.r];
-          if (g && Array.isArray(g.v) && g.v.includes(q.i) && !g.v.includes(ni)) g.v.push(ni);
-          s.ysPos[y.id] = { r: q.r, i: ni }; } }
+        if (!p || !(p.r >= 0 && p.r < DATA.regionCount) || !(p.i >= 0 && p.i < N * N)) s.ysPos[y.id] = { r: U.rand(0, DATA.regionCount - 1), i: U.rand(0, N * N - 1) }; }
     },
     // 这一域里的宗门（位置 + 是否固定），没有返回 null
     ysAt(a, r) {
@@ -530,7 +489,7 @@ G.module({
       this.modal(`<h2>${this.ysById(id).name} · 职位晋升</h2><p><small>好感度 ${U.fmt(this.ysFavRaw(id))} · 灵石 ${U.fmt(this.s.stone || 0)}</small></p>${this.ysRankHtml(id)}<div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
     ysRankHtml(id) {
-      const R = this.ysRankCfg(), r = this.ysRank(id), N = (R.NAMES || []).length;
+      const R = this.ysRankCfg(), r = this.ysRank(id);
       const rows = (R.NAMES || []).map((nm, k) => `<div class="line"><div>${k < r ? `<span class="q5">${nm}</span>` : nm}<small>事务堂好感度 +${(R.TASK_ADD || [])[k] || 0} · 消耗好感度 ${((R.DISC || [])[k] || 100) / 10} 折</small>${k === r ? `<small class="c-green">晋升需要好感度 ${U.fmt((R.FAV || [])[k] || 0)}、灵石 ${U.fmt((R.STONE || [])[k] || 0)}</small>` : ""}</div>${k < r ? `<span class="q5">${k === r - 1 ? "当前" : "已晋升"}</span>` : k === r
         ? `<button class="sm" onclick="G.ysRankUp('${id}')" ${this.ysFav(id) >= ((R.FAV || [])[k] || 0) && (DATA.isTest() || (this.s.stone || 0) >= ((R.STONE || [])[k] || 0)) ? "" : "disabled"}>晋升</button>` : ""}</div>`).join("");
       return `<p>当前职位：<b>${this.ysRankName(id)}</b></p>${rows}`;
@@ -568,7 +527,7 @@ G.module({
       if (!s.lm || typeof s.lm !== "object") return;
       for (const id in s.lm) { const o = s.lm[id];
         if (!o || !o.own || !this.lmHas(id)) { delete s.lm[id]; continue; }   // 旧版租借记录 / 不再分到的宗门：删掉
-        if ("lmFed" in s) delete s.lmFed;   // 上一版的每 10 秒计数，已不用
+        if ("lmFed" in s) delete s.lmFed;   // 旧存档的每 10 秒计数字段，已不用
         const lv = this.lmLv(id), cap = this.lmCap(id, lv), dt = now - (+o.t || now);
         if (dt > 0) o.ling = Math.min(cap, Math.max(0, +o.ling || 0) + this.lmRegen(id, lv) * dt / H);
         if (o.ling > cap) o.ling = cap; o.t = now; }
@@ -685,7 +644,7 @@ G.module({
     ysDanLab(k) { if (k.startsWith("res_")) return ((DATA.elById[k.slice(4)] || {}).name || "") + "系抗性"; return { hp: "生命", atk: "攻击", def: "防御", mana: "法力", hit: "命中", dodge: "闪避", speed: "速度" }[k] || k; },
     // 灵果种子：随机 YS_N 个宗门各固定一种（s.lgYs = { 宗门 id: 序号 }，第一次用到时定下，之后不变）
     lgYsMap() { return this.s.lgYs && typeof this.s.lgYs === "object" ? this.s.lgYs : {}; },
-    lgYsInit(s) {   // 新存档 / 读档（core/game.js）时定下，界面里不再随机
+    lgYsInit(s) {   // 新存档 / 读档（core/game.js）时定下，界面里不随机
       if (s.lgYs && typeof s.lgYs === "object" && Object.keys(s.lgYs).length) return;
       const ids = (this.ysCfg().list || []).map(y => y.id), N = DATA.lgN ? DATA.lgN() : 0, n = Math.min(ids.length, N, DATA.LG().YS_N ?? 18); if (!n) return;
       const sh = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -708,11 +667,10 @@ G.module({
       const L = DATA.LG(), fav = this.ysDisc(id, L.YS_FAV ?? 10), lim = L.YS_DAY ?? 1, got = this.lgYsGot(id), g = DATA.LG_BASE + k, d = DATA.lgDef(k);
       return `<div class="line"><div>${DATA.li(DATA.seedImg(g))}${DATA.seedName(g)}<small>${DATA.lgLab(d.k)} +${U.fmt(d.v)} · 今日 ${got}/${lim} · ${U.fmt(fav)} 好感</small></div><button class="sm" onclick="G.ysBuyLgSeed('${id}')" ${got >= lim || this.ysFav(id) < fav ? "disabled" : ""}>${got >= lim ? "已兑换" : "兑换"}</button></div>`;
     },
-    // 购买 / 兑换统一弹窗输入数量（同宗门宝库，用户定 2026-11-15）
+    // 购买 / 兑换统一弹窗输入数量（同宗门宝库，用户定）
     openYsDan(id, k) {
       const D = this.ysDanCfg(), d = this.ysDanDef(k); if (!d) return;
       const left = D.MAX - this.ysDanGotN(id, k), df = this.ysDisc(id, D.FAV), max = Math.min(9999, left, Math.floor(this.ysFav(id) / Math.max(1, df)));
-      const d0 = this.ysDanDef(k) || {};
       this.buyModal({ title: `兑换${this.ysDanName(id, k)}`, icon: DATA.li(`img/ysdan/${k}.webp`), name: this.ysDanName(id, k), sub: `${U.fmt(df)} 好感/颗 · 已兑换 ${this.ysDanGotN(id, k)}/${D.MAX}`, ok: "兑换", cost: df, cur: "好感", have: this.ysFav(id), max, call: n => this.ysBuyDan(id, k, n) });
     },
     ysBuyDan(id, k, n) {
@@ -725,7 +683,7 @@ G.module({
       this.log(`好感度 −${cost}，兑换${this.ysDanName(id, k)} ×${n}，已放入背包。`, "good"); this.after();
     },
     eatYsDan(i, n) {
-      if (this.tribBusy && this.tribBusy()) return this.log("渡劫中不能服用丹药。", "sys");   // v259
+      if (this.tribBusy && this.tribBusy()) return this.log("渡劫中不能服用丹药。", "sys");
       const it = this.s.bag[i]; if (!it || it.t !== "ysd") return; const D = this.ysDanCfg();
       n = Math.min(Math.floor(+n) || 1, it.n, D.MAX - this.ysDanEatN(it.ys, it.k));
       if (n <= 0) return this.log(`${this.ysDanName(it.ys, it.k)}已达服用上限。`, "sys");
@@ -751,7 +709,7 @@ G.module({
     xdItem(it) { return { k: it.k === "qi" || it.k === "jl" ? it.k : "dan", src: it.src === "js" ? "js" : "ys", id: it.id !== undefined ? it.id : it.ys, v: it.v | 0 }; },
     xdTotalExp(k) { const M = this.craftMax(k); let T = 0; for (let l = 1; l < M; l++) T += this.craftNeed(k, l); return T; },
     /* 心得经验：每组按卷序线性递增，合计 = 满阶总经验 × PCT%。
-     * 隐世：最后一卷 = 第一卷 × ys.RATIO；四界：最后一本 = 隐世第一卷 × PRICE[1]/PRICE[0]（这样最贵 300 万、最便宜 10 万），第一本由合计反推。
+     * 隐世：最后一卷 = 第一卷 × ys.RATIO；四界：最后一本 = 隐世第一卷 × PRICE[1]/PRICE[0]（这样最贵 PRICE[1]、最便宜 PRICE[0]），第一本由合计反推。
      * 价格 = 经验 × 固定单价（同一种技艺每点经验一样贵），最贵那本 = PRICE[1] */
     xdEnds(k, src) {
       const P = (CFG.xinde || {}).PRICE || [100000, 3000000], T = this.xdTotalExp(k), ys = this.xdCfg("ys"), Ny = this.xdN("ys");
@@ -842,7 +800,7 @@ G.module({
       }
       if (pid === "dan") {
         const D = this.ysDanCfg(), fav = this.ysFav(id);
-        const rows = (D.LIST || []).map(d => { const got = this.ysDanGotN(id, d.k), left = D.MAX - got, m = Math.min(10, left);
+        const rows = (D.LIST || []).map(d => { const got = this.ysDanGotN(id, d.k), left = D.MAX - got;
           return `<div class="line"><div>${DATA.li(`img/ysdan/${d.k}.webp`)}${d.name}<small>${this.ysDanLab(d.k)} +${U.fmt(D.VAL)} · 已兑换 ${got}/${D.MAX} · ${U.fmt(this.ysDisc(id, D.FAV))} 好感</small></div>${left > 0
             ? `<button class="sm" onclick="G.openYsDan('${id}','${d.k}')" ${fav < this.ysDisc(id, D.FAV) ? "disabled" : ""}>兑换</button>`
             : `<span class="q5">已满</span>`}</div>`; }).join("");
@@ -923,7 +881,7 @@ G.module({
       return b;
     },
     ysStLearn(sid, id) {
-      const s = this.s; if (!this.ysById(sid) || !this.ysHallOk(sid) || !this.ysSts(sid).some(d => d.id === id)) return;
+      if (!this.ysById(sid) || !this.ysHallOk(sid) || !this.ysSts(sid).some(d => d.id === id)) return;
       if (this.ysStLv(id) >= this.ysStMax()) return this.log("神通已经圆满。", "sys");
       if (!this.stPay(sid, this.ysStCost(id))) return;
       const S = this.ysStFix(); S[id] = this.ysStLv(id) + 1;
@@ -1030,7 +988,7 @@ G.module({
     // 点神通图标：信息 + 出战 / 修炼 / 精研
     stPop(id) {
       const d = this.stDef(id); if (!d || !this.stLearned(id)) return this.closeModal && this.closeModal();
-      const C = this.ysStCfg(), E = this.stEqList(), on = E.includes(id), why = this.stEqWhy(id), y = this.stSect(id), sid = y ? y.id : "", pas = d.type === "pas";
+      const E = this.stEqList(), on = E.includes(id), why = this.stEqWhy(id), y = this.stSect(id), sid = y ? y.id : "", pas = d.type === "pas";
       const UM = this.stUpMax(), lv = this.stUpLv(id), full = lv >= UM, uc = this.stUpCost(id), jc = this.stJyCost(id), cc = c => `${U.fmt(c.frag)} 碎片、${U.fmt(c.stone)} 灵石`;
       this.modal(`<div class="stpop">${this.stIcon(d, "big")}<h2 class="q1">${d.name}</h2>
         <p>${pas ? "被动神通" : (DATA.elById[d.el] || {}).name + "系主动神通"}${y ? ` · ${y.name}` : ""}${on ? " · <b class=\"gold\">出战中</b>" : ""}</p>
@@ -1047,7 +1005,7 @@ G.module({
     stBattleSp(st) {
       const C = this.ysStCfg();
       return this.stEqList().filter(id => !this.stIsPas(id)).map(id => { const d = this.stDef(id), el = DATA.elById[d.el]; if (!el) return null;
-        return { kind: "st", stn: d, id: "st:" + id, name: d.name, el: { id: el.id, name: el.name }, atk: st.atk, pct: this.stPct(id), mul: (+CFG.gongfa.SPELL_MUL || 1) * (+CFG.gongfa.EFFECT_PCT || 1),   /* 神通算法术类：法术总倍率也乘（用户定 2026-11-18） */ mana: Math.round((this.s.mortal ? 0 : DATA.realmStat(this.s.L, "mana") * DATA.manaRealmK(this.s.L)) * (C.MANA_PCT || 0) / 100), uses: C.USES || 1, jyDmg: this.stJyDmg(id), fuPct: 0 }; }).filter(Boolean);
+        return { kind: "st", stn: d, id: "st:" + id, name: d.name, el: { id: el.id, name: el.name }, atk: st.atk, pct: this.stPct(id), mul: (+CFG.gongfa.SPELL_MUL || 1) * (+CFG.gongfa.EFFECT_PCT || 1),   /* 神通算法术类：法术总倍率也乘（用户定） */ mana: Math.round((this.s.mortal ? 0 : DATA.realmStat(this.s.L, "mana") * DATA.manaRealmK(this.s.L)) * (C.MANA_PCT || 0) / 100), uses: C.USES || 1, jyDmg: this.stJyDmg(id), fuPct: 0 }; }).filter(Boolean);
     },
     // 出战的被动神通 [{ fx, m 修炼倍率 }]
     stBattlePas() { return this.stEqList().filter(id => this.stIsPas(id)).map(id => ({ fx: this.stDef(id).fx || {}, v: this.stPsVal(id), name: this.stName(id) })); },
@@ -1061,7 +1019,7 @@ G.module({
     // 六界图 / 地图卷轴 / 探索信息浮层（纯界面状态，不进服务器白名单）
     openAtlas() { this.atlasOn = true; this.atlasSub = null; this.render(); this.viewScroll(0); },
     setAtlasSub(k) { this.atlasSub = k; this.atlasOn = !k; this.adminPage = false; this.render(); this.viewScroll(0); },
-    // y < 0 = 滚到最底（仙界、魔界第一张图在下面）；图片陆续加载会变高，过一会儿再滚几次
+    // y < 0 = 滚到最底（仙界、魔界、神界第一张图在下面）；图片陆续加载会变高，过一会儿再滚几次
     viewScroll(y) { if (typeof document === "undefined") return; const v = document.getElementById("view"); if (!v) return;
       v.scrollTop = y < 0 ? v.scrollHeight : y;
       // 图片还在加载时高度会变：玩家没自己滑动（scrollTop 没变）就继续贴到底
@@ -1074,7 +1032,7 @@ G.module({
     wsFirst() { if (typeof document === "undefined" || !document.querySelector("#view .wscroll")) return; this.viewScroll(this.mapRev(this.worldId || "fan") ? -1 : 0); },
     mapRev(wid) { return wid === "xian" || wid === "mo" || wid === "shen"; },   // 仙界、魔界、神界第一张图在最下面
     // 元婴出窍 / 自动探索 列表：所有能出窍 / 探索的地图（已历练通过的区域），可隐藏（存在本机）
-    runHidden(k) { try { return JSON.parse(this.saveLsGet("xiu_runhide_" + k) || "[]") || []; } catch (e) { return []; } },   // 按存档分开（用户 2026-11-17）
+    runHidden(k) { try { return JSON.parse(this.saveLsGet("xiu_runhide_" + k) || "[]") || []; } catch (e) { return []; } },   // 按存档分开（用户定）
     hideRun(k, key) { const h = this.runHidden(k), i = h.indexOf(key); if (i >= 0) h.splice(i, 1); else h.push(key); this.saveLsSet("xiu_runhide_" + k, JSON.stringify(h)); this.openRunList(k); },
     toggleRunHid(k) { this.runShowHid = !this.runShowHid; this.openRunList(k); },
     openRunList(k) {
@@ -1096,7 +1054,7 @@ G.module({
     },
     setMapPage(v) { this.mapPage = !!v; this.hallSel = null; this.render(); if (!v) this.wsBack(); },
     setExFollow() { this.exFollow = this.exFollow === false; this.render(); },
-    // v45：这一界开放没有（config/worldmaps.js 的 open）
+    // 这一界开放了没有（config/worldmaps.js 的 open）
     worldOpen(id) {
       if (id === "fan") return true;
       const W = (CFG.worldMaps || {})[id]; if (!W || !(DATA.worldMapIdx[id] || []).length) return false;
@@ -1107,7 +1065,7 @@ G.module({
       return true;
     },
     mapOpen(a) { return this.worldOpen(DATA.maps[a].w || "fan") && this.realmOK(DATA.mapReq(a)) && this.mapUnlocked(a); },
-    // v52：同一界上一张地图（按境界从低到高）北域通关后才开启下一张
+    // 同一界上一张地图（按境界从低到高）北域通关后才开启下一张
     mapPrev(a) {
       const idx = (DATA.worldMapIdx[DATA.maps[a].w || "fan"] || []).slice().sort((x, y) => DATA.mapReq(x) - DATA.mapReq(y) || x - y), i = idx.indexOf(a);
       return i > 0 ? idx[i - 1] : undefined;
@@ -1117,17 +1075,16 @@ G.module({
       const p = this.mapPrev(a);
       return p === undefined || this.isTrained(p, DATA.regionCount - 1) || DATA.regionDirs.some((d, r) => this.isTrained(a, r));
     },
-    // v52：东域通关后开启西域，依次类推
     // 地图、区域编号是否存在（服务器收到的参数可能是任意值，不存在的区域会让之后每次结算都出错、存档卡死）
     regionOk(a, r) { return Number.isInteger(a) && Number.isInteger(r) && !!DATA.maps[a] && r >= 0 && r < DATA.regionDirs.length && !!((CFG.monster.regions || [])[a] || [])[r]; },
-    regionOpen(a, r) { return this.regionOk(a, r) && this.mapOpen(a) && (r === 0 || DATA.isTest() || this.isTrained(a, r - 1) || this.isTrained(a, r)); },
+    regionOpen(a, r) { return this.regionOk(a, r) && this.mapOpen(a) && (r === 0 || DATA.isTest() || this.isTrained(a, r - 1) || this.isTrained(a, r)); },   // 东域通关后开启西域，依次类推
 
     regionKey(a, r) { return a * DATA.regionCount + r; },
     isTrained(a, r) { return this.s.trainedR.includes(this.regionKey(a, r)); },
 
     // 生成怪物：a 地图、r 区域、kind = normal 普通 / elite 精英 / boss 首领（属性见 js/config/ 数值文件 monster.regions）
     makeMob(a, r, kind) {
-      const R = DATA.region(a, r), b = DATA.mobMeet(R, kind), map = DATA.maps[a], wn = DATA.mobWn(a);   // v168 每次遇到随机层 / 功法
+      const R = DATA.region(a, r), b = DATA.mobMeet(R, kind), map = DATA.maps[a], wn = DATA.mobWn(a);   // 每次遇到随机层 / 功法
       const v = (x, k) => x * DATA.mobRnd(k, wn, kind, a);   // × 固定倍率（按种类 + 界）× 地图倍率 MAP_RATE
       const name = kind === "boss" ? DATA.regionBoss(a, r) : (kind === "elite" ? "精英·" : "") + (U.pick(map.monsters) || "");   // pick 空数组返 undefined 时名字里不出现“undefined”
       return this.addMagic({ name, mapA: a, Lm: R.L, kind, boss: kind === "boss", elite: kind === "elite", elKey: kind === "boss" ? `b:${a}:${r}` : "",
@@ -1138,15 +1095,14 @@ G.module({
     addMagic(m, kind, b = {}) {
       // kind：normal / elite / boss / tower，或直接写中文种类（考核、天将、星君、界主）
       const MG = CFG.mobs.magic || {}, M = MG[{ normal: "普通", elite: "精英", boss: "首领", tower: "试炼塔" }[kind] || kind] || {};
-      m.el = "";   // 怪物不再有金木水火土雷本属性（用户定 2026-11-15）：法术 / 法宝每次随机一系；存档里的 mobEl 不再用
+      m.el = "";   // 怪物没有金木水火土雷本属性（用户定）：法术 / 法宝每次随机一系；存档里的 s.mobEl 战斗不用
       const fx = m.elKey && this.mobFixOf(m.elKey); if (fx) { m.mf = (fx.mf || []).slice(); m.tfFix = fx.tf || []; }   // 定死的秘法、天赋
-      const O = 1;   // 本属性抗性改为进战斗随机 +%（下面 ELRES），不再按种类乘 OWN_RES
       m.mana = m.maxMana = b.mana !== undefined ? b.mana : m.mana || 0;   // 法力 = 修为突破 + 肉身突破的法力 × 倍率（同其他属性）
       const r0 = m.res, rv = typeof r0 === "number" ? r0 : 0;   // 数字 = 六系一样；对象 = 每系单独（真经按系分开算）
       m.res = {};
       m.wn = m.rw || (m.mapA !== undefined ? DATA.mobWn(m.mapA) : "凡界");   // 怪物在哪一界（伤害减免等按界取）
-      for (const e of DATA.elements) m.res[e.id] = b.res && b.res[e.id] !== undefined ? b.res[e.id] : (r0 && typeof r0 === "object" ? +r0[e.id] || 0 : rv) * DATA.mobRnd("res_" + e.id, m.randWn || m.wn, m.randKd || (["天将", "星君", "界主"].includes(kind) ? kind : m.kind || kind), m.mapA) * (e.id === m.el ? O : 1);   // 每系抗性按种类 + 界取倍率；每系抗性 = 怪物抗性（修为 + 肉身 + 真诀）× 倍率，本属性再 × OWN_RES
-      // 进战斗：六系抗性随机一系 +UP1%，两系 +UP2%[最小, 最大]，两系不变，一系 −DOWN%[最小, 最大]（用户定 2026-11-15，config/mobs.js ELRES）
+      for (const e of DATA.elements) m.res[e.id] = b.res && b.res[e.id] !== undefined ? b.res[e.id] : (r0 && typeof r0 === "object" ? +r0[e.id] || 0 : rv) * DATA.mobRnd("res_" + e.id, m.randWn || m.wn, m.randKd || (["天将", "星君", "界主"].includes(kind) ? kind : m.kind || kind), m.mapA);   // 每系抗性 = 怪物抗性（修为 + 肉身 + 真诀）× 倍率（按种类 + 界取）
+      // 进战斗：六系抗性随机一系 +UP1%，两系 +UP2%[最小, 最大]，两系不变，一系 −DOWN%[最小, 最大]（用户定，config/mobs.js ELRES）
       if (!b.res) {
         const ER = Object.assign({ UP1: 24, UP2: [6, 12], DOWN: [18, 24] }, MG.ELRES || {});
         const rr = a => Array.isArray(a) ? a[0] + Math.random() * ((a[1] ?? a[0]) - a[0]) : +a || 0;
@@ -1155,7 +1111,7 @@ G.module({
         mul(ids[0], rr(ER.UP1)); mul(ids[1], rr(ER.UP2)); mul(ids[2], rr(ER.UP2)); mul(ids[5], -rr(ER.DOWN));
         m.weakEl = ids[5];
       }
-      // v258 伤害% = 基础 + (地图等级 − 起始等级) × 每级加成（config/mobs.js magic.SPELL_LV / FABAO_LV）；mapA = 所在地图，没有按境界折算
+      // 伤害% = 基础 + (地图等级 − 起始等级) × 每级加成（config/mobs.js magic.SPELL_LV / FABAO_LV）；mapA = 所在地图，没有按境界折算
       const kn = { normal: "普通", elite: "精英", boss: "首领", tower: "试炼塔" }[kind] || kind;
       const lv = m.mapA >= 0 ? DATA.mapLv(m.mapA) : DATA.mapLvByL(m.L), dl = (MG.NO_LV || []).includes(kn) ? 0 : Math.max(0, lv - ((MG.LV_START || {})[kn] || 1));
       const cv = (c, st) => c ? { chance: c.几率 || 0, pct: (c.伤害 || 0) + dl * (+MG[st] || 0), mana: c.消耗 || [0, 1] } : null;
@@ -1163,7 +1119,7 @@ G.module({
       m.manaK = DATA.manaRealmK(m.L);   // 法术、法宝法力消耗的境界倍率（config/mobs.js magic.MANA_REALM）
       const MR = +((CFG.rates || {}).MOB ?? 1);   // config/rates.js 怪物属性总倍率（暴击%不乘；雷劫不走这里）
       if (MR !== 1 && MR >= 0) { for (const k of ["hp", "atk", "def", "speed", "hit", "dodge"]) if (typeof m[k] === "number") m[k] *= MR; m.mana = m.maxMana = m.mana * MR; for (const e in m.res) m.res[e] *= MR; }
-      // 怪物的神通也加上神通领悟的属性（每种 = config/yinshi.js SHENTONG.MAX，同玩家修满；用户定 2026-11-13）
+      // 怪物的神通也加上神通领悟的属性（每种 = config/yinshi.js SHENTONG.MAX，同玩家修满；用户定）
       const SM = this.ysStCfg().MAX || {};
       for (const [id] of m.stl || []) { if (!this.stDef(id)) continue;
         for (const k in SM) { if (k === "res") { for (const e in m.res) m.res[e] += SM.res; } else if (k === "mana") { m.mana += SM.mana; m.maxMana = m.mana; } else if (typeof m[k] === "number") m[k] += SM[k]; } }
@@ -1171,7 +1127,7 @@ G.module({
       return m;
     },
 
-    // 首领 / 天将 / 星君 / 界主的属性：第一次进游戏时随机定死（s.mobEl { 键: 元素id }），每类里六种属性平均分；以后新加的按该类最少的属性补
+    // 首领 / 天将 / 星君 / 界主：第一次进游戏时随机定死属性（s.mobEl { 键: 元素id }），每类里六种属性平均分；以后新加的按该类最少的属性补（战斗已不用怪物本属性）
     //   键：首领 b:地图:区域、mj:秘境、ld:灵地；天将 tj:地图；星君 xj:地图:位；界主 jz:地图
     mobElKeys() {
       const C = { 首领: [], 天将: [], 星君: [], 界主: [] };
@@ -1216,9 +1172,9 @@ G.module({
       while (n-- > 0 && p.length) out.push(p.splice(Math.floor(Math.random() * p.length), 1)[0]);
       return out;
     },
-    // cat：X灵天赋另外按 config/battle.js LING_RAND[cat] 给（不占普通天赋种数，用户定 2026-11-15）
+    // cat：X灵天赋另外按 config/battle.js LING_RAND[cat] 给（不占普通天赋种数，用户定）
     rollTf(c, cat) { const L = this.lingKeys(); return this.randSome(Object.keys((CFG.battle.TALENT || {}).NAME || {}).filter(k => !L.includes(k)), c.天赋几率, c.天赋种数).map(k => k === "xishou" ? "xishou_" + (U.pick(DATA.elements) || {}).id : k).concat(cat ? this.rollLing(cat) : []); },
-    lingKeys() { const N = (CFG.battle.TALENT || {}).NAME || {}; return DATA.elements.map(e => e.id + "ling").filter(k => N[k]); },   // 金灵 jinling … 土灵 tuling（雷灵去掉，用户定 2026-11-15）
+    lingKeys() { const N = (CFG.battle.TALENT || {}).NAME || {}; return DATA.elements.map(e => e.id + "ling").filter(k => N[k]); },   // 金灵 jinling … 土灵 tuling（没有雷灵，用户定）
     lingCfg(cat) { return (CFG.battle.LING_RAND || {})[cat] || null; },
     rollLing(cat) { const c = this.lingCfg(cat); return c ? this.randSome(this.lingKeys(), c.几率 ?? 100, c.个数 || [1, 1]) : []; },
     // 定死的怪：X灵个数不在 LING_RAND 范围内就补 / 删到范围内（老存档、改配置后）
@@ -1238,33 +1194,33 @@ G.module({
 
     // 通用战斗：速度高者先手，判闪避、暴击。返回 { win, lose, rounds, why, log }，并更新玩家生命、法力
     //   log：完整战斗过程（点「详情」查看），格式见 battleDetail
-    //   opt.test（v158 实力测试）：v244 起双方照常扣生命、法力（只在测试画面里），一方倒下或打满 TEST_ROUNDS 回合结束；结束后人物生命 / 法力还原成测试前
-    //   v245 进入测试时生命、法力按满的算（不管测试前多少），退出后还原成测试前的数，测试不影响原本的生命、法力
+    // opt.test（实力测试）：双方照常扣生命、法力（只在测试画面里），一方倒下或打满 TEST_ROUNDS 回合结束；结束后人物生命 / 法力还原成测试前
+    // 进入测试时生命、法力按满的算（不管测试前多少），测试不影响原本的生命、法力
     battle(m, opt = {}) {
       const st0 = this.stats(), st = Object.assign({}, st0, { res: Object.assign({}, st0.res || {}) }), s = this.s, TEST = !!opt.test;   // 复制一份：神通增益会改本场的攻击 / 防御 / 抗性
       if (!m.tf) this.mobTalents(m);
       const TL = CFG.battle.TALENT || {}, tf = k => m.tf.includes(k), tfOf = (X, k) => !!(X && X.tf && X.tf.includes(k));
-      const GOD = DATA.isTest(), tHp = s.hp, tMp = s.mana; if (TEST) { s.hp = st.hp; s.mana = st.mana; }   // v245 实力测试：进入时生命、法力回满，结束后还原成测试前的数
+      const GOD = DATA.isTest(), tHp = s.hp, tMp = s.mana; if (TEST) { s.hp = st.hp; s.mana = st.mana; }   // 实力测试：进入时生命、法力回满，结束后还原成测试前的数
       const spells = s.spellSlots.slice(0, this.slotCount()).filter(Boolean).map(id => DATA.spellInfo(id, s.gongfa[id])).filter(Boolean);
-      let si = 0, act = null;   // act：这一下出手的方式 { k: 0 普通攻击 / 1 法术 / 2 法宝, sp 法术名序号, f: 0 命中 / 1 被闪避 / 2 暴击 }
+      let act = null;   // act：这一下出手的方式 { k: 0 普通攻击 / 1 法术 / 2 法宝, sp 法术名序号, f: 0 命中 / 1 被闪避 / 2 暴击 }
       const BT = CFG.battle, myL = s.mortal ? 0 : s.L, mL = m.L === undefined ? myL : m.L, MIN = A => A === st ? DATA.minDmg(myL, mL) : DATA.minDmg(A.L === undefined ? myL : A.L, myL), rnd = () => BT.RAND_MIN + Math.random() * (BT.RAND_MAX - BT.RAND_MIN);
-      // 某系抗性 = 防御 × RES_RATE + 该系抗性（config/battle.js）
+      // 某系抗性 = 防御 × RES_RATE + 该系抗性 × RES_EL_RATE（config/battle.js，sub 公式用）
       const RR = BT.RES_RATE === undefined ? BT.DEF_RATE : BT.RES_RATE, ER = BT.RES_EL_RATE === undefined ? 1 : BT.RES_EL_RATE, resOf = (D, el) => D.def * RR + ((D.res || {})[el] || 0) * ER;
-      // 伤害减免（config/battle.js FORMULA）：ratio 按比例，sub 旧的直接相减；L = 攻击方层序
+      // 伤害减免（config/battle.js FORMULA）：ratio 按比例，sub 直接相减；L = 攻击方层序
       const RAT = DATA.ratioOn(), ATK = (p, D, L) => RAT ? DATA.cutAtk(p, D.def, L) : p - D.def * BT.DEF_RATE,
-        EL = (p, D, el, L, ign = 0) => RAT ? DATA.cutEl(p, D.def, (D.res || {})[el] || 0, L, ign) : p - Math.max(0, resOf(D, el) - ign);   // v235 法术 / 法宝减免 = 防御 × RES_RATE(0.9) + 该系抗性（抗性不再 × DEF_RATE）
+        EL = (p, D, el, L, ign = 0) => RAT ? DATA.cutEl(p, D.def, (D.res || {})[el] || 0, L, ign) : p - Math.max(0, resOf(D, el) - ign);   // sub：法术 / 法宝减免 = 防御 × RES_RATE + 该系抗性 × RES_EL_RATE（resOf），无视抗性 ign 从中扣
       // 护盾破碎时溢出的伤害要按本身防御算：rawFn 是「按某个防御方算的基础伤害」，altD = 不带盾的防御方，act.altR = 不带盾 / 带盾 的伤害比
       let altD = null;
       const roll = (A, D, rawFn, k, sp, stHit) => {
         act = { k, sp, f: 0 };
         const pre = rawFn.length >= 2, raw = pre ? rawFn(D, 1) : rawFn(D); if (altD && raw > 0) act.altR = (pre ? rawFn(altD, 1) : rawFn(altD)) / raw;
-        if (stHit ? Math.random() * 100 < 1 : (!tfOf(A, "bizhong") && Math.random() * 100 < DATA.dodgeChance(A.hit, D.dodge, k))) { act.f = 1; return 0; } // 主动神通：固定 99% 命中，不看命中 / 闪避；其他：闪避看命中与闪避之比（v220 法术 / 法宝另加命中率）
+        if (stHit ? Math.random() * 100 < 1 : (!tfOf(A, "bizhong") && Math.random() * 100 < DATA.dodgeChance(A.hit, D.dodge, k))) { act.f = 1; return 0; } // 主动神通：固定 99% 命中，不看命中 / 闪避；其他：闪避看命中与闪避之比（法术 / 法宝另加命中率）
         let c = rnd();
         if (!tfOf(D, "xingyun") && Math.random() * 100 < Math.min(DATA.CRIT_CAP, A.crit + (k === 0 && tfOf(A, "baoji") ? TL.BAOJI || 0 : 0))) { c *= A.critMul ? A.critMul / 100 : BT.CRIT_MULT; act.f = 2; } // 暴击（天赋：幸运不被暴击、暴击加普攻暴击率）；锤：critMul 暴击伤害 % 代替普通倍率
-        return pre ? rawFn(D, c) : raw * c;   // 法术 / 神通 / 法宝：浮动、暴击先乘进自身伤害，再减对方防御抗性（用户定 2026-11-18）
+        return pre ? rawFn(D, c) : raw * c;   // 法术 / 神通 / 法宝：浮动、暴击先乘进自身伤害，再减对方防御抗性（用户定）
       };
       const hit = (A, D) => roll(A, D, X => Math.max(MIN(A), ATK(A.atk, X, A === st ? myL : mL)), 0);
-      // v57：鼎 → 对方速度 / 命中 / 闪避降低（m.deb，剩 left 回合）；印 → 对方眩晕（m.stun 回合）；盾 → 护盾（shield，打光为止）
+      // 鼎 → 对方速度 / 命中 / 闪避降低（m.deb，剩 left 回合）；印 → 对方眩晕（m.stun 回合）；盾 → 护盾（shield，打光为止）
       // 神通：对手减益 mD / 自身增益 meB，各 { 键: { p 百分比, left 剩余回合 } }，键 = atk / def / speed / hit / dodge / res_X
       const mD = {}, meB = {}, B0 = { atk: st.atk, def: st.def, hit: st.hit, dodge: st.dodge, speed: st.speed, res: Object.assign({}, st.res) };
       // 怪物神通（config/mobs.js 的 神通: [[id, 等级]]，data/mobs.js → m.stl）：主动每场各 USES 次，伤害 = 怪物攻击 × (PCT + 等级 × LV_PCT)%，固定 99% 命中；被动每回合开始生效
@@ -1275,18 +1231,18 @@ G.module({
       const atkK = () => B0.atk > 0 ? st.atk / B0.atk : 1;   // 神通加的攻击（主动增益 / 被动累加）对法术、法宝也生效：按攻击变化比例放大
       const mE = () => {
         if (!m.deb && !Object.keys(mD).length && !Object.keys(mB).length && !Object.keys(mG).length) return m;
-        const o = Object.assign({}, m), k = (x, e = 0) => Math.max(0, 1 - (mD[x] ? mD[x].p / 100 : 0) + (mB[x] ? mB[x].p / 100 : 0) - e / 100);   // 你给的减益、怪物神通增益、鼎减益 % 相加（用户定 2026-11-18）
+        const o = Object.assign({}, m), k = (x, e = 0) => Math.max(0, 1 - (mD[x] ? mD[x].p / 100 : 0) + (mB[x] ? mB[x].p / 100 : 0) - e / 100);   // 你给的减益、怪物神通增益、鼎减益 % 相加（用户定）
         for (const x of ["atk", "def", "hit", "dodge", "speed"]) if (mG[x]) o[x] += mG[x];   // 怪物被动神通累加
         const dB = m.deb || {};
         o.speed *= k("speed", dB.speed || 0); o.hit *= k("hit", dB.hit || 0); o.dodge *= k("dodge", dB.dodge || 0); o.atk *= k("atk"); o.def *= k("def");
         const rk = [...new Set([...Object.keys(mD), ...Object.keys(mB)])].filter(x => x.startsWith("res_")); if (rk.length) { o.res = Object.assign({}, m.res || {}); rk.forEach(x => { const e = x.slice(4); o.res[e] = (o.res[e] || 0) * k(x); }); }
         return o;
       };
-      const applyMe = () => { const g = k => (B0[k] + (psG[k] || 0)) * Math.max(0, 1 + ((meB[k] ? meB[k].p : 0) - (pD[k] ? pD[k].p : 0)) / 100);   // 自身增益、怪物神通减益 % 相加（用户定 2026-11-18）
+      const applyMe = () => { const g = k => (B0[k] + (psG[k] || 0)) * Math.max(0, 1 + ((meB[k] ? meB[k].p : 0) - (pD[k] ? pD[k].p : 0)) / 100);   // 自身增益、怪物神通减益 % 相加（用户定）
         st.atk = g("atk"); st.def = g("def"); st.hit = g("hit"); st.dodge = g("dodge"); st.speed = g("speed");
         for (const e in B0.res) st.res[e] = B0.res[e] * Math.max(0, 1 + ((meB["res_" + e] ? meB["res_" + e].p : 0) - (pD["res_" + e] ? pD["res_" + e].p : 0)) / 100); };
       let shield = null;
-      // v25：炼制法宝也能祭出（金木水火土雷属性伤害，消耗法力）
+      // 炼制法宝也能祭出（金木水火土雷属性伤害，消耗法力）
       const bmFb = this.bmInfo ? this.bmInfo() : null;   // 本命法宝（bag.js）：单独一格，排在法宝栏后面
       const mMana0 = m.mana || 0;   // 对手开场法力（没有 maxMana 的对手当法力上限用）
       const bmV = bmFb && this.bmFxVal ? this.bmFxVal() : {}, txP = bmV.txPct || 0; let txGo = false;   // 本命特效（bag.js bmFxVal）；通玄：使用本命法宝时几率不占用回合
@@ -1296,15 +1252,15 @@ G.module({
       const fbSlots = [...s.fabao.slice(0, this.slotCount()).map((e, i) => e && e.attrs ? i : -1).filter(i => i >= 0), ...(bmFb ? ["bm"] : [])];
       const acts = [...spells.map((sp, i) => ({ k: 1, sp, key: "sp:" + sp.id })), ...fabaos.map((fb, i) => ({ k: 2, fb, key: "fb:" + fbSlots[i] })), ...stns.map(sp => ({ k: 1, sp, key: sp.id }))];
       const spNames = [...spells.map(sp => sp.name), ...fabaos.map(fb => fb.name), ...stns.map(sp => sp.name)];
-      // 法宝伤害：攻击 × 伤害%，按「防御×RES_RATE + 该系抗性 − 无视抗性」减免；再加附加伤害 = 主伤害 × %
-      const lgBB = this.lgBonus ? this.lgBonus() : { dmg: {}, dr: {} }, lgB = lgBB.dmg || {}, lgDr = lgBB.dr || {}, lgD = el => lgB[el && el.id || el] || 0, lgR = (el, D) => { zfEl = el; return lgDr[el && el.id || el] || 0; };   // 主动阵法不在这里减：记下属性，等保底伤害、境界伤害都加完后在 him() 里减，最低 1 点（用户定 2026-11-14）
-      let zfEl = null;   // 灵果：lgD 该系属性伤害直接加；lgR 受到该系属性伤害直接减   // 灵果：该系属性伤害直接加   // 阵法室按次收费：D = 本次伤害（已算完其他倍率），实力测试（TEST）不扣灵气
-      // K = 伤害加成（经脉 × 神纹/灵根/神识相加）；法宝伤害 = 基础% × K + 附加%（附加 = 基础% × 词条%，不乘 K），加在一起后再减对方防御、抗性（用户定 2026-11-18）
-      // 自身伤害全部算好（基础%×K + 附加% + 强化附加伤害，再 × 浮动/暴击 c）后才减防御、抗性（用户定 2026-11-18）；灵果属性伤害减完防御后最后直接加，不吃任何加成
+      // 法宝伤害：攻击 × 伤害%，按「防御×RES_RATE + 该系抗性×RES_EL_RATE − 无视抗性」减免；再加附加伤害 = 主伤害 × %
+      const lgBB = this.lgBonus ? this.lgBonus() : { dmg: {}, dr: {} }, lgB = lgBB.dmg || {}, lgDr = lgBB.dr || {}, lgD = el => lgB[el && el.id || el] || 0, lgR = (el, D) => { zfEl = el; return lgDr[el && el.id || el] || 0; };   // 灵果：lgD 该系属性伤害直接加；lgR 受到该系属性伤害直接减。lgR 顺便记下属性给主动阵法：不在这里减，等保底伤害、境界伤害都加完后在 him() 里减，最低 1 点（用户定）
+      let zfEl = null;   // 主动阵法要减的属性（lgR 记下，him() 里用）
+      // K = 伤害加成（经脉 × 神纹/灵根/神识相加）；法宝伤害 = 基础% × K + 附加%（附加 = 基础% × 词条%，不乘 K），加在一起后再减对方防御、抗性（用户定）
+      // 自身伤害全部算好（基础%×K + 附加% + 强化附加伤害，再 × 浮动/暴击 c）后才减防御、抗性（用户定）；灵果属性伤害减完防御后最后直接加，不吃任何加成
       const fabaoDmg = (fb, D = m, K = 1, c = 1) => {
         const raw = fb.atk * atkK() * fb.pct / 100;   // 神通加的攻击也生效
         let exP = 0; for (const x of fb.extra) exP += x.pct / 100;   // 附加伤害 %：主伤害（基础%）× 词条%
-        return Math.max(MIN(st), EL((raw * K + raw * exP + (fb.addDmg || 0)) * c, D, fb.el, myL, fb.ign));   // v152 强化附加伤害（固定数字）不吃加成；灵果属性伤害在外面最后直接加
+        return Math.max(MIN(st), EL((raw * K + raw * exP + (fb.addDmg || 0)) * c, D, fb.el, myL, fb.ign));   // 强化附加伤害（固定数字）不吃加成；灵果属性伤害在外面最后直接加
       };
       // 战斗设置（回合、出手方式、保命、继续探索）只对 探索 / 出窍 / 历练（含秘境）生效（opt.useSet）；
       // 法术、法宝、神通列表（顺序 order、不使用 off）对所有战斗生效
@@ -1313,33 +1269,33 @@ G.module({
        keepMp = 0, rKeys = BS.r || [];
       let rDone = 0;
       // 出一招：a = acts[j]；res = true 可以动用保留的法力；放不出返回 null
-      const usedN = {};   // v152 这场战斗每招已用几次
+      const usedN = {};   // 这场战斗每招已用几次
       let res2 = false;
-      const ssG = k => this.ssGfSum ? this.ssGfSum(k) : 0, ssSpM = Math.max(0, 1 - ssG("spMana") / 100), ssFbM = Math.max(0, 1 - ssG("fbMana") / 100), ssFb = 1 + ssG("fbDmg") / 100;   // 神识功法《御法凝神篇》《驭宝通灵诀》（用户定 2026-11-17）
-      const ssSp = 1 + ssG("spDmg") / 100, swSp = 1 + (this.sjSwBonus ? this.sjSwBonus().spDmg || 0 : 0) / 100;   // 神通算法术类：主神纹法术伤害、灵根本系法术伤害、神识功法都加（用户定 2026-11-18）；本命法宝本来就按法宝算   // 主神纹：法术伤害 +%
-      const dmgAdd = (...ms) => 1 + ms.reduce((n, x) => n + x - 1, 0);   // 经脉、主神纹、灵根、神识功法的伤害 % 相加，不相乘（用户定 2026-11-18）
-      const lgSp = el => this.lingenSp ? this.lingenSp(el && el.id || el) : 1;   // 灵根：本系法术伤害 +%（用户定 2026-11-14）
+      const ssG = k => this.ssGfSum ? this.ssGfSum(k) : 0, ssSpM = Math.max(0, 1 - ssG("spMana") / 100), ssFbM = Math.max(0, 1 - ssG("fbMana") / 100), ssFb = 1 + ssG("fbDmg") / 100;   // 神识功法《御法凝神篇》《驭宝通灵诀》（用户定）
+      const ssSp = 1 + ssG("spDmg") / 100, swSp = 1 + (this.sjSwBonus ? this.sjSwBonus().spDmg || 0 : 0) / 100;   // ssSp 神识功法、swSp 主神纹的法术伤害 +%；神通算法术类，这些都加（用户定），本命法宝按法宝算
+      const dmgAdd = (...ms) => 1 + ms.reduce((n, x) => n + x - 1, 0);   // 经脉、主神纹、灵根、神识功法的伤害 % 相加，不相乘（用户定）
+      const lgSp = el => this.lingenSp ? this.lingenSp(el && el.id || el) : 1;   // 灵根：本系法术伤害 +%（用户定）
       const jmUp = el => 1 + (this.jmElDmg ? this.jmElDmg(el) : 0) / 100, jmDn = el => 1 - (this.jmElCut ? this.jmElCut(el) : 0) / 100;   // 经脉：手部 +% / 腿部 −%（config/jingmai.js elDmg / elCut）
       const cast = (j, res) => {
         const a = acts[j]; if (!a) return null;
         const cost = a.k === 1 ? a.sp.mana * ssSpM : a.fb.mana * ssFbM;   // 神识功法：释放法术（含神通）/ 法宝（含本命法宝）法力消耗 −%
-        if (a.k === 2 && a.fb.shield && (shield || !res2)) return null;   // 护盾还在：盾不用再祭；v165 盾只在出手前免费祭（res2），不占出手
+        if (a.k === 2 && a.fb.shield && (shield || !res2)) return null;   // 护盾还在：盾不用再祭；盾只在出手前免费祭（res2），不占出手
         if (s.mana < cost || (!res && s.mana - cost < keepMp)) return null;
-        if ((usedN[j] || 0) >= ((a.k === 1 ? a.sp.uses : a.fb.uses) || 1)) return null;   // v152 每场战斗使用次数用完
+        if ((usedN[j] || 0) >= ((a.k === 1 ? a.sp.uses : a.fb.uses) || 1)) return null;   // 每场战斗使用次数用完
         usedN[j] = (usedN[j] || 0) + 1;
         s.mana -= cost;
         if (a.k === 1) { const sp = a.sp, F = sp.stn && sp.stn.fx || {}, up = sp.stn ? (F.t === "pshield" && mShield ? 1 + F.p / 100 : F.t === "hp50" && mhp > m.hp * 0.5 ? 1 + F.p / 100 : 1) : 1;   // 神通：破盾 / 对手生命高于一半 增伤
           let d = roll(st, mE(), (X, c) => Math.max(MIN(st), EL((((sp.stn ? st.atk : sp.atk * atkK()) * (sp.pct + (sp.fuPct || 0)) / 100 * sp.mul + (sp.jyDmg || 0)) * dmgAdd(jmUp(sp.el.id), swSp, lgSp(sp.el), ssSp, up)) * c, X, sp.el.id, myL)), 1, j, !!sp.stn);
-          if (d > 0) d += lgD(sp.el.id);   // 灵果属性伤害：最后直接加，不吃任何加成、不被防御抗性减   // 融合：+% 加进法术% 里；法术吃灵根法术伤害%；经脉该系属性伤害 +%（神通固定 99% 命中）
+          if (d > 0) d += lgD(sp.el.id);   // 灵果属性伤害：最后直接加，不吃任何加成、不被防御抗性减；上一行：融合 +% 加进法术%（fuPct），吃灵根、经脉该系属性伤害 +%（神通固定 99% 命中）
           if (sp.stn) { if (act.f !== 1) stFx(sp.stn, d, up > 1); return d; }   // 神通附加效果（没闪避才触发）
-          if (!opt.test && !opt.noXd) { const xd = CFG.gongfa.XD_GAIN === undefined ? 1 : CFG.gongfa.XD_GAIN; if (xd > 0) { const X = this.s.spXd = this.s.spXd || {}; X[sp.el.id] = (X[sp.el.id] || 0) + xd; act.x = (act.x || 0) | 256; } }   // v239 法术心得
+          if (!opt.test && !opt.noXd) { const xd = CFG.gongfa.XD_GAIN === undefined ? 1 : CFG.gongfa.XD_GAIN; if (xd > 0) { const X = this.s.spXd = this.s.spXd || {}; X[sp.el.id] = (X[sp.el.id] || 0) + xd; act.x = (act.x || 0) | 256; } }   // 法术心得
           return d; }
         const fb = a.fb;
         const isBm = a.key === "fb:bm", pjK = isBm && mShield && bmV.pjDmg > 0 ? 1 + bmV.pjDmg / 100 : 1;   // 破禁①：对手有护盾时增伤
         if (isBm && txP > 0 && Math.random() * 100 < txP) txGo = true;
         if (fb.shield) { shield = Object.assign({ el: fb.el }, fb.shield, { def: st.def * (fb.shield.defPct || 0) / 100, hp: st.hp * (fb.shield.hpPct || 0) / 100 + (fb.shield.hpAdd || 0) });   // 盾防御 = 祭盾时全部防御 × %
           act = { k: 3, sp: j, f: 0 }; return 0; }
-        let d = roll(fb.hit || fb.critAdd || fb.crit ? Object.assign({}, st, { hit: st.hit + (fb.hit || 0), crit: st.crit + (fb.critAdd || 0), critMul: fb.crit || 0 }) : st, mE(), (X, c) => fabaoDmg(fb, X, dmgAdd(pjK, jmUp(fb.el), ssFb, swSp, lgSp(fb.el)), c), 2, j);   // 主神纹、灵根的伤害加成对法宝（含本命）也有效（用户定 2026-11-18）   // 经脉该系属性伤害 +%   // 刀 / 锤专属：本次攻击额外命中、暴击
+        let d = roll(fb.hit || fb.critAdd || fb.crit ? Object.assign({}, st, { hit: st.hit + (fb.hit || 0), crit: st.crit + (fb.critAdd || 0), critMul: fb.crit || 0 }) : st, mE(), (X, c) => fabaoDmg(fb, X, dmgAdd(pjK, jmUp(fb.el), ssFb, swSp, lgSp(fb.el)), c), 2, j);   // 主神纹、灵根的伤害加成对法宝（含本命）也有效（用户定）；经脉该系属性伤害 +%；刀 / 锤专属：本次攻击额外命中、暴击
         if (d > 0) d += lgD(fb.el);   // 灵果属性伤害：最后直接加，不吃任何加成、不被防御抗性减
         if (act.f !== 1) {
           if (fb.ding) { m.deb = { speed: fb.ding.speed, hit: fb.ding.hit, dodge: fb.ding.dodge, left: fb.ding.rounds }; act.x = 2; }
@@ -1382,9 +1338,9 @@ G.module({
       const spJ = useJ.filter(j => acts[j].k === 1), fbJ = useJ.filter(j => acts[j].k === 2);
       const myHit = () => {
         let d;
-        if (meSeal || onlyAtk) return hit(st, mE());   // 被镇魂 / v241 战斗设置该类对手只普通攻击：只能普通攻击
+        if (meSeal || onlyAtk) return hit(st, mE());   // 被镇魂 / 战斗设置该类对手只普通攻击：只能普通攻击
         // 生命低于设定：先用设定的防御法宝 / 法术（可动用保留法力）；已在战斗设置里
-        // 勾“不使用”的招式不能经这条捷径打出（原来没查 off，禁用了照样放）
+        // 勾“不使用”的招式不能经这条捷径打出
         if (BS.lowPct > 0 && BS.lowKey && !off.includes(BS.lowKey) && php < st.hp * BS.lowPct / 100 && (d = cast(jOf(BS.lowKey), true)) !== null) return d;
         // 第一 ~ 三回合：每回合第一次出手按设置（同样先查 off）
         if (rDone !== rounds) {
@@ -1398,7 +1354,7 @@ G.module({
         else if (md === "fb") d = rot(fbJ, "f"), d = d !== null ? d : rot(spJ, "s");
         else if (md === "max") d = seq(useJ.filter(j => est(acts[j]) >= 0).sort((x, y) => est(acts[y]) - est(acts[x])));
         else if (md === "cheap") d = seq(useJ.filter(j => est(acts[j]) >= 0).sort((x, y) => costOf(acts[x]) - costOf(acts[y])));
-        else if (md === "atk") d = null;   // v242 剩余回合只普通攻击
+        else if (md === "atk") d = null;   // 剩余回合只普通攻击
         else if (md === "list") d = seq(useJ.slice().sort((x, y) => ordIdx(acts[x].key) - ordIdx(acts[y].key)));
         else d = rot(useJ, "a");
         return d !== null ? d : hit(st, mE());
@@ -1421,27 +1377,27 @@ G.module({
       // 出手后的伤害修正：血煞增伤、金蝉自降、对方金蝉免疫；返回修正后的伤害
       const after = (d, p, hpNow, hpMax, myJc, tgtJc) => {
         if (!(d > 0) || act.k >= 3) return d;
-        let k = 0;   // 血煞增伤、金蝉自降 % 相加（用户定 2026-11-18）
+        let k = 0;   // 血煞增伤、金蝉自降 % 相加（用户定）
         if (p.xs > 0) { const r = hpNow / hpMax; k += p.xs / 100 * (r * 100 <= (XS.FULL_AT || 0) ? 1 : Math.max(0, 1 - r)); }
         if (myJc) k -= p.jcC / 100;
         if (k) d *= Math.max(0, 1 + k);
         if (tgtJc && act.f !== 1) { d = 0; act.x = (act.x || 0) | 128; }
         return d;
       };
-      // v174 本场人物速度随机 95%~105%（怪物属性本身已随机，不再随机），谁快谁先出手
+      // 本场人物速度 × 随机 SPEED_RAND%（config/battle.js，怪物不随机），谁快谁先出手
       const SR = BT.SPEED_RAND || [100, 100], spMe = (SR[0] + Math.random() * (SR[1] - SR[0])) / 100, spMob = 1;
       const hp0 = s.hp, mana0 = s.mana; let meFirst = st.speed * spMe >= m.speed * spMob;
-      // 怪物出手：先判法术，再判法宝（都按 防御×RES_RATE + 该系抗性 减免），都没有就普通攻击
+      // 怪物法术 / 法宝出手（mCast）：伤害按 防御×RES_RATE + 该系抗性×RES_EL_RATE 减免；选哪种出手见下面 mobHit
       let mSp = 0, mFb = 0;
-      const mUpK = (el, up = 1) => Math.max(0, up + (tf("lingxing") ? (TL.LINGXING || 0) / 100 : 0) + (tf(el + "ling") ? (TL.EL_LING ?? 18) / 100 : 0) + jmDn(el) - 1);   // 灵性、X灵、经脉腿部减伤 % 相加（用户定 2026-11-18）
+      const mUpK = (el, up = 1) => Math.max(0, up + (tf("lingxing") ? (TL.LINGXING || 0) / 100 : 0) + (tf(el + "ling") ? (TL.EL_LING ?? 18) / 100 : 0) + jmDn(el) - 1);   // 灵性、X灵、经脉腿部减伤 % 相加（用户定）
       const mCast = (k, el, force) => {
         const c = m[k], mA = mE().atk, P = c && c.mana || [0, 1], cost = c ? (m.manaBr || 0) * P[0] * (P[1] === undefined ? 1 : P[1]) * (m.manaK ?? 1) : 0;   // 耗法力 = 修为突破法力 × 比例 × 倍率 × 境界倍率
         if (!c || m.mana < cost || (!force && Math.random() * 100 >= c.chance)) return -1;
         m.mana -= cost; k === "spell" ? mSp++ : mFb++;
-        if (!el) el = (U.pick(DATA.elements) || {}).id;   // 怪物没有本属性：每次随机一系（用户定 2026-11-15）
+        if (!el) el = (U.pick(DATA.elements) || {}).id;   // 怪物没有本属性：每次随机一系（用户定）
         const d = roll(mE(), st, X => Math.max(MIN(m), el ? EL(mA * c.pct / 100, X, el, mL) : ATK(mA * c.pct / 100, X, mL)), k === "spell" ? 1 : 2);
         act.e = el;
-        if (!el || d <= 0) return d; const dd = d * mUpK(el); return Math.max(0, dd - lgR(el, dd));   // 灵果减伤：最后直接减，不吃任何加成   // 天赋灵性：金木水火土雷属性伤害都增加；天赋金灵等：该系法术 / 法宝伤害增加；经脉腿部：受到该系伤害 −%
+        if (!el || d <= 0) return d; const dd = d * mUpK(el); return Math.max(0, dd - lgR(el, dd));   // 天赋灵性 / 金灵等、经脉腿部按 mUpK 相加；灵果减伤最后直接减，不吃任何加成
       };
       // 怪物主动神通：还有没用完的就先放（按配置顺序，每种每场 USES 次），sp = 第几种（战斗过程里怪物法术 sp 是 -1，靠这个区分）
       const mStCast = () => {
@@ -1450,7 +1406,7 @@ G.module({
         const D = mStA[j].d, F = D.fx || {}, el = D.el, A = mE(), pct = (SC.PCT || 100) + mStA[j].lv * (SC.LV_PCT || 0);
         const up = F.t === "pshield" && shield ? 1 + F.p / 100 : F.t === "hp50" && php > st.hp * 0.5 ? 1 + F.p / 100 : 1;
         let d = roll(A, st, X => Math.max(MIN(m), EL(A.atk * pct / 100, X, el, mL)), 1, j, true);
-        if (d > 0) { const dd = d * mUpK(el, up); d = Math.max(0, dd - lgR(el, dd)); }   // X灵：该系神通伤害也加   // 灵果减伤最后直接减   // 同怪物法术：天赋灵性、经脉腿部
+        if (d > 0) { const dd = d * mUpK(el, up); d = Math.max(0, dd - lgR(el, dd)); }   // 同怪物法术：天赋灵性、X灵（该系神通也算）、经脉腿部；灵果减伤最后直接减
         if (act.f !== 1) mStFx(D, d, up > 1);
         return d;
       };
@@ -1465,20 +1421,20 @@ G.module({
         else if (boosted) act.st = F.t === "pshield" ? `对护盾额外造成 ${F.p}% 伤害` : `对手生命高于一半，伤害提升 ${F.p}%`;
       };
       const mobSt = () => { const d = mStA.length ? mStCast() : -1; return d < 0 ? mobHit() : d; };
-      // 怪物出手（用户定 2026-11-15）：普攻 / 法术 / 法宝 几率一样完全随机；法术法宝的属性六系一样随机，有 X灵天赋的那系 LING_CAST%（几系都有时平分，最多 100%）
+      // 怪物出手（用户定）：普攻 MOB_HIT_PCT%，其余法术 / 法宝各一半；法术法宝的属性六系一样随机，有 X灵天赋的那系 LING_CAST%（几系都有时平分，最多 100%）
       const lingEls = this.lingKeys().map(k => k.slice(0, -4)).filter(id => tf(id + "ling")), LP = TL.LING_CAST ?? 36;
       const mobElPick = () => { const E = DATA.elements.map(e => e.id); if (!lingEls.length) return U.pick(E);
         const n = lingEls.length, pl = Math.min(LP, 100 / n), r = Math.random() * 100, oth = E.filter(e => !lingEls.includes(e));
         return r < pl * n ? lingEls[Math.min(n - 1, Math.floor(r / pl))] : oth.length ? U.pick(oth) : U.pick(lingEls); };
-      //   几率（用户定 2026-11-15）：普攻 MOB_HIT_PCT 4%，其余法术 / 法宝各一半（每系法术、法宝各 8%，一系合计 16%）
+      //   几率：MOB_HIT_PCT = 4 时，每系法术、法宝各 8%，一系合计 16%
       const HP = CFG.battle.MOB_HIT_PCT ?? 4;
       const mobHit = () => { const ops = []; if (m.spell) ops.push(1); if (m.fabao) ops.push(2); const o = !ops.length || Math.random() * 100 < HP ? 0 : ops[Math.floor(Math.random() * ops.length)];
         const d = o ? mCast(o === 1 ? "spell" : "fabao", mobElPick(), true) : -1; return d < 0 ? hit(mE(), st) : d; };   // 法力不够 → 普攻
       // 每一下记一条：[回合, 谁(0 你 / 1 对方), 方式, 法术名序号, 结果, 伤害, 你的生命, 你的法力, 对方生命, 对方法力]
       const log = [], R = Math.round;
-      //   v57 多两格：[10] 标记（1 眩晕对方 2 鼎减益 4 护盾破碎）、[11] 护盾抵挡的伤害；方式 3 = 祭起护盾（伤害格 = 护盾值）、4 = 被眩晕
-      const rec = (w, d) => { const L = [rounds, w, act.k, act.sp === undefined ? -1 : act.sp, act.f, R(d), R(Math.max(0, php)), R(s.mana), R(Math.max(0, mhp)), R(m.mana || 0), act.x || 0, R(act.ab || 0)]; if (act.st) L[12] = act.st; if (act.e) L[13] = act.e; log.push(L); };   // [13] 怪物法术 / 法宝这一下的属性   // [12] 神通附加效果说明
-      // v165 出手前：护盾不在、盾还有次数、法力够 → 先免费祭起护盾（不占这次出手，只算盾的使用次数）
+      // [10] 标记（1 眩晕对方 2 鼎减益 4 护盾破碎）、[11] 护盾抵挡的伤害；方式 3 = 祭起护盾（伤害格 = 护盾值）、4 = 被眩晕
+      const rec = (w, d) => { const L = [rounds, w, act.k, act.sp === undefined ? -1 : act.sp, act.f, R(d), R(Math.max(0, php)), R(s.mana), R(Math.max(0, mhp)), R(m.mana || 0), act.x || 0, R(act.ab || 0)]; if (act.st) L[12] = act.st; if (act.e) L[13] = act.e; log.push(L); };   // [12] 神通附加效果说明，[13] 怪物法术 / 法宝这一下的属性
+      // 出手前：护盾不在、盾还有次数、法力够 → 先免费祭起护盾（不占这次出手，只算盾的使用次数）
       const freeShield = () => {
         if (meSeal || shield || onlyAtk) return;
         for (const j of useJ) if (acts[j].k === 2 && acts[j].fb.shield) {
@@ -1486,14 +1442,14 @@ G.module({
           if (d !== null) { rec(0, shield.hp); return; }
         }
       };
-      // v165 怪物护盾：几率、次数、护盾值、盾防御、消耗按种类单独设置（config/mobs.js 的 mobs.magic.种类.盾），不占出手
+      // 怪物护盾：几率、次数、护盾值、盾防御、消耗按种类单独设置（config/mobs.js 的 mobs.magic.种类.盾），不占出手
       let mShield = null, mShN = 0;
       const mobShield = () => {
         const c = m.shield; if (!c || mobSeal || mShield || mShN >= c.max) return;
         const P = c.mana || [0, 1], cost = (m.manaBr || 0) * P[0] * (P[1] === undefined ? 1 : P[1]);
         if (m.mana < cost || Math.random() * 100 >= c.chance) return;
         m.mana -= cost; mShN++;
-        const rp = v => Array.isArray(v) ? v[0] + Math.random() * (v[1] - v[0]) : v || 0;   // v166 [最小, 最大] 随机
+        const rp = v => Array.isArray(v) ? v[0] + Math.random() * (v[1] - v[0]) : v || 0;   // [最小, 最大] 随机
         mShield = { hp: m.hp * rp(c.hp) / 100, def: m.def * rp(c.def) / 100, red: c.red || 0 };
         act = { k: 3, f: 0 }; rec(1, mShield.hp);
       };
@@ -1505,7 +1461,7 @@ G.module({
         let d = myHit(); m.def = def0; altD = null;
         if (psG.eld && (act.k === 1 || act.k === 2) && d > 0) d += psG.eld;   // 被动神通：属性伤害 +点
         let dK = 0;
-        if ((act.k === 1 || act.k === 2) && act.f !== 1 && d > 0) {   // 天赋 X系吸收：该系法术 / 法宝伤害 −XISHOU%（用户定 2026-11-15，原为全免疫）
+        if ((act.k === 1 || act.k === 2) && act.f !== 1 && d > 0) {   // 天赋 X系吸收：该系法术 / 法宝伤害 −XISHOU%（用户定）
           const a = acts[act.sp], el = a ? (act.k === 1 ? a.sp.el.id : a.fb.el) : "";
           if (el && tf("xishou_" + el)) dK -= ((CFG.battle.TALENT || {}).XISHOU ?? 75) / 100;
           const KE = (CFG.battle.TALENT || {}).EL_KE || {};
@@ -1514,7 +1470,7 @@ G.module({
           if (el && m.elRed && m.elRed[el]) dK -= m.elRed[el] / 100;   // 试炼塔守关者：某几系伤害减少（config/mobs.js tower.EL_RED）
         }
         if (act.k <= 2 && act.f !== 1 && d > 0) { const rv = act.k === 0 ? CFG.mobs.普通伤害减免 : CFG.mobs.属性伤害减免, r = +(rv && typeof rv === "object" ? rv[m.wn || "凡界"] ?? rv["凡界"] : rv) || 0; if (r) dK -= r / 100; }   // 怪物普通 / 属性伤害减免（负数 = 增伤，config/mobs.js）
-        if (dK) d *= Math.max(0, 1 + dK);   // 吸收、克制、同系减、试炼塔、怪物减免 % 相加（用户定 2026-11-18）
+        if (dK) d *= Math.max(0, 1 + dK);   // 吸收、克制、同系减、试炼塔、怪物减免 % 相加（用户定）
         if (lx) act.x = (act.x || 0) | 8;
         if (txF) act.x = (act.x || 0) | 4096;   // 通玄：上一下本命法宝没占回合
         d = after(d, pMe, php, st.hp, meJc, mobJc);
@@ -1522,7 +1478,7 @@ G.module({
         if (act.k < 3 && act.f !== 1 && d > 0 && mL > myL && (BT.LOW_DMG || BT.LOW_BIG_DMG)) { const rd = Math.floor(mL / DATA.LAYERS) - Math.floor(myL / DATA.LAYERS); d = Math.max(0, d - (mL - myL) * (BT.LOW_DMG || 0) - (rd > 0 ? rd * (BT.LOW_BIG_DMG || 0) : 0)); }
         if (pj && act.k < 3 && act.f !== 1 && !(act.x & 640)) act.x = (act.x || 0) | 32;   // 破军标记：金蝉挡下 / 吸收化解时不显示（和镇魂的 640 检查一致）
         if (act.k < 3 && act.f !== 1 && !(act.x & 640) && !mobSeal && cnt.me.zh < pMe.zhT && ch(pMe.zh)) { mobSeal = pMe.zhR; sealR.mob = rounds; cnt.me.zh++; act.x = (act.x || 0) | 64; }
-        if (mShield && act.k < 3 && act.f !== 1 && d > 0) {   // v165 怪物护盾
+        if (mShield && act.k < 3 && act.f !== 1 && d > 0) {   // 怪物护盾
           const dSo = d;   // 减伤%之前（盾碎后溢出部分不再吃盾的减伤%）
           if (mShield.red) d = Math.max(Math.min(MIN(st), d), d * (1 - mShield.red / 100));   // 盾防御已在出手时代替本身防御，这里只算额外减伤%；压制已把伤害压到保底以下时不再垫回保底
           const ab = Math.min(mShield.hp, d), dS = d; mShield.hp -= ab; d -= ab; act.ab = ab;
@@ -1535,7 +1491,7 @@ G.module({
         if (mhp <= 0 && php > 0 && cnt.mob.yt < pMob.ytT && ch(pMob.yt)) { dealt -= 1 - mhp; mhp = 1; cnt.mob.yt++; act.x = (act.x || 0) | 16; }   // 对方御天保命
         const SY = TL.SHENYOU || {};
         if (mhp <= 0 && php > 0 && !syUsed && tf("shenyou") && ch(SY.CHANCE || 0)) {   // 天赋神佑：复活，恢复生命、法力（每场 1 次）
-          // “共造成伤害”要扣掉复活回来的血：原来 dealt 含了整击伤害，复活后仍按全额显示
+          // “共造成伤害”要扣掉复活回来的血（dealt 里含整击伤害）
           syUsed = 1; const rev = m.hp * (SY.PCT || 0) / 100; dealt -= rev - mhp; mhp = rev; m.mana = Math.min(m.maxMana || 0, (m.mana || 0) + (m.maxMana || 0) * (SY.PCT || 0) / 100); act.x = (act.x || 0) | 2048;
         }
         if (act.k === 2 && bmV.yxHeal > 0 && acts[act.sp] && acts[act.sp].key === "fb:bm") { const eff = Math.max(0, mhpBefore - mhp); if (eff > 0) { const v = Math.max(0, Math.min(st.hp - php, eff * bmV.yxHeal / 100)); if (v >= 1) { php += v; act.st = (act.st ? act.st + "，" : "") + `饮血恢复生命 ${U.fmt(v)}`; } } }   // 饮血：按御天/神佑后的实际掉血算，不是出招伤害（原 10 血怪被打 100 点触发御天时只掉 9 血）
@@ -1555,9 +1511,9 @@ G.module({
         if (lj) act.x = (act.x || 0) | 1024;
         d = after(d, pMob, mhp, m.hp, mobJc, meJc);
         if (pj && act.f !== 1 && !(act.x & 128)) act.x = (act.x || 0) | 32;   // 破军标记：金蝉挡下时不显示（和镇魂的 128 检查一致）
-        // 境界伤害：（层数项 每比人物高 1 层 REALM_DMG + 大境界项 每比人物高 1 个大境界 REALM_BIG_DMG）× 怪物大境界序号；不吃加成，无视防御、抗性；之后和正常伤害一样过护盾；人物打怪物没有
-        if (act.f !== 1 && !((act.x || 0) & 128) && mL > myL && (BT.REALM_DMG || BT.REALM_BIG_DMG)) { const rd = Math.floor(mL / DATA.LAYERS) - Math.floor(myL / DATA.LAYERS); d += ((mL - myL) * (BT.REALM_DMG || 0) + (rd > 0 ? rd * (BT.REALM_BIG_DMG || 0) : 0)) * (Math.floor(mL / DATA.LAYERS) + 1); }   // 2026-11-24 用户定：两项之和 × 怪物大境界序号（从 1 起）
-        if (zfEl && this.zfDmg && act.f !== 1 && !((act.x || 0) & 128) && d > 0) { const r = this.zfDmg(zfEl, Math.max(0, d - 1), TEST); d = r > 0 ? Math.max(1, d - r) : d - r; }   // 主动阵法：无视保底伤害和境界伤害，最低减到 1 点（用户定 2026-11-14）
+        // 境界伤害：（层数项 每比人物高 1 层 REALM_DMG + 大境界项 每比人物高 1 个大境界 REALM_BIG_DMG）× 怪物大境界序号（从 1 起，用户定）；不吃加成，无视防御、抗性；之后和正常伤害一样过护盾；人物打怪物没有
+        if (act.f !== 1 && !((act.x || 0) & 128) && mL > myL && (BT.REALM_DMG || BT.REALM_BIG_DMG)) { const rd = Math.floor(mL / DATA.LAYERS) - Math.floor(myL / DATA.LAYERS); d += ((mL - myL) * (BT.REALM_DMG || 0) + (rd > 0 ? rd * (BT.REALM_BIG_DMG || 0) : 0)) * (Math.floor(mL / DATA.LAYERS) + 1); }
+        if (zfEl && this.zfDmg && act.f !== 1 && !((act.x || 0) & 128) && d > 0) { const r = this.zfDmg(zfEl, Math.max(0, d - 1), TEST); d = r > 0 ? Math.max(1, d - r) : d - r; }   // 主动阵法：无视保底伤害和境界伤害，最低减到 1 点（用户定）
         if (act.f !== 1 && !(act.x & 128) && !meSeal && cnt.mob.zh < pMob.zhT && ch(pMob.zh)) { meSeal = pMob.zhR; sealR.me = rounds; cnt.mob.zh++; act.x = (act.x || 0) | 64; }
         if (shield && act.f !== 1 && d > 0) {   // 人物护盾：伤害按盾防御算（代替本身防御），再减「受到伤害减少%」，剩下先扣护盾值
           const dSo = d;   // 减伤%之前（盾碎后溢出部分不再吃盾的减伤%）
@@ -1584,7 +1540,7 @@ G.module({
           PAS.forEach(({ fx: F, v: V }, pi) => {
             // 回血 / 回蓝写进战斗过程（k = 6 被动神通，sp = 第几个被动，d = 恢复量），界面才看得到
             if (F.t === "regen") { const v = Math.max(0, Math.min(st.hp - php, V.p)); php += v; if (v >= 1) { act = { k: 6, sp: pi, f: 0, st: `恢复生命 ${U.fmt(Math.round(v))}` }; rec(0, v); } }   // 满血不刷屏
-            else if (F.t === "mana") { const v = Math.max(0, Math.min(st.mana - s.mana, V.p)), eldBefore = psG.eld || 0; s.mana += v; psG.eld = Math.min(V.maxE, eldBefore + V.e);   // 玄冥归元：属性伤害每回合 +V.e，最多累加 20 回合，到顶后每次命中照样加顶格数值
+            else if (F.t === "mana") { const v = Math.max(0, Math.min(st.mana - s.mana, V.p)), eldBefore = psG.eld || 0; s.mana += v; psG.eld = Math.min(V.maxE, eldBefore + V.e);   // 玄冥归元：属性伤害每回合 +V.e，最多累加 V.n 回合（神通配置 n），到顶后每次命中照样加顶格数值
               if (v >= 1) { act = { k: 6, sp: pi, f: 0, st: `恢复法力 ${U.fmt(Math.round(v))}，属性伤害累计 +${U.fmt(Math.round(psG.eld))}` }; rec(0, v); }
               else if (psG.eld > eldBefore) { act = { k: 6, sp: pi, f: 0, st: `属性伤害累计 +${U.fmt(Math.round(psG.eld))}` }; rec(0, 0); } }   // 满蓝时法力不涨，但 eld 仍在累加，也要写一条记录；已到顶没涨时不刷屏
             else if (F.t === "grow") { const KN = { atk: "攻击", def: "防御", hit: "命中", dodge: "闪避", speed: "速度" }, added = []; [].concat(F.k).forEach(x => { const before = psG[x] || 0; psG[x] = Math.min(V.max, before + V.p); if (psG[x] > before) added.push(`${KN[x] || x} +${U.fmt(psG[x] - before)}`); }); if (added.length) { act = { k: 6, sp: pi, f: 0, st: added.join("，") }; rec(0, 0); } }
@@ -1627,12 +1583,12 @@ G.module({
       const why = `你出战时生命 ${U.fmt(hp0)}，共造成 ${U.fmt(dealt)} 伤害（对方剩余生命 ${U.fmt(Math.max(0, mhp))}/${U.fmt(m.hp)}），承受 ${U.fmt(taken)} 伤害；对方攻击 ${U.fmt(m.atk)} 防御 ${U.fmt(m.def)}，施法术 ${mSp} 次、法宝 ${mFb} 次`;
       const detail = { pasN: PAS.map(x => x.name), mPasN: mPas.map(x => x.name), mSt: mStA.map(x => ({ id: x.d.id, el: x.d.el, name: x.d.name })), mStl: mStl.map(x => [x.d.name, x.lv, x.d.type === "pas" ? 1 : 0]), name: m.name, el: m.el || "", a: m.a, img: m.img, glow: m.glow ? 1 : 0, zf: this.zfAOn ? (CFG.zhenfa && CFG.zhenfa.ACTIVE || []).filter(f => this.zfAOn(f.id)).map(f => f.el) : [], sp: spNames, spEl: spells.map(sp => sp.el.name), vfx: [...spells.map(sp => sp.el.id), ...fabaos.map((fb, i) => fbSlots[i] === "bm" ? [fb.el, fb.ft, 1] : [fb.el, fb.ft]), ...stns.map(sp => ["st", sp.stn.id, sp.el.id])], stI: spells.length + fabaos.length, first: meFirst ? 0 : 1, log, ps: Object.fromEntries(Object.entries(psG).map(([k, v]) => [k, R(v)])), mf: m.mf.slice(), tf: m.tf.slice(),
         me: [R(hp0), R(st.hp), R(mana0), R(st.mana)], mob: [R(m.hp), R(m.hp), R(m.maxMana || 0), R(m.maxMana || 0)],
-        // v181 这场战斗怪物的准确属性（战斗画面点怪物查看）
+        // 这场战斗怪物的准确属性（战斗画面点怪物查看）
         ms: { hp: m.hp, atk: m.atk, def: m.def, speed: m.speed, hit: m.hit, dodge: m.dodge, mana: m.maxMana || 0, crit: m.crit || 0, res: Object.assign({}, m.res || {}),
           sp: m.spell ? [m.spell.chance, m.spell.pct] : null, fb: m.fabao ? [m.fabao.chance, m.fabao.pct] : null },
-        // 战斗画面点人物：你进这场战斗时的属性（用户定 2026-11-15）
+        // 战斗画面点人物：你进这场战斗时的属性（用户定）
         pst: { hp: st0.hp, atk: st0.atk, def: st0.def, speed: st0.speed, hit: st0.hit, dodge: st0.dodge, mana: st0.mana, crit: st0.crit || 0, res: Object.assign({}, st0.res || {}) } };
-      if (!TEST && php <= 0 && opt.syDie) { const who = String(m.name || "").replace(/^精英·/, ""); if (this.syCut) this.syCut(+(((CFG.origin || {}).SY || {}).DIE_CUT ?? 0.3), `被${who}击杀`); if (this.dieLoss) this.dieLoss(who); }   // 死亡惩罚：扣修为气血、不够跌落境界（config/battle.js DEATH，用户定 2026-11-23）   // 寿元：地图 / 秘境 / 神界小世界探索、灵矿首领、宗门特殊任务战死扣（opt.syDie），晋升考核、试炼塔、天将星君等不扣（用户定 2026-11-20）
+      if (!TEST && php <= 0 && opt.syDie) { const who = String(m.name || "").replace(/^精英·/, ""); if (this.syCut) this.syCut(+(((CFG.origin || {}).SY || {}).DIE_CUT ?? 0.3), `被${who}击杀`); if (this.dieLoss) this.dieLoss(who); }   // 死亡惩罚：扣修为气血、不够跌落境界（config/battle.js DEATH，用户定）；寿元：地图 / 秘境 / 神界小世界探索、灵矿首领、宗门特殊任务战死扣（opt.syDie），晋升考核、试炼塔、天将星君等不扣（用户定）
       const win = mhp <= 0 && php > 0;   // 打满 MAX_ROUNDS 回合没击败对方也算失败（timeout）
       return { win, lose: !win, timeout: !win && php > 0, rounds, why, detail };
     },
@@ -1657,7 +1613,7 @@ G.module({
       if (fx & 16) res += `，${tgt}发动御天秘法，保留一点生命`;
       if (fx & 512) res = `，被${tgt}的${S("吸收")}天赋化解，没有造成伤害`;
       if (fx & 2048) res += `，${tgt}天赋${S("神佑")}发动，复活并恢复生命、法力`;
-      if (fx & 256 && !w) res += `，获得${(b.spEl && b.spEl[sp]) || ""}系法术心得 ${CFG.gongfa.XD_GAIN === undefined ? 1 : CFG.gongfa.XD_GAIN} 点`;   // v239
+      if (fx & 256 && !w) res += `，获得${(b.spEl && b.spEl[sp]) || ""}系法术心得 ${CFG.gongfa.XD_GAIN === undefined ? 1 : CFG.gongfa.XD_GAIN} 点`;
       return `<p>${who}${pre}${how}${res}。</p>`;
     },
     // 战斗总览：先手、开战数值、双方各方式伤害合计
@@ -1671,7 +1627,7 @@ G.module({
     },
     // 看详情：src = "cur" 本次探索 / "last" 上一次结果，i = 事件序号；用战斗过程画面重放，随时可跳过
     async showBattle(src, i) {
-      const s = this.s, hi = /^h\d+$/.test(src) ? +src.slice(1) : -1, list = hi >= 0 ? ((this._hist || [])[hi] || {}).ev : src === "cur" ? (s.explore && s.explore.ev) : src === "cqcur" ? (s.cq && s.cq.ev) : src === "cqlast" ? (s.lastCq && s.lastCq.ev) : (s.lastRun && s.lastRun.ev), e = list && list[i];   // v205 "h序号" = 全部探索里的第几次
+      const s = this.s, hi = /^h\d+$/.test(src) ? +src.slice(1) : -1, list = hi >= 0 ? ((this._hist || [])[hi] || {}).ev : src === "cur" ? (s.explore && s.explore.ev) : src === "cqcur" ? (s.cq && s.cq.ev) : src === "cqlast" ? (s.lastCq && s.lastCq.ev) : (s.lastRun && s.lastRun.ev), e = list && list[i];   // "h序号" = 全部探索里的第几次
       if (!e || !e.b) return;
       if (typeof e.b !== "object") {   // 全部信息列表不带战斗回放，点详情时单独读这一场
         const h = (this._hist || [])[hi] || {};
@@ -1700,8 +1656,8 @@ G.module({
     // 战斗过程画面：每 ACT_SEC 秒播放一次出手；结果已经结算好，这里只是播放
     //   现场战斗（试炼塔等）SKIP_SEC 秒后可跳过，replay（看详情）随时可跳过
     //   结果提示（log）等战斗播放完才出：logs = [[文字, 颜色], …]，不传则用 txt（胜 gold / 败 bad）
-    //   opt.test（v158 实力测试）：不自动结束，SKIP_SEC 秒后可跳过，跳过或播完显示结果后才能关闭，显示累计伤害
-    // v181 点怪物：显示这场战斗怪物的准确属性（再点一次关闭）
+    //   opt.test（实力测试）：不自动结束，SKIP_SEC 秒后可跳过，跳过或播完显示结果后才能关闭，显示累计伤害
+    // 点怪物：显示这场战斗怪物的准确属性（再点一次关闭）
     btMobInfo(who) {
       const el = document.getElementById("bt-info"), b = this._bp && this._bp.b; if (!el || !b) return;
       if (who === undefined || el.style.display !== "none" && el.dataset.who === String(who)) { el.style.display = "none"; return; }
@@ -1730,7 +1686,7 @@ G.module({
       const bp = this._bp = { b, title, txt, win, logs: logs || [[txt, win ? "gold" : "bad"]], acts: b.log.slice(), shown: 0, t0: Date.now(), done: false, replay: !!replay, test: !!opt.test, sum: [0, 0], hp: [b.me[0], b.mob[0]], mp: [b.me[2], b.mob[2]] };
       this._lockModal = true;
       const v = DATA.IMG_V, mi = this.battleMobImg(b);
-      // v161 名字不放在人物 / 怪物脚下，怪物名字放标题后面（opt.tname 可改标题里显示的名字）
+      // 名字不放在人物 / 怪物脚下，怪物名字放标题后面（opt.tname 可改标题里显示的名字）
       this.modal(`<div class="btv" style="--bs:${CFG.battle.ANIM_SLOW || 1}">
         <div class="btv-title">${title}${opt.tname === "" ? "" : ` · ${opt.tname || b.name}`}</div>
         <div class="btv-stage" style="background-image:url(img/bt_bg.webp?v=${v})">
@@ -1746,13 +1702,13 @@ G.module({
         <div class="btv-log" id="bt-log">${opt.head || ""}<p class="bt-gray"><span class="bt-m">${b.name}</span>上阵${b.el ? `（${DATA.elById[b.el].name}属性）` : ""}，${b.first ? `<span class="bt-m">${b.name}</span>先手` : `<span class="bt-p">你</span>先手`}。</p></div>
         <div class="btns" id="bt-btn"></div></div>`);
       this.btHp();
-      const isSt = x => x && !x[1] && Array.isArray((b.vfx || [])[x[3]]) && (x[2] === 1 && b.vfx[x[3]][0] === "st" || x[2] === 2 && b.vfx[x[3]][2] === 1);   // 这一下是神通 / 本命法宝（动画更长）   // 这一下是神通（动画更长）
+      const isSt = x => x && !x[1] && Array.isArray((b.vfx || [])[x[3]]) && (x[2] === 1 && b.vfx[x[3]][0] === "st" || x[2] === 2 && b.vfx[x[3]][2] === 1);   // 这一下是神通 / 本命法宝（动画更长）
       const step = () => {
         if (this._bp !== bp) return clearInterval(bp.timer);
         let x = null; if (bp.shown < bp.acts.length) this.btAct(x = bp.acts[bp.shown++], true);
         if (bp.shown >= bp.acts.length) { clearInterval(bp.timer);
           if (bp.test) setTimeout(() => { if (this._bp === bp) this.btTestEnd(bp); }, Math.max(0, (bp.hitAt || 0) - Date.now() + 300));
-          else setTimeout(() => { if (this._bp === bp) this.btFinish(); }, Math.max(isSt(x) ? (CFG.battle.ST_ACT_SEC || 3) * 1000 : 600, (bp.hitAt || 0) - Date.now() + 500)); }   // v253 等最后一下打到身上再结算
+          else setTimeout(() => { if (this._bp === bp) this.btFinish(); }, Math.max(isSt(x) ? (CFG.battle.ST_ACT_SEC || 3) * 1000 : 600, (bp.hitAt || 0) - Date.now() + 500)); }   // 等最后一下打到身上再结算
         else { clearInterval(bp.timer); bp.timer = setTimeout(step, (isSt(x) ? CFG.battle.ST_ACT_SEC || 3 : CFG.battle.ACT_SEC || 1) * 1000); }   // 神通出手后多停一会，等专属动画放完
         this.btBtn();
       };
@@ -1779,28 +1735,28 @@ G.module({
       const bp = this._bp; if (!bp) return; const b = bp.b, mx = [b.me[1], b.mob[1]];
       for (const i of [0, 1]) { const bar = $("#bt-hp" + i), t = $("#bt-hpt" + i); if (!bar) continue;
         bar.style.width = Math.max(0, Math.min(100, bp.hp[i] / (mx[i] || 1) * 100)) + "%"; t.textContent = U.fmt(Math.max(0, bp.hp[i]));
-        const mb = $("#bt-mp" + i), mm = [b.me[3], b.mob[3]][i]; if (mb) mb.style.width = (mm > 0 ? Math.max(0, Math.min(100, (bp.mp || [])[i] / mm * 100)) : 0) + "%"; }   // v244 法力蓝条
+        const mb = $("#bt-mp" + i), mm = [b.me[3], b.mob[3]][i]; if (mb) mb.style.width = (mm > 0 ? Math.max(0, Math.min(100, (bp.mp || [])[i] / mm * 100)) : 0) + "%"; }   // 法力蓝条
     },
     // 播放一次出手：文字 + 血条 + 动作（普通攻击冲撞、法术光球、法宝飞剑、护盾光罩）
     btSumShow(bp) { const se = $("#bt-sum"), r = bp.sumR || 1;
       if (se) se.innerHTML = `你共造成 <b>${U.fmt(bp.sum[0])}</b>（每回合 ${U.fmt(bp.sum[0] / Math.max(1, r))}）　对方共造成 <b>${U.fmt(bp.sum[1])}</b>（每回合 ${U.fmt(bp.sum[1] / Math.max(1, r))}）`; },
     btAct(x, anim) {
       const bp = this._bp, b0 = bp.b, [r, w, k, sp, f, d, ph, pm, mh, mm, fx] = x, b = x[13] ? Object.assign({}, b0, { el: x[13] }) : b0;   // 怪物这一下的属性（x[13]）
-      // v253 血条 / 蓝条等这一下真正打到身上（hit）再变，不在出手瞬间提前扣；seq 防止上一下迟到的命中把血条改回去
+      // 血条 / 蓝条等这一下真正打到身上（hit）再变，不在出手瞬间提前扣；seq 防止上一下迟到的命中把血条改回去
       const seq = bp.seq = (bp.seq || 0) + 1, H = () => { if (seq >= (bp.hpSeq || 0)) { bp.hpSeq = seq; bp.hp = [ph, mh]; bp.mp = [pm, mm]; } this.btHp(); };
       if (!anim) { bp.hpSeq = seq; bp.hp = [ph, mh]; bp.mp = [pm, mm]; }
       if (bp.test) { if (k < 3 && d > 0) bp.sum[w] += d; bp.sumR = r; if (!bp._buf) this.btSumShow(bp); }
-      // 跳过时（bp._buf）：记录先攒成字符串，最后一次性插入，避免每条都改 DOM、滚动导致卡顿（2026-11-24）
+      // 跳过时（bp._buf）：记录先攒成字符串，最后一次性插入，避免每条都改 DOM、滚动导致卡顿
       if (bp._buf) { if (r !== bp.round) { bp.round = r; bp._buf.push(`<p class="bt-rd">第 ${r} 回合</p>`); } bp._buf.push(this.battleRow(b, x)); return; }
       const log = $("#bt-log");
       if (log) { if (r !== bp.round) { bp.round = r; log.insertAdjacentHTML("beforeend", `<p class="bt-rd">第 ${r} 回合</p>`); }
         log.insertAdjacentHTML("beforeend", this.battleRow(b, x)); log.scrollTop = 1e9; }
       if (!anim) return;
       const fxEl = $("#bt-fx"), me = $("#bt-u" + w), tg = $("#bt-u" + (1 - w)); if (!fxEl || !me || !tg) return H();
-      // v160 同一个元素只留一个动作 class（否则 CSS 里后写的动作会盖掉新动作，看起来原地不动）
+      // 同一个元素只留一个动作 class（否则 CSS 里后写的动作会盖掉新动作，看起来原地不动）
       const ALL = ["btv-hit", "btv-dodge", "btv-lunge-l", "btv-pounce-r", "btv-claw-r", "btv-wave-r", "btv-mpounce", "btv-mwave", "btv-cast", "btv-hact"];
       const re = (el, c) => { ALL.forEach(x => el.classList.remove(x)); void el.offsetWidth; el.classList.add(c); };
-      const SL = CFG.battle.ANIM_SLOW || 1;   // v161 动画放慢倍数
+      const SL = CFG.battle.ANIM_SLOW || 1;   // 动画放慢倍数
       const add = (cls, txt, side, ms) => { ms = (ms || 1200) * SL; const n = document.createElement("div"); n.className = cls + " " + (side ? "r" : "l"); if (txt) n.textContent = txt; fxEl.appendChild(n); setTimeout(() => n.remove(), ms || 1200); return n; };
       const el = b.el && !w ? "" : b.el;   // 怪物法术 / 法宝带属性色
       const mSt = w && k === 1 && sp >= 0 && b.mSt ? b.mSt[sp] : null;   // 怪物神通
@@ -1809,7 +1765,7 @@ G.module({
       if (name) add("btv-skill", name, w);
       const hit = () => {
         H();
-        if (fx & 4) this.btRing(1 - w, false);   // v165 护盾破碎：光圈消失
+        if (fx & 4) this.btRing(1 - w, false);   // 护盾破碎：光圈消失
         if (k === 3 || k === 4 || k === 5) return;
         if (fx & 128) { add("btv-pop gray", "免疫", 1 - w); return; }
         if (fx & 512) { add("btv-pop gray", "吸收", 1 - w); return; }
@@ -1818,7 +1774,7 @@ G.module({
         if (fx & 2048) setTimeout(() => add("btv-pop", "神佑复活", 1 - w), 400 * SL);
       };
       const later = ms => { bp.hitAt = Date.now() + ms; setTimeout(hit, ms); };   // 记下命中时刻：最后一下打到身上后才结算
-      // v170 人物不挥剑：普攻 / 法术 / 法宝 = 原地抖动 + 放大，放完恢复原大小；（v159）怪物普攻 = 冲过去扑 / 挥爪（随机）；怪物法术 / 法宝 = 原地前扑 / 挥手（随机）
+      // 人物不挥剑：普攻 / 法术 / 法宝 = 原地抖动 + 放大，放完恢复原大小；怪物普攻 = 冲过去扑 / 挥爪（随机）；怪物法术 / 法宝 = 原地前扑 / 挥手（随机）
       // 普攻：先算出跑到对方面前要走多远（--dx，像素），再播放动作
       const mv = c => { if (k === 0) { const im = el => (el.querySelector("img") || el).getBoundingClientRect(), a = im(me), t = im(tg);
           const dx = w ? (t.right - a.left) - a.width * 0.25 : (t.left - a.right) + a.width * 0.25; me.style.setProperty("--dx", Math.round(dx) + "px"); }
@@ -1826,7 +1782,7 @@ G.module({
       if (k === 1 || k === 2) { if (w) mv(Math.random() < 0.5 ? "btv-mpounce" : "btv-mwave"); }
       if (k === 0) { if (w) mv(["btv-pounce-r", "btv-claw-r", "btv-wave-r"][Math.floor(Math.random() * 3)]); else re(me, "btv-hact"); later(430 * SL); }
       else if (k === 1 || k === 2) { if (!w) { re(me, "btv-hact"); me.classList.add("btv-cast"); }
-        // v246 法术按属性、法宝按形状各有特效（见 btVfx）；怪物法宝随机一种形状
+        // 法术按属性、法宝按形状各有特效（见 btVfx）；怪物法宝随机一种形状
         const v = !w && b.vfx ? b.vfx[sp] : null, sEl = (k === 1 ? (w ? b.el : v) : (w ? b.el : v && v[0])) || "huo";
         const ft = k === 2 ? (w ? Math.floor(Math.random() * 7) : v ? v[1] : 0) : -1;
         if (mSt) { later(this.btStVfx(fxEl, w, mSt.id, mSt.el, SL, mSt.name) * SL); return; }   // 怪物神通：同样的专属释放动画
@@ -1837,7 +1793,7 @@ G.module({
       else if (k === 4) { add("btv-pop gray", "眩晕", w); H(); }
       else { add("btv-shield gold", "", w, 1000); H(); }
     },
-    // v247 法术 / 法宝特效（画布粒子，发光叠加）：法术按属性（金剑光、木飞叶缠藤、水柱溅射、火球爆炸、土落石尘爆、雷电弧劈下），
+    // 法术 / 法宝特效（画布粒子，发光叠加）：法术按属性（金剑光、木飞叶缠藤、水柱溅射、火球爆炸、土落石尘爆、雷电弧劈下），
     //   法宝按形状 ft（0 剑：三把飞剑，用 CSS；1 刀、2 锤、3 环、4 盾、5 鼎、6 印：写实图 img/fx_*.webp + 光尾 + 冲击），颜色跟属性；返回命中时刻（毫秒，未乘放慢倍数）
     btVfx(fxEl, w, k, el, ft, SL, tg) {
       const E = this.btFx(fxEl); if (!E) return 500;
@@ -1868,7 +1824,7 @@ G.module({
             O(420, (c, p) => { E.glow(c, X1, Y, 60 * S, C, .5 * (1 - p)); for (let i = 0; i < 3; i++) { const a = Math.random() * 6.283, r = R(14, 34) * S; this.btBolt(c, X1, Y, X1 + Math.cos(a) * r, Y + Math.sin(a) * r, S * .4, C, (1 - p) * .9, 0); } }); });
           shake(330); return 360;
         }
-        if (el === "huo") {   // 火（v248 加强）：大火球裹着螺旋火焰飞过去，撞上连环爆炸，火焰在目标身上继续燃烧
+        if (el === "huo") {   // 火：大火球裹着螺旋火焰飞过去，撞上连环爆炸，火焰在目标身上继续燃烧
           fly(560, X0, Y - 8 * S, X1, Y, 34, (c, x, y, q) => { E.glow(c, x, y, 44 * S, [255, 120, 30], .75); E.glow(c, x, y, 26 * S, [255, 190, 80], .95); E.glow(c, x, y, 13 * S, [255, 250, 225], 1);
             for (let i = 0; i < 11; i++) P({ x: x + R(-8, 8) * S, y: y + R(-8, 8) * S, vx: -d * R(.6, 2.2) * S, vy: R(-1.4, .3) * S, drag: .96, life: R(280, 520), sz: R(9, 17) * S, grow: .3, pal: FIRE, blend: i % 3 ? "source-over" : "lighter", a: .85 });
             for (let i = 0; i < 2; i++) { const a = q * 30 + i * 3.14; P({ x: x + Math.cos(a) * 18 * S, y: y + Math.sin(a) * 18 * S, vx: -d * .8 * S, vy: -.3 * S, drag: .95, life: 380, sz: 6 * S, grow: .3, col: [255, 220, 120] }); }
@@ -1882,7 +1838,7 @@ G.module({
           at(800, () => { for (let i = 0; i < 10; i++) P({ x: X1 + R(-25, 25) * S, y: Y - R(0, 25) * S, vx: R(-.6, .6) * S, vy: -R(.4, 1.1) * S, drag: .97, life: R(900, 1300), sz: R(9, 13) * S, grow: 3, col: [80, 70, 65], a: .3, kind: "smoke" }); });
           shake(560); shake(700); return 580;
         }
-        if (el === "shui") {   // 水（v248 加强）：两道粗水柱冲过去，撞上掀起水柱冲天、水珠四溅，水流在目标周围旋转
+        if (el === "shui") {   // 水：两道粗水柱冲过去，撞上掀起水柱冲天、水珠四溅，水流在目标周围旋转
           const jy0 = Y - 8 * S, cy = Y - 60 * S;
           const jetOf = (ox, cyo) => t => { const u = 1 - t, x0 = X0 + d * 22 * S + ox, c2 = cy + cyo; return [u * u * x0 + 2 * u * t * ((x0 + X1) / 2) + t * t * X1, u * u * jy0 + 2 * u * t * c2 + t * t * Y]; };
           const drawJet = (jet, dl, wmul) => O(640, (c, p) => { const head = Math.min(1, p / .7), tail = Math.max(0, (p - .55) / .45), n = 30; if (head <= tail) return;
@@ -1907,7 +1863,7 @@ G.module({
           at(460, () => flash(.1, [255, 220, 170]));
           shake(460); shake(730); return 480;
         }
-        if (el === "mu") {   // 木（v248 加强）：一大阵飞叶裹着绿光卷过去，目标脚下粗藤破土缠绕，最后炸成漫天碎叶
+        if (el === "mu") {   // 木：一大阵飞叶裹着绿光卷过去，目标脚下粗藤破土缠绕，最后炸成漫天碎叶
           for (let i = 0; i < 48; i++) { const t = i * 9, ph = R(0, 6.283), amp = R(10, 28), yo = R(-20, 20), sz = R(5, 9);
             at(t, () => fly(500, X0 + d * 20 * S, Y + yo * S, X1, Y + yo * .4 * S, R(0, 20), (c, x, y, q) => { const yy = y + Math.sin(q * 9 + ph) * amp * S * (1 - q * .6);
               E.leaf(c, x, yy, sz * S, q * 16 + ph, [70 + (i % 4) * 25, 185 + (i % 3) * 15, 60]); if (Math.random() < .35) P({ x, y: yy, life: 320, sz: 4 * S, col: [170, 255, 140] }); })); }
@@ -1921,7 +1877,7 @@ G.module({
           at(1000, () => { for (let i = 0; i < 40; i++) P({ x: X1 + R(-40, 40) * S, y: Y + R(-50, 30) * S, vx: R(-2, 2) * S, vy: R(-2.5, -.5) * S, g: .05 * S, drag: .96, life: R(600, 900), sz: R(3, 6) * S, col: [90 + (i % 3) * 30, 190, 60], kind: "leaf", rot: R(0, 6), vr: R(-.4, .4) }); });
           shake(520); return 520;
         }
-        // 金（v248 加强）：五道金色剑光接连斩过去，最后一道十字巨型剑光劈在目标身上，金属火星四射
+        // 金：五道金色剑光接连斩过去，最后一道十字巨型剑光劈在目标身上，金属火星四射
         for (let i = 0; i < 5; i++) { const yo = (i - 2) * 13 * S, rot = (i - 2) * .2;
           at(i * 60, () => fly(360, X0 + d * 20 * S, Y + yo, X1, Y + yo * .3, 0, (c, x, y, q) => { E.crescent(c, x, y, 46 * S, d, rot, C, q < .1 ? q * 10 : 1); E.glow(c, x, y, 26 * S, [255, 210, 90], .35);
             for (let j = 0; j < 2; j++) P({ x: x - d * 6 * S, y: y + R(-20, 20) * S, vx: -d * R(1, 2.5) * S, life: 240, sz: 1.6 * S, col: [255, 240, 180], kind: "streak" }); }, p => p * p * .3 + p * .7));
@@ -1941,7 +1897,7 @@ G.module({
       const slam = (x, y, big) => { flash(big ? .14 : .1, mixW); ring(x, y + 20 * S, big ? 95 : 70, C, .3); ring(x, y + 20 * S, big ? 60 : 45, [255, 255, 255], .3); dust(x, y + 22 * S, big ? 14 : 8, 5); debris(x, y + 10 * S, big ? 12 : 6); spark(x, y, 20, C, 7, .1); };
       if (ft === 0) { const mk = (cls, ms, css, html) => { const n = document.createElement("div"); n.className = "vx " + cls + " vx-" + el; n.style.cssText = `--x0:${w ? 76 : 24}%;--x1:${w ? 24 : 76}%;--d:${d};` + (css || ""); if (html) n.innerHTML = html; fxEl.appendChild(n); setTimeout(() => n.remove(), ms * SL); return n; };
         for (let i = 0; i < 3; i++) mk("vx-sword", 900, `animation-delay:${i * 80 * SL}ms;--y:${42 + i * 8}%`, `<img src="img/bt_sword.webp?v=${DATA.IMG_V || 1}" alt="">`);
-        at(600, () => { spark(X1, Y, 22, [255, 240, 200], 8, .12); flash(.15, C); E.glow && O(300, (c, p) => E.glow(c, X1, Y, 50 * S * (.5 + p), C, 1 - p)); }); return 640; }   // 剑：三把飞剑（保留原效果）
+        at(600, () => { spark(X1, Y, 22, [255, 240, 200], 8, .12); flash(.15, C); E.glow && O(300, (c, p) => E.glow(c, X1, Y, 50 * S * (.5 + p), C, 1 - p)); }); return 640; }   // 剑：三把飞剑（CSS 动画）
       if (ft === 1) {   // 刀：旋转飞斩过去，命中拉出一道大刀光
         const im = img("dao"), ln = 96 * S;
         fly(480, X0 + d * 10 * S, Y - 10 * S, X1, Y - 4 * S, 18, (c, x, y, q) => { trail(c, x, y); E.draw(c, im, x, y, ln, d * q * 4 * Math.PI * 2, 1, d < 0); });
@@ -1978,7 +1934,7 @@ G.module({
     },
     // 画布特效引擎：每个战斗画面一块 canvas，粒子 + 定时绘制对象，没东西时停帧
     // 神通释放动画（和法术分开）：先天色一暗、神通名大字浮现、脚下法阵，再按 config/yinshi.js 的 anim 播放各自的特效；返回命中时间（毫秒）
-    // 本命法宝释放特效（用户定 2026-11-13：比普通法宝更猛更华丽）：天色转暗 + 金色「本命·名字」大字和放射光芒 + 身后立起旋转法轮、脚下法阵、冲天光柱、灵光汇聚
+    // 本命法宝释放特效（用户定：比普通法宝更猛更华丽）：天色转暗 + 金色「本命·名字」大字和放射光芒 + 身后立起旋转法轮、脚下法阵、冲天光柱、灵光汇聚
     //   → 法宝本体连发三次（同普通法宝形状特效）→ 目标处天光贯落、三重冲击环、金光迸散、连震；返回命中时间（毫秒，未乘放慢倍数）
     btBmVfx(fxEl, w, el, ft, SL, tg, name) {
       const E = this.btFx(fxEl); if (!E) return this.btVfx(fxEl, w, 2, el, ft, SL, tg);
@@ -2023,7 +1979,7 @@ G.module({
       for (let i = 0; i < 36; i++) at(R(0, PRE - 250), () => { const a = R(0, 6.283), d0 = R(80, 130) * S, x = X0 + Math.cos(a) * d0, y = Y - 18 * S + Math.sin(a) * d0 * .7, life = R(380, 520);
         P({ x, y, vx: (X0 - x) / (T(life) / 16.7), vy: (Y - 18 * S - y) / (T(life) / 16.7), life, sz: R(1.6, 3.2) * S, col: i % 3 ? G : C }); });
       at(PRE - 120, () => { flash(.35, G, 260); ring(X0, Y - 18 * S, 70, G, 1, 420, 4); spark(X0, Y - 18 * S, 30, WH, 6); });
-      // ⑥ 各形状专属的中段（用户定 2026-11-13：每种本命法宝效果不一样）；返回命中时刻（相对 PRE）
+      // ⑥ 各形状专属的中段（用户定：每种本命法宝效果不一样）；返回命中时刻（相对 PRE）
       const blade = (c, x, y, ang, len, col, a) => { c.save(); c.translate(x, y); c.rotate(ang); c.globalCompositeOperation = "lighter"; const g = c.createLinearGradient(-len, 0, len * .3, 0); g.addColorStop(0, rgba(col, 0)); g.addColorStop(1, rgba(col, a));
         c.fillStyle = g; c.beginPath(); c.moveTo(len * .3, 0); c.lineTo(-len, -2.4 * S); c.lineTo(-len, 2.4 * S); c.closePath(); c.fill(); c.fillStyle = rgba(WH, a); c.fillRect(-len * .2, -.9 * S, len * .5, 1.8 * S); c.restore(); };
       const fly = (ms, dur, x0, y0, x1, y1, f) => later0(ms, dur, (c, p) => f(c, x0 + (x1 - x0) * p, y0 + (y1 - y0) * p, p));
@@ -2234,7 +2190,7 @@ G.module({
           c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.globalCompositeOperation = "source-over"; c.clearRect(0, 0, E.W, E.H);
           E.objs = E.objs.filter(o => { const p = (now - o.t0) / o.dur; if (p < 0) return true; if (p >= 1) return false; c.save(); o.draw(c, p); c.restore(); return true; });
           E.parts = E.parts.filter(q => { q.age += dt * 16.7; if (q.age >= q.life) return false; const t = q.age / q.life;
-            q.vx *= Math.pow(q.drag, dt); q.vy = q.vy * Math.pow(q.drag, dt) + q.g * dt; const ox = q.x, oy = q.y; q.x += q.vx * dt; q.y += q.vy * dt;
+            q.vx *= Math.pow(q.drag, dt); q.vy = q.vy * Math.pow(q.drag, dt) + q.g * dt; q.x += q.vx * dt; q.y += q.vy * dt;
             const sz = q.sz * (1 + (q.grow - 1) * t);
             let col = q.col; if (q.pal) { const f = t * (q.pal.length - 1), i = Math.min(q.pal.length - 2, f | 0), u = f - i; col = q.pal[i].map((v, j) => v + (q.pal[i + 1][j] - v) * u | 0); }
             if (q.kind === "glow") E.glow(c, q.x, q.y, sz, col, q.a * (1 - t * t), q.blend);
@@ -2267,7 +2223,7 @@ G.module({
         c.shadowColor = `rgb(${col.join(",")})`; c.shadowBlur = 20 * S; stroke(10 * S * wv, `rgba(${col.join(",")},${.25 * a})`); c.shadowBlur = 8 * S; stroke(4 * S * wv, `rgba(${col.map(v => Math.min(255, v + 60)).join(",")},${.6 * a})`); c.shadowBlur = 0; stroke(Math.max(1, 1.6 * S * wv), `rgba(255,255,255,${a})`); }
       c.restore();
     },
-    // v165 护盾光圈：护盾在的时候一直显示，套住人物 / 怪物（比人物大一点），破碎时消失
+    // 护盾光圈：护盾在的时候一直显示，套住人物 / 怪物（比人物大一点），破碎时消失
     btRing(w, on) {
       const u = $("#bt-u" + w); if (!u) return;
       let r = u.querySelector(".btv-ring:not(.off)");
@@ -2277,7 +2233,7 @@ G.module({
       u.appendChild(r);
       this.btRingPos(u, r, 0);
     },
-    // v245 光圈位置：按人物 / 怪物图在格子里的布局尺寸算（不受出手动画缩放影响）；
+    // 光圈位置：按人物 / 怪物图在格子里的布局尺寸算（不受出手动画缩放影响）；
     //   图还没加载好（宽度 0，常见于第 1 回合就放盾）时等图加载完再算，之前光圈大小为 0 看不到
     btRingPos(u, r, n) {
       if (!r.isConnected) return;
@@ -2298,7 +2254,7 @@ G.module({
     // 实力测试结束（播完或跳过）：显示胜负回合，之后才出「关闭」
     btTestEnd(bp) {
       if (bp.done) return; bp.done = true; clearInterval(bp.timer); clearTimeout(bp.skipT);
-      const lg = $("#bt-log"); if (lg) { const L = bp.acts[bp.acts.length - 1] || [], ph = L[6], mh = L[8];   // v244 测试也会分出胜负
+      const lg = $("#bt-log"); if (lg) { const L = bp.acts[bp.acts.length - 1] || [], ph = L[6], mh = L[8];   // 测试也会分出胜负
         lg.insertAdjacentHTML("beforeend", `<p class="bt-res ${mh <= 0 && ph > 0 ? "win" : "lose"}">${mh <= 0 && ph > 0 ? `第 ${bp.round || 0} 回合击败对手` : ph <= 0 ? `第 ${bp.round || 0} 回合落败` : `已打满 ${bp.round || 0} 回合`}。</p>`); lg.scrollTop = 1e9; }
       this.btHp(); this.btBtn();
     },
@@ -2331,9 +2287,9 @@ G.module({
         if (n > 0) { const t = this.lootAdd(loot, name, n); if (t) got.push(t); } }
       return got.join("、");
     },
-    // v236 本次探索的药材 / 矿石总量（CFG.dropTotal），分配到各步：返回 { 步序号: [药材个数, 矿石个数] }
+    // 本次探索的药材 / 矿石总量（CFG.dropTotal），分配到各步：返回 { 步序号: [药材个数, 矿石个数] }
     //   药材可落在 灵药 / 怪物 步，矿石可落在 矿脉 / 怪物 步
-    // 普通地图探索 / 历练 / 出窍一次的药材、矿石总数范围：第 1 级地图 dropTotal.explore，再按地图等级、人物大境界加（2026-11-23 用户定）
+    // 普通地图探索 / 历练 / 出窍一次的药材、矿石总数范围：第 1 级地图 dropTotal.explore，再按地图等级、人物大境界加（用户定）
     exDrop(a) {
       const T = CFG.dropTotal || {}, D = T.explore || {}, n = Math.max(0, DATA.mapLv(a) - 1) + Math.max(0, this.r() || 0), o = {};   // 地图等级 DATA.mapLv 在 data/mobs.js
       const up = n * (T.EXPLORE_MAX_ADD ?? 1), lo = Math.floor(n / Math.max(1, T.EXPLORE_MIN_EVERY ?? 3));
@@ -2395,9 +2351,6 @@ G.module({
       if (cx && x.mk === "ys") { const L = x.loot; L.cxp = L.cxp || {}; for (const ck in cx) { L.cxp[ck] = (L.cxp[ck] || 0) + cx[ck]; out.push(`${DATA.cxpName(ck)}×${cx[ck]}`); } }   // 宗门秘境炼丹 / 炼器经验
       return out.filter(Boolean).join("、");
     },
-    // 击败怪物的掉落，写进 loot，返回描述文字
-    //   mj = 秘境序号（秘境：灵石倍率、掉落按 config/mijing.js）
-    //   mk = "ld"：灵地（config/lingdi.js）
     // 个数参数：数字或 [最少, 最多]（config/explore.js、mijing.js、lingdi.js）
     cntRoll(v) { return Array.isArray(v) ? U.rand(v[0], v[1]) : (v || 0); },
     cntAvg(v) { return Array.isArray(v) ? (v[0] + v[1]) / 2 : (v || 0); },
@@ -2423,7 +2376,7 @@ G.module({
       const G0 = (CFG.rates || {}).MAP_GAIN || {}, n = v => (v === undefined ? 1 : Math.max(0, +v || 0));
       const mp = x.mk === "ys" ? this.mjDef(x.mj, "ys").a : x.map;
       const k = x.mj !== undefined && x.mk !== "ys" ? (x.mk === "ld" ? "lingdi" : "mijing") : ((DATA.maps[mp] || {}).w || "fan") === "fan" ? "fan" : "sijie";
-      return n(G0[k]) * (k === "mijing" && this.oriSum ? 1 + this.oriSum("mjDrop") / 100 : 1) * (x.cq && this.ssGfSum ? 1 + (this.ssGfSum("cq") + (this.oriSum ? this.oriSum("cqPct") : 0)) / 100 : 1);   // + 出身「转世之身」   // 出身「秘境遗民」；元婴出窍：神识功法《太虚采灵经》
+      return n(G0[k]) * (k === "mijing" && this.oriSum ? 1 + this.oriSum("mjDrop") / 100 : 1) * (x.cq && this.ssGfSum ? 1 + (this.ssGfSum("cq") + (this.oriSum ? this.oriSum("cqPct") : 0)) / 100 : 1);   // 秘境：出身「秘境遗民」；元婴出窍：神识功法《太虚采灵经》+ 出身「转世之身」
     },
     // 击败怪物的掉落，写进 loot，返回描述文字
     //   灵石：本次总收益分摊到本次的怪：首领合计 BOSS_SHARE%，其余普通怪、精英怪平分
@@ -2436,7 +2389,7 @@ G.module({
       const share = m.boss ? (w ? bs : 1) / Math.max(1, nb) : (nb ? 1 - bs : 1) / Math.max(1, w);
       const stone = Math.floor(tot * share + Math.random());   // 随机取整，平均值不被向下取整吃掉
       loot.stone += stone;
-      // 灵识碎片：只在普通地图（东南西北域）掉，按本次灵石总量 × LSFRAG，与灵石同分摊（2026-11-15 用户定）；直接写 loot.sm，不走 lootAdd，避免 incMul 重复乘
+      // 灵识碎片：只在普通地图（东南西北域）掉，按本次灵石总量 × LSFRAG，与灵石同分摊（用户定）；直接写 loot.sm，不走 lootAdd，避免 incMul 重复乘
       let fragTxt = "";
       if (mj === undefined) {
         const frag = Math.floor(tot * (E.LSFRAG || 0) * share + Math.random());
@@ -2474,7 +2427,7 @@ G.module({
     // 把收获放进背包，返回简短描述
     giveLoot(loot) {
       const s = this.s, parts = [], o = this._off;
-      if (o) {   // 离线账本（core/game.js offlineReport）；v173 出窍单独记
+      if (o) {   // 离线账本（core/game.js offlineReport）；出窍单独记
         const cq = s.explore && s.explore.cq, L = cq ? o.cq : o;
         if (cq) { o.cq.runs++; o.cq.stone += loot.stone; } else { o.exRuns++; o.exStone += loot.stone; }
         const add = (k, n) => { L.exItems[k] = (L.exItems[k] || 0) + n; o.allItems[k] = (o.allItems[k] || 0) + n; };
@@ -2570,7 +2523,7 @@ G.module({
     exploreStep() {
       const x = this.s.explore, a = x.map, r = x.reg || 0, mj = x.mj, mk = x.mk;
       if (!x.plan) x.plan = this.exPlan(x);
-      if (x.step === 0 || !x.mp) x.mp = this.matPlan(x);   // v236 每次开始：定好本次药材 / 矿石总量
+      if (x.step === 0 || !x.mp) x.mp = this.matPlan(x);   // 每次开始：定好本次药材 / 矿石总量
       const si = x.step, sm = () => this.stepMats(x, si);
       if (x.loot) { const k = this.incMul(x); if (k !== 1) x.loot.k = k; else delete x.loot.k; }
       const type = { n: "nothing", m: "monster", e: "elite", b: "boss", h: "herb", o: "ore" }[x.plan[x.step]] || "nothing";
@@ -2580,7 +2533,7 @@ G.module({
       this.s.hp = Math.min(st.hp, this.s.hp + st.hp * H.hp / 100 + (H.hpFlat || 0)); this.s.mana = Math.min(st.mana, this.s.mana + st.mana * H.mana / 100 + (H.manaFlat || 0));
       let t = "", c = "", bd = null;
       const roll = ev => mj !== undefined ? this.rollMj(x.loot, ev, mj, mk, x) : this.rollEvent(x.loot, ev, a);
-      if (type === "herb" || type === "ore") {   // v199 什么都没得到时不显示「发现灵药 / 矿脉，获得 无」，当作普通一步
+      if (type === "herb" || type === "ore") {   // 什么都没得到时不显示「发现灵药 / 矿脉，获得 无」，当作普通一步
         const g = [roll(type === "herb" ? "herbEvent" : "oreEvent"), sm()].filter(Boolean).join("、");
         if (g) { t = type === "herb" ? `发现灵药，采得 ${g}` : `发现矿脉，挖得 ${g}`; c = "good"; }
         else t = (U.pick(DATA.exploreIdle) || "");
@@ -2588,7 +2541,7 @@ G.module({
       else if (type === "monster" || type === "elite" || type === "boss") {
         const kind = type === "monster" ? "normal" : type, m = mj !== undefined ? this.makeMjMob(mj, kind, mk) : this.makeMob(a, r, kind);
         m.a = a;
-        // 离线补算（服务器后台 / 上线补算 / 停机后补算）：不打战斗，直接按胜利算（用户定 2026-11-16）
+        // 离线补算（服务器后台 / 上线补算 / 停机后补算）：不打战斗，直接按胜利算（用户定）
         const res = this._autoWin ? { win: true, rounds: 0, auto: 1 } : this.battle(m, { foe: m.boss ? "boss" : m.elite ? "elite" : "mob", useSet: true, syDie: 1 }), tag = `${m.boss ? "【首领】" : m.elite ? "【精英】" : ""}${String(m.name).replace(/^精英·/, "")}`;
         if (res.win) { this.s.kills++; t = `遭遇${tag}，${res.auto ? "离线自动击败" : `${res.rounds}回合击败`}，获得 ${[this.rollMonsterLoot(x, m), sm()].filter(Boolean).join("、")}`; c = m.boss ? "gold" : ""; }
         else if (res.lose) { t = `遭遇${tag}，${res.timeout ? `${res.rounds} 回合未能击败，力竭重伤` : `第 ${res.rounds} 回合不敌重伤`}，本次探索收获全部遗失。${res.why}`; c = "bad"; }
@@ -2599,8 +2552,8 @@ G.module({
       if (x.ev.length > this.exCfg(x).TIME) x.ev.length = this.exCfg(x).TIME;
       return c === "bad"; // 战败：本次提前结束
     },
-    // 离线自动胜利补算（用户定 2026-11-16：不逐只算怪，按平均数直接给掉落）：普通自动探索（不含历练、出窍、秘境、灵地、修炼设置要回来的）
-    //   出窍（x.cq）同样按平均数；秘境 / 灵地每处只走一次：整处一次给掉落（不打战斗，exploreStepFast）（用户定 2026-11-16）
+    // 离线自动胜利补算（用户定：不逐只算怪，按平均数直接给掉落）：普通自动探索（不含历练、出窍、秘境、灵地、修炼设置要回来的）
+    //   出窍（x.cq）同样按平均数；秘境 / 灵地每处只走一次：整处一次给掉落（不打战斗，exploreStepFast）（用户定）
     exAutoFast(x) { return !!this._autoWin && !!x && !x.once && !x.back && !x.rest && !x.lostWait; },
     // 按平均数给 N 次探索的掉落：灵石、灵识碎片、怪物 / 灵药 / 矿脉固定掉落、本次药材矿石总量，都按平均个数 × N（小数部分按几率进 1）
     exAvgLoot(x, N) {
@@ -2671,7 +2624,7 @@ G.module({
     },
     // 地图每走一步的毫秒数 = STEP_SEC − 宗门秘法「神行」 − 出窍真诀（历练、自动探索、出窍、秘境、灵地走路都用这个，最少 STEP_MIN 秒）
     exploreMs() { const E = CFG.explore; if (DATA.isTest()) return 1000; return Math.round(Math.max(E.STEP_MIN || 0.5, (E.STEP_SEC || 1) - this.mifaBonus().explore - this.cqzjSec()) * 1000); },
-    // v242 自动探索 / 出窍能否继续：生命 ≥ 战斗设置 goHp%且 法力 ≥ goMp%
+    // 自动探索 / 出窍能否继续：生命 ≥ 战斗设置 goHp%且 法力 ≥ goMp%
     exGo() { const b = this.bsetGet(), st = this.stats(); return { hp: st.hp * Math.min(100, b.goHp || 0) / 100, mp: st.mana * Math.min(100, b.goMp || 0) / 100 }; },
     exReady() { const g = this.exGo(); return this.s.hp >= g.hp - 1e-6 && this.s.mana >= g.mp - 1e-6; },
     exReadyTxt() { const g = this.exGo(), b = this.bsetGet(); return this.s.hp < g.hp - 1e-6 ? `生命低于 ${U.num(b.goHp)}%` : `法力低于 ${U.num(b.goMp)}%`; },
@@ -2708,12 +2661,12 @@ G.module({
       let x = s.explore; const T = this.exCfg(x).TIME, x0 = x, c0 = x.count, r0 = x.rest;
       let changed = false;
       if (!x.ms) x.ms = this.exploreMs();
-      if (x.rest) {   // v186 探索 / 出窍：生命不足时原地休养，恢复满后自动继续
+      if (x.rest) {   // 探索 / 出窍：生命、法力低于「继续探索」设置时原地休养，恢复到了自动继续
         if (!this.exReady()) return;
         x.rest = 0; x.start = this.now(); x.step = 0; x.loot = this.newLoot(); x.ev = []; x.plan = this.exPlan(x); delete x.rs;
         this.log(`生命、法力已恢复，继续${x.cq ? "出窍探索" : "自动探索"}。`, "sys"); changed = true;
       }
-      const W = (CFG.explore.END_WAIT || 0) * 1000;   // v203 走完最后一步：先显示出来，固定再等 END_WAIT 秒才结算（「神行」不影响）
+      const W = (CFG.explore.END_WAIT || 0) * 1000;   // 走完最后一步：先显示出来，固定再等 END_WAIT 秒才结算（「神行」不影响）
       const due = () => this.exAutoFast(x) ? x.start + T * x.ms + W : x.lostWait ? x.start + (x.step + 1) * x.ms : x.step >= T ? x.start + T * x.ms + W : x.start + (x.step + 1) * x.ms;
       for (let once = 0; s.explore && once < 1 && Math.min(limit, this.now()) >= due(); once++) {
         changed = true;
@@ -2722,7 +2675,7 @@ G.module({
         let lost = false;
         if (x.lostWait) { lost = true; x.lostWait = 0; }
         else if (x.step < T) {
-          // 离线自动胜利补算（用户定 2026-11-16 不要逐只算怪，直接给掉落）：这一次的掉落一次性全部给出，不逐步、不打战斗，等本次时间到了照常结算
+          // 离线自动胜利补算（用户定：不逐只算怪，直接给掉落）：这一次的掉落一次性全部给出，不逐步、不打战斗，等本次时间到了照常结算
           if (this.exAutoFast(x)) {
             const run = T * x.ms + W, end = Math.min(limit, this.now()), first = x.start + run;
             if (end < first) break;   // 这一次还没到时间：等到时再一次给
@@ -2740,15 +2693,15 @@ G.module({
         if (x.step >= T || lost) {
           // 结算本次
           x.count++;
-          if (lost) x.loot = this.newLoot();   // v187 战败：只丢本次收获（物品 + 灵石），不扣身上灵石
-          else if (!x.once && x.mj === undefined) this.rollSeedDrop(x);
-          else if (x.mj !== undefined && !x.mk) this.rollLgSeed(x);
-          if (!lost && this.rollSsHerb) this.rollSsHerb(x);   // 神识功法药材（元魂果、凝魂芝，config/shenshi.js HERB_DROP）   // 金丹及以上秘境：几率掉灵果种子（config/garden.js LINGGUO）   // 地图探索 / 出窍走完：几率掉种子（config/garden.js SEED_DROP）
+          if (lost) x.loot = this.newLoot();   // 战败：只丢本次收获（物品 + 灵石），不扣身上灵石
+          else if (!x.once && x.mj === undefined) this.rollSeedDrop(x);   // 地图探索 / 出窍走完：几率掉种子（config/garden.js SEED_DROP）
+          else if (x.mj !== undefined && !x.mk) this.rollLgSeed(x);   // 金丹及以上秘境：几率掉灵果种子（config/garden.js LINGGUO）
+          if (!lost && this.rollSsHerb) this.rollSsHerb(x);   // 神识功法药材（元魂果、凝魂芝，config/shenshi.js HERB_DROP）
           const got = this.giveLoot(x.loot);
           x.last = `${x.once ? "历练" : x.mj !== undefined ? "探索" : `探索${DATA.regionName(x.map, x.reg || 0)}`}${lost ? `（第 ${x.step} 步战败，提前结束）` : ""}：${got || "一无所获"}`;
           this.log(x.mj !== undefined ? this.exName(x) + x.last : x.last, lost ? "bad" : "gold");
           // 保存这一次的全部事件，结束后也能查看（含失败那一步）
-          s.lastRun = { title: x.mj !== undefined || x.once ? `${this.exName(x)} · ${x.last}` : x.last, ev: x.ev.slice(), bad: lost };   // 自动探索的记录本身已带地图名·域，不再重复拼一次
+          s.lastRun = { title: x.mj !== undefined || x.once ? `${this.exName(x)} · ${x.last}` : x.last, ev: x.ev.slice(), bad: lost };   // 自动探索的记录本身已带地图名·域，不用再拼
           this.exHistAdd(s.lastRun, x);   // 全部信息：服务器保存最近 20 条
           if (x.mj !== undefined) { if (!this.mjFinish(x, lost)) break; x = s.explore; continue; }   // 秘境：每处只走一次，一键探索接着走下一处
           if (!lost) this.mjDiscover(x.map);   // 地图走完一次：有几率发现秘境（凡界）/ 灵地（四界）
@@ -2763,18 +2716,18 @@ G.module({
             this.log(`出窍探索 ${x.count} 次已完成。`, "gold");
             s.explore = null; break;
           }
-          if (x.back) {   // v255 修炼设置：灵气已足，本次探索结束后回来修炼（cultivate.js cultSetCheck）
+          if (x.back) {   // 修炼设置：灵气已足，本次探索结束后回来修炼（cultivate.js cultSetCheck）
             if (s.cultSet) s.cultSet.went = false;
             s.explore = null; this.log("本次探索结束，继续修炼", "sys"); if (this.cultBackLog) this.cultBackLog(); break;
           }
-          if (!this.exReady()) {   // v242 生命 / 法力低于战斗设置的「继续探索」：原地休养，恢复到了再继续
+          if (!this.exReady()) {   // 生命 / 法力低于战斗设置的「继续探索」：原地休养，恢复到了再继续
             this.log(`${this.exReadyTxt()}，原地休养，恢复后自动继续（已探索 ${x.count} 次）。`, "bad");
             x.rest = 1; x.step = 0; x.loot = this.newLoot(); x.ev = []; break;
           }
           x.start = at; x.ms = this.exploreMs(); x.step = 0; x.loot = this.newLoot(); x.ev = []; x.plan = this.exPlan(x); delete x.rs;
         }
       }
-      // 离线自动胜利补算：中途一步只改生命法力和本次收获（不影响属性），只在一次探索结算 / 休养切换时才让属性缓存失效（提速，2026-11-16）
+      // 离线自动胜利补算：中途一步只改生命法力和本次收获（不影响属性），只在一次探索结算 / 休养切换时才让属性缓存失效（提速）
       if (changed && (!this._autoWin || s.explore !== x0 || x0.count !== c0 || x0.rest !== r0)) this.dirty();
     },
     /* ---------- 秘境（config/mijing.js）、灵地（config/lingdi.js）：共用一套，k = "mj" 秘境（默认）/ "ld" 灵地 ---------- */
@@ -2822,7 +2775,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
     rollMj(loot, ev, i, k, x) {
       const d = this.mjDef(i, k), EL = ((x || {}).mpK || {}).el || {};
       if (k === "ys") return "";   // 宗门秘境：神通碎片 / 药材矿石按总量分到各步（matPlan / stepMats）
-      const got = [];   // v236 随机药材矿石改按 CFG.dropTotal 总量（stepMats）；灵元也在 stepMats（一次合计）；这里只掉 extra
+      const got = [];   // 随机药材矿石按 CFG.dropTotal 总量分到各步（stepMats），灵元也在 stepMats（一次合计）；这里只掉 extra
       if (ev === "boss" && !k && d.realm === CFG.chuqiao.LU_MJ_REALM && CFG.chuqiao.LU_DROP > 0) { const t = this.lootAdd(loot, DATA.smName("lu"), CFG.chuqiao.LU_DROP); if (t) got.push(t); }   // 金丹期秘境首领必掉养神露
       if (ev === "boss" && k === "ld" && this.bmStoneDrop) { const t = this.bmStoneDrop(loot, i); if (t) got.push(t); }   // 本命熔炼石（config/benming.js）
       for (const it of (d.extra || {})[ev] || []) {
@@ -2904,7 +2857,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       const q = (x.queue || []).filter(e => { const o = this.mjQ(e, k); return this.mjCanEnter(o.i, o.k); });
       if (lost || !q.length) { s.explore = null; if (x.queue && x.queue.length && lost) s.lastRun.title += "；战败，一键探索停止"; return false; }
       const nx = this.mjQ(q[0], k);
-      // 秘境与出窍可同时进行（用户定 2026-11-09，和普通探索一样）
+      // 秘境与出窍可同时进行（用户定，和普通探索一样）
       if (!this.mjStart(nx.i, false, q.slice(1).map(e => typeof e === "string" ? e : (k || "mj") + ":" + e), x, nx.k)) { s.explore = null; if (x.queue && x.queue.length) s.lastRun.title += "；一键探索停止"; return false; }
       return true;
     },
@@ -2962,34 +2915,32 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       const P = { tianwai: [50, 12], shen: [50, 29.5], xian: [50, 47.5], fan: [50, 86], mo: [21, 62], ming: [79, 62] };
       const tags = DATA.worlds.map(w => { const p = P[w.id]; if (!p) return "";
         const open = w.open !== false && (this.worldOpen(w.id) || w.id === "fan"), cur = (this.worldId || "fan") === w.id;
-        const req = (((CFG.worldMaps || {})[w.id] || {}).open || {}).realm;
         const sub = w.open === false ? "未开放" : "";   // 不显示「需某境界」「当前」
         return `<button class="atag${open ? "" : " dim"}${cur ? " cur" : ""}" style="left:${p[0]}%;top:${p[1]}%" onclick="${w.open === false ? "G.log('机缘暂未开放，敬请期待。','sys')" : `G.setWorld('${w.id}')`}"><b>${w.name}</b>${sub ? `<small>${sub}</small>` : ""}</button>`; }).join("");
       const s = this.s, ln = (x, cq) => x ? `<p onclick="G.setExInfo('${cq ? "cq" : "ex"}',1)"><i>${cq ? "出窍中" : x.once ? "历练中" : "探索中"}</i>${this.exName(x)}</p>` : "";
       const top = `<div class="atl-l"><div class="atl-btns"><button class="pill" onclick="G.openRunList('cq')">元婴出窍</button><button class="pill" onclick="G.openRunList('ex')">自动探索</button></div>${ln(s.cq, true)}${ln(s.explore, false)}</div>
         <div class="atl-r"><button class="pill" onclick="G.openMjList()">秘境探索</button><button class="pill" onclick="G.setExInfo('${s.cq && !s.explore ? "cq" : "ex"}',1)">探索信息</button></div>
-`;   // 战斗、设置已移到修炼页顶部「设置」（战斗设置 / 其他设置）
+`;   // 战斗设置、其他设置在修炼页顶部「设置」里
       return `<div class="atlas"><img src="img/map/atlas.webp?v=2" alt="">${tags}${top}</div>` + this.exOverlay();
     },
-    // 一界的地图卷轴：从上到下第 1 ~ 10 张图，图左右交替，旁边竖写图名；凡界最后加秘境
+    // 一界的地图卷轴：按境界从低到高排（仙界、魔界、神界倒过来，第一张在最下面），图左右交替，旁边竖写图名；凡界最后加秘境
     mapScroll(wid, idx, ex) {
-      const fan = wid === "fan", s = this.s;
+      const fan = wid === "fan";
       const rows = idx.map((a, i) => {
         const m = DATA.maps[a], img = fan ? "fan" + Math.min(8, i) : wid + (i % 3), flip = !fan && Math.floor(i / 3) % 2;
         const lockR = !this.realmOK(DATA.mapReq(a)), lockU = !lockR && !this.mapUnlocked(a), run = ex === a;
         const sub = lockR ? "需" + DATA.realmLabel(DATA.mapReq(a)) : lockU ? "未开启" : run ? "探索中" : "";   // 不显示「第几重」
         return `<div class="wsi ${i % 2 ? "r" : "l"}${lockR || lockU ? " lock" : ""}${run ? " cur" : ""}" onclick="G.setMapSel(${a})">
           <img src="img/map/is_${img}.webp" alt=""${this.isWH(img)}${flip ? ` style="transform:scaleX(-1)"` : ""}><div class="wsn"><b style="height:${[...m.name].length * 1.45 + 1.2}em">${m.name}</b>${sub ? `<small>${sub}</small>` : ""}</div></div>`; });
-      const shop = "";   // 2026-11-07 用户要求：凡界地图卷轴不再显示坊市入口（修炼页进坊市仍保留）
       const mj = fan ? (n => `<div class="wsi ${idx.length % 2 ? "r" : "l"}${ex === "mj" ? " cur" : ""}" onclick="G.setMapSel('mj')"><img src="img/map/is_mj.webp" alt=""><div class="wsn"><b style="height:${[...this.mjLabel("mj")].length * 1.45 + 1.2}em">${this.mjLabel("mj")}</b><small>${ex === "mj" ? "探索中" : n ? `已发现 ${n} 处` : "未发现"}</small></div></div>`)(this.mjState().found.length) : "";
       const list = this.mapRev(wid) ? rows.slice().reverse() : rows;
-      return `<div class="wscroll ws-${wid}" style="background-image:url(img/map/bg_${wid}.webp)">${list.join("")}${mj}${shop}</div>`;
+      return `<div class="wscroll ws-${wid}" style="background-image:url(img/map/bg_${wid}.webp)">${list.join("")}${mj}</div>`;
     },
     // 探索信息浮层：夹在顶部花纹和底部 6 个按钮之间（game.js exovFit），底部 出窍信息 / 探索信息 / 全部信息 / 关闭；「跟随最新」时停在最上面的最新一条（game.js render）
     exOverlay() {
       if (!this.exploreOpen) return "";
       const s = this.s, tab = this.exInfoTab(), x = tab === "cq" ? s.cq : s.explore, last = tab === "cq" ? s.lastCq : s.lastRun, run = x && !x.rest && x.ev;
-      // 匀速显示（2026-11-13）：第 n 步到 start + n×ms + EX_SHOW_LAG 才显示，网络推送早晚不一也按自己的时钟一步一步出；到点就重绘一次
+      // 匀速显示：第 n 步到 start + n×ms + EX_SHOW_LAG 才显示，网络推送早晚不一也按自己的时钟一步一步出；到点就重绘一次
       let list = run ? x.ev : last ? last.ev : [], src = run ? (tab === "cq" ? "cqcur" : "cur") : (tab === "cq" ? "cqlast" : "last"), shownStep = x ? x.step : 0, skip = 0;   // ev 最新在前：跳过前 skip 条还没到点的，详情按原下标
       if (run && x.ms > 0 && x._pz == null && !x.lostWait && this.dispNow) {
         const LAG = 600, t = this.dispNow() - x.start - LAG, k = Math.max(0, Math.floor(t / x.ms));
@@ -3088,7 +3039,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       if (!g || g.src !== "shop" || this.hasGongfa(id)) return;
       if (!this.realmOK(g.sect.reqRealm)) return this.log(`境界不足，需要${DATA.realmLabel(g.sect.reqRealm)}。`, "sys");
       if (this.s.stone < g.cost) return this.log("灵石不足。", "sys");
-      if (!this.lqCan("gf", id)) return;   // v173 学习队列
+      if (!this.lqCan("gf", id)) return;   // 学习队列
       if (!this.lsCheck(id)) return;   // 神识（shenshi.js）
       this.s.stone -= g.cost; this.startGfLearn(id); this.after();
     },
@@ -3097,9 +3048,9 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
     jieCurName(a) { return this.jieCur(a) === "yuanli" ? "愿力" : "功德"; },
     learnJieGf(id) {
       const g = DATA.skillInfo(id), s = this.s;
-      if (!g || (g.src !== "jshop" && g.src !== "gd") || (g.sect && g.sect.old) || this.hasGongfa(id)) return;   // 神界旧 6~10 星不再出售
+      if (!g || (g.src !== "jshop" && g.src !== "gd") || (g.sect && g.sect.old) || this.hasGongfa(id)) return;   // 神界旧 6~10 星（sect.old）不出售
       if (!this.realmOK(g.sect.reqRealm)) return this.log(`境界不足，需要${DATA.realmLabel(g.sect.reqRealm)}。`, "sys");
-      if (!this.lqCan("gf", id)) return;   // v173 学习队列
+      if (!this.lqCan("gf", id)) return;   // 学习队列
       if (!this.lsCheck(id)) return;   // 神识（shenshi.js）
       if (g.src === "gd") { const ck = this.jieCur(g.sect.map); if ((s[ck] || 0) < g.cost) return this.log(`${this.jieCurName(g.sect.map)}不足。`, "sys"); s[ck] -= g.cost; }
       else {
@@ -3119,7 +3070,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
     gdRecipeList(a) {
       const S = CFG.alchemy.SHANGGU || {}, w = (DATA.maps[a] || {}).w, cat = (S.WORLD_CAT || {})[w], g = (DATA.worldMapIdx[w] || []).indexOf(a);
       if (!cat || g < 0) return [];
-      return Object.keys(DATA.recipes).filter(t => DATA.danCat(t) === cat && DATA.recipeHas(t, g) && !DATA.danSectX(t)).map(type => ({ type, g, cost: CFG.alchemy.recipes[type].gdCost !== undefined ? CFG.alchemy.recipes[type].gdCost : DATA.danGdCost(g, w === "shen") }));   // gdCost 单独定价的丹方（悟真丹 8000）不受 GD_RECIPE 通用计价影响
+      return Object.keys(DATA.recipes).filter(t => DATA.danCat(t) === cat && DATA.recipeHas(t, g) && !DATA.danSectX(t)).map(type => ({ type, g, cost: CFG.alchemy.recipes[type].gdCost !== undefined ? CFG.alchemy.recipes[type].gdCost : DATA.danGdCost(g, w === "shen") }));   // gdCost 单独定价的丹方（如悟真丹）不受 GD_RECIPE 通用计价影响
     },
     learnGdRecipe(a, type) {
       const s = this.s, o = DATA.jieGfOf("gd", a), d = this.gdRecipeList(a).find(x => x.type === type); if (!o || !d) return;
@@ -3143,7 +3094,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       if (!this.addDan(type, d.g, n, 1)) return;
       s[ck] -= d.cost * n; this.log(`购得${DATA.danName(type, d.g, 1)} ×${n}。`, "good"); this.after();
     },
-    // 四界坊市（含神界神市）分类：杂物 / 药材 / 矿石 / 功法；功德司（含神界愿力祠）：杂物 / 丹方 / 丹药 / 功法；不属于这几类的都放杂物（用户定 2026-11-15）
+    // 四界坊市（含神界神市）分类：杂物 / 药材 / 矿石 / 功法；功德司（含神界愿力祠）：杂物 / 丹方 / 丹药 / 功法；不属于这几类的都放杂物（用户定）
     jieTabs(kind) { return kind === "gd" ? [["misc", "杂物"], ["rec", "丹方"], ["dan", "丹药"], ["gf", "功法"]] : [["misc", "杂物"], ["herb", "药材"], ["ore", "矿石"], ["gf", "功法"]]; },
     jieTabOf(kind) { const T = this.jieTabs(kind), v = kind === "gd" ? this.gdTab : this.jsTab; return T.some(x => x[0] === v) ? v : T[0][0]; },
     setJieTab(kind, t) { if (kind === "gd") this.gdTab = t; else this.jsTab = t; this.render(); if (this.viewScroll) this.viewScroll(0); },
@@ -3178,7 +3129,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       }
       if (part === "rec") return this.lqBar("dan") + (todo(recs) ? `<div class="card"><h3>丹方</h3>${todo(recs)}</div>` : `<div class="card"><p class="desc">${recs.length ? "丹方都兑换了。" : "暂无丹方。"}</p></div>`) + U.doneCard(recs);
       if (part === "dan") return dans ? `<div class="card"><h3>上古丹<small>${cn} ${U.fmt(cur)}</small></h3>${dans}</div>` : `<div class="card"><p class="desc">暂无丹药。</p></div>`;
-      return this.lqBar("gf") + this.gfSideWrap(gAll.map(x => x[0]), (this.gfSide === "done" ? U.doneCard(gfl) || `<div class="card"><p class="desc">还没有学会的功法。</p></div>` : `<div class="card"><h3>${o.name}<small>${gd ? `${cn} ${U.fmt(cur)}` : `灵石 ${U.fmt(s.stone)} · ${this.xjGxName(a)} ${U.fmt(this.xjGxOf(a))}`}</small></h3>${rows || `<p class="desc">这一类都学会了。</p>`}</div>`));   // 已学会的功法在左侧类型栏右边（用户定 2026-11-14）
+      return this.lqBar("gf") + this.gfSideWrap(gAll.map(x => x[0]), (this.gfSide === "done" ? U.doneCard(gfl) || `<div class="card"><p class="desc">还没有学会的功法。</p></div>` : `<div class="card"><h3>${o.name}<small>${gd ? `${cn} ${U.fmt(cur)}` : `灵石 ${U.fmt(s.stone)} · ${this.xjGxName(a)} ${U.fmt(this.xjGxOf(a))}`}</small></h3>${rows || `<p class="desc">这一类都学会了。</p>`}</div>`));   // 已学会的功法在左侧类型栏右边（用户定）
     },
     // 管理员：网页里更新游戏（服务器拉取 GitHub 最新代码，完成后刷新页面）
     async webUpdate() {
@@ -3201,7 +3152,6 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       if (t === "pill" || t === "eq") {
         const rows = this.shopList().map((it, i) => {
           if (it.tab !== t) return "";
-          const multi = it.kind === "pill";
           const name = this.shopItemName(it);
           const desc = it.kind === "pill" ? `修炼速度 +${Math.round(DATA.pillPct(it.type, it.g))}%，${DATA.pills[it.type].dur}次修炼` : `${DATA.slots[it.slot]} · 2 条主属性 + 1~5 条附加属性（颜色随机）`;
           const img = it.kind === "pill" ? DATA.pillIcon(it.type) : DATA.iconImg("eq_" + it.slot);
@@ -3217,7 +3167,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
           const desc = g.kind === "sp" ? `${g.el.name}系 · ${this.spellDmgTxt(g)} · 耗法力 ${U.fmt(g.mana)}` : `每层${g.label} +${U.num(g.perLv)}${g.label2 ? ` · ${g.label2} +${U.num(g.perLv2)}` : ""}`;
           return [has, `<div class="line"><div>${DATA.skillIco(g)}《${g.name}》<span class="tag">${g.star}星</span><span class="tag">${g.kind === "sp" ? "法术" : g.type.name}</span><small>${desc} · ${U.fmt(g.cost)} 灵石 · 学习 ${U.dur(DATA.gfLearnMin(g.star) * 60)}</small></div>
             ${lock && !has ? `<button class="sm" disabled>境界不足</button>` : this.gfLearnBtn(g, `G.buyGongfa('${g.id}')`, s.stone < g.cost)}</div>`]; };
-        return tabs + `<div class="room-grid" style="grid-template-columns:repeat(${N + 1},1fr)">${Array.from({ length: N }, (_, i) => `<button class="${star === i + 1 ? "active" : ""}" onclick="G.setShopStar(${i + 1})">${i + 1}星</button>`).join("")}${this.lqQBtn("gf")}</div>` +   // 星级一行 + 队列按钮（用户定 2026-11-15）
+        return tabs + `<div class="room-grid" style="grid-template-columns:repeat(${N + 1},1fr)">${Array.from({ length: N }, (_, i) => `<button class="${star === i + 1 ? "active" : ""}" onclick="G.setShopStar(${i + 1})">${i + 1}星</button>`).join("")}${this.lqQBtn("gf")}</div>` +   // 星级一行 + 队列按钮（用户定）
           (cards => this.gfSideFix(cards.flatMap(c => c.gs)) && this.gfSideWrap(cards.flatMap(c => c.gs), U.doneCards(cards.map(({ o, gs }) => ({ head: `<h3>${o.name}<span class="tag">${DATA.elById[o.el].name}</span></h3>`, rows: gs.filter(g => this.gfSideOk(g)).map(line) }))) || `<div class="card"><p class="desc">${this.gfSide === "done" ? "还没有学会的功法" : "这一类都学会了"}。</p></div>`))(
             srcs.map(o => ({ o, gs: DATA.gfTypesOf("shop", o.star).filter(ty => !ty.sectOnly).map(ty => DATA.gongfaInfo(DATA.gongfaId(o.id, ty.id))).concat([DATA.spellInfo(DATA.spellId(o.id, o.el))]) })));
       }
@@ -3244,7 +3194,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
     backToCultSet() { this.adminPage = false; this.giftPage = false; this.accPage = false; this.srvPage = false; this.tab = "cultivate"; this.cultView = "set"; this.setTab = "other"; this.render(); },
     backFromShop() { this.tab = "cultivate"; this.render(); },
 
-    // 背包格子底部显示星级 / 精炼 / 层数（装备、法宝、法术），存档 s.ui.xiu_slotinfo，默认显示（用户 2026-11-23）
+    // 背包格子底部显示星级 / 精炼 / 层数（装备、法宝、法术），存档 s.ui.xiu_slotinfo，默认显示（用户定）
     slotInfoOn() { return this.saveLsGet("xiu_slotinfo") !== "0"; },
     slotInfoCard() {
       const on = this.slotInfoOn();
@@ -3252,7 +3202,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
     },
     setSlotInfo(v) { this.saveLsSet("xiu_slotinfo", v ? null : "0"); this.render(); },
 
-    /* ---------- 背景主题：存在本机（localStorage xiu_bg@存档编号），按存档分开（用户 2026-11-17） ---------- */
+    /* ---------- 背景主题：存在本机（localStorage xiu_bg@存档编号），按存档分开（用户定） ---------- */
     bgCard() {
       const cur = this.saveLsGet("xiu_bg") || "";
       return `<div class="card"><h3>背景</h3><div class="bg-grid">${BG_THEMES.map(([id, nm]) =>
@@ -3265,17 +3215,15 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
   },
 
   view() {
-    // 战斗、设置从六界图左下 / 右下进（atlasSub）；凡界坊市在凡界地图卷轴里（mapSel "shop"）
+    // 世界页：六界图 → 一界的地图卷轴 → 地图 / 地点页面；战斗设置、其他设置在修炼页「设置」（tab "aset"），凡界坊市是 tab "fshop"
     const s = this.s, wid = this.worldId || "fan", wt = this.atlasSub === "battle" ? this.atlasSub : "explore";
     const fback = fn => `<div class="fback"><button onclick="${fn}">返回</button></div>`;   // 固定在右下角的返回（不跟着地图滑动）
     // 六界图（img/map/atlas.webp，竖条名牌按 ATLAS_POS 摆）；进了某一界顶部只留一条：六界图按钮 + 界名
-    const W0 = DATA.worlds.find(w => w.id === wid) || DATA.worlds[0];
     if (wt === "explore" && (this.atlasOn || this.worldId === undefined)) return this.atlasView();
     const worlds = "";
     const W = DATA.worlds.find(w => w.id === wid);
     if (wt === "battle") return `<div class="mpage"><div class="pghead">战斗</div>` + this.bsetView() + fback("G.setAtlasSub(null)") + "</div>";   // 包 mpage：返回固定右下
     if (!this.worldOpen(wid) && wt === "explore") return worlds + `<div class="mpage"><div class="card"><h3>${W.name}</h3><p class="desc">${W.desc}</p>${(CFG.worldMaps || {})[wid] ? "" : `<p class="desc">界壁未开，以你如今的修为尚无法踏足。</p>`}</div>` + fback("G.openAtlas()") + "</div>";
-    const tabs = "";
 
     if (wt === "explore") {
       const st = this.stats();
@@ -3284,7 +3232,7 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
         <div class="row small"><span>法力 ${U.fmt(s.mana)} / ${U.fmt(st.mana)}</span><span>灵石 ${U.fmt(s.stone)}</span></div>`;
       // 进行中的卡片：探索（s.explore）、出窍（s.cq）各一张；下面一个信息框：出窍信息 / 探索信息 / 全部信息
       const runCard = (x, cq) => { const T = this.exCfg(x).TIME;
-          const sub = x.mj !== undefined ? (x.once ? "" : x.queue && x.queue.length ? `一键探索 · 后面还有 ${x.queue.length} 处` : this.mjLabel(x.mk) + "探索") : x.once ? "" : x.cq ? `已完成 ${x.count} / ${x.cq} 次` : `已完成 ${x.count} 次`, hpP = Math.min(100, s.hp / this.stats().hp * 100), mpP = Math.min(100, s.mana / Math.max(1, this.stats().mana) * 100), bg = this.bsetGet(), gH = Math.min(100, bg.goHp || 0), gM = Math.min(100, bg.goMp || 0), restP = Math.min(gH > 0 ? hpP / gH : 1, gM > 0 ? mpP / gM : 1) * 100;   // v202 休养进度 = 生命、法力离「继续探索」设置还差多少
+          const sub = x.mj !== undefined ? (x.once ? "" : x.queue && x.queue.length ? `一键探索 · 后面还有 ${x.queue.length} 处` : this.mjLabel(x.mk) + "探索") : x.once ? "" : x.cq ? `已完成 ${x.count} / ${x.cq} 次` : `已完成 ${x.count} 次`, hpP = Math.min(100, s.hp / this.stats().hp * 100), mpP = Math.min(100, s.mana / Math.max(1, this.stats().mana) * 100), bg = this.bsetGet(), gH = Math.min(100, bg.goHp || 0), gM = Math.min(100, bg.goMp || 0), restP = Math.min(gH > 0 ? hpP / gH : 1, gM > 0 ? mpP / gM : 1) * 100;   // 休养进度 = 生命、法力离「继续探索」设置还差多少
           return `<div class="card"><h3>${x.once ? "历练中" : cq ? "出窍中" : "探索中"} · ${this.exName(x)}<small>${sub}</small></h3>
           <div class="bar tick"><div style="width:${x.rest ? Math.min(100, restP) : x.step / T * 100}%"></div></div>
           <div class="row small" style="align-items:center"><span>${x.rest ? `<b class="c-red">休养中</b> · 生命 ${U.fix(Math.floor(hpP) + "%")} / <b class="c-green">${gH}%</b><br><b class="c-red">休养中</b> · 法力 ${U.fix(Math.floor(mpP) + "%")} / <b class="c-green">${gM}%</b>` : x.step >= T ? `第 ${U.fix(T)} / ${T} 步 · 结算中` : `第 ${U.fix(x.step)} / ${T} 步 · 剩余 ${U.cd(Math.max(0, Math.ceil((x.start + T * (x.ms || 1000) - (x._pz != null ? x._pz : this.now())) / 1000 + (CFG.explore.END_WAIT || 0))), 1)}`}</span><span style="white-space:nowrap;flex-shrink:0">
@@ -3293,11 +3241,10 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       // 没在探索 / 出窍时：一行三个按钮打开信息浮层（进行中用卡片上的按钮）
       const infoBox = s.explore || s.cq ? "" : `<div class="card"><div class="btns" style="margin-top:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px"><button class="sm" onclick="G.setExInfo('cq',1)">出窍信息</button><button class="sm" onclick="G.setExInfo('ex',1)">探索信息</button><button class="sm" onclick="G.openExHist()">全部信息</button></div></div>`;
       const status = (s.explore ? runCard(s.explore, false) : "") + (s.cq ? runCard(s.cq, true) : "") + infoBox + this.exOverlay();
-      // 地图选择（9 张）+ 选中地图的 东西南北 四个区域
-      // v45：只列当前这一界的 9 张地图；秘境只在凡界
+      // 地图选择 + 选中地图的 东西南北 四个区域
+      // 只列当前这一界的地图（凡界 9 张、四界 10 张）；秘境只在凡界
       const idx = (DATA.worldMapIdx[wid] || []).slice().sort((a, b) => DATA.mapReq(a) - DATA.mapReq(b) || a - b), fan = wid === "fan";   // 从低到高
       const ex = s.explore ? (s.explore.mj !== undefined ? (fan && !s.explore.mk ? "mj" : undefined) : idx.includes(s.explore.map) ? s.explore.map : undefined) : undefined;
-      const ok = idx.filter(a => this.mapOpen(a));
       const sel = this.mapSel !== undefined && (this.mapSel === "mj" ? fan : idx.includes(this.mapSel)) ? this.mapSel : ex !== undefined ? ex : idx[0];
       const halls = ((CFG.worldMaps || {})[wid] || {}).halls;
       if (!this.mapPage) {   // 地图卷轴：不显示生命法力，点一张图进去；四界左下角固定 灵地 / 悟道碑（不跟着地图滑动）
@@ -3310,10 +3257,10 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
       const gs = this.gridSel;   // 地图格子页
       if (gs && gs.a === sel && this.ysPick && this.ysHall === this.ysPick && this.ysById(this.ysPick)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.ysById(this.ysPick).name} · 宗门大殿</div>${this.ysHallView(this.ysPick)}<div class="fback"><div class="fl"></div><button onclick="G.ysHallBack()">返回</button></div></div>`;
       if (gs && gs.a === sel && this.ysPick && this.ysById(this.ysPick)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.ysById(this.ysPick).name}</div>${this.ysView(this.ysPick)}<div class="fback"><div class="fl"></div><button onclick="G.ysOpen()">返回</button></div></div>`;
-      if (gs && gs.a === sel && this.gridOpen(gs.a, gs.r)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.gridMerged(gs.a) && !this.gridJie(gs.r) ? DATA.maps[gs.a].name : this.gridName(gs.a, gs.r)}</div>${this.gridView(gs.a, gs.r, wid)}<div class="fback"><div class="fl">${this.gridJie(gs.r) ? "" : `<button class="gq" onclick="G.gridQuick(${gs.a},${this.gridMerged(gs.a) ? -1 : gs.r})">快速<br>游历</button><button class="gq" onclick="G.openGridRec(${gs.a})">已获<br>机缘</button>`}</div><button onclick="${wid === "shen" ? `G.openGrid();G.openSjRg(${gs.a},${gs.r >= DATA.regionCount ? (gs.r - DATA.regionCount) >> 1 : gs.r})` : "G.openGrid()"}">返回</button></div></div>`;
+      if (gs && gs.a === sel && this.gridOpen(gs.a, gs.r)) return `<div class="mpage gpage" style="background-image:url(img/map/bg_${wid}.webp)"><div class="pghead">${this.gridName(gs.a, gs.r)}</div>${this.gridView(gs.a, gs.r, wid)}<div class="fback"><div class="fl">${this.gridJie(gs.r) ? "" : `<button class="gq" onclick="G.gridQuick(${gs.a},${gs.r})">快速<br>游历</button><button class="gq" onclick="G.openGridRec(${gs.a})">已获<br>机缘</button>`}</div><button onclick="${wid === "shen" ? `G.openGrid();G.openSjRg(${gs.a},${gs.r >= DATA.regionCount ? (gs.r - DATA.regionCount) >> 1 : gs.r})` : "G.openGrid()"}">返回</button></div></div>`;
       const mback = `<div class="pghead">${sel === "mj" ? this.mjLabel("mj") : DATA.maps[sel].name}</div>`;
       if (halls && sel !== "mj") {
-        // v49：仙冥魔神每张地图 7 处地点（config/worldmaps.js 的 halls，图片 img/hall_<id>.png），点进去是各自的页面
+        // 仙冥魔神每张地图 7 处地点（config/worldmaps.js 的 halls，图片 img/hall_<id>.png），点进去是各自的页面
         const shen = wid === "shen" && this.sjMapView;   // 神界：每重天一张图，四域 + 大殿 / 天尊殿 / 愿力祠 / 神市 / 道场（shenjie.js）
         const hn = id => shen && id === "dc" ? "道场" : this.xjHallName(sel, id);
         const hs = shen ? (["tg", "xj", "gd", "shop", "dc"].includes(this.hallSel) ? this.hallSel : null) : halls[this.hallSel] ? this.hallSel : null;   // 神界没有神纹、神将殿、九重天
@@ -3329,11 +3276,9 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
         const gxTag = this.xjGxOf ? `<div class="xs-gx">贡献<b>${U.fmt(this.xjGxOf(sel))}</b></div>` : "";   // 本图贡献：显示在天宫图片左边
         return `<div class="mpage${shen ? "" : " mfit"}" style="background-image:url(img/map/bg_${wid}.webp)"><div class="xscene xs-${wid}"><div class="xs-name">${DATA.maps[sel].name}</div><div class="tgrow">${gxTag}${ico("tg", "tg")}</div><div class="xsrow">${ico("xj")}${ico("shop", "mid")}${ico("gd")}</div></div>` + (this.regionsCard(sel, true)) + this.exOverlay() + mb + "</div>";   // 四界：不显示生命法力 / 探索中；东西南北四域直接显示在下面（灵地、悟道碑在地图卷轴左下角）
       }
-      if (sel !== "mj" && this.lkMap(sel)) return `<div class="mpage mfit fmfull">${this.regionsCard(sel, true)}<div class="fm-name">${DATA.maps[sel].name}</div>${this.exOverlay()}${mb}</div>`;   // 凡界整幅地图铺满屏幕，不显示生命法力 / 探索中、不留边框（用户 2026-11-17）
+      if (sel !== "mj" && this.lkMap(sel)) return `<div class="mpage mfit fmfull">${this.regionsCard(sel, true)}<div class="fm-name">${DATA.maps[sel].name}</div>${this.exOverlay()}${mb}</div>`;   // 凡界整幅地图铺满屏幕，不显示生命法力 / 探索中、不留边框（用户定）
       return pg(mback + bars + status + (sel === "mj" ? this.mijingView() : this.regionsCard(sel)));
     }
-
-    return this.atlasView();   // 设置已和世界页分开（tab "aset"，用户定 2026-11-20）
   },
 
 });
@@ -3350,7 +3295,7 @@ function applyBg() {
 }
 applyBg();
 G.applyBg = applyBg;   // 进存档后按本存档的设置重新上色（core/game.js start）
-// 设置 / 管理员：独立页面（tab "aset"，修炼页设置进），和世界页完全分开（用户定 2026-11-20）
+// 设置 / 管理员：独立页面（tab "aset"，修炼页设置进），和世界页完全分开（用户定）
 G.views.aset = function () {
   const fback = fn => `<div class="fback"><button onclick="${fn}">返回</button></div>`;
   const isAdmin = !!(this.adminInfo && this.adminInfo.admin);
@@ -3373,5 +3318,5 @@ G.views.aset = function () {
   // 管理员页返回到这里：从修炼页设置进来的，再返回回到修炼页设置
   return `<div class="mpage"><div class="pghead">设置</div>` + this.otherSetHtml() + fback("G.backToCultSet()") + "</div>";
 };
-// 凡界坊市：独立页面（tab "fshop"，修炼页进），和世界页完全分开（用户定 2026-11-17）
+// 凡界坊市：独立页面（tab "fshop"，修炼页进），和世界页完全分开（用户定）
 G.views.fshop = function () { return `<div class="mpage" style="background-image:url(img/map/bg_fan.webp)"><div class="pghead">${DATA.nmPick(CFG.names.worldTab, "shop", "坊市")}</div>${this.shopView()}<div class="fback"><button onclick="G.backFromShop()">返回</button></div></div>`; };

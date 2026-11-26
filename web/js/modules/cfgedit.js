@@ -4,7 +4,7 @@
  * 直接修改 js/config/ 里的参数文件。点保存后服务器先用新参数完整加载一遍，
  * 没有错误才保存并立即生效；在线玩家的网页会自动重新加载新参数。
  * 改过的文件存在服务器数据目录（不会被「从 GitHub 更新」覆盖），可以「恢复默认」。
- * 接口在 server/server.mjs：admin/config、admin/config/file、admin/config/save、admin/config/reset
+ * 接口在 server/server.mjs：admin/config、admin/config/file、admin/config/save、admin/config/save-multi、admin/config/reset
  * ===================================================================== */
 G.module({
   id: "cfgedit",
@@ -94,8 +94,7 @@ G.module({
       if (bad) { this.cfgMsg = bad; this._cfgMsgOk = false; return this.cfgListView(); }
       const btn = document.getElementById("cfg-qsave"); if (btn) btn.disabled = true;
       // 只改数字，文件里其它内容（注释、管理员改过的地方）保持不变
-      // MOB_IMG_NAME 回退：BREAK 行也不存在时 replace 是静默无操作，原来照样报成功；
-      // 现在没插进去就抛错，和其它“找不到项”分支一致
+      // 文件里没有 MOB_IMG_NAME 时插到 BREAK 行后面；BREAK 行也找不到就抛错，不静默报成功
       const setNum = (text, re, v) => { if (!re.test(text) && /MOB_IMG_NAME/.test(re.source)) { const nt = text.replace(/(\n\s*BREAK\s*:\s*[-\d.eE]+,?[^\n]*)/, `$1\n  MOB_IMG_NAME: ${v},`); if (nt === text) throw new Error("文件里找不到要改的项：" + re); return nt; } if (!re.test(text)) throw new Error("文件里找不到要改的项：" + re); return text.replace(re, (m0, a) => a + v); };
       try {
         const changed = k => Number(this.cfgQuickGet(k)) !== vals[k];
@@ -117,8 +116,7 @@ G.module({
           }
           files.push({ name: "realm.js", content: t });
         }
-        // 两份都改了一次保存：原来先存 rates.js（立即广播全服重载）再存 realm.js，
-        // 第二步失败时第一步已生效，成了“地图收益已改、突破属性未改”的半生效状态
+        // 两份都改时用 save-multi 一次保存：分两次存的话 rates.js 先存就会广播全服重载，realm.js 再失败就成了半生效
         if (files.length === 1) await API.req("admin/config/save", files[0]);
         else if (files.length > 1) await API.req("admin/config/save-multi", { files });
         this._cfgReload = true; this.cfgMsg = "快捷修改已保存，服务器已使用新倍率。关闭窗口后页面会重新加载。"; this._cfgMsgOk = true;

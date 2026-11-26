@@ -24,7 +24,7 @@ test("灵果种植：81 小时、扣 240 万灵气和 1 颗种子，收获 1~3 �
   assert.equal(s.fields[0].g, g); assert.equal(s.ling, 600000); assert.equal(G.seedCount(g), 1);
   assert.equal(D.growTime(g), 81 * 3600000);
   s.ling = 3e6; s.fields[0].start -= G.fieldTime(g) + 1000; G.tickAll(false);
-  const got = G.mailboxList().filter(x => x && x.it && x.it.t === "lg" && x.it.k === 5).reduce((t, x) => t + x.it.n, 0);   // 灵药园产出进传音（2026-11-17）
+  const got = G.mailboxList().filter(x => x && x.it && x.it.t === "lg" && x.it.k === 5).reduce((t, x) => t + x.it.n, 0);   // 灵药园产出进传音
   assert.ok(got >= 1 && got <= 3); assert.equal(G.seedCount(g), 0);
 });
 

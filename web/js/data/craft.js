@@ -1,11 +1,11 @@
 /* =====================================================================
- * 数据：丹方、炼丹炉/炼器炉、灵田（数值都在 js/config/ 下的数值文件 第八~十一部分）
+ * 数据：丹方、炼丹炉/炼器炉、灵田（数值在 config/alchemy.js、furnace.js、garden.js）
  * ---------------------------------------------------------------------
- * 材料只有 药材 herb、矿石 ore（各 6 种），背包里按 名字 区分，g 是它在列表里的序号（0~5）。
+ * 材料：药材 herb、矿石 ore（凡界 + 四界），背包里按 名字 区分，g 是它在列表里的序号；另有秘境材料 sm、自定义物品 cu。
  * 配方里直接写药材/矿石名字，这里把名字换成 { kind, g, n }。
  * 属性丹在背包里是 { t: "dan", type: "atk", g: 阶, n: 数量 }
  * 修炼速度丹（丹方 speed: true）炼出来是 { t: "pill", type: "juqi", g: 境界品质 }，一阶 = 练气期品质
- * 炉子 { t: "fu", kind: "dan"|"qi", g: 阶 }，图纸 { t: "bp", kind, g }，都在背包里点击使用/学习
+ * 炉子 { t: "fu", kind: "dan"|"qi"|"xdan"|"sdan", g: 阶 }，图纸 { t: "bp", kind, g }，都在背包里点击使用/学习
  * ===================================================================== */
 const _AL = CFG.alchemy, _FU = CFG.furnace, _GA = CFG.garden;
 
@@ -31,14 +31,14 @@ DATA.dans = {};                                                      // 只含�
 for (const t in _AL.recipes) if (!_AL.recipes[t].speed && !_AL.recipes[t].item) DATA.dans[t] = _AL.recipes[t];
 DATA.recipeItem = type => (_AL.recipes[type] || {}).item;           // 炼出来是专用材料（养神丹 yd）
 DATA.recipeHas = (type, g) => !!(_AL.recipes[type] && _AL.recipes[type].herbs[g]);   // 这一阶有没有（养神丹只有一阶）
-// v41：丹方分类（0 凡丹 1 仙丹 2 冥丹 3 魔丹 4 神丹）、学习需要的门派星级、加成的属性
+// 丹方分类（0 凡丹 1 仙丹 2 冥丹 3 魔丹 4 神丹）、学习需要的门派星级、加成的属性
 DATA.danCat = type => (_AL.recipes[type] && _AL.recipes[type].cat) || 0;
-// 凡丹：N 星宗门有一阶~N 阶（用户定，2026-10-20）；仙冥魔神丹在四界功德司学，这里的星级只作旧配置兼容
+// 宗门炼丹房学丹方需要的门派星级：凡丹每 SECT_STAR_TIERS 阶多要 1 星（用户定），SECT_XMM 的仙冥魔丹按它的 STAR；其余仙冥魔神丹在四界功德司学
 DATA.danStar = (type, g) => DATA.danSectX(type) ? ((_AL.SECT_XMM.STAR || [])[g] || 10) : (_AL.recipes[type] || {}).star || (Math.min(5, Math.floor(g / (_AL.SECT_STAR_TIERS || 2)) + 1));   // 凡丹学习需要的门派星级：1~5 星宗门每星两阶（一二阶 1 星 … 九十阶 5 星），6~10 星宗门全部；仙冥魔神丹在功德司学
 DATA.danStat = type => (_AL.recipes[type] && _AL.recipes[type].stat) || type;
-// v42：仙冥魔神丹（cat ≥ 1）用炼丹仙炉、炼丹仙师；修炼丹的品质 = 阶 + REALM0
+// 仙冥魔丹（cat 1~3）用炼丹仙炉，神丹（cat 4）用炼丹神炉；修炼丹的品质 = 阶 + REALM0
 DATA.danFu = type => DATA.danCat(type) === 4 ? "sdan" : DATA.danCat(type) ? "xdan" : "dan";   // 神丹用炼丹神炉
-// v256 仙 / 冥 / 魔丹的命中、速度、闪避、生命、法力丹方在宗门炼丹房学（config/alchemy.js SECT_XMM）
+// 仙 / 冥 / 魔丹的命中、速度、闪避、生命、法力丹方在宗门炼丹房学（config/alchemy.js SECT_XMM）
 DATA.danSectX = type => { const X = _AL.SECT_XMM, r = _AL.recipes[type]; return !!(X && r && !r.speed && !r.item && (X.CATS || []).includes(r.cat || 0) && (X.STATS || []).includes(DATA.danStat(type))); };
 DATA.danSect = type => DATA.danCat(type) === 0 || DATA.danSectX(type);   // 在宗门炼丹房学的丹方：凡丹 + 上面这些（其余仙冥魔神丹在四界功德司）
 DATA.pillGrade = (type, g) => g + ((_AL.recipes[type] && _AL.recipes[type].REALM0) || 0);
@@ -65,8 +65,8 @@ DATA.danGdCost = (g, shen) => { const R = _AL.GD_RECIPE || {}, m = shen && R.SHE
 DATA.danPrice = (type, g) => (_AL.recipes[type].price || [])[g] || 0;
 
 /* ---------- 炼丹炉 / 炼器炉 ---------- */
-DATA.furnaces = _FU;                                                // dan / qi
-DATA.furnaceName = (kind, g) => (kind === "qi" ? DATA.XING : DATA.JIE)[g] + _FU[kind].name;   // 炼器炉 / 炼器仙炉按星
+DATA.furnaces = _FU;                                                // dan / qi / xdan / sdan
+DATA.furnaceName = (kind, g) => (kind === "qi" ? DATA.XING : DATA.JIE)[g] + _FU[kind].name;   // 炼器炉按星，其他按阶
 DATA.furnaceN = kind => Math.min(DATA.FU_N_MAX(kind), (_FU[kind].mats || []).length);   // 炉子阶数：炼器炉 = 星数（十二），其他 = 丹阶数（十）
 DATA.FU_N_MAX = kind => kind === "qi" ? DATA.XING.length : DATA.DAN_JIE_N;
 DATA.furnaceMats = (kind, g) => DATA.parseMats(_FU[kind].mats[g]);
@@ -76,7 +76,7 @@ DATA.furnaceKinds = { dan: "炼丹炉", qi: "炼器炉", xdan: "炼丹仙炉", s
 for (const k in DATA.furnaceKinds) if (_FU[k] && _FU[k].name) DATA.furnaceKinds[k] = _FU[k].name;   // 名字在 config/names.js 的 furnace
 DATA.FURNACE_KINDS = Object.keys(DATA.furnaceKinds).filter(k => _FU[k]);
 DATA.isDanFu = k => k === "dan" || k === "xdan" || k === "sdan";                                // 炼丹用的炉子
-// v42：宗门宝库兑换第 g 阶图纸需要的门派星级
+// 宗门宝库兑换第 g 阶图纸需要的门派星级
 DATA.blueprintStar = (kind, g) => _FU[kind].STARS ? _FU[kind].STARS[g] || 10 : (_FU[kind].STAR || 1) + Math.floor(g / (kind === "dan" || kind === "qi" ? 1 : _FU[kind].STAR_TIERS || _FU.STAR_TIERS || 1));   // 炼丹炉 / 炼器炉：N 星宗门有一阶~N 阶图纸
 DATA.blueprintCost = (kind, g) => _FU[kind].blueprint[g];
 
@@ -85,17 +85,17 @@ DATA.GARDEN_MAX = _GA.MAX;
 DATA.fieldStage = i => Math.floor(i / Math.max(1, +_GA.OPEN_STAGE || 10)) + 1;   // 第 i+1 块所在阶段
 DATA.fieldCost = i => Math.round((+_GA.OPEN_STONE || 0) * (i + 1) * DATA.fieldStage(i));   // 第 i+1 块的灵石
 // 土地（config/garden.js LAND）：等级 0~36，每块灵田单独（s.fields[i].lv）
-DATA.LAND = () => Object.assign({ MAX: 36, BAND: [12, 24, 36], PCT: [1, 1, 1], PCT_LV1: 1, PCT_MAX: 72, PCT_STEP1: 1, LY: [100, 5000] }, _GA.LAND || {});   // 默认值与 config/garden.js 一致（1 级 1%，满级 72%）：配置缺失时也不静默变分档
+DATA.LAND = () => Object.assign({ MAX: 36, BAND: [12, 24, 36], PCT: [1, 1, 1], PCT_LV1: 1, PCT_MAX: 72, PCT_STEP1: 1, LY: [100, 5000] }, _GA.LAND || {});   // 配置缺失时的兜底默认值（1 级 1%，满级 72%；实际以 config/garden.js 为准），也不会静默变分档
 DATA.landBand = lv => { const B = DATA.LAND().BAND; const i = B.findIndex(v => lv <= v); return i < 0 ? B.length - 1 : i; };
-// 生长速度：1 级 PCT_LV1 %，满级 PCT_MAX %，中间每级平均增加（有 PCT_MAX 时用；否则按旧的 BAND×PCT 累加）
+// 生长速度：1 级 PCT_LV1 %，满级 PCT_MAX %，中间每级平均增加（有 PCT_MAX 时用；否则按 BAND×PCT 累加）
 DATA.landCurve = (lv, a, b, s1, MAX) => { const n = MAX - 1; if (n <= 0) return b;   // 每级增加量从 s1（1→2 级）起逐级等量变大，正好到满级 b
   s1 = s1 != null ? +s1 : (b - a) / n; const d = n > 1 ? 2 * ((b - a) - n * s1) / (n * (n - 1)) : 0, k = lv - 1;
   return Math.round((a + k * s1 + d * k * (k - 1) / 2) * 100) / 100; };
-// 土地产量 +%：自己一条曲线 YIELD_LV1 → YIELD_MAX，1→2 级 +YIELD_STEP1（保留 72% 时代的原曲线，用户定 2026-11-23）
+// 土地产量 +%：自己一条曲线 YIELD_LV1 → YIELD_MAX，1→2 级 +YIELD_STEP1（用户定）
 DATA.landYieldPct = lv => { const L = DATA.LAND(); lv = Math.max(0, Math.min(L.MAX, Math.floor(+lv || 0))); if (!lv || !L.YIELD_MAX) return 0;
   return DATA.landCurve(lv, +(L.YIELD_LV1 ?? 0.5), +L.YIELD_MAX, L.YIELD_STEP1 ?? 0.5, L.MAX); };
 DATA.landPct = lv => { const L = DATA.LAND(); lv = Math.max(0, Math.min(L.MAX, Math.floor(+lv || 0))); if (!lv) return 0;
-  if (L.PCT_MAX != null) return DATA.landCurve(lv, +L.PCT_LV1 || 0, +L.PCT_MAX || 0, L.PCT_STEP1, L.MAX);   // 高级加得多，用户定 2026-11-14
+  if (L.PCT_MAX != null) return DATA.landCurve(lv, +L.PCT_LV1 || 0, +L.PCT_MAX || 0, L.PCT_STEP1, L.MAX);   // 高级加得多（用户定）
   let t = 0, lo = 0; L.BAND.forEach((hi, b) => { t += Math.max(0, Math.min(lv, hi) - lo) * (+L.PCT[b] || 0); lo = hi; }); return Math.round(t * 100) / 100; };
 // 第 i 块灵田升到第 lv 级的矿石：ORE_N 种各 ORE × lv，按 BAND 取凡 / 仙 / 神界矿石池，从 (i + lv) 种起连续取
 DATA.landMats = (i, lv) => { const L = DATA.LAND(), P = (L.ORES || [])[DATA.landBand(lv)] || [], N = P.length, k = Math.min(N, Math.max(0, +L.ORE_N || 0)), n = Math.round((+L.ORE || 0) * lv), st = (Math.floor(+i) || 0) + lv;
@@ -125,7 +125,7 @@ DATA.seedSell = g => DATA.isLg(g) ? (DATA.LG().SEED_SELL ?? 100) : Math.floor(DA
 DATA.seedDropOnly = g => !!(DATA.herbGrow(g) || {}).drop;   // 特色药材：种子只能地图掉落
 DATA.seedName = g => DATA.cropName(g) + "种子";
 
-/* ---------- v213 宗主清灵丹（config/sect.js 的 qingling）：每个门派一种，数值 = 同星级对应属性丹一枚 ---------- */
+/* ---------- 宗主清灵丹（config/sect.js 的 qingling）：每个门派一种，数值 = 同星级对应属性丹一枚 ---------- */
 DATA.qlName = sectId => { const o = DATA.sectById[sectId]; return (o ? o.name : "") + CFG.sect.qingling.NAME; };
 DATA.qlLimit = sectId => { const o = DATA.sectById[sectId]; return o ? CFG.sect.qingling.LIMIT[o.star - 1] || 0 : 0; };
 DATA._qlV = {};
@@ -139,12 +139,12 @@ DATA.qlVals = sectId => {
 DATA.QL_LABEL = { hp: "生命", atk: "攻击", def: "防御", mana: "法力", hit: "命中", dodge: "闪避", speed: "速度" };
 DATA.qlTxt = sectId => { const v = DATA.qlVals(sectId); return Object.keys(v).map(k => `${DATA.QL_LABEL[k] || k} +${U.num(v[k])}`).join("、"); };
 
-/* v216 丹药品质外观（同装备 css .eqt0 ~ .eqt11）：凡丹 一阶~十阶 → 0~5，仙冥魔神丹 → 6~11，越高级效果越好 */
+/* 丹药品质外观（同装备 css .eqt0 ~ .eqt11）：凡丹 一阶~十阶 → 0~5，仙冥魔神丹 → 6~11，越高级效果越好 */
 DATA.danTier = (type, g) => { const f = Math.min(5, Math.floor((g || 0) * 6 / 10)); return (DATA.danCat(type) || 0) > 0 ? 6 + f : f; };
 DATA.danCls = (type, g) => ` eqt eqt${DATA.danTier(type, g)}`;
 DATA.qlCls = sectId => { const Q = CFG.sect.qingling, o = DATA.sectById[sectId], st = o ? o.star : 1, f = Math.min(5, Math.floor(((Q.TIER[st - 1] || 1) - 1) * 6 / 10));
   return ` eqt eqt${(Q.CAT[st - 1] || 0) > 0 ? 6 + f : f}`; };
-// v217 高阶丹药流光：品质 ≥ 4 的丹药图标外面包一层（css .dsh），圆形流光，越高级越亮越快
+// 高阶丹药流光：品质 ≥ 4 的丹药图标外面包一层（css .dsh），圆形流光，越高级越亮越快
 //   kind：mi 背包格子 / li 列表小图 / big 详情大图；cls = danCls / qlCls 的结果
 DATA.danImg = (src, cls, kind) => {
   const m = /eqt(\d+)/.exec(cls || ""), tr = m ? +m[1] : 0;

@@ -115,7 +115,6 @@ test("强化加成不分星级：装备按部位、戒指按种类（+1 命中�
   }
   const sh = Object.keys(D.fabaoTypes).find(k => D.fabaoTypes[k].shield), dm = Object.keys(D.fabaoTypes).find(k => !D.fabaoTypes[k].shield);
   for (const g of [0, 9]) { assert.equal(D.fbEnh({ slot: "fabao", ft: sh, g, enh: 2 }), 120); assert.equal(D.fbEnh({ slot: "fabao", ft: dm, g, enh: 2 }), 24); }
-  // 法宝融合已取消：不再有 fbFuse / fbFusable，护盾法宝每级 +60 护盾的断言在上面
 });
 
 test("心得灵石价格翻倍；炼丹师 / 炼器师 / 灵植夫升阶经验 = EXP × 1.18（共享总倍率已删）", () => {

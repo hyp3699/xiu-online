@@ -7,7 +7,7 @@
  * 药材矿石：总数见 config/drops.js 的 dropTotal.mijing，从第 drops 张凡界地图的药材 / 矿石表等概率抽（不含 fixed）
  * extra 额外掉落：按事件分（monster / elite / boss / herbEvent / oreEvent），每条 { item, chance 几率%, n [最少, 最多] } 单独判定
  *   item：火髓、空间晶核、养神露；"耀石" / "灵晶" = 随机属性，或 "火耀石" 这样指定；也可写药材 / 矿石名或 content/items.js 的物品
- * 金丹期秘境首领另必掉养神露（config/sect.js 的 chuqiao.LU_DROP），普通地图不掉
+ * 金丹期秘境首领另必掉养神露（config/sect.js 的 chuqiao.LU_MJ_REALM / LU_DROP），普通地图不掉
  * ===================================================================== */
 window.CFG = window.CFG || {};
 
@@ -39,14 +39,14 @@ CFG.mijing = {
     rly:  { name: "烈阳晶", sell: 5, desc: "炼制、升星烈阳戒的专用材料。仙界观星阁炼器室用好感度兑换。" },
     rxw:  { name: "玄武晶", sell: 5, desc: "炼制、升星玄武戒的专用材料。神界万化神宫炼器室用好感度兑换。" },
     lu:   { name: "养神露", sell: 10, desc: "炼制养神丹的材料。" },
-    lsfrag: { name: "灵识碎片", sell: 10, desc: "蕴含一丝灵识。神识页可兑换灵识点。" },   // 普通地图东南西北域掉（按灵石 1.2%，2026-11-15 用户定）；售价 10 灵石、兑换第 1 阶段每点 500 碎片（2026-11-16 用户定减半）
+    lsfrag: { name: "灵识碎片", sell: 10, desc: "蕴含一丝灵识。神识页可兑换灵识点。" },   // 普通地图东南西北域掉（按本次灵石的 config/drops.js LSFRAG 比例）；兑换价见 config/shenshi.js BUY_FRAG
     wdg:  { name: "悟道果", sell: 10, desc: "在「洞府 → 悟道室」悟道时消耗。仙冥魔功德司用功德购买，神界愿力祠用愿力兑换。" },
     sjlp: { name: "小世界令牌", sell: 10, desc: "神界探索界（每域 2 界）用，每走一步消耗 1 个。神界愿力祠用愿力兑换。" },
-    // 神界神像产出（每张神界图 8 个界，第 1~8 界的神像各产一种，用户定 2026-11-12）；出售价 12 灵石（用户定 2026-11-13）
+    // 神界神像产出（每张神界图 8 个界，第 1~8 界的神像各产一种，用户定）；出售价 12 灵石（用户定）
     sys:  { name: "神源石",   sell: 12 },
     tdsp: { name: "天道碎片", sell: 12 },
     hdly: { name: "混沌灵液", sell: 12 },
-    xcs:  { name: "周天星髓", sell: 12 },   // 原名「星辰砂」和矿石重名，改名（2026-11-13）
+    xcs:  { name: "周天星髓", sell: 12 },   // 不叫「星辰砂」：和矿石重名
     shy:  { name: "神凰羽",   sell: 12 },
     lhl:  { name: "龙皇鳞",   sell: 12 },
     jtxl: { name: "九天玄露", sell: 12 },

@@ -2,14 +2,14 @@
  * 模块：洞府 · 悟道室（数值在 config/wudaoshi.js）
  * ---------------------------------------------------------------------
  * 修炼之道：每天一次，消耗悟道果，得修为（当前境界升级需要的 2%~5%），按阶段给悟道秘诀（进背包）。
- * 神魂之道：每天一次，消耗悟道果，按阶段给神识强度，永久减修炼灵气消耗（wd.red），每次悟道给灵识点 1 点（wd.ls，2026-11-15 用户定），立即减功法修炼时间 CUT_YEAR 年（gfCutTime，累计 wd.cut）。
+ * 神魂之道：每天一次，消耗悟道果，按阶段给神识强度，永久减修炼灵气消耗（wd.red），每次悟道给灵识点 LS 点（wd.ls），立即减功法修炼时间 CUT_YEAR 年（gfCutTime，累计 wd.cut），按累计次数给炼神诀（LSJ）。
  * 点人物图 openWdInfo：显示神魂之道、战斗之道累计效果。
  * 战斗之道：每天一次，消耗悟道果，每次在攻击 / 防御 / 生命 / 六系抗性共 9 种里随机加一种（wd.bat，各 1/9）；页面上不显示累计，悟道后弹框里显示这次加的属性和得到的功法；
- *   加多少 = 基础（当前境界修为突破合计 + 肉身突破合计，不含功法 / 丹药 / 装备 / 炼体池）× PCT 区间随机 % × 阶段倍率（每阶段 +25%，最高 +240%）。
- *   每阶段给功法（wz阶段_序号:类别，来源在 DATA.wzSrc 现算，类型（13 种）、抗性属性由序号哈希定，效果 = 同星级 × 1.5，不占灵识点）：
- *   给功法间隔按 BOOK_STEPS 表（1–2 阶段每 10 次，3–4 阶段每 13 次，5–6 阶段每 16 次，7–8 阶段每 20 次，9–10 阶段每 25 次，11–20 阶段每 50 次，21 阶段以后每阶段最后一次给 1 本）；星级 = 阶段（最高 15 星）。
+ *   加多少 = 基础（当前境界修为突破合计 + 肉身突破合计，不含功法 / 丹药 / 装备 / 炼体池）× PCT 区间随机 % × 阶段倍率（每阶段 +STAGE_ADD%，最高 +STAGE_CAP%）。
+ *   每阶段给功法（wz阶段_序号:类别，来源在 DATA.wzSrc 现算，类型（13 种）、抗性属性由序号哈希定，效果 = 同星级 × BOOK_MULT，不占灵识点）：
+ *   给功法间隔按 BOOK_STEPS 表（1–2 阶段每 10 次，3–4 阶段每 13 次，5–6 阶段每 16 次，7–8 阶段每 20 次，9–10 阶段每 25 次，11–20 阶段每 50 次，21 阶段以后每阶段最后一次给 1 本）；星级 = 阶段（最高 MAX_STAR 星）。
  * 悟道秘诀 id "wd阶段_序号:mijue|tijue"（序号 0~9），来源在 DATA.wdSrc 现算。
- * 存档：wd = { n: { 道id: 已悟道次数 }, day: { 道id: 上次悟道的日期 }, red: { exp, body } 减少的灵气消耗, ls 得到的灵识点,
+ * 存档：wd = { n: { 道id: 已悟道次数 }, day: { 道id: 上次悟道的日期 }, red: { exp, body } 减少的灵气消耗, ls 得到的灵识点, cut 累计减的功法修炼时间,
  *   bat: { atk, def, hp, res: { 系: 值 } } 战斗之道随机属性累计 }
  * ===================================================================== */
 const _WR = CFG.wudaoRoom;
@@ -36,9 +36,9 @@ DATA.wdSrc = sid => {
   if (DATA._wdSrc[sid]) return DATA._wdSrc[sid];
   const m = /^wd(\d+)_(\d+)$/.exec(sid || ""); if (!m) return null;
   const k = +m[1], j = +m[2], X = _WR.xiulian, T = X.TYPES;
-  if (k < 1 || j < 0 || j >= 20) return null;   // 序号上限 20：只防乱序号，现规则每阶段最多 10 本，历版规则最多 13 本，老书都不失效
+  if (k < 1 || j < 0 || j >= 20) return null;   // 序号上限 20：只防乱序号，留余量让老存档里旧规则发的书（每阶段最多 13 本）不失效
   return DATA._wdSrc[sid] = { id: sid, src: "wdroom", star: Math.min(k, X.MAX_STAR), stage: k, idx: j, type: T[j % T.length],
-    juan: DATA.wdVolsBefore(k) + Math.floor(j / T.length) + 1, mult: X.BOOK_MULT, el: "jin", prefix: "", name: "悟道室", reqRealm: -1 };   // 倍率固定 BOOK_MULT（原来是 MULT 区间随机）
+    juan: DATA.wdVolsBefore(k) + Math.floor(j / T.length) + 1, mult: X.BOOK_MULT, el: "jin", prefix: "", name: "悟道室", reqRealm: -1 };   // 倍率固定 BOOK_MULT
 };
 DATA.wdBookId = (k, j) => { const o = DATA.wdSrc(`wd${k}_${j}`); return o ? `${o.id}:${o.type}` : null; };
 // 第 k 阶段开始前已给过的战斗功法本数（各阶段间隔按 BOOK_STEPS 表，所以要逐阶段算）
@@ -51,7 +51,7 @@ DATA.wzSrc = sid => {
   const k = +m[1], j = +m[2], H = _WR.zhandou;
   if (k < 1 || j < 0) return null;
   let h = 2166136261; for (const c of sid) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
-  // 13 本里随机 1 本：攻击 / 防御 / 生命 / 法力 / 命中 / 闪避 / 速度功法 + 六系抗性功法（哈希取余，均匀分布；2026-11-24 用户加法力命中闪避速度）
+  // 13 本里随机 1 本：攻击 / 防御 / 生命 / 法力 / 命中 / 闪避 / 速度功法 + 六系抗性功法（哈希取余，均匀分布）
   //   抗性系别仍按旧 9 选 1 的哈希定（h % 9 ≥ 3 时同旧书），已拿到的旧真经系别不变；类型存在书 id 里，旧书也不变
   const T13 = ["gongjue", "xinfa", "zhenjing", "fajue", "shenfa", "dunshu", "sufa"], idx = h % (T13.length + 6), i9 = h % 9;
   const type = idx < T13.length ? T13[idx] : "zhenjue";
@@ -66,12 +66,12 @@ G.module({
   defaults: () => ({ wd: { n: {}, day: {}, red: { exp: 0, body: 0 }, ls: 0, bat: { atk: 0, def: 0, hp: 0, res: {} } } }),
 
   api: {
-    // 神魂之道减掉的每次修炼灵气消耗（kind: exp 修为 / body 肉身）
-    wdRedRaw(kind) { return ((this.s.wd || {}).red || {})[kind] || 0; },   // 神魂之道减的灵气（点 / 10 秒）
-    // 修炼灵气减少量（点 / 10 秒）= 神魂之道 + 神识功法《敛息归元诀》分到的那份；kind exp 修为 / body 肉身
+    // 神魂之道减掉的修炼灵气消耗（点 / 10 秒；kind: exp 修为 / body 肉身）
+    wdRedRaw(kind) { return ((this.s.wd || {}).red || {})[kind] || 0; },
+    // 修炼灵气减少量（点 / 10 秒）= 神魂之道 + 神识功法《敛息归元诀》分到的那份 + 神纹，再按阵旗 % 减；kind exp 修为 / body 肉身
     wdRed(kind) { const r = this.wdRed0(kind), k = this.zqLingK ? this.zqLingK() : 1; if (k >= 1 || (kind !== "exp" && kind !== "body")) return r;   // 阵旗：其他减免算完后，剩下的消耗再按 % 减
       const gross = kind === "exp" ? this.speed().total : this.bodySpeed().total * Math.max(0.0001, CFG.body.LING_RATE || 1); return r + Math.max(0, gross - r) * (1 - k); },
-    wdRed0(kind) { return this.wdRedRaw(kind) + (this.lxShare ? this.lxShare()[kind] || 0 : 0) + (this.sjSwBonus && (kind === "exp" || kind === "body") ? this.sjSwBonus().ling || 0 : 0); },   // + 神纹「减少灵气消耗」   // 敛息：和功法修炼共用一份（lxShare）
+    wdRed0(kind) { return this.wdRedRaw(kind) + (this.lxShare ? this.lxShare()[kind] || 0 : 0) + (this.sjSwBonus && (kind === "exp" || kind === "body") ? this.sjSwBonus().ling || 0 : 0); },   // 敛息：和功法修炼共用一份（lxShare）；+ 神纹「减少灵气消耗」
     // 战斗之道随机属性累计（player.js computeStats 里加进属性）
     wdBat() { const b = ((this.s.wd || {}).bat || {}); return { atk: b.atk || 0, def: b.def || 0, hp: b.hp || 0, res: Object.assign({}, b.res || {}) }; },
     wdLeft(dao) { const w = this.s.wd || {}; return (w.day || {})[dao] === this.today() ? 0 : 1; },   // 每条道每天 1 次
@@ -161,8 +161,8 @@ G.module({
         const kk = F > 0 && c % F === 0 && c / F <= FN ? c / F : A > 0 && c > F * FN && (c - F * FN) % A === 0 ? FN + (c - F * FN) / A : 0;
         if (kk > 0) { const id = DATA.lsjId(kk), nm = `《${DATA.gongfaInfo(id, 1).name}》`, where = this.bagPutOrMail({ t: "gfb", id, n: 1 }), bk = `悟得${nm}（已放入${where === "mail" ? "传音" : "背包"}）`;
           rows.push([bk, ""]); msg.push(bk); } }
-      if (H.CUT_YEAR > 0) { const cut = this.gfCutTime(H.CUT_YEAR * (+CFG.player.YEAR_MIN || 60) * 60000); w.cut = (w.cut || 0) + cut;   // 立即减功法修炼时间（2026-11-22 用户定）
-        rows.push(["功法修炼时间", cut > 0 ? "−" + U.dur(cut / 1000) : "没有在修炼的功法"]); if (cut > 0) msg.push(`功法修炼时间 −${U.dur(cut / 1000)}`); }   // 每次悟道给灵识点（2026-11-15 用户定，取代阶段最后一次给）
+      if (H.CUT_YEAR > 0) { const cut = this.gfCutTime(H.CUT_YEAR * (+CFG.player.YEAR_MIN || 60) * 60000); w.cut = (w.cut || 0) + cut;   // 立即减功法修炼时间（用户定）
+        rows.push(["功法修炼时间", cut > 0 ? "−" + U.dur(cut / 1000) : "没有在修炼的功法"]); if (cut > 0) msg.push(`功法修炼时间 −${U.dur(cut / 1000)}`); }
       this._wdFx = Date.now();
       this.log(`${D0.name}悟道一次，${msg.join("，")}。`, "gold"); this.dirty(); this.after();
       this.wdModal(D0, rows.map(([a, b]) => `<div class="line"><div>${a}</div><b class="q4">${b}</b></div>`).join(""));

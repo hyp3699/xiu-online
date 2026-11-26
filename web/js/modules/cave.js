@@ -1,14 +1,14 @@
 /* =====================================================================
  * 模块：洞府
  * ---------------------------------------------------------------------
- * 房间：聚灵阵、炼丹房、炼器室、灵根、灵药园、灵兽室、阵法室、道童居
+ * 房间：聚灵阵、炼丹房、炼器室、灵根、灵药园、悟道室、阵法室、道童居
  * （房间列表在 data/cave.js 的 DATA.caveRooms；炼丹房、炼器室见 craft.js，灵药园见 garden.js）
  *
  * 聚灵阵：
  * - 每 10 秒聚集一次灵气（有进度条），灵气是修炼的“燃料”
  * - 同时给修炼速度加倍率（见 data/cave.js 的 factor）
  * - 聚灵速度只由聚灵阵等级决定，境界提升不会增加
- * - 初始 0 级；开关在“修炼”页，开关只影响修炼加成，不影响聚灵
+ * - 初始 0 级
  * - 可以用灵石手动补充灵气，或开启“灵气不足时自动补充”
  * ===================================================================== */
 G.module({
@@ -26,7 +26,7 @@ G.module({
   tick() {
     if (this.lmTick) this.lmTick();   // 隐世宗门灵脉：恢复灵气、租借按小时扣好感（world.js）
     if (this.zfTick) this.zfTick();   // 阵法室：属性阵修炼到时结算（formation.js；主动阵战斗按次收费，运转另按 10 秒扣 zfKeep）
-    const cap = this.lingCap(); if (this.s.ling < cap) this.s.ling = Math.min(cap, this.s.ling + this.speed().gather);   // v207 上限只挡聚灵，上限变低时不删已有灵气
+    const cap = this.lingCap(); if (this.s.ling < cap) this.s.ling = Math.min(cap, this.s.ling + this.speed().gather);   // 上限只挡聚灵，上限变低时不删已有灵气
     if (this.zfKeepTick) this.zfKeepTick();   // 主动阵法运转消耗（每 10 秒，formation.js zfKeep）
   },
 
@@ -37,7 +37,7 @@ G.module({
     arrayGfCut() { return DATA.array.gfStudy ? DATA.array.gfStudy((this.s.array || {}).lv || 0) : 0; },   // 聚灵阵每 30 级减少功法修炼时间 %
     // 每 10 秒聚灵量（只由等级决定，开关不影响）
     gatherAmount() { return this.gatherRaw() * (1 + this.zqEff().gather / 100); },   // 阵旗聚灵 % 乘在合计上
-    gatherRaw() { return DATA.array.gather(this.s.array.lv) + this.gatherLz() + this.gatherServant() + DATA.array.flat(this.s.array.lv) + (this.servantFlat ? this.servantFlat() : 0) + (this.xdJlGather ? this.xdJlGather() : 0); },   // + 四界坊市聚灵阵心得（固定）   // 固定聚灵最后加，不吃道童等加成
+    gatherRaw() { return DATA.array.gather(this.s.array.lv) + this.gatherLz() + this.gatherServant() + DATA.array.flat(this.s.array.lv) + (this.servantFlat ? this.servantFlat() : 0) + (this.xdJlGather ? this.xdJlGather() : 0); },   // 固定聚灵（聚灵阵固定、道童固定、四界坊市聚灵阵心得）最后加，不吃道童等加成
     gatherServant() { return (DATA.array.gather(this.s.array.lv) + this.gatherLz()) * (this.servantPct ? this.servantPct("zhen") : 0) / 100; },   // 道童阵法辅助：聚灵 +%
     // 聚灵加成明细弹窗（聚灵阵页「聚灵加成」按钮）
     openGatherInfo() {
@@ -71,7 +71,7 @@ G.module({
     zqLingK() { return 1 - this.zqEff().cut / 100; },   // 灵气消耗乘这个
     gatherLz() { return (this.s.lzSlot || []).reduce((t, z) => t + (z ? z.v : 0), 0); },   // 灵珠格聚灵
     lingCap() { const sp = this.speed(); return Math.max(100, sp.gather * DATA.LING_CAP_GATHER + sp.total * DATA.LING_CAP_SPEED); },
-    // v247 每 10 秒修炼消耗的灵气：修为修炼 + 肉身修炼 + 功法修炼（只算正在进行的）
+    // 每 10 秒修炼消耗的灵气：修为修炼 + 肉身修炼 + 功法修炼（只算正在进行的）
     lingUse() { const p = this.lingUseParts(); return p.exp + p.body + p.gf; },
     lingUseParts() {   // 各项修炼每 10 秒实际消耗（已扣敛息等减免）
       const s = this.s, o = { exp: 0, body: 0, gf: 0 };
@@ -82,7 +82,7 @@ G.module({
       return o;
     },
     lingPerStone() { return DATA.array.STONE_LING; }, // 固定数值
-    // 保留灵石：补充灵气（手动、自动）都不会把灵石用到这个数以下（用户定 2026-11-15）
+    // 保留灵石：补充灵气（手动、自动）都不会把灵石用到这个数以下（用户定）
     stoneKeep() { return Math.max(0, Math.floor(+(this.s.array || {}).keepStone || 0)); },
     refillStone() { return Math.max(0, Math.floor(this.s.stone - this.stoneKeep())); },
     setKeepStone(n) { n = Math.floor(+n); if (!Number.isFinite(n) || n < 0) return this.log("数量无效。", "sys");
@@ -150,7 +150,7 @@ G.module({
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
     lzPut(i, ft) {
-      i = Math.floor(+i); if (!(i >= 0 && i < CFG.lingzhu.SLOTS)) return;   // 只能放 SLOTS 格（原来不查下标，能放无限颗、或撑大数组）
+      i = Math.floor(+i); if (!(i >= 0 && i < CFG.lingzhu.SLOTS)) return;   // 只能放 SLOTS 格（不查下标就能放无限颗、或撑大数组）
       const s = this.s; if (s.lzSlot[i] || !this.takeSm("lz", 1, ft)) return;
       s.lzSlot[i] = { ft, v: CFG.lingzhu.BASE, n: 0 };   // n = 强化次数（灵珠数值改了时迁移用）
       this.log(`${DATA.smName("lz", ft)}放入聚灵阵，聚灵 +${U.fmt(CFG.lingzhu.BASE)}。`, "good"); this.after(); this.lzOpen(i);
@@ -168,7 +168,7 @@ G.module({
       z.v += n * C.ENH; z.n = (z.n || 0) + n;
       this.log(`${DATA.smName("lz", z.ft)}强化 ${n} 次，聚灵 +${U.fmt(n * C.ENH)}。`, "good"); this.after(); this.lzOpen(i);
     },
-    /* ---------- 阵旗格：点空格放入背包里的阵旗，点阵旗可取下（效果待定，config/array.js CFG.zhenqi） ---------- */
+    /* ---------- 阵旗格：点空格放入背包里的阵旗，点阵旗可取下（效果见 zqEff，config/array.js CFG.zhenqi） ---------- */
     zqSlots() { const s = this.s, N = CFG.zhenqi.SLOTS; if (!Array.isArray(s.zqSlot)) s.zqSlot = []; while (s.zqSlot.length < N) s.zqSlot.push(null); return s.zqSlot; },
     openZq(i) {
       const Z = CFG.zhenqi, z = this.zqSlots()[i];

@@ -2,13 +2,13 @@
  * 模块：战斗设置（世界 → 战斗）
  * ---------------------------------------------------------------------
  * 存档 s.bset：
- *   （v241 的「战斗方式」按对手类型只普攻已去掉，旧存档的 foe 不再读）
- *   r       第一 ~ 三回合（每回合第一次出手）：[ "auto" 按出手方式 / "atk" 普通攻击 / "sp:法术id" / "fb:法宝栏序号" ] × 3
+ *   foe     旧存档字段，不再读
+ *   r       第一 ~ 三回合（每回合第一次出手）：[ "auto" 按出手方式 / "atk" 普通攻击 / "sp:法术id" / "fb:法宝栏序号" / "fb:bm" 本命法宝 / "st:神通id" ] × 3
  *   mode    剩余回合（第四回合起）："rot" 法术、法宝轮流 / "sp" 优先法术 / "fb" 优先法宝 / "max" 伤害最高优先 / "cheap" 消耗最低优先  / "list" 按列表顺序 / "atk" 普通攻击
  *   order   列表顺序 [key]（「按列表顺序」用）
  *   lowPct  生命低于百分之几时（0 = 不用）……
  *   lowKey  ……先用这个法宝 / 法术（例如盾）；可以动用保留的法力
- *   goHp / goMp  v242 生命 / 法力高于上限的这个 % 才继续自动探索（低于就原地休养，恢复到了再继续）；原「保留法力」已去掉
+ *   goHp / goMp  生命 / 法力高于上限的这个 % 才继续自动探索（低于就原地休养，恢复到了再继续）
  *   off     不使用的法术 / 法宝 [key]
  * 战斗逻辑在 world.js 的 battle()。
  * ===================================================================== */
@@ -95,7 +95,6 @@ G.module({
     },
     bsetView() {
       const b = this.bsetGet(), acts = this.bsetActs(), esc = x => String(x).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
-      const opt = (opts, cur) => opts.map(([v, t]) => `<option value="${esc(v)}" ${String(v) === String(cur || "") ? "selected" : ""}>${esc(t)}</option>`).join("");
       const sel = (k, opts) => this.selBox("bs:" + k, opts, b[k], v => this.bsetSet(k, v));
       const num = k => `<input type="number" min="0" max="100" value="${b[k] || 0}" onchange="G.bsetSet('${k}',this.value)" style="width:5em">%`;
       const lost = key => key && key !== "auto" && key !== "atk" && !acts.some(a => a.key === key) ? `<small class="q5">已不在法术栏 / 法宝栏</small>` : "";

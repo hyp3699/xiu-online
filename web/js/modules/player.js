@@ -1,13 +1,13 @@
 /* =====================================================================
  * 模块：人物（境界、属性、生命法力自动恢复）
- * 开局为“凡人”，修为满 100 突破为练气期一层。
+ * 开局为“凡人”，修为攒够 needExp 突破为练气期一层。
  * ---------------------------------------------------------------------
  * 属性计算公式（computeStats）：
  *   生命 = 凡人基础 + 修为突破合计 + 装备 + 真经
  *   攻击 =  凡人基础 + 修为突破合计 + 装备 + 功诀
  *   防御 =  凡人基础 + 修为突破合计 + 装备 + 心法
  *   法力 =  凡人基础 + 修为突破合计 + 装备 + 法诀
- *   （功法加成都是固定数值；以上各项再加 属性丹 永久加成）
+ *   （功法加成都是固定数值；以上各项再加 属性丹、肉身突破、悟道室战斗之道、本命法宝等加成，神界真意按 % 乘突破属性）
  *   基础修炼速度 = 凡人基础 + 修为突破合计（不显示为属性）
  *   速度 = 凡人基础 + 修为突破合计 + 装备
  *   命中 = 凡人基础 + 修为突破合计 + 装备 + 身法 + 丹药；闪避 = 凡人基础 + 修为突破合计 + 装备 + 遁术 + 丹药
@@ -26,10 +26,10 @@ G.module({
     kills: 0,    // 斩妖数
   }),
 
-  // 每 10 秒：生命、法力各恢复上限的 1%
+  // 每 10 秒：生命、法力按 regen(false) 恢复上限的 %
   tick() {
     const st = this.stats(), s = this.s;
-    if (!s.born) s.born = this.now();   // 修炼年数起点（老存档从这次开始算，用户定 2026-11-16）
+    if (!s.born) s.born = this.now();   // 修炼年数起点（老存档从这次开始算，用户定）
     const R = this.regen(false);   // 平时恢复：每 10 秒 % 上限
     if (s.hp < st.hp) s.hp = Math.min(st.hp, s.hp + st.hp * R.hp / 100);
     if (s.mana < st.mana) s.mana = Math.min(st.mana, s.mana + st.mana * R.mana / 100);
@@ -64,7 +64,7 @@ G.module({
     // s.yrw = 已发到第几年
     yearRwCheck() {
       const s = this.s; if (!s || s.mortal || !s.born || !this.mailboxAdd) return;
-      if (s.yrwV !== 60) { s.yrw = 0; s.yrwV = 60; }   // 2026-11-17 改 60 分钟 = 1 年：已发过的奖励按新年数到时间再发一次（用户定）
+      if (s.yrwV !== 60) { s.yrw = 0; s.yrwV = 60; }   // 旧存档（年数口径不是 60 分钟 = 1 年）：已发过的奖励按新年数到时间再发一次（用户定）
       const y = this.yearNow(), d = +s.yrw || 0, L = this.yearRwList().filter(x => x[0] > d && x[0] <= y); if (!L.length) return;
       for (const [yr, rw] of L) {
         const src = `修炼${U.fmt(yr)}年奖励`;
@@ -78,9 +78,9 @@ G.module({
       if (!this.silent) this.log(`修炼满 ${U.fmt(s.yrw)} 年，奖励已发到传音，${this.MAILBOX_DAYS || 30} 天内领取。`, "gold");
     },
     r() { return Math.floor(this.s.L / DATA.LAYERS); },          // 当前大境界序号
-    layer() { return this.s.L % DATA.LAYERS; },
+    layer() { return this.s.L % DATA.LAYERS; },   // 当前层（0~9）
     // 境界够不够：req = -1 凡人即可，否则需要（非凡人且）大境界 ≥ req
-    realmOK(req) { return req < 0 || DATA.isTest() || (!this.s.mortal && this.r() >= req); },   // 测试模式不限境界                    // 当前层（0~9）
+    realmOK(req) { return req < 0 || DATA.isTest() || (!this.s.mortal && this.r() >= req); },   // 测试模式不限境界
     needExp() { return this.s.mortal ? DATA.needExp(-1) : DATA.needExp(this.s.L); },   // needExp(-1) = 凡人 → 练气一层
     realmName(L) {
       if (L === undefined) { if (this.s.mortal) return "凡人"; L = this.s.L; }
@@ -109,7 +109,7 @@ G.module({
       const m = this.mifaBonus();
       if (battle) return { hp: m.hpBattlePct || 0, mana: m.mpBattlePct || 0, hpFlat: m.hpBattle || 0, manaFlat: m.mpBattle || 0 };   // 战斗中只有秘法恢复
       const b = CFG.player.REGEN_IDLE || {};
-      if (this.inFight()) return { hp: 0, mana: 0 };   // v201 战斗进行中（历练 / 探索 / 出窍 / 秘境 / 灵地 / 渡劫，休养不算）：平时恢复 1% 和 养血 / 养灵都不生效，只靠 斗血 / 斗灵
+      if (this.inFight()) return { hp: 0, mana: 0 };   // 战斗进行中（历练 / 探索 / 出窍 / 秘境 / 灵地 / 渡劫，休养不算）：平时恢复和 养血 / 养灵都不生效，只靠 斗血 / 斗灵
       return { hp: (b.hp || 0) + m.hpIdle, mana: (b.mana || 0) + m.mpIdle };
     },
     // 战斗进行中：历练 / 探索 / 出窍 / 秘境 / 灵地（休养等待时不算），或正在渡劫
@@ -128,7 +128,7 @@ G.module({
       for (const a in g) { if (a === "cultivate" || (body && a === "mana")) continue; if (a === "res") DATA.elements.forEach(e => add("res:" + e.id, a)); else add(a, a); }
       ((s.brRandL = s.brRandL || {})[kind] = s.brRandL[kind] || {})[T] = rec;   // 记下这层加了多少，跌落境界时扣回（brUnroll）
     },
-    // 跌落境界：扣回第 T 层突破随机属性（2026-11-23 前突破的层没有记录，不扣）
+    // 跌落境界：扣回第 T 层突破随机属性（没有记录的旧层不扣）
     brUnroll(kind, T, s = this.s) {
       const L = (s.brRandL || {})[kind] || {}, r = L[T]; if (!r) return;
       const o = ((s.brRand = s.brRand || {})[kind] = s.brRand[kind] || {});
@@ -163,7 +163,7 @@ G.module({
     },
     brRand(kind, a) { const r = this.s.brRand; return (r && r[kind] && r[kind][a]) || 0; },
     computeStats() {
-      const L = this.s.mortal ? -1 : this.s.L, F = DATA.playerFixed, R = k => DATA.plRealmStat(L, k) + (L < 0 ? 0 : this.brRand("xw", k));   // 修为突破随机加减（brRoll）   // 修为突破属性（config/realm.js 的 GAIN）
+      const L = this.s.mortal ? -1 : this.s.L, F = DATA.playerFixed, R = k => DATA.plRealmStat(L, k) + (L < 0 ? 0 : this.brRand("xw", k));   // 修为突破属性（config/realm.js 的 GAIN）+ 突破随机加减（brRoll）
       const eq = this.equipTotal(), gf = this.gongfaBonus(), dn0 = this.danBonus();
       const dn = {}; for (const k of ["hp", "atk", "def", "mana", "hit", "dodge", "crit"]) dn[k] = dn0[k] || 0; // 属性丹；gongfaBonus 见 gongfa.js，danBonus（属性丹）见 craft.js
       const bd = this.bodyBonus ? this.bodyBonus() : {}; for (const k of ["hp", "atk", "def", "mana", "hit", "dodge", "crit"]) dn[k] += bd[k] || 0;   // 肉身突破加成（body.js）

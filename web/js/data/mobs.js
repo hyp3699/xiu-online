@@ -1,7 +1,7 @@
 /* =====================================================================
  * 怪物属性生成（数值在 config/mobs.js）
- * 每个怪物 6 个数 [境界, 层, [1, 前星%, 前星层, 星级, 本星%, 本星层], [2, ..坊市], [3, ..功德司], 倍率]：
- * 进入境界写在每组的「进入」（天将 / 星君就任写「天将需」「星君需」，宗门考官 = 考官境界，可用「晋升需」单独改）：
+ * 每个怪物 [境界, 层, [1, 前星%, 前星层, 星级, 本星%, 本星层], 倍率]（格式见 config/mobs.js 文件头，旧格式见下面 mobRow）：
+ * 进入境界写在每组的「进入」（天将 / 星君就任境界读「天将需」「星君需」，不写 = 不限；宗门考官 = 考官境界，可用「晋升需」单独改）：
  *   怪物基础属性 = (修为突破属性 + 肉身突破属性 + 功法属性) × 倍率
  *   遇到时 × 随机(RAND[0] ~ RAND[1])；暴击 = CRIT
  * 生成后写进：
@@ -11,8 +11,7 @@
  * ===================================================================== */
 DATA.MOB_KIND = { normal: "普通", elite: "精英", boss: "首领" };
 DATA.MOB_KEYS = ["hp", "atk", "def", "speed", "hit", "dodge", "mana", "res"];
-// 遇到时的随机倍率
-// v180 RAND 每种属性单独：{ atk: [a, b], hp: [a, b], 其他: [a, b] }
+// 遇到时的随机倍率 CFG.mobs.RAND：每种属性单独 { 气血: [a, b], 攻击: [a, b], …, 其他: [a, b] }（中文名或 hp / atk 键都可）
 DATA.MOB_RAND_ZH = { hp: "气血", atk: "攻击", def: "防御", speed: "速度", hit: "命中", dodge: "闪避", mana: "法力",
   res_jin: "金抗性", res_mu: "木抗性", res_shui: "水抗性", res_huo: "火抗性", res_tu: "土抗性", res_lei: "雷抗性" };
 // wn = 哪一界（凡界 / 秘境 / 仙界 / 冥界 / 魔界 / 神界）：配置写成 { 凡界: [a, b], … } 的项（气血、法力）按界取，没写的界用凡界
@@ -36,7 +35,7 @@ DATA.mobBody = n => { const o = {}; for (const k of DATA.MOB_KEYS) o[k] = DATA.b
 //   1 宗门功法（宗门功法殿，不含传承功法）  2 坊市功法（凡阶坊市 + 四界坊市）  3 四界功德司功法
 DATA.MOB_GF_CAT = { 1: "宗门功法", 2: "坊市功法", 3: "功德司功法" };
 DATA.mobCatSrcs = c => c === 1 ? [...DATA.sects, ...(DATA.twSources || [])] : c === 2 ? [...DATA.shopSources, ...((DATA.jieGf || {}).jshop || []).filter(x => !x.old)] : c === 3 ? ((DATA.jieGf || {}).gd || []).filter(x => !x.old) : [];   // 宗门功法 11 星以上用天外天（宗门只到 10 星）
-// 一行怪物数据转成对象：[境界, 层, 宗门组, 倍率]（坊市、功德司组已去掉；以前 6 个数 [境界, 层, 宗门组, 坊市组, 功德司组, 倍率] 也能读）
+// 一行怪物数据转成对象：[境界, 层, 宗门组, 倍率]（6 个数 [境界, 层, 宗门组, 坊市组, 功德司组, 倍率] 也能读）
 //   每组 [类别, 前星学%, 前星层, 星级, 本星学%, 本星层]：1 ~ 星级−1 星全部按前星学% / 前星层；星级那一星按本星学% / 本星层
 //   层、学%、功法层都可以写一个数或 [最小, 最大]（遇到时随机：学% 每种功法一次、功法层每本一次）；星级 0 = 该境界能学到的最高星
 //   旧格式 7 个数 [境界, 层, 星级, [1, 学%, 层], [2, ..], [3, ..], 倍率] 仍能读（前星、本星都用同一个学% 和层）
@@ -117,19 +116,19 @@ DATA.mobCalc = (t, crit, rnd) => {
   }
   if (R.x && Array.isArray(R.x.神通)) o.stl = R.x.神通.filter(v => Array.isArray(v) && v[0]).map(v => [String(v[0]), Math.max(0, Math.round(+v[1] || 0))]);   // 怪物神通 [[id, 等级]]（config/mobs.js 额外倍率里的 神通，固定不随机）
   o.manaBr = st.manaBr;   // 修为突破的法力（法术 / 法宝耗法力用，不乘倍率）
-  o.crit = crit || 0; o.layer = lay; o.L = R.realm * DATA.LAYERS + lay - 1;   // v171 总层序（保底伤害用）
+  o.crit = crit || 0; o.layer = lay; o.L = R.realm * DATA.LAYERS + lay - 1;   // 总层序（保底伤害用）
   return o;
 };
 // 显示用（平均值）
 DATA.mobStats = (t, crit) => DATA.mobCalc(t, crit, false);
-// v168 每次遇到随机：层、学%、功法层（v225 功法按 全部 × 学% 算，不再随机挑书）
+// 每次遇到随机：层、学%、功法层（功法按 全部 × 学% 算）
 DATA.mobRoll = (t, crit) => DATA.mobCalc(t, crit, true);
 // 按名字取，名字对不上时按顺序取（地图改了名也不会丢）
 DATA.mobPick = (obj, name, i) => { if (!obj) return null; if (obj[name]) return obj[name]; const v = Object.values(obj); return v[i] || null; };
 DATA.mobCrit = k => (CFG.mobs.CRIT || {})[k] || 0;
 // 一组 {普通, 精英, 首领} → {normal, elite, boss}
 DATA.mobGroup = g => { const o = { _t: {} }; for (const k in DATA.MOB_KIND) { const t = (g || {})[DATA.MOB_KIND[k]]; o[k] = DATA.mobStats(t, DATA.mobCrit(DATA.MOB_KIND[k])); o._t[k] = t; } return o; };
-// v168 遇到怪物时按这一组的原始数据重新随机（没有原始数据就用算好的）
+// 遇到怪物时按这一组的原始数据重新随机（没有原始数据就用算好的）
 DATA.mobMeet = (grp, kind) => { const t = grp && grp._t && grp._t[kind]; return t ? DATA.mobRoll(t, DATA.mobCrit(DATA.MOB_KIND[kind])) : grp[kind]; };
 
 // ---------- 凡界 + 仙魔冥神地图 ----------
@@ -146,7 +145,7 @@ DATA.mobMeet = (grp, kind) => { const t = grp && grp._t && grp._t[kind]; return 
     CFG.monster.MAP_REALM[a] = c["进入"] || 0;
     m.mob = c;   // 天将 / 星君 / 界主，就任境界「天将需」「星君需」
   }
-  // v258 地图等级（法术 / 法宝伤害加成用）：凡界 1~9，仙魔冥第 N 张 9+N，神界第 N 张 19+N
+  // 地图等级（法术 / 法宝伤害加成用）：凡界 1~9，仙魔冥第 N 张 9+N，神界第 N 张 19+N
   DATA.mapLv = a => { const m = DATA.maps[a]; if (!m) return 0; if (!m.w || m.w === "fan") return a + 1; return (m.wi || 0) + (m.w === "shen" ? 20 : 10); };
   // 不在地图上的怪：按怪物境界折算，练气 = 1 级，每个大境界 +1，最多 24（圣人）
   DATA.mapLvByL = L => Math.min(24, Math.max(1, Math.floor((L || 0) / DATA.LAYERS) + 1));
@@ -167,8 +166,8 @@ DATA.mobJz = a => (DATA.maps[a].mob || {})["界主"] || DATA.MOB_NONE;
   }
 })();
 
-// ---------- 试炼塔守关者（v221，config/mobs.js 的 tower）：按「第几层 ÷ 总层数」算境界、宗门功法学习比例、功法层、阶段倍率 ----------
-//   逢 10 层 × BOSS（v222）；2 星及以上 = 上一星塔顶（不含 BOSS 倍）的全部属性 + 本星塔多出来的境界 / 肉身属性 + 本星宗门功法，本星部分 × 阶段倍率
+// ---------- 试炼塔守关者（config/mobs.js 的 tower）：按「第几层 ÷ 总层数」算境界、宗门功法学习比例、功法层、阶段倍率 ----------
+//   逢 BOSS[0] 层 × BOSS[1]；2 星及以上 = 上一星塔顶（不含 BOSS 倍）的全部属性 + 本星塔多出来的境界 / 肉身属性 + 本星宗门功法，本星部分 × 阶段倍率
 DATA._tower = {};
 DATA.towerPart = (star, floor, max) => {   // 返回 { total, ng: 不含功法的累计属性, realm, lay, pct, gf, mul }
   const T = CFG.mobs.tower, LN = T.REALMS * DATA.LAYERS, f = Math.max(1, Math.min(max, floor)), p = f / max;
@@ -204,7 +203,7 @@ DATA.towerStage = (star, floor, max) => {
   const key = star + ":" + floor + ":" + max;
   if (!DATA._tower[key]) {
     const T = CFG.mobs.tower, P = DATA.towerPart(star, floor, max), crit = DATA.mobCrit("考官");
-    const B = T.BOSS, boss = B[0] > 0 && floor % B[0] === 0 ? B[1] : 1, o = Object.assign({}, P.total);   // v222 逢 10 层 × BOSS
+    const B = T.BOSS, boss = B[0] > 0 && floor % B[0] === 0 ? B[1] : 1, o = Object.assign({}, P.total);   // 逢 BOSS[0] 层 × BOSS[1]
     for (const k of DATA.MOB_KEYS) o[k] *= boss;
     o.resEl = Object.fromEntries(Object.entries(P.total.resEl || {}).map(([e, v]) => [e, v * boss]));
     DATA._tower[key] = Object.assign(o, { crit, L: P.L, realm: P.realm, layer: P.lay, pct: P.pct, gf: P.gf, mul: P.mul, boss });

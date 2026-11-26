@@ -2,14 +2,14 @@
  * 模块：渡劫（突破时的劫云）
  * ---------------------------------------------------------------------
  * 数值全部在 js/config/trib.js。
- * 流程：修为满了点「突破」→ 直接开始渡劫 → 渡劫页（上方劫云，下方人物）；v259 去掉准备页、格子、护盾，渡劫时不能用任何法宝、丹药
- * 劫云只有攻击，每 HIT_SEC 秒劈一次（金木水火土雷六种属性轮流，属性伤害 = 攻击 − 防御 × RES_RATE − 该系抗性），人物不还手；撑过 TIME 秒没倒 = 突破成功。
+ * 流程：修为满了点「突破」→ 直接开始渡劫 → 渡劫页（上方劫云，下方人物）；没有准备页，渡劫时不能用任何法宝、丹药
+ * 劫云只有攻击，每 HIT_SEC 秒劈一次（金木水火土雷六种属性轮流，属性伤害 = max(保底, 攻击 − 防御 × RES_RATE − 该系抗性 × RES_EL_RATE)，FORMULA 为 ratio 时按比例减免），人物不还手；撑过 TIME 秒没倒 = 突破成功。
  * 按 G.now() 计时：关掉页面、关掉游戏，劫云照样劈，回来时一次算完。
  * 开始后先倒计时 PRE_SEC 秒，再开始劈。
  *
  * 存档：
  *   s.trib       正在进行（或刚结束还没关）的渡劫：
- *                { v: 2, L 突破后层序, start 劫雷开始时间（= 点开始 + PRE_SEC 秒）, time 时长秒, sec 已过秒, atk, crit, taken 共承受, hits 被劈次数, log, result }
+ *                { L 突破后层序, t0 点开始的时间, start 劫雷开始时间（= t0 + PRE_SEC 秒）, time 时长秒, sec 已过秒, atk, crit, taken 共承受, hits 被劈次数, last 最近一击, log, result }
  * ===================================================================== */
 G.module({
   id: "trib",
@@ -22,7 +22,7 @@ G.module({
     tribBusy() { const x = this.s.trib; return !!(x && !x.result); },
     // 渡劫时长（秒）：按突破后的大境界查 TIME（键 = 境界原名或改名后的名字）
     tribTime(L) {
-      const ri = Math.min(Math.floor(L / DATA.LAYERS) || 0, 23), o = CFG.trib.TIME;   // L ≥ 240（圣人以上）时 ri 钳到最高境界 23，不再查不到 TIME 返 NaN
+      const ri = Math.min(Math.floor(L / DATA.LAYERS) || 0, 23), o = CFG.trib.TIME;   // L ≥ 240（圣人以上）时 ri 钳到最高境界 23，否则查不到 TIME 返 NaN
       const t = o[DATA.realms[ri]] !== undefined ? o[DATA.realms[ri]] : o[DATA.NM_DEF.realm[ri]];
       return Math.max(1, Number.isFinite(t) ? t : 30);   // 兜底：TIME 里没写该境界也按 30 秒（现全部境界都是 30 秒）
     },
@@ -85,7 +85,7 @@ G.module({
         let [d, c] = this.tribHit(x, el.id);
         if (el.id === "lei" && this.oriSum && this.oriSum("leiCut")) d *= Math.max(0, 1 - this.oriSum("leiCut") / 100);   // 出身「天降异象」
         if (this.jmElCut && this.jmElCut(el.id)) d *= Math.max(0, 1 - this.jmElCut(el.id) / 100);   // 经脉腿部：受到该系属性伤害 −%
-        if (this.zfDmg && d > 0) { const r = this.zfDmg(el.id, Math.max(0, d - 1)); d = r > 0 ? Math.max(1, d - r) : d - r; }   // 洞府主动阵法：固定点数减 / 加，不乘倍率；最低减到 1 点（用户定 2026-11-14）
+        if (this.zfDmg && d > 0) { const r = this.zfDmg(el.id, Math.max(0, d - 1)); d = r > 0 ? Math.max(1, d - r) : d - r; }   // 洞府主动阵法：固定点数减 / 加，不乘倍率；最低减到 1 点（用户定）
         s.hp -= d; x.taken += d; x.hits++;
         hit = { n: x.hits, d, c, el: el.id };
         x.last = hit;   // 最近一击：联网时客户端按它画闪电、飘伤害

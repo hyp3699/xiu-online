@@ -2,8 +2,9 @@
  * 模块：账号管理（只有管理员看得到：世界 → 设置 → 账号管理）
  * ---------------------------------------------------------------------
  * 所有玩家：设置 → 账号 → 修改密码（改完其他设备上的登录会失效）。
- * 管理员：开启 / 关闭注册；查看所有注册的账号；修改任何账号的账号名；删除账号（连同服务器上的存档，管理员账号不能删）。
- * 接口在 server/server.mjs：admin/users、admin/reg、admin/user/del、admin/user/rename
+ * 管理员：创建 / 切换 / 删除自己的多个人物（含调试人物，主号和当前人物不能删）；开启 / 关闭注册；查看所有注册的账号；
+ *   修改任何账号的账号名；删除账号（连同服务器上的存档，管理员账号不能删）。
+ * 接口在 server/server.mjs：admin/users、admin/reg、admin/user/del、admin/user/rename、admin/chars、admin/char/new、admin/char/switch、admin/char/del
  * ===================================================================== */
 G.module({
   id: "accounts",

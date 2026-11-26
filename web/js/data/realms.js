@@ -1,7 +1,8 @@
 /* =====================================================================
  * 数据：境界 & 人物成长
  * ---------------------------------------------------------------------
- * 改境界名字、层数、修为需求、每层属性成长，都在这个文件里。
+ * 境界原名、层数；按 config/realm.js 算修为需求、每层属性成长；战斗减免、命中率、保底伤害公式。
+ * 改名在 config/names.js，数值在 config/realm.js / player.js / battle.js。
  * 总层序 L：境界序号 × 10 + 层(0~9)。例如 筑基期三层 = 1*10 + 2 = 12
  * ===================================================================== */
 window.DATA = window.DATA || {};
@@ -28,7 +29,7 @@ for (const k of ["DMG_REALM"]) {
   Object.keys(o).forEach(n => delete o[n]); ent.forEach(([n, v]) => { o[n] = v; });
 }
 
-/* 以下数值都来自 js/config/ 下的数值文件（数值设置文件），这里只做计算 */
+/* 以下数值来自 config/realm.js（CFG.realm）、config/player.js（CFG.player），这里只做计算 */
 const _R = CFG.realm, _P = CFG.player;
 // 境界突破表（config/realm.js）：一行一个境界，没写的境界沿用上面最近一行；T = 要突破到的总层序（0 = 第一境界一层）
 DATA.brRow = (rows, r) => { let o = null; for (const x of rows || []) if (x[0] <= r && (!o || x[0] >= o[0])) o = x; return o; };
@@ -63,7 +64,7 @@ DATA.brSum = (rows, n, tag) => {
 };
 // 突破属性自动计算（config/realm.js 的 AUTO）：返回每境界每层属性行 [[境界, {属性: 每层}]...]，算一次缓存
 //   第一个境界 = 1 星宗门功法每层 × (1 + FIRST_PCT[属性]%)（可负数；也可写一个数 = 全部属性一样；没写的属性照表原值）；
-//   以后各境界不再对标功法：第 r 境界 = 第一个 × (表r / 表0)^p，p 二分求出让全部境界合计 = 宗门功法 TOTAL × TOTAL_PCT%
+//   以后各境界不对标功法：第 r 境界 = 第一个 × (表r / 表0)^p，p 二分求出让全部境界合计 = 宗门功法 TOTAL × TOTAL_PCT%
 DATA._autoRows = {};
 DATA.autoRows0 = body => {
   const A = _R.AUTO, rows = body ? _R.BODY_GAIN : _R.GAIN; if (!A || !+A.on || !DATA.gfUnit) return rows;
@@ -76,7 +77,7 @@ DATA.autoRows0 = body => {
   const keys = Object.keys(g(0));
   for (const k of keys) {
     if (k === "cultivate" || (body && k === "mana") || FP[k] === undefined || !TOT[k]) { for (let r = 0; r < N; r++) if (g(r)[k] !== undefined && !(body && k === "mana")) out[r][1][k] = g(r)[k]; continue; }
-    const v0 = DATA.gfUnit(k) * (SS[0] || 1) * (1 + (+FP[k] || 0) / 100), g0 = +g(0)[k] || 1, target = TOT[k] * tpOf(k) / 100 / (k === "res" ? (DATA.elements || []).length || 6 : 1);   // res：宗门 TOTAL 是六系真经合计，突破抗性每系都加，所以按每系对标（用户定 2026-11-13）
+    const v0 = DATA.gfUnit(k) * (SS[0] || 1) * (1 + (+FP[k] || 0) / 100), g0 = +g(0)[k] || 1, target = TOT[k] * tpOf(k) / 100 / (k === "res" ? (DATA.elements || []).length || 6 : 1);   // res：宗门 TOTAL 是六系真经合计，突破抗性每系都加，所以按每系对标（用户定）
     const ratio = []; for (let r = 0; r < N; r++) ratio.push(Math.max(1e-9, (+g(r)[k] || g0) / g0));
     const sum = p => { let t = 0; for (let r = 0; r < N; r++) t += v0 * Math.pow(ratio[r], p) * (LY - 1 + fmOf(r)); return t; };
     let lo = 0, hi = 1; while (sum(hi) < target && hi < 64) hi *= 2;
@@ -86,7 +87,7 @@ DATA.autoRows0 = body => {
   }
   return DATA._autoRows[tag] = out;
 };
-// 肉身占比（config/realm.js BODY_SHARE，用户定 2026-11-20）：第 r 个大境界十层时，肉身突破属性 / (修为 + 肉身) = FIRST + STEP × r %（法力只修为加）
+// 肉身占比（config/realm.js BODY_SHARE，用户定）：第 r 个大境界十层时，肉身突破属性 / (修为 + 肉身) = FIRST + STEP × r %（法力只修为加）
 //   肉身每个境界每层 = 按修为这一境界合计反推（修为第 r 境界合计 X_r，肉身合计 B_r = X_r × p ÷ (100 − p)）
 DATA.autoRows = body => {
   const S = _R.BODY_SHARE; if (!body || !S || !(+S.FIRST > 0)) return DATA.autoRows0(body);
@@ -146,11 +147,11 @@ DATA.cutEl = (p, def, res, L, ign) => { const C = DATA.ratioCfg(), v = (def || 0
 
 // 人物属性：base = 凡人基础（再加修为突破合计，见 DATA.realmStat）；fixed 不随境界
 DATA.playerFixed = _P.fixed;
-// 命中率：见 config/battle.js 的 HIT_*（v183 按整档加减）
+// 命中率：见 config/battle.js 的 HIT_*（按整档加减）
 DATA.hitChance = (hit, dodge, k) => { const B = CFG.battle, d = Math.max(0, dodge || 0), diff = ((hit || 0) - d) / Math.max(1, d + (B.HIT_PAD || 0)) * 100;   // 相对差 = (命中 − 闪避) ÷ (闪避 + HIT_PAD)
-  // v183 按整档算：高 每满 HIT_UP_STEP % +HIT_UP_ADD %；低 每满 HIT_DN_STEP % −HIT_DN_ADD %（不满一档不变）
+  // 按整档算：高 每满 HIT_UP_STEP % +HIT_UP_ADD %；低 每满 HIT_DN_STEP % −HIT_DN_ADD %（不满一档不变）
   const add = diff >= 0 ? Math.floor(diff / B.HIT_UP_STEP + 1e-9) * B.HIT_UP_ADD : -Math.floor(-diff / B.HIT_DN_STEP + 1e-9) * B.HIT_DN_ADD;
-  // v220 k：0 普通攻击 / 1 法术（+ SPELL_HIT_ADD）/ 2 法宝（+ FABAO_HIT_ADD），加完仍不超过 HIT_MAX
+  // k：0 普通攻击 / 1 法术（+ SPELL_HIT_ADD）/ 2 法宝（+ FABAO_HIT_ADD），加完仍不超过 HIT_MAX
   const bonus = k === 1 ? (B.SPELL_HIT_ADD || 0) : k === 2 ? (B.FABAO_HIT_ADD || 0) : 0;
   return Math.min(B.HIT_MAX, Math.max(B.HIT_MIN, B.HIT_BASE + add) + bonus); };
 DATA.dodgeChance = (hit, dodge, k) => 100 - DATA.hitChance(hit, dodge, k);   // 闪避几率 = 100 − 命中率
@@ -161,12 +162,12 @@ DATA.CRIT_CAP = _P.CRIT_CAP;
 // 修炼节奏：每 10 秒结算一次
 DATA.TICK = 10;
 
-// 保底伤害 = 总层数 × MIN_STEP × 大境界序号（L = 总层序，0 = 练气一层；总层数 = L+1，大境界序号 = floor(L/10)+1）
+// 保底伤害 = 总层数 × MIN_STEP × 大境界序号（用户定；L = 总层序，0 = 练气一层；总层数 = L+1，大境界序号 = floor(L/10)+1）
 // 保底伤害：L = 出手方层序，D = 对方层序（不写 = 不比境界，如雷劫）；比对方每高 1 层 + MIN_HIGH%、每低 1 层 − MIN_LOW%（按基础保底加法叠加），最少 MIN_FLOOR
 DATA.minDmg = (L, D) => {
   const B = CFG.battle, v = (x, d) => x === undefined ? d : x; L = Math.max(0, L || 0);
-  let x = v(B.MIN_STEP, 3) * (L + 1) * (Math.floor(L / DATA.LAYERS) + 1);   // 2026-11-23 用户定：总层数 × MIN_STEP × 大境界序号（都从 1 起）
-  if (D !== undefined) { D = Math.max(0, D || 0); x *= 1 + (L > D ? (L - D) * v(B.MIN_HIGH, 0) : -(D - L) * v(B.MIN_LOW, 0)) / 100; }   // 2026-11-24 用户定：层差改为按 % 加减
+  let x = v(B.MIN_STEP, 3) * (L + 1) * (Math.floor(L / DATA.LAYERS) + 1);
+  if (D !== undefined) { D = Math.max(0, D || 0); x *= 1 + (L > D ? (L - D) * v(B.MIN_HIGH, 0) : -(D - L) * v(B.MIN_LOW, 0)) / 100; }
   return Math.max(v(B.MIN_FLOOR, 1), Math.round(x));
 };
 

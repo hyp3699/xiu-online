@@ -1,16 +1,17 @@
 /* =====================================================================
  * 模块：修炼（灵气 → 修为、突破、丹药加速）
  * ---------------------------------------------------------------------
- * 修炼速度 = 基础修炼速度 × (1 + (聚灵阵% + 丹药% + 修炼室%) / 100)（百分比加成全部相加，不连乘）
- *   基础修炼速度 = 境界基础 + 秘诀（开局不再随机灵根）
- * 聚灵阵开关在本页；开关只影响修炼速度（关闭后没有聚灵阵倍率），不影响聚灵。
+ * 修炼速度 = 基础修炼速度 × (1 + (聚灵阵% + 丹药% + 修炼室% + 聚元秘法圆满% + 道童% + 经脉光点% + 修炼真意%) / 100) + 经脉穴位数值
+ *   （百分比加成全部相加，不连乘；见 computeSpeed）
+ *   基础修炼速度 = 修为境界 + 肉身境界 + 秘诀 + 聚元秘法 + 灵果 + 神界感悟
+ * 聚灵阵常开（没有开关）：按等级加修炼速度 %，聚灵另算（gatherAmount）。
  * 修炼前提：学会至少一部秘诀，且不在自动探索中。
  * 每 10 秒修炼一次：消耗 灵气 = 修炼速度，获得同等修为（1 灵气 = 1 修为）
  * 灵气不够时，只能把剩下的灵气全部转化；灵气为 0 时无法修炼（进度条不走）。
  * 修为满了不会自动突破，必须手动点“突破”。修为会继续累积，不会浪费。
  * 渡劫：从 config/trib.js 的 START 层开始（默认突破筑基期一层起），每层突破都要渡劫：
- *   点「突破」进渡劫准备页，开始后撑过劫云 TIME 秒没倒 = 突破成功（详见 modules/trib.js）。
- * 没有雷劫的突破：小境界 100% 成功；大境界有成功率，失败损失 30% 修为。
+ *   点「突破」直接开始渡劫，撑过劫云 TIME 秒没倒 = 突破成功（详见 modules/trib.js）。
+ * 不需要渡劫的突破：修为够了直接成功。
  * ===================================================================== */
 G.module({
   id: "cultivate",
@@ -22,7 +23,7 @@ G.module({
     autoPill: { juqi: false, juling: false, peiyuan: false, taixu: false, jiuxuan: false, hongmeng: false }, // 自动服丹开关（与 CFG.pills 的 6 种丹同表；老存档缺的键按关处理，点开关即补上）
     lackWarned: false,
     trib: null,       // 正在进行（或刚结束未关闭）的渡劫（modules/trib.js）
-    // 修炼设置：自动修炼中，灵石 < low 且灵气不足 → 去 tgt（"e:地图:区域" 自动探索）；灵气 ≥ 上限的 pct% → 停止探索回来修炼
+    // 修炼设置：灵石 < low 且灵气不足 → 去 tgt（"e:地图:区域" 自动探索）；灵气 ≥ 修炼速度 × mul 倍（最多到灵气上限）→ 本次探索结束后回来修炼
     cultSet: { on: false, low: 1000, mul: 10, tgt: "", went: false },
   }),
 
@@ -106,14 +107,14 @@ G.module({
       const sjc = this.sjBonus ? this.sjBonus().cult || 0 : 0;   // 神界道场感悟「修炼速度」：固定加基础修炼速度
       const rs = DATA.crossSpeed((s.bodyL === undefined ? -1 : s.bodyL) + 1);   // 肉身突破加修为修炼速度（config/realm.js CROSS_SPEED）
       const gfc = this.gongfaBonus().cultivate;
-      const xs = DATA.selfSpeed(s.mortal ? 0 : s.L + 1);   // 修为突破加修为修炼速度（config/realm.js SELF_SPEED，用户定 2026-11-17）
+      const xs = DATA.selfSpeed(s.mortal ? 0 : s.L + 1);   // 修为突破加修为修炼速度（config/realm.js SELF_SPEED，用户定）
       const base = xs + gfc + mifa + lgc + sjc + rs;
       const arr = this.arrayFactor();                     // 聚灵阵常开
       let pill = 0;
       for (const t in s.buffs) { const b = s.buffs[t]; if (b && b.left > 0) pill += b.pct; }
       const room = this.freeCultOn() ? this.freeCultPct() : s.room >= 0 && s.sect ? this.roomPct(s.room) : 0;
       // 所有百分比加成相加后再乘：总速度 = 基础 × (1 + (聚灵阵% + 丹药% + 修炼室% + 经脉% …) / 100)，避免数值连乘爆炸
-      const arrPct = (arr - 1) * 100, mfPct = this.mifaBonus().expSpeedPct || 0, svPct = this.servantPct("cult"), jm = this.jmFull ? this.jmFull().cult : 0, jmPct = this.jmSpdPct ? this.jmSpdPct() : 0, zyPct = this.sjPct ? this.sjPct().cult || 0 : 0;   // 经脉光点冲满 %、神界修炼真意 %；经脉穴位冲满：直接加数值（jingmai.js）   // 聚元秘法圆满额外 %、道童辅助修炼 %
+      const arrPct = (arr - 1) * 100, mfPct = this.mifaBonus().expSpeedPct || 0, svPct = this.servantPct("cult"), jm = this.jmFull ? this.jmFull().cult : 0, jmPct = this.jmSpdPct ? this.jmSpdPct() : 0, zyPct = this.sjPct ? this.sjPct().cult || 0 : 0;   // 聚元秘法圆满额外 %、道童辅助修炼 %、经脉光点冲满 %、神界修炼真意 %；经脉穴位冲满（jm）：最后直接加数值（jingmai.js）
       return { base, xs, rs, gfc, lgc, sjc, ori: this.oriSum ? this.oriSum("cultPct") : 0, arrPct, arr, pill, room, mifa, mfPct, svPct, jm, jmPct, zyPct, total: base * (1 + (arrPct + pill + room + mfPct + svPct + jmPct + zyPct) / 100) + jm,
         gather: this.gatherAmount() };                                     // 每 10 秒聚灵（开关不影响）
     },
@@ -137,12 +138,11 @@ G.module({
       return { act: cOn || bOn, per: cv + bv, need: (cOn ? Math.max(0, cv - this.wdRed("exp")) : 0) + (bOn ? Math.max(0, bv - this.wdRed("body")) : 0) };
     },
     cultSetCheck() {
-      const s = this.s, c = s.cultSet; if (!c || !c.on || !c.tgt) return;   // 不再要求自动修炼开着：灵石低于下限且灵气不够就去
+      const s = this.s, c = s.cultSet; if (!c || !c.on || !c.tgt) return;   // 不要求自动修炼开着：灵石低于下限且灵气不够就去
       if (c.mul === undefined) { c.mul = 10; delete c.pct; }   // 旧存档：「灵气高于 %」改成「灵气高于修炼速度几倍」
       const x = s.explore, p = c.tgt.split(":").map(Number);
       const mine = x && !x.cq && !x.once && x.map === p[1] && x.reg === p[2];
       const norm = x && !x.cq && !x.once && x.mj === undefined;   // 普通自动探索（不含历练、出窍、秘境）
-      // 修炼设置自动去的，或者手动开启的探索：灵气够了都停下回来修炼
       // 只有修炼设置自动去的探索才在灵气够了时自动停；手动开的探索只在自动修炼开着时才停（自动修炼关着不打断手动探索）
       const ours = x && (x.cs || c.went);
       // 在修炼的是什么：只开修为看修为速度，只开肉身看肉身速度，都开看两者相加；都没开灵气够了也不回来
@@ -150,7 +150,7 @@ G.module({
       const lack = act ? s.ling < Math.max(1, R.need) : this.cultLack();   // 都没开：按修为修炼一次的灵气判断「灵气不足」
       if (norm && (mine ? (ours || act) : (!ours && act))) {
         // 灵气 ≥ 修炼速度 × 倍数（最多到灵气上限）就回来修炼；修为、肉身自动修炼都没开：不回来
-        // v255 不立即打断：标记 x.back，等本次探索结算完再回来（world.js exAdvance1）；原地休养中（两次探索之间）直接回来
+        // 不立即打断：标记 x.back，等本次探索结算完再回来（world.js exAdvance1）；原地休养中（两次探索之间）直接回来
         const enough = act && s.ling >= Math.min(this.lingCap(), per * Math.max(1, c.mul || 10));
         if (enough && x.rest) { c.went = false; this.stopExplore("灵气已恢复，停止探索"); this.cultBackLog(); }
         else if (enough && !x.back) { x.back = 1; this.log("本次探索结束后继续修炼", "sys"); this.dirty(); }
@@ -167,7 +167,7 @@ G.module({
         if (this.s.explore) { c.went = true; this.s.explore.cs = 1; this.exploreOpen = false; this.log("灵石不足且灵气不够修炼，自动前往探索。", "sys"); }
       }
     },
-    cultBackLog() { this.log(this.s.auto ? "开始修炼。" : "开始修炼肉身。", "sys"); this.dirty(); },   // v208 不再重置结算计时（会丢聚灵）
+    cultBackLog() { this.log(this.s.auto ? "开始修炼。" : "开始修炼肉身。", "sys"); this.dirty(); },   // 不重置结算计时（会丢聚灵）
     // 修炼设置在设置页里显示时直接刷新设置页（选「前往」等弹窗返回也回到设置页）
     openCultSet() {
       if (this.cultView === "set") { if (!this.s.cultSet.tgt) { const T = this.cultTargets(); if (T.length) this.s.cultSet.tgt = T[0][0]; } return this.openSettings("cult"); }
@@ -187,10 +187,10 @@ G.module({
         ${this.autoTaskHtml(T)}
         ${modal ? `<div class="btns"><button class="primary" onclick="G.closeModal()">确定</button></div>` : ""}`;
     },
-    // v229 自动执行任务（逻辑见 modules/sect.js runAutoTask）
+    // 自动执行任务（逻辑见 modules/sect.js runAutoTask）
     autoTaskHtml(T) {
       const A = this.autoTask(), sw = k => `<button class="sm ${A[k] ? "on" : ""}" onclick="G.autoTaskSet('${k}')">${A[k] ? "开" : "关"}</button>`;
-      // v232 选择不用系统下拉框：点按钮弹出游戏风格的选择列表（atPick）
+      // 选择不用系统下拉框：点按钮弹出游戏风格的选择列表（atPick）
       const sel = (k, list, v) => { const c = list.find(([x]) => String(x) === String(v)) || list[0]; return `<button class="sm" style="margin-left:8px" onclick="G.openAtPick('${k}')">${c ? c[1] : "暂无"} ▾</button>`; };
       const P = this.atList("poolI"), W = ((CFG.wudaoRoom || {}).daos || []);
       const dn = id => (W.find(d => d.id === id) || {}).name || id;
@@ -238,18 +238,17 @@ G.module({
 
     toggleAuto() {
       this.s.auto = !this.s.auto;
-      // 不再重置 _lastTick：修炼 / 炼体 / 聚灵阵同一个 10 秒周期（服务器 s.last）结算，进度条跟着服务器走（用户定 2026-11-17）
+      // 不重置 _lastTick：修炼 / 炼体 / 聚灵阵同一个 10 秒周期（服务器 s.last）结算，进度条跟着服务器走（用户定）
       this.log(this.s.auto ? "开启自动修炼。" : "停止自动修炼。", "sys");
       this.after();
     },
-    // 顶部「坊市」：直接进凡界坊市（world.js mapSel "shop"）
-    // 从修炼页进去的坊市，返回时回到修炼页（world.js backFromShop）
-    openFanShop() { this.tab = "fshop"; this.render(); this.viewScroll && this.viewScroll(0); },   // 凡界坊市是独立页面，不再借世界页（不动世界页的地图 / 卷轴状态，用户定 2026-11-17）
+    // 顶部「坊市」：直接进凡界坊市（独立页面 tab fshop，不借世界页，不动世界页的地图 / 卷轴状态，用户定）
+    openFanShop() { this.tab = "fshop"; this.render(); this.viewScroll && this.viewScroll(0); },
     /* ---------- 人物形象：存在角色存档（服务器 s.hero，换设备也生效），修炼页、神识、悟道室、头像、战斗页（img/bt_形象.webp）一起换 ---------- */
     HEROES: [["f1", "仙子 · 粉裳"], ["f2", "仙子 · 红裳"], ["f3", "魅影 · 黑纱"], ["f4", "狐仙 · 绯蕾"], ["f5", "冰仙 · 蓝蕾"], ["f6", "金冠 · 白衣"], ["f7", "月仙 · 银蓝"], ["f8", "桃仙 · 粉霞"], ["f9", "紫宸 · 仙后"], ["f10", "魅姬 · 黑蕾"], ["f11", "雪莲 · 金纱"], ["f12", "白莲 · 素纱"], ["f13", "魔后 · 赤纱"], ["f14", "星灵 · 幻纱"], ["f15", "金凤 · 鹅黄"]],
     heroId() { let k = this.s && typeof this.s.hero === "string" ? this.s.hero : ""; if (!(this.s && "hero" in this.s)) try { k = localStorage.getItem("xiu_hero") || ""; } catch (e) {} return this.HEROES.some(h => h[0] === k) ? k : this.HERO_DEF; },
-    HERO_DEF: "f15",   // 默认形象：金凤 · 鹅黄（男修已删，用户定 2026-11-20）
-    // 每位仙子另外 3 套服装：img/hero_形象_s1~s3.webp（打坐）、img/bt_形象_s1~s3.webp（战斗），0 = 原装
+    HERO_DEF: "f15",   // 默认形象：金凤 · 鹅黄（用户定）
+    // 每位仙子另外几套服装（序号 1 起）：img/hero_形象_s序号.webp（打坐）、img/bt_形象_s序号.webp（战斗），0 = 原装
     HERO_SKINS: {
       f1: ["翠竹 · 青衣", "云鹤 · 黛蓝", "金桂 · 杏黄"], f2: ["雪梅 · 冰蓝", "金莲 · 孔雀蓝", "玄龙 · 赤焰"], f3: ["星月 · 夜蓝", "彼岸 · 绛红", "霜华 · 素白"],
       f4: ["翠羽 · 鹤影", "夜阑 · 云纹", "紫藤 · 金缕"], f5: ["莲粉 · 牡丹", "墨梅 · 映雪", "紫夜 · 星月"], f6: ["赤焰 · 祥云", "碧空 · 鹤浪", "翡翠 · 金莲"],
@@ -285,7 +284,7 @@ G.module({
     },
     // 修炼肉身界面（modules/body.js）
     openBody(on) { this.cultView = on ? "body" : ""; this.render(); },
-    // 人物头像：人物属性（原来在修炼页下方，现在点头像打开）
+    // 人物头像：点头像打开人物属性
     openProfile() {
       const s = this.s, st = this.stats(), sp = this.speed(), R0 = this.regen(false), R1 = this.regenStep();
       this.modal(`<h2>${s.name}<small>${this.realmName()}</small></h2>
@@ -305,8 +304,7 @@ G.module({
         ${this.oriOf && this.oriOf().length ? `<div style="height:3em"></div><div class="ori-sec"><div class="ori-sec-t">出身</div><div class="ori-tags">${this.oriOf().map(o => `<button class="ori-tag" onclick="G.oriTip('${o.id}')">${o.name}</button>`).join("")}</div></div>` : ""}
         <div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
-    // 顶部设置按钮：修炼设置（从修炼卡片移到这里）
-    // 设置页：顶部三个选项 修炼设置 / 战斗设置（原 世界 → 战斗）/ 其他设置（原 世界 → 设置，加人物形象）
+    // 设置页：顶部四个选项 修炼设置 / 战斗设置 / 背景设置（人物形象 + 背景）/ 其他设置
     openSettings(tab) { this.cultView = "set"; this.setTab = tab || this.setTab || "cult"; this.closeModal(); this.render(); $("#view").scrollTop = 0; },
     closeSettings() { this.cultView = ""; this.render(); },
     setView() {
@@ -320,14 +318,14 @@ G.module({
       if (tab) this.boostTab = tab; const t = this.boostTab === "b" ? "b" : "x";
       const s = this.s, sp = this.speed(), bs = this.bodySpeed(), L = (n, v, sm) => v ? `<div class="line"><div>${n}${sm ? `<small>${sm}</small>` : ""}</div><b>${v}</b></div>` : "";
       const P = v => `+${U.num(Math.round(v * 100) / 100)}%`, F = v => `+${U.fmt(v)}`;
-      const ORI = ks => (this.oriOf ? this.oriOf() : []).map(o => { const v = ks.reduce((t, k) => t + (+o[k] || 0), 0); return v ? L(o.name, P(v)) : ""; }).join("");   // 出身写具体名字（用户定 2026-11-17）
+      const ORI = ks => (this.oriOf ? this.oriOf() : []).map(o => { const v = ks.reduce((t, k) => t + (+o[k] || 0), 0); return v ? L(o.name, P(v)) : ""; }).join("");   // 出身写具体名字（用户定）
       const roomNm = this.freeCultOn() ? `${CFG.sect.freeRoom.name}（剩余 ${s.freeCult.left} 次）` : s.room >= 0 && s.sect ? DATA.rooms[s.room].name : "";
-      // 顶部两个按钮：修为速度 / 炼体速度，不要标题；弹窗固定 62vh，里面数据滑动（用户定 2026-11-17）；只列有数值的来源，出身单独一行
+      // 顶部两个按钮：修为速度 / 炼体速度，不要标题；弹窗固定 62vh，里面数据滑动（用户定）；只列有数值的来源，出身单独一行
       const tabs = `<div class="sub-tabs"><button class="${t === "x" ? "active" : ""}" onclick="G.openBoost('x')">修为速度</button><button class="${t === "b" ? "active" : ""}" onclick="G.openBoost('b')">炼体速度</button></div>`;
       const body = t === "x" ? `<h3>${U.num(sp.total)} 修为 / 10秒</h3>
         ${L("修为境界", sp.xs && F(sp.xs))}${L("肉身境界", sp.rs && F(sp.rs))}${L("秘诀", sp.gfc && F(sp.gfc))}${L("聚元秘法", sp.mifa && F(sp.mifa))}${L("灵果", sp.lgc && F(sp.lgc))}${L("神界感悟", sp.sjc && F(sp.sjc))}
         <div class="line"><div>基础合计</div><b>${U.num(sp.base)}</b></div>
-        ${L("聚灵阵", sp.arrPct && P(sp.arrPct), `${s.array.lv} 级`)}${L("聚元秘法圆满", (sp.mfPct - sp.ori) && P(sp.mfPct - sp.ori))}${ORI(["cultPct"])}${L("道童辅助修炼", sp.svPct && P(sp.svPct))}${L("经脉光点", sp.jmPct && P(sp.jmPct))}${L("修炼真意", sp.zyPct && P(sp.zyPct))}${L("神纹", sp.sw && P(sp.sw))}
+        ${L("聚灵阵", sp.arrPct && P(sp.arrPct), `${s.array.lv} 级`)}${L("聚元秘法圆满", (sp.mfPct - sp.ori) && P(sp.mfPct - sp.ori))}${ORI(["cultPct"])}${L("道童辅助修炼", sp.svPct && P(sp.svPct))}${L("经脉光点", sp.jmPct && P(sp.jmPct))}${L("修炼真意", sp.zyPct && P(sp.zyPct))}
         ${L("丹药", sp.pill && P(sp.pill))}${L("修炼室", sp.room && P(sp.room), roomNm)}${L("经脉", sp.jm && F(sp.jm), "最后直接加")}`
       : `<h3>${U.num(bs.total)} 气血 / 10秒</h3>
         ${L("肉身境界", bs.base && F(bs.base))}${L("修为境界", bs.xw && F(bs.xw))}${L("炼体秘诀", bs.gfB && F(bs.gfB))}${L("炼体秘法", bs.mf && F(bs.mf))}${L("灵果", bs.lgB && F(bs.lgB))}${L("神界感悟", bs.sjB && F(bs.sjB))}
@@ -339,7 +337,7 @@ G.module({
         ${Object.keys(DATA.pills).map(t => {
           const b = s.buffs[t], on = b && b.left > 0, i = this.bestPillIndex(t);
           const cnt = s.bag.filter(x => x && x.t === "pill" && x.type === t && this.canUsePill(x.g)).reduce((a, x) => a + x.n, 0);
-          if (!on && !cnt) return "";   // v42：没生效、也没有能吃的就不显示
+          if (!on && !cnt) return "";   // 没生效、也没有能吃的就不显示
           return `<div class="line"><div><img src="${DATA.pillIcon(t)}" alt="" style="width:30px;height:30px;float:left;margin-right:6px">${DATA.pills[t].name}<small>${on ? `+${Math.round(b.pct)}%，剩余 ${b.left} 次修炼` : "未生效"} · 可用 ${cnt} 枚</small></div>
           <div><button data-refresh="openBoost" class="sm" onclick="G.manualPill('${t}')" ${i < 0 ? "disabled" : ""}>服用</button>
           <button data-refresh="openBoost" class="sm ${s.autoPill[t] ? "on" : ""}" onclick="G.toggleAutoPill('${t}')">自动${s.autoPill[t] ? "开" : "关"}</button></div></div>`;
@@ -359,7 +357,7 @@ G.module({
       if (this.s.trib) return this.openTrib();
       if (!this.canBreak()) return;
       const s = this.s, major = this.isMajor();
-      if (this.needTrib()) return this.startTrib();   // v259 没有准备页，直接渡劫
+      if (this.needTrib()) return this.startTrib();   // 没有准备页，直接渡劫
       if (s.mortal) { // 凡人 → 练气期一层
         s.exp -= this.needExp(); s.mortal = false; this.brRoll("xw", s.L); this.dirty();
         const st = this.stats(); s.hp = st.hp; s.mana = st.mana;
@@ -387,7 +385,7 @@ G.module({
       return best;
     },
     usePill(i, silent) {
-      if (this.tribBusy && this.tribBusy()) return this.log("渡劫中不能服用丹药。", "sys");   // v259
+      if (this.tribBusy && this.tribBusy()) return this.log("渡劫中不能服用丹药。", "sys");
       const it = this.s.bag[i];
       if (!it || it.t !== "pill") return false;
       if (!this.canUsePill(it.g)) { this.log(`${this.itemName(it)}品质过低，你已无法服用。`, "sys"); return false; }

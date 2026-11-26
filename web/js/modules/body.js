@@ -17,7 +17,7 @@ G.module({
   tick() {
     const s = this.s, B = CFG.body;
     if (!s.bodyAuto || !this.hasTijue() || this.exBlocksCult() || this.bodyMax()) return;
-    // 修为没在修炼时，修炼室的次数 / 贡献由肉身修炼来扣（免费最后一次也吃到加速）
+    // 修为没在修炼时，免费修炼室的次数由肉身修炼来扣（免费最后一次也吃到加速）；修炼室贡献按时扣（sect.js roomBill）
     let freeEnd = false, freeSpent = false;
     if (!this.cultRoomOn()) {
       if (this.freeCultOn()) { freeSpent = true; if (--s.freeCult.left <= 0) { s.freeCult.left = 1; freeEnd = true; } }
@@ -48,20 +48,20 @@ G.module({
     bodyName(L) { if (L === undefined) L = this.s.bodyL; return L < 0 ? "凡体" : CFG.body.names[Math.floor(L / DATA.LAYERS)] + DATA.layerNames[L % DATA.LAYERS]; },
     // 升到第 T 层（= bodyL + 1）需要的肉身修为
     bodyNeed(T) { if (T === undefined) T = this.s.bodyL + 1; return Math.round(DATA.brNeed(CFG.realm.BODY_EXP, T, 1, CFG.realm.BODY_EXP_GROW, CFG.realm.BODY_EXP_FIRST) * DATA.reqMul(T) * DATA.brRate()); },   // config/realm.js 的 BODY_EXP
-    // 肉身修炼速度（每 10 秒）
     // 修为修炼正在跑（由它扣修炼室）
     cultRoomOn() { return !!(this.isCultivating && this.isCultivating() && this.hasMijue() && !this.exBlocksCult()); },
     bodyRunning() { const s = this.s; return !!s.bodyAuto && this.hasTijue() && !this.exBlocksCult() && !this.bodyMax(); },
     // 修炼室加成生效：修为或肉身任一在修炼
     roomActive() { return this.cultRoomOn() || this.bodyRunning(); },
+    // 肉身修炼速度（每 10 秒）
     bodySpeed() {
-      const s = this.s, base = DATA.selfSpeed((s.bodyL === undefined ? -1 : s.bodyL) + 1);   // 肉身突破加肉身修炼速度（config/realm.js SELF_SPEED，用户定 2026-11-17）
+      const s = this.s, base = DATA.selfSpeed((s.bodyL === undefined ? -1 : s.bodyL) + 1);   // 肉身突破加肉身修炼速度（config/realm.js SELF_SPEED）
       const M = this.mifaBonus(), gfB = this.gongfaBonus().body || 0, lgB = this.lgBonus ? this.lgBonus().body || 0 : 0, sjB = this.sjBonus ? this.sjBonus().body || 0 : 0, gf = gfB + lgB + sjB, mf = M.bodySpeed || 0;   // 灵果「血菩提」加在功法这一项
       // 修炼室加成同样作用于肉身修炼（免费修炼室优先，和修为修炼一致）。
-      // 修为修炼在跑时由 cultivate.tick() 扣次数 / 贡献；只开肉身时由 body tick 自己扣（bodyRoomCharge），不会白嫖。
+      // 修为修炼在跑时由 cultivate.tick() 扣免费修炼室次数；只开肉身时由 body tick 自己扣，不会白嫖。
       const room = this.roomActive() ? (this.freeCultOn && this.freeCultOn() ? this.freeCultPct() : s.room >= 0 && s.sect && this.roomPct ? this.roomPct(s.room) : 0) : 0;
       const arr = this.arrayFactor ? Math.max(0, (this.arrayFactor() - 1) * 100) : 0;   // 聚灵阵效率 %，同修为修炼
-      const mfPct = M.bodySpeedPct || 0, svPct = this.servantPct ? this.servantPct("cult") : 0, jmPct = this.jmSpdPct ? this.jmSpdPct() : 0, zyPct = this.sjPct ? this.sjPct().body || 0 : 0, pct = mfPct + svPct + room + arr + jmPct + zyPct;   // + 经脉光点冲满 % + 神界炼体真意 %   // 炼体秘法圆满额外 % + 道童辅助修炼 % + 修炼室 % + 聚灵阵 %
+      const mfPct = M.bodySpeedPct || 0, svPct = this.servantPct ? this.servantPct("cult") : 0, jmPct = this.jmSpdPct ? this.jmSpdPct() : 0, zyPct = this.sjPct ? this.sjPct().body || 0 : 0, pct = mfPct + svPct + room + arr + jmPct + zyPct;   // 炼体秘法圆满额外 % + 道童辅助修炼 + 修炼室 + 聚灵阵 + 经脉光点冲满 % + 神界炼体真意 % % + 修炼室 % + 聚灵阵 %
       const jm = this.jmFull ? this.jmFull().body : 0;   // 经脉穴位冲满：直接加数值（jingmai.js）
       const xw = DATA.crossSpeed(s.mortal ? 0 : s.L + 1);   // 修为突破加肉身修炼速度（config/realm.js CROSS_SPEED）
       return { base, gf, gfB, lgB, sjB, mf, xw, mfPct, svPct, jmPct, zyPct, ori: this.oriSum ? this.oriSum("bodyPct") + this.oriSum("cultPct") : 0, room, arr, pct, jm, total: Math.floor(((base + gf + mf + xw) * (1 + pct / 100) + jm) * 100) / 100 };   // 保留两位小数：速度很小时修炼室等百分比加成也能生效
@@ -73,7 +73,7 @@ G.module({
       const ri = Math.floor(T / DATA.LAYERS), seg = (B.HERB_SEG || []).find(g => ri >= g.from && ri <= g.to);
       const herbs = seg ? seg.herbs.slice() : [];
       if (seg && seg.special && seg.special.length) herbs.push(seg.special[(ri - seg.from) % seg.special.length]);   // 特色药材按境界轮着用
-      const n = Math.max(1, Math.round((B.HERB_N || 11) * T));   // 每种药材数量 = 11 × T
+      const n = Math.max(1, Math.round((B.HERB_N || 11) * T));   // 每种药材数量 = HERB_N × T
       return { stone: Math.floor(B.STONE_BASE * T * Math.pow(B.STONE_RATE, T)),
         herbs: herbs.map(name => ({ name, n })) };
     },
@@ -129,7 +129,7 @@ G.module({
       // 抗性：每系（金木水火土雷）单独一行
       const bonus = Object.keys(names).filter(k => bb[k]).map(k => `<div><span>${names[k]}</span>+${k === "crit" ? U.num(bb[k]) : U.fmt(bb[k])}</div>`).join("")
         + (bb.res ? DATA.elements.map(e => `<div><span>${e.name}抗性</span>+${U.fmt(bb.res + (bb.resEl[e.id] || 0))}</div>`).join("") : "")
-        + ((v => v ? `<div style="grid-column:1/-1"><span>修为修炼速度</span>+${U.num(v)}</div>` : "")(DATA.crossSpeed((s.bodyL === undefined ? -1 : s.bodyL) + 1)));   // 肉身突破加修为修炼速度，放抗性下面单独一行（用户定 2026-11-17）
+        + ((v => v ? `<div style="grid-column:1/-1"><span>修为修炼速度</span>+${U.num(v)}</div>` : "")(DATA.crossSpeed((s.bodyL === undefined ? -1 : s.bodyL) + 1)));   // 肉身突破加修为修炼速度，放抗性下面单独一行（用户定）
       return `<div class="bd-page">
         <div class="bd-stg${run ? " on" : ""}">
           <div class="cult-aura bd-aura"></div>

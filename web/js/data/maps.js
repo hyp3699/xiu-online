@@ -14,7 +14,7 @@ DATA.worlds = [
  * 数据：凡界地图（9 张，对应 练气 → 渡劫）
  * ---------------------------------------------------------------------
  * monsters：普通怪物名字（随机遇到，精英怪 = "精英·" + 名字）；boss：北域首领名字
- * 每张地图分 东 西 南 北 四个区域（DATA.regionDirs），每个区域的怪物属性在 js/config/ 数值文件 的 monster.regions；
+ * 每张地图分 东 西 南 北 四个区域（DATA.regionDirs），每个区域的怪物属性在 CFG.monster.regions（js/data/mobs.js 按 config/mobs.js 生成）；
  *   东/西/南 三域首领名 = "X域·" + 普通怪名 + "王"，北域首领 = boss
  * 所有地图掉落的药材、矿石种类都一样（6 种药材、6 种矿石），只是数量不同：
  *   各地图掉落见 js/config/drops.js
@@ -45,7 +45,7 @@ DATA.worlds.forEach(w => { w.name = DATA.nmPick(CFG.names.world, w.id, w.name); 
 DATA.maps.forEach((m, i) => { const n = ((CFG.names.map || {}).fan || [])[i]; if (!n) return;
   m.name = DATA.nmPick(n, "name", m.name); m.boss = DATA.nmPick(n, "boss", m.boss); if (n.monsters) m.monsters = DATA.nmArr(n.monsters, m.monsters); });
 
-// v45：仙界 / 冥界 / 魔界 / 神界各 10 张地图（config/worldmaps.js）接在凡界后面，序号 9 起
+// 仙界 / 冥界 / 魔界 / 神界的地图（config/worldmaps.js）接在凡界后面，序号 9 起
 //   DATA.maps[a].w = 所在界；DATA.worldMapIdx[界] = 这一界的地图序号列表
 DATA.FAN_MAP_N = DATA.maps.length;
 // 各地图药材矿石表（下标 = 地图序号）：凡界 9 张共用 config/drops.js 的 mapDrops，fixed 按地图序号单独写
@@ -56,7 +56,7 @@ DATA.mapDrops = (() => { const M = CFG.mapDrops || {}; if (Array.isArray(M)) ret
 CFG.monster = { regions: [], MAP_REALM: [] };
 DATA.maps.forEach(m => { m.w = "fan"; });
 DATA.worldMapIdx = { fan: DATA.maps.map((m, a) => a) };
-// v50：每界第 10 张起的地图排在所有界前 9 张之后（地图序号是存档和配置里用的编号，顺序不要改）
+// 每界第 10 张起的地图排在所有界前 9 张之后（地图序号是存档和配置里用的编号，顺序不要改）
 DATA.WORLD_MAP_OLD = 9;
 for (const pass of [0, 1]) for (const w of ["xian", "ming", "mo", "shen"]) {
   const W = (CFG.worldMaps || {})[w]; if (!pass) DATA.worldMapIdx[w] = [];
@@ -72,8 +72,8 @@ for (const pass of [0, 1]) for (const w of ["xian", "ming", "mo", "shen"]) {
   });
 }
 
-// 6 种药材、6 种矿石：名字和价格在 js/config/ 下的数值文件 的 mats（序号 0~5，越往后越稀有）
-// v41：仙界 / 冥界 / 魔界 / 神界的药材、矿石（config/items.js 的 matsOther）接在凡界后面，序号 6 起
+// 6 种药材、6 种矿石：名字和价格在 config/items.js 的 mats（序号 0~5，越往后越稀有）
+// 仙界 / 冥界 / 魔界 / 神界的药材、矿石（config/items.js 的 matsOther）接在凡界后面，序号 6 起
 DATA.FAN_HERB_N = Object.keys(CFG.mats.herb).length;
 DATA.FAN_ORE_N = Object.keys(CFG.mats.ore).length;
 DATA.herbs = [...Object.keys(CFG.mats.herb), ...Object.keys((CFG.matsOther || {}).herb || {})];
@@ -88,7 +88,7 @@ DATA.matKinds = { herb: DATA.nmPick(CFG.names.matKind, "herb", "药材"), ore: D
 /* ---------- 东西南北四域 ---------- */
 DATA.regionDirs = DATA.nmArr(CFG.names.region, ["东", "西", "南", "北"]);
 DATA.regionCount = 4;
-DATA.region = (a, r) => CFG.monster.regions[a][r];          // 数值（js/config/ 数值文件）
+DATA.region = (a, r) => CFG.monster.regions[a][r];          // 数值（js/data/mobs.js 生成）
 DATA.regionName = (a, r) => DATA.maps[a].name + "·" + DATA.regionDirs[r] + "域";
 DATA.regionBoss = (a, r) => r === 3 ? DATA.maps[a].boss : DATA.regionDirs[r] + "域·" + DATA.maps[a].monsters[r * 2] + "王";
 
@@ -96,11 +96,10 @@ DATA.regionBoss = (a, r) => r === 3 ? DATA.maps[a].boss : DATA.regionDirs[r] + "
 DATA.exploreIdle = ["四下寂静，无事发生。", "山风拂过，草木沙沙。", "踏过一片乱石。", "远处传来几声兽吼。",
   "沿着小径继续前行。", "林间雾气渐浓。", "脚下泥泞难行。", "抬头望见一群飞鸟掠过。"];
 
-// 以下数值来自 js/config/ 下的数值文件（explore.js 探索流程，drops.js 掉落）
-const _E = CFG.explore;
+// 以下掉落数据来自 config/drops.js
 // 该地图某个事件的必掉物品 { 名字: [最少, 最多] }（config/drops.js 的 fixed[事件]）
 DATA.mapFixed = (a, ev) => ((DATA.mapDrops[a] || {}).fixed || {})[ev] || {};
-// v236 该地图药材 / 矿石的随机池（等权重，四界含特产）：{ herb: [名字], ore: [名字] }
+// 该地图药材 / 矿石的随机池（等权重，四界含特产）：{ herb: [名字], ore: [名字] }
 DATA.mapPool = a => {
   const m = DATA.mapDrops[a], o = { herb: [], ore: [] }; if (!m) return o;
   const names = [...(m.herb || []), ...(m.ore || []), ...(m.special || [])];
@@ -114,7 +113,7 @@ DATA.fanMats = () => {
   for (const m of DATA.mapDrops.slice(0, DATA.FAN_MAP_N)) [...(m.herb || []), ...(m.ore || [])].forEach(n => set.add(n));
   return set;
 };
-// 材料出售价、宗门兑换贡献（js/config/ 数值文件 的 mats）
+// 材料出售价、宗门兑换贡献（config/items.js 的 mats / matsOther）
 DATA.matPrice = (kind, g) => DATA.matCfg(kind, DATA[kind === "herb" ? "herbs" : "ores"][g])[0];
 DATA.matContrib = (kind, g) => DATA.matCfg(kind, DATA[kind === "herb" ? "herbs" : "ores"][g])[1];
 

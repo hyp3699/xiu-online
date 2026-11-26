@@ -5,7 +5,7 @@
  *   1. 有「事件」的那一次结算（功法学会、事务堂完成、灵药收获、炼丹出炉、北京时间 0 点、丹药药力耗尽、
  *      修炼室贡献不足……）：照常调用各模块的 tick，逐个精确处理。
  *   2. 两个事件之间的「纯数值」结算（生命法力恢复、聚灵、修为修炼、肉身修炼、功法修炼进度、修炼室扣贡献、
- *      自动补充灵气扣灵石）：不再调用各模块，直接用同样的公式、同样的先后顺序做数字计算，非常快。
+ *      自动补充灵气扣灵石）：不调用各模块，直接用同样的公式、同样的先后顺序做数字计算，非常快。
  * 只要有一点点拿不准（正在探索、渡劫、出窍秘法修炼、新加了带 tick 的模块……）就退回逐个结算，保证数据准确。
  * 新增带 tick 的模块后，要在 FAST_MODULES 里登记并在 fastTick 里写好它的纯数值部分，否则会自动退回逐个结算。
  * ===================================================================== */
@@ -36,7 +36,7 @@
       // 只在这些模块有 tick 时加速
       const ids = this.modules.filter(m => m.tick).map(m => m.id);
       if (ids.length !== FAST_MODULES.length || ids.some((id, k) => id !== FAST_MODULES[k])) return -Infinity;
-      // 离线自动胜利补算的普通自动探索：中间不用逐个结算，快进到这一次走完那一刻（world.js exAutoFast / exAvgLoot，用户定 2026-11-16）
+      // 离线自动胜利补算的普通自动探索：中间不用逐个结算，快进到这一次走完那一刻（world.js exAutoFast / exAvgLoot，用户定）
       // 出窍：走满次数那一刻是事件（回来）；秘境 / 灵地：每处走完那一刻是事件（接着下一处 / 结束）
       const xOk = x => !x || (this.exAutoFast && this.exAutoFast(x) && x.ms), xf = (s.explore || s.cq) && xOk(s.explore) && xOk(s.cq);
       if (xf) for (const x of [s.explore, s.cq]) { if (!x) continue; const run = this.exCfg(x).TIME * x.ms + (CFG.explore.END_WAIT || 0) * 1000;
@@ -50,14 +50,14 @@
       { const _wd = s._wdStart; if (_wd && typeof _wd === "object" && !Array.isArray(_wd)) for (const dao of Object.keys(_wd)) { const r = _wd[dao]; if (r && r.auto === 1 && r.at) ev.push(r.at + (((CFG.wudaoRoom || {}).TIME || 0)) * 1000); } }
       const cs = s.cultSet;                                       // 修炼设置：快要自动去探索时逐个结算
       if (cs && cs.on && cs.tgt && s.stone < cs.low) return -Infinity;
-      // 灵气不足时修炼设置挡住不修炼：原来只看灵石，灵气不足也加速会把“不修炼”加速成“修炼”
+      // 灵气不足时修炼设置挡住不修炼：灵气不足也加速会把“不修炼”加速成“修炼”
       // （条件与 cultivate.js 的 cultSetCheck 同口径）
       if (cs && cs.on) { const R = this.csRate(); if (R.act ? s.ling < Math.max(1, R.need) : this.cultLack()) return -Infinity; }
       if (!s.gfStudy && s.gfQueue && s.gfQueue.length) return -Infinity;
       // 北京时间下一个 0 点（免费修炼室 / 练功房重置、道童俸禄）
       const last = tk - DATA.TICK * 1000;
       ev.push(Math.floor((last + B) / D) * D - B + D);
-      // v230 自动执行任务：北京时间 0:05（今天还没执行就是今天的，执行过就是明天的）
+      // 自动执行任务：北京时间 0:05（今天还没执行就是今天的，执行过就是明天的）
       if (this.autoTaskAny()) { const m5 = Math.floor((last + B) / D) * D - B + 5 * 60000; ev.push(s.autoTask.day === this.bjDay() || last >= m5 ? m5 + D : m5); }
       if (s.gfLearn) ev.push(s.gfLearn.end);
       if (s.studyBuff && s.studyBuff.end && this.studyPillFix) this.studyPillFix(s.studyBuff);
@@ -70,8 +70,8 @@
       const a = s.affair;
       if (s.sect && a && a.task !== undefined && a.task >= 0) { const t = DATA.affairs[a.task]; if (!t) return -Infinity; ev.push(a.start + t.time * 60000); }
       if (s.freeGf && s.sect && last < s.freeGf.end) ev.push(s.freeGf.end);
-      // 修炼室 / 练功房每 ROOM_BILL_SEC 秒扣贡献：到点逐个结算（旧存档还没起算的先逐个结算一次）
-      // 贡献够就不再每分钟停一次：fastRun 里按同样的规则逐次扣（用户定 2026-11-16 付费房事件合并），贡献不够那一刻才算事件
+      // 修炼室 / 练功房每 ROOM_BILL_SEC 秒扣贡献：fastRun 里按同样的规则逐次扣，贡献不够那一刻才算事件（用户定）；
+      // 旧存档还没起算（没有 roomAt / gfRoomAt）的先逐个结算一次
       for (const k of ["room", "gfRoom"]) if (s.sect && s[k] >= 0) { if (!s[k + "At"]) return -Infinity; if (!(k === "room" ? DATA.rooms : DATA.gfRooms)[s[k]]) return -Infinity; }
       // 星君官位俸禄
       const H = (CFG.xingjun.HOUR || 3600) * 1000;
@@ -82,7 +82,7 @@
       if (s.bmJob && s.bmJob.end) ev.push(s.bmJob.end);   // 本命法宝炼成：到时加成才生效，不能跨过它做纯数值结算
       if (Array.isArray(s.mailbox)) for (const x of s.mailbox) if (x && x.at) ev.push(x.at + 10 * 86400000);   // 传音到期：到时清掉过期项
       const j = s.forgeJob;
-      if (j) ev.push(j.end);   // 背包满不再暂停出炉（出炉物品进传音），原来“背包满等待”分支已失效，留着会让加速跨过到期的炉子
+      if (j) ev.push(j.end);   // 炼器到期是事件（背包满时出炉物品进传音，不暂停）
       const al = s.alchJob;
       if (al) { if (al.done >= al.n) return -Infinity; ev.push(al.next); }
       // 灵药园（等灵气的在 fastTick 里按灵气判断）
@@ -113,14 +113,14 @@
       const gs = s.gfStudy, STEP = DATA.STUDY_STEP * 1000;
       if (gs && (gs.ling !== 1 || (gs.u || 5) !== DATA.STUDY_STEP)) return 0;   // 旧存档 / 结算单位改过：先逐个结算转换
       const SE = DATA.STUDY_SETTLE();
-      if (this.lmActive && this.lmActive()) return 0;   // 租借了灵脉：灵气先扣灵脉，逐个结算   // v246 旧存档还没转成灵气：逐个结算
+      if (this.lmActive && this.lmActive()) return 0;   // 租借了灵脉：灵气先扣灵脉，逐个结算
       const GR = gs ? this.gfRoomNow(DATA.skillInfo(gs.id, s.gongfa[gs.id] || 1)) : null, RU = this.gfRoomUnits();
       // 修为修炼
       const cultOn = this.isCultivating() && this.hasMijue() && !this.exBlocksCult();
       if (cultOn) for (const t in DATA.pills) { const b = s.buffs[t]; if (s.autoPill[t] && (!b || b.left <= 0) && this.bestPillIndex(t) >= 0) return 0; }
       const bodyOn = !!s.bodyAuto && this.hasTijue() && !this.exBlocksCult() && !this.bodyMax(), anyOn = cultOn || bodyOn;   // 只开肉身时修炼室由肉身扣
-      const freeOn = anyOn && this.freeCultOn();   // 付费修炼室 / 练功房不在这里扣：下次扣贡献的时刻（roomAt / gfRoomAt）已由 fastNextEvent 算成事件，加速到不了那一刻，到了由逐个结算的 sect.tick → roomBill 扣
-      const SP = sp.total, RED = this.wdRed("exp"), BRED = this.wdRed("body"), RATE = this.lingPerStone(), refill = !!s.array.autoRefill, KEEP = Math.max(0, +s.array.keepStone || 0);   // 保留灵石（用户定 2026-11-15）
+      const freeOn = anyOn && this.freeCultOn();   // 免费修炼室；付费修炼室 / 练功房扣贡献见下面 RB
+      const SP = sp.total, RED = this.wdRed("exp"), BRED = this.wdRed("body"), RATE = this.lingPerStone(), refill = !!s.array.autoRefill, KEEP = Math.max(0, +s.array.keepStone || 0);   // 保留灵石（用户定）
       const ZFKEEP = this.zfKeep ? this.zfKeep() : 0;   // 主动阵运转消耗（每 10 秒；开着的阵、等级在加速区间内不变，只算一次）
       const buffs = cultOn ? Object.values(s.buffs).filter(b => b.left > 0) : [];
       // 肉身修炼
@@ -154,13 +154,13 @@
         if (h < HP) h = Math.min(HP, h + HP * R0.hp / 100);
         if (mp < MP) mp = Math.min(MP, mp + MP * R0.mana / 100);
         // 2. cave：聚灵
-        if (L < CAP) L = Math.min(CAP, L + GATH);   // v207 上限变低不删已有灵气
-        if (ZFKEEP > 0) L = Math.max(0, L - ZFKEEP);   // 主动阵运转消耗：聚灵先封顶、再扣 KEEP，下限 0（同 cave.tick；原来 fastsim 漏扣）
+        if (L < CAP) L = Math.min(CAP, L + GATH);   // 上限变低不删已有灵气
+        if (ZFKEEP > 0) L = Math.max(0, L - ZFKEEP);   // 主动阵运转消耗：聚灵先封顶、再扣 KEEP，下限 0（同 cave.tick）
         // 3. gongfa：功法修炼进度
         if (gs) {
           { const mul0 = GR ? GR.mul : 1, rem0 = Math.ceil((gs.total - d2) / (STEP * mul0));   // 同 gongfa.js 的 fin：最后不足 10 秒的一段到点就结算 → 这层修完是事件，交给逐个结算
             if (!sl2 && rem0 <= SE && now >= a2 + Math.ceil((gs.total - d2) / mul0)) return false; }
-          const steps = Math.floor((now - a2) / (SE * STEP));   // v247 每 10 秒结算（和 gongfa.js 一样）
+          const steps = Math.floor((now - a2) / (SE * STEP));   // 每 10 秒结算（和 gongfa.js 一样）
           if (steps > 0) {
             a2 += steps * SE * STEP;
             const mul = GR ? GR.mul : 1, per = this.ssGfPer(gs.per * mul), sps = (gs.stone || 0) * mul;
@@ -194,7 +194,7 @@
         // 5. cultivate：修为修炼
         let ended = false;
         if (cultOn) {
-          if (freeOn) { if (--fl <= 0) return false; }   // 免费修炼室次数用完：事件（付费修炼室按时扣贡献，见 fastNextEvent）
+          if (freeOn) { if (--fl <= 0) return false; }   // 免费修炼室次数用完：事件（付费修炼室扣贡献见上面第 4 步）
           if (L < SP - RED && refill && sn >= 1) { const pay = Math.min(Math.ceil((SP - RED - L) / RATE), Math.floor(sn - KEEP), Math.max(0, Math.ceil((CAP - L) / RATE))); if (pay > 0) { sn -= pay; L = Math.min(CAP, L + pay * RATE); } }   // 自动补灵气封顶到 lingCap（同 cultivate.tick）
           const PER = Math.max(0, SP - RED) / Math.max(1e-9, SP), gain = PER > 0 ? Math.min(SP, Math.floor(L / PER)) : SP;
           if (gain <= 0) { if (!lk) lk = true; fl++; }   // 与 cultivate.tick 一致：灵气耗尽的 tick 不扣免费修炼室次数
@@ -226,7 +226,7 @@
         if (ended) stop = true;
         return true;
       };
-      // 稳态合并（用户定 2026-11-16 离线补算①）：最近两个周期（1/2/3/6 次）每次的变化完全一样，就按线性直接跳到区间末尾；
+      // 稳态合并（用户定）：最近两个周期（1/2/3/6 次）每次的变化完全一样，就按线性直接跳到区间末尾；
       // 只真算最后一个周期，结果对上才采用（各种判断都是线性量和常数比，起点和终点一样，中间也一样），对不上就减半再试
       const snap = () => [hp, mana, ling, exp, stone, bodyExp, freeLeft, contrib, at, done, spent, spentStone === undefined ? 0 : spentStone, su, rU, lack ? 1 : 0, stalled === undefined ? -1 : stalled ? 1 : 0, ...rAt, ...bl];
       const load = v => { [hp, mana, ling, exp, stone, bodyExp, freeLeft, contrib, at, done, spent] = v; spentStone = spentStone === undefined && !v[11] ? undefined : v[11]; su = v[12]; rU = v[13]; lack = !!v[14]; stalled = v[15] < 0 ? undefined : !!v[15];
@@ -238,7 +238,7 @@
         for (const P of PS) {
           if (H.length < 2 * P + 1) break;
           const a = H[H.length - 1], b = H[H.length - 1 - P], c = H[H.length - 1 - 2 * P], D = a.map((x, i) => x - b[i]);
-          // 灵石自动补灵气：每次补的是整块灵石，补的时机不规则 → 把灵气和灵石合成一个量（灵气 + 灵石×每块灵气）看是否线性（用户定 2026-11-16：聚灵总量减消耗一次算）
+          // 灵石自动补灵气：每次补的是整块灵石，补的时机不规则 → 把灵气和灵石合成一个量（灵气 + 灵石×每块灵气）看是否线性（用户定：聚灵总量减消耗一次算）
           const E = b.map((x, i) => x - c[i]), Q = (d, k) => k === 2 ? d[2] + d[4] * RATE : d[k];
           let qm = false;
           if (!D.every((d, i) => near(d, E[i]))) {

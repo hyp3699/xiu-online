@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { GameEngine } from "../game-engine.mjs";
 
-// 2026-11-04 审计修复 #9 / #14 / #15 的战斗回归测试。
+// 审计修复 #9 / #14 / #15 的战斗回归测试。
 // 每个用例用自己的 GameEngine，互不干扰。
 
 function newPlayer() {
@@ -34,7 +34,7 @@ test("#9 战斗设置里勾了“不使用”的法术，不能经低血/前三�
   assert.ok(G.slotCount() >= 2, `slotCount=${G.slotCount()}`);
   st.gongfa[enabled] = 1; st.gongfa[disabled] = 1;
   st.spellSlots = [enabled, disabled];
-  st.mana = 1e9;   // 新号法力只有 60 左右，法术一次要 591，不灌满根本放不出，测了也白测
+  st.mana = 1e9;   // 新号法力远不够放一次法术，不灌满根本放不出，测了也白测
   const disabledKey = "sp:" + disabled;
   st.bset = { foe: {}, r: [disabledKey, "auto", "auto"], mode: "rot", lowPct: 100, lowKey: disabledKey, goHp: 30, goMp: 0, off: [disabledKey], order: [] };
   const m = bossMob(G);

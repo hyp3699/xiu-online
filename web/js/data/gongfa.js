@@ -1,24 +1,24 @@
 /* =====================================================================
  * 数据：功法 & 法术
  * ---------------------------------------------------------------------
- * 【功法】六大类，每类加成一种属性（固定数值，不是百分比）：
+ * 【功法】每类加成一种属性（固定数值，不是百分比）：
  *   心法 → 防御      功诀 → 攻击      真诀 → 生命上限
- *   秘诀 → 修炼速度  身法 → 速度、命中 遁术 → 闪避      法诀 → 法力上限
- *   真经 → 本门派属性的抗性（金木水火土雷之一，v15）
+ *   秘诀 → 修炼速度  身法 → 命中（另一本速度身法 sufa → 速度） 遁术 → 闪避      法诀 → 法力上限
+ *   真经 → 本门派属性的抗性（金木水火土雷之一）  炼体秘诀 → 肉身修炼速度（只在宗门）
  * 每个门派每类功法若干本（config/gongfa.js 的 BOOKS），效果按 sect.TOTAL 分配
  * 必须学会至少一部秘诀才能修炼。
  *
  * 【法术】每个门派有 金木水火土雷 六系法术，每系一本。
  *   伤害 = 法术攻击 × SPELL_LV_PCT[层]% × 倍率；法力消耗按星级对应境界（config/gongfa.js 的 REF / MANA_*）
  *
- * 【宗门秘法】秘法殿学习，同星级门派共用，1~10 星每星 9 部（config/wudao.js），id "w星级:mf:种类"
+ * 【宗门秘法】秘法殿学习，同星级门派共用，1~10 星每星每种一部（种类见 mifaKinds，数值 config/wudao.js），id "w星级:mf:种类"
  *
  * 【来源类型】功法内部标记来源：sect 宗门功法（功法殿，贡献）、shop 凡界坊市功法（坊市，灵石）、
  *   jshop 仙魔冥神坊市功法（灵石 + 本图贡献）、gd 仙魔冥神功德司功法（功德），后两种见 data/jiegf.js
  *   功法效果 = 宗门 TOTAL 分配 × STAT_STAR × 类型倍率 × 各自 PCT%（config/gongfa.js）
  *
- * 功法、法术都是 12 层：功法殿首次学习消耗贡献，等 LEARN_MIN 分钟后学会第 1 层；
- * 之后在“功法”页修炼升层：需要时间（见 studyMin），修炼期间每 5 秒消耗一次灵气；
+ * 功法、法术最多 MAX 层（config/gongfa.js）：功法殿首次学习消耗贡献，等 LEARN_MIN 分钟后学会第 1 层；
+ * 之后在“功法”页修炼升层：需要时间（见 studyMin），每 STUDY_STEP 秒（10 秒）结算并消耗一次灵气；
  * 可排队，队列最多 GF_QUEUE 个。
  * ===================================================================== */
 
@@ -26,13 +26,13 @@ const _GF = CFG.gongfa;
 // 名字在 config/names.js（gfType / gfSource / element / gfWords / spellSuffix / shopGf / towerGf / mifa / mifaStar）
 const _NM = CFG.names;
 
-// 功法类别：stat = 加成的属性（数值见 config/gongfa.js 的 base）
+// 功法类别：stat = 加成的属性（数值见 config/gongfa.js 的 sect.TOTAL）
 DATA.gongfaTypes = [
   { id: "xinfa",    name: "心法", suffix: "心法", stat: "def",       label: "防御" },
   { id: "gongjue",  name: "功诀", suffix: "诀",   stat: "atk",       label: "攻击" },
   { id: "zhenjing", name: "真诀", suffix: "真诀", stat: "hp",        label: "生命上限" },
   { id: "mijue",    name: "秘诀", suffix: "秘诀", stat: "cultivate", label: "修炼速度" },
-  { id: "shenfa",   name: "身法", suffix: "身法", stat: "hit",       label: "命中", catLabel: "命中、速度" },   // v240：身法拆成两本：这本只加命中（id 不变，已学的自动去掉速度）
+  { id: "shenfa",   name: "身法", suffix: "身法", stat: "hit",       label: "命中", catLabel: "命中、速度" },   // 身法只加命中；速度在另一本速度身法（sufa，见下面）
   { id: "dunshu",   name: "遁术", suffix: "遁术", stat: "dodge",     label: "闪避" },
   { id: "fajue",    name: "法诀", suffix: "法诀", stat: "mana",      label: "法力上限" },
   { id: "zhenjue",  name: "真经", suffix: "真经", stat: "res",       label: "抗性" }, // 抗性属性 = 来源属性
@@ -40,11 +40,11 @@ DATA.gongfaTypes = [
 ];
 
 DATA.gongfaTypes.forEach(t => { const n = (_NM.gfType || {})[t.id]; if (n) { t.name = DATA.nmPick(n, 0, t.name); t.suffix = DATA.nmPick(n, 1, t.suffix); } });
-// v121：宗门每类功法几本（config/gongfa.js 的 BOOKS，只有宗门有）；第 2、3 本是新类别 id「xinfa2」「xinfa3」，排在同类后面，倍率、价格按原类别
+// 宗门每类功法几本（config/gongfa.js 的 BOOKS，只有宗门有）；第 2、3 本是新类别 id「xinfa2」「xinfa3」，排在同类后面，倍率、价格按原类别
 //   ni = 原来的序号（起名用，不影响原有功法的名字）
 //   功法分阶段（BOOK_STAGE）：fam = 本数按哪一类算（sufa 单独一类），bk = 这一类的第几本；第 4 本起 id「mijue4」…，sufa 第 2 本起「sufa2」…
 DATA.GF_STAGE_SRC = ["sect"];   // 分阶段加书的来源（只有宗门）
-DATA.GF_NEW_SRC = ["sect", "shop", "jshop", "gd", "tianwai", "wdroom", "tower"];   // 按新算法算效果的来源：坊市、功德司、天外天每本 = 宗门同星级每本 × PCT%（跟本数无关）；悟道室、试炼塔 = 宗门同星级每本 × mult（2026-11-25 用户定，都 ×1.12，原 1.5）
+DATA.GF_NEW_SRC = ["sect", "shop", "jshop", "gd", "tianwai", "wdroom", "tower"];   // 按新算法算效果的来源：坊市、功德司、天外天每本 = 宗门同星级每本 × PCT%（跟本数无关）；悟道室、试炼塔 = 宗门同星级每本 × mult（用户定）
 DATA.gfStage = star => { const n = (_GF.BOOK_STAGE || [1]).length; return Math.max(1, Math.min(n, Math.ceil((star || 1) / (_GF.BOOK_STAGE_STARS || 2)))); };
 DATA.gfBookN = (src, star, fam) => {   // 某来源、某星级、某一类有几本
   src = src || "sect";
@@ -57,15 +57,16 @@ DATA.gfBookN = (src, star, fam) => {   // 某来源、某星级、某一类有�
 DATA.gfBookMax = fam => Math.max(fam === "zhenjue" ? 6 : 1, ((_GF.BOOKS || {})[fam] || 1) * Math.max(1, ...(_GF.BOOK_STAGE || [1])), ...["jshop", "gd"].flatMap(k => [(((_GF[k] || {}).BOOKS || {})[fam]) || 1, (((_GF[k] || {}).SHEN_BOOKS || {})[fam]) || 1]));   // 四界坊市、功德司真经 6 本也算进来
 DATA.gongfaTypes = DATA.gongfaTypes.flatMap((t, i) => { t.ni = i; t.fam = t.id; t.bk = 1; const r = [t];
   for (let b = 2; b <= DATA.gfBookMax(t.id); b++) r.push(Object.assign({}, t, { id: t.id + b, base: t.id, book: b, bk: b }));
-  if (t.id === "shenfa") { const sf = Object.assign({}, t, { id: "sufa", base: "shenfa", book: 2, allSrc: true, stat: "speed", label: "速度", catLabel: undefined, fam: "sufa", bk: 1 });   // v240：另一本身法只加速度（同属身法类，宗门、坊市、功德司都有）
+  if (t.id === "shenfa") { const sf = Object.assign({}, t, { id: "sufa", base: "shenfa", book: 2, allSrc: true, stat: "speed", label: "速度", catLabel: undefined, fam: "sufa", bk: 1 });   // 速度身法：另一本身法只加速度（同属身法类，宗门、坊市、功德司都有）
     r.push(sf); for (let b = 2; b <= DATA.gfBookMax("sufa"); b++) r.push(Object.assign({}, sf, { id: "sufa" + b, allSrc: false, bk: b })); }
   return r; });
 // 某来源、某星级有哪些功法类别（星级不写 = 第 1 阶段）
 DATA.gfTypesOf = (src, star) => DATA.gongfaTypes.filter(t => t.bk <= DATA.gfBookN(src, star, t.fam));
 DATA.gfTypeKey = id => { const t = DATA.gongfaTypes.find(x => x.id === id); return t && t.base || id; };   // 倍率、价格表用的类别 id
 
-/* 功法来源类型（内部标记）：sect 宗门功法、shop 凡界坊市功法；以后加新类型在这里加一行 + config 加一组 */
-// 效果 = 宗门功法 × PCT%（凡界坊市、仙魔冥神坊市、功德司用）
+/* 功法来源类型（内部标记）：sect 宗门、shop 凡界坊市、jshop 四界坊市、gd 功德司、tower 试炼塔、tianwai 天外天、cc 宗门传承
+ *   （yl 游历、ys 隐世宗门、wdroom 悟道室在各自文件里加）；加新类型在这里加一行 + config 加一组 */
+// 效果 = 宗门功法 × PCT%（凡界坊市、仙魔冥神坊市、功德司、天外天用）
 //   GF_K = 功法效果倍率（宗门 = 1），EFFECT_PCT = 法术伤害倍率
 DATA.gfDerive = P => { const S = _GF.sect, k = (P === undefined ? 100 : P) / 100;
   return Object.assign({}, S, { GF_K: k, EFFECT_PCT: (S.EFFECT_PCT === undefined ? 1 : S.EFFECT_PCT) * k }); };
@@ -75,11 +76,11 @@ DATA.gfSources = {
   jshop: { name: "坊市", cfg: () => DATA.gfDerive((_GF.jshop || {}).PCT) },
   gd: { name: "功德司", cfg: () => DATA.gfDerive((_GF.gd || {}).PCT) },
   tower: { name: "试炼塔", cfg: () => Object.assign({}, _GF.sect, { learn: 0 }) },   // 试炼塔秘诀：效果 = 每本 mult（config/sect.js 的 trial.MIJUE）
-  tianwai: { name: "天外天", cfg: () => DATA.gfDerive((_GF.tianwai || {}).PCT) },   // v106：天外天 11、12 星（暂未开放获取）
-  cc: { name: "宗门传承", cfg: () => { const C = CFG.sect.chuancheng || {}, S = _GF.sect;   // v213 宗门传承：效果见 gfCalc（本门同星级同类宗门功法 × PCT%，真经 × ZJ_PCT%），学习贡献 × LEARN
+  tianwai: { name: "天外天", cfg: () => DATA.gfDerive((_GF.tianwai || {}).PCT) },   // 天外天 11、12 星（暂未开放获取）
+  cc: { name: "宗门传承", cfg: () => { const C = CFG.sect.chuancheng || {}, S = _GF.sect;   // 宗门传承：效果见 gfCalc（本门同星级同类宗门功法 × PCT%，真经 × ZJ_PCT%），学习贡献 × LEARN
     return Object.assign(DATA.gfDerive(C.PCT), { EFFECT_LEARN: (S.EFFECT_LEARN === undefined ? 1 : S.EFFECT_LEARN) * (C.LEARN || 1) }); } },
 };
-/* v213 功法六大类（显示用；名字在 config/names.js 的 gfCat）：来源类型 → 大类 */
+/* 功法大类（显示用；名字在 config/names.js 的 gfCat）：来源类型 → 大类 */
 DATA.GF_CAT_OF = { sect: "sect", shop: "shop", jshop: "shop", gd: "gd", tower: "tower", wdroom: "wd", cc: "cc", tianwai: "tianwai" };
 DATA.GF_CATS = { sect: "宗门功法", shop: "坊市功法", gd: "功德司功法", tower: "试炼塔功法", wd: "悟道功法", cc: "宗门传承功法", tianwai: "天外天功法" };
 for (const k in DATA.GF_CATS) DATA.GF_CATS[k] = DATA.nmPick(_NM.gfCat, k, DATA.GF_CATS[k]);
@@ -110,7 +111,7 @@ DATA.spellSuffixOf = (sect, el, word) => {
 };
 
 // 同一门派、同一类型固定的随机词表：按门派 id + 类型洗牌（结果每次都一样）。
-// 每类功法用自己在 config/names.js gfTypeWords 里的一组词，不再所有类型共用一个词表：
+// 每类功法用自己在 config/names.js gfTypeWords 里的一组词：
 // 心法只从心法组出，秘诀只从秘诀组出（养元只在秘诀组），法术单独走本属性词（见 spellName）。
 // 没写进 gfTypeWords 的类型，退回旧的本属性词 + 通用词，保证不改名就不断。
 DATA._words = {};
@@ -161,7 +162,7 @@ DATA.gongfaName = (sect, type) => {
   const w = DATA.sectWords(sect, type.fam || type.id);
   return sect.prefix + w[(type.ni * 4 + (type.book ? type.book - 1 : 0)) % w.length] + type.suffix;   // 第 2、3 本用同类别后面的词
 };
-// 法术名：门派前缀 + 本属性词 + 后缀，不再从通用词里抽（养元、清心、吐纳这类修炼词不会再变成法术名，
+// 法术名：门派前缀 + 本属性词 + 后缀，不从通用词里抽（养元、清心、吐纳这类修炼词不会变成法术名，
 // 如火系法术只从火系词里出：青阳烈焰术、青阳焚天术，而不是青阳养元术）
 DATA.spellName = (sect, el) => {
   if (sect.src === "cc") return sect.name + CFG.sect.chuancheng.WORD + CFG.sect.chuancheng.SPELL;   // 宗门传承法术
@@ -197,10 +198,10 @@ DATA.SHOP_GF_PREFIX.forEach((pair, i) => pair.forEach((prefix, n) => {
   DATA.shopSources.push({ id, src: "shop", star, prefix, name: prefix + DATA.nmPick(_NM, "shopGfSuffix", "传承"), el: DATA.elements[(star * 2 + n) % 6].id,
     reqRealm: DATA.sectReq(star) });   // 境界要求 = 同星级门派
 }));
-/* ---------- v25：试炼塔秘诀的「来源」（每星一个，id t星级，只有秘诀） ---------- */
+/* ---------- 试炼塔秘诀的「来源」（每星一个，id t星级，只有秘诀） ---------- */
 DATA.TOWER_GF_PREFIX = ["问心", "登仙", "通玄", "摘星", "揽月", "踏虚", "擎天", "证道", "归真", "登极"];
 DATA.towerSources = DATA.TOWER_GF_PREFIX.map((p0, i) => DATA.nmPick(_NM.towerGf, `t${i + 1}`, p0)).map((prefix, i) => ({ id: `t${i + 1}`, src: "tower", star: i + 1, prefix, name: prefix + DATA.nmPick(_NM, "towerGfSuffix", "塔"), el: DATA.elements[i % 6].id, reqRealm: -1 }));
-// v223 试炼塔秘诀（只有修炼秘诀）：按 config/sect.js 的 trial.MIJUE 在指定层给，每本一个来源 t星级_f层数，效果 = 宗门同星级秘诀（平均）× 该本 %
+// 试炼塔秘诀（只有修炼秘诀）：按 config/sect.js 的 trial.MIJUE 在指定层给，每本一个来源 t星级_f层数，效果 = 宗门同星级秘诀（平均）× 该本 %
 //   每 EVERY 层给一本（给戒指、戒指图纸的那几层除外，最后一层除外）效果 PCT %；最后一层 LAST %（0 = 不给）
 DATA.towerBookFloors = star => {
   const T = (CFG.sect || {}).trial || {}, M = T.MIJUE || {}, i = star - 1, max = DATA.towerMax(star), E = T.EVERY || 10;
@@ -209,12 +210,12 @@ DATA.towerBookFloors = star => {
   if (last > 0) out.push({ f: max, pct: last });
   return out;
 };
-DATA.TOWER_TYPES = ["mijue"];   // 试炼塔给的秘诀种类（v223 只给修炼秘诀）
+DATA.TOWER_TYPES = ["mijue"];   // 试炼塔给的秘诀种类（只给修炼秘诀）
 DATA.towerBooks = [];
 DATA.towerSources.forEach(src => DATA.towerBookFloors(src.star).forEach((x, k) =>
   DATA.towerBooks.push({ id: `${src.id}_f${x.f}`, src: "tower", star: src.star, prefix: src.prefix, name: src.name, el: src.el, reqRealm: -1, book: k + 1, floor: x.f, mult: x.pct / 100 })));
 DATA.towerBookAt = (star, f) => { const b = DATA.towerBooks.find(x => x.star === star && x.floor === f); return b ? `${b.id}:mijue` : null; };
-/* ---------- v106：天外天功法、法术的「来源」（11、12 星，每星 6 个 = 金木水火土雷各一个，id tw星级_序号；暂未开放获取） ---------- */
+/* ---------- 天外天功法、法术的「来源」（11、12 星，每星 6 个 = 金木水火土雷各一个，id tw星级_序号；暂未开放获取） ---------- */
 DATA.TW_GF_PREFIX = [["太初", "太始", "太素", "太易", "元始", "灵宝"], ["无极", "无量", "无上", "无始", "无终", "无相"]];   // 11、12 星
 DATA.twSources = [];
 DATA.TW_GF_PREFIX.forEach((list, i) => list.forEach((prefix, n) => {
@@ -254,7 +255,7 @@ DATA.srcCfg = o => DATA.gfSources[DATA.srcType(o)].cfg();
 
 /* 功法效果：按 sect.TOTAL 分配（gfCalc）；学习价格另算（gfLearnCost）
  *   o 来源、typeId 类别 id、key = TOTAL 里的属性 */
-// v121：战斗属性每单位（sect.TOTAL ÷ 1~10 星全部宗门功法练满的 STAT_STAR 合计）
+// 战斗属性每单位（sect.TOTAL ÷ 1~10 星全部宗门功法练满的 STAT_STAR 合计）
 DATA._gfUnit = {};
 //   分阶段：每星每个宗门这一属性的本数按 gfBookN 算（各阶段书越多，每本越少，总数不变）
 DATA.gfUnit = key => {
@@ -263,7 +264,7 @@ DATA.gfUnit = key => {
   let d = 0; for (let st = 1; st <= 10; st++) { let nb = 0; for (const f of fams) nb += DATA.gfBookN("sect", st, f); d += (S.STAT_STAR[st - 1] || 0) * DATA.sects.filter(x => x.star === st).length * nb; }
   return DATA._gfUnit[key] = d ? ((S.TOTAL || {})[key] || 0) / (d * DATA.lvMul(_GF.MAX)) : 0;
 };
-// 旧算法（悟道室、试炼塔秘诀、天外天用；宗门传承已改为直接按本门宗门功法 × PCT%，不受分阶段影响）：宗门每类按 BOOKS 本、STAT_STAR_OTHER
+// 旧算法（不在 GF_NEW_SRC 里的来源用：游历、隐世宗门功法；宗门传承直接按本门宗门功法 × PCT%，不受分阶段影响）：宗门每类按 BOOKS 本、STAT_STAR_OTHER
 DATA._gfUnitOld = {};
 DATA.gfUnitOld = key => {
   if (DATA._gfUnitOld[key] !== undefined) return DATA._gfUnitOld[key];
@@ -285,10 +286,10 @@ DATA.gfCalc = (o, typeId, key) => {
 
 // 层数倍率：第 lv 层效果 = 每层效果 × LV_MULT[lv-1]（没写就是 lv）
 DATA.lvMul = lv => { const m = (_GF.LV_MULT || [])[lv - 1]; return m === undefined ? lv : m; };
-// 修炼：每 STUDY_STEP 秒消耗灵气 = STUDY_RATE × STUDY_STAR[星级-1] × STUDY_LING（不乘层数；开局功法书 = STUDY_PER × STUDY_LING）
+// 修炼：每 STUDY_STEP 秒消耗灵气 = STUDY_RATE × STUDY_STAR[星级-1] × STUDY_LING × STUDY_LV[当前层-1]（开局功法书 = STUDY_PER × STUDY_LING × STUDY_LV）
 DATA.studyPer = info => { const v = (x, d) => x === undefined ? d : x, M = v(_GF.STUDY_LING, 1);
   const base = info.per ? info.per : Math.max(1, Math.floor(v(_GF.STUDY_RATE, 5) * v((_GF.STUDY_STAR || [])[info.star - 1], info.star)));
-  const L = v((_GF.STUDY_LV || [])[(info.lv || 1) - 1], 1);   // v248 每层单独倍率
+  const L = v((_GF.STUDY_LV || [])[(info.lv || 1) - 1], 1);   // 每层单独倍率
   return Math.max(1, Math.round(base * M * L)); };
 // 四界坊市 / 功德司功法价格：仙冥魔用 KEY[星级-6]，神界新 11、12 星用 SHEN_KEY[星级-11]（config/gongfa.js 的 jshop / gd）
 // 坊市灵石价格：出身「商贾之家」打折（凡界坊市 + 四界坊市；功德司、宗门不打折）
@@ -368,19 +369,19 @@ DATA.spellInfo = (id, lv = 1, own) => {
     kind: "sp", id, sect, src: DATA.srcType(sect), star: sect.star, el, lv,
     name: DATA.spellName(sect, el),
     // 法术攻击 = 自己修为 + 肉身攻击（不超过该星级对应境界的）+ 功法攻击（own 不写 = 玩家自己的）；伤害 = 法术攻击 × pct% × mul（mul = SPELL_MUL × 来源倍率，不显示）
-    uses: (U0 => v(U0[lv - 1], U0[U0.length - 1]))(_GF.SPELL_USES || [99]),   // v152 每场战斗最多施展几次
+    uses: (U0 => v(U0[lv - 1], U0[U0.length - 1]))(_GF.SPELL_USES || [99]),   // 每场战斗最多施展几次
     atk: DATA.capAtk(DATA.spellRef(sect.star).atk, own), pct: lp(lv), next: lp(lv + 1), mul: v(_GF.SPELL_MUL) * tm * v(C.EFFECT_PCT),
-    // 法力消耗 = 该星级对应境界的修为突破法力（REF）× MANA_PCT% × (1 + (层 − 1) × MANA_LV) × 境界倍率（灵根不再影响法力）
+    // 法力消耗 = 该星级对应境界的修为突破法力（REF）× MANA_PCT% × (1 + (层 − 1) × MANA_LV) × 境界倍率（灵根不影响法力）
     mana: Math.max(1, Math.round(DATA.spellManaBase(sect.star) * v(_GF.MANA_PCT, 0) / 100
       * (1 + (Math.max(1, lv) - 1) * v(_GF.MANA_LV, 0))   // 层消耗倍率
       * DATA.manaRealmK(typeof G !== "undefined" && G.s && !G.s.mortal ? G.s.L : 0))),   // 法力境界倍率（config/mobs.js magic.MANA_REALM，按人物当前大境界，与怪物共用）
     cost: DATA.gfLearnCost(sect, "spell"),
-    // v239 精研：jy 次数，jyDmg 属性伤害（加在法术伤害上）
+    // 精研：jy 次数，jyDmg 属性伤害（加在法术伤害上）
     jy: DATA.spellJy(id), jyDmg: DATA.spellJy(id) * DATA.jyStep(sect.star, "JY_DMG"),
     fu: DATA.spellFu(id), fuPct: DATA.fusePct(DATA.spellFu(id)),   // 融合：伤害结果 +%
   };
 };
-// v239 法术精研：每星的参数（config/gongfa.js 的 JY_DMG / JY_COST），玩家某法术已精研次数
+// 法术精研：每星的参数（config/gongfa.js 的 JY_DMG / JY_COST），玩家某法术已精研次数
 DATA.jyStep = (star, k) => { const A = _GF[k] || [0]; return A[Math.min(Math.max(0, star - 1), A.length - 1)] || 0; };
 // 第 n+1 次精研的消耗（n = 已精研次数）：初始 + floor(n / N) × 每段增加
 DATA.jyCost = (star, n) => { const U0 = _GF.JY_UP || {}, k = U0.N > 0 ? Math.floor((n || 0) / U0.N) : 0;
@@ -394,12 +395,12 @@ DATA.fuseTxt = fu => Object.keys(fu || {}).filter(k => fu[k] > 0).sort((a, b) =>
 DATA.spellFu = id => (typeof G !== "undefined" && G.s && G.s.spFuse && G.s.spFuse[id]) || null;
 
 // 通用：功法、法术或秘法
-// 法宝、法术攻击 = min(使用者修为 + 肉身突破的攻击, 上限 cap) + 其余全部攻击（v235：功法、装备、戒指、法宝、丹药、炼体池等都算）
+// 法宝、法术攻击 = min(使用者修为 + 肉身突破的攻击, 上限 cap) + 其余全部攻击（功法、装备、戒指、法宝、丹药、炼体池等都算）
 //   own = { br: 修为 + 肉身攻击, gf: 功法攻击 }，不写 = 玩家自己的
 DATA.ownAtk = () => {
   if (typeof G === "undefined" || !G.s || !G.gongfaBonus) return { br: 0, gf: 0 };
   const br = DATA.plRealmStat(G.s.mortal ? -1 : G.s.L, "atk") + (G.s.mortal || !G.brRand ? 0 : G.brRand("xw", "atk")) + ((G.bodyBonus ? G.bodyBonus() : {}).atk || 0);
-  // v235 上限只管 修为 + 肉身；其余全算（功法、装备、戒指、法宝、丹药、炼体池……）= 人物总攻击 − 修为肉身
+  // 上限只管 修为 + 肉身；其余全算（功法、装备、戒指、法宝、丹药、炼体池……）= 人物总攻击 − 修为肉身
   //   属性正在计算中（还没有缓存）时退回只算功法攻击，避免循环
   const st = G._cache ? G._cache.stats : !G._calcBusy && G.calc ? G.calc().stats : null;   // 缓存刚清掉时先补算，免得法术攻击在两种算法间来回跳
   return { br, gf: st ? Math.max(0, st.atk - br) : G.gongfaBonus().atk };
@@ -463,5 +464,5 @@ DATA.mifaInfo = (id, lv = 1) => {
   return { kind: "mf", id, star, mk: K, lv, el: DATA.elById[K.el], label: K.label,
     name: `${DATA.MIFA_PREFIX[star - 1] || star + "星"}·${K.name}`, value: val(lv), next: val(lv + 1), perLv: per,
     cost: DATA.mifaLearnCost(star, kind),
-    layerStone: Math.round(((W.LAYER_STONE || [])[star - 1] || 0) * DATA.mifaStoneK(kind)) };   // 修炼升一层的灵石（平均分到每 5 秒）
+    layerStone: Math.round(((W.LAYER_STONE || [])[star - 1] || 0) * DATA.mifaStoneK(kind)) };   // 修炼升一层的灵石（平均分到每个 STUDY_STEP 单位）
 };
