@@ -149,6 +149,13 @@ DATA.mobMeet = (grp, kind) => { const t = grp && grp._t && grp._t[kind]; return 
   DATA.mapLv = a => { const m = DATA.maps[a]; if (!m) return 0; if (!m.w || m.w === "fan") return a + 1; return (m.wi || 0) + (m.w === "shen" ? 20 : 10); };
   // 不在地图上的怪：按怪物境界折算，练气 = 1 级，每个大境界 +1，最多 24（圣人）
   DATA.mapLvByL = L => Math.min(24, Math.max(1, Math.floor((L || 0) / DATA.LAYERS) + 1));
+  // 试炼塔守关者、宗门考官：按境界对应地图等级 = 怪物境界 ≥ 该图怪物最低境界的最高一张图（同境界多张取等级低的），都不够取 1 级
+  DATA.mapLvByRealm = L => { const T = DATA._mapRealmLv || (DATA._mapRealmLv = DATA.maps.map((mp, a) => {
+      let lo = Infinity; for (const r of CFG.monster.regions[a] || []) for (const k of ["normal", "elite", "boss"]) if (r[k] && r[k].L !== undefined) lo = Math.min(lo, Math.floor(r[k].L / DATA.LAYERS));
+      return [lo, DATA.mapLv(a)]; }).filter(x => x[0] < Infinity).sort((x, y) => x[0] - y[0] || x[1] - y[1]));
+    const R = Math.floor((L || 0) / DATA.LAYERS); let best = null;
+    for (const [lo, lv] of T) if (lo <= R && (!best || lo > best[0])) best = [lo, lv];
+    return best ? best[1] : 1; };
 })();
 DATA.mobTj = a => (DATA.maps[a].mob || {})["天将"] || DATA.MOB_NONE;
 DATA.mobXj = (a, i) => { const l = (DATA.maps[a].mob || {})["星君"] || []; return l[i] || l[l.length - 1] || DATA.MOB_NONE; };

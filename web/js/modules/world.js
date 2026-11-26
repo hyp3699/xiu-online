@@ -1111,11 +1111,13 @@ G.module({
         mul(ids[0], rr(ER.UP1)); mul(ids[1], rr(ER.UP2)); mul(ids[2], rr(ER.UP2)); mul(ids[5], -rr(ER.DOWN));
         m.weakEl = ids[5];
       }
-      // 伤害% = 基础 + (地图等级 − 起始等级) × 每级加成（config/mobs.js magic.SPELL_LV / FABAO_LV）；mapA = 所在地图，没有按境界折算
+      // 护盾值、盾防御、法术 / 法宝伤害% 按地图等级在 [最小, 最大] 之间取（config/mobs.js magic.LV_RANGE）；mapA = 所在地图，试炼塔 / 考官按境界对应地图等级，其他按境界折算
       const kn = { normal: "普通", elite: "精英", boss: "首领", tower: "试炼塔" }[kind] || kind;
-      const lv = m.mapA >= 0 ? DATA.mapLv(m.mapA) : DATA.mapLvByL(m.L), dl = (MG.NO_LV || []).includes(kn) ? 0 : Math.max(0, lv - ((MG.LV_START || {})[kn] || 1));
-      const cv = (c, st) => c ? { chance: c.几率 || 0, pct: (c.伤害 || 0) + dl * (+MG[st] || 0), mana: c.消耗 || [0, 1] } : null;
-      m.spell = cv(M.法术, "SPELL_LV"); m.fabao = cv(M.法宝, "FABAO_LV"); m.mapLv = lv;
+      const lv = m.mapA >= 0 ? DATA.mapLv(m.mapA) : kn === "试炼塔" || kn === "考核" ? DATA.mapLvByRealm(m.L) : DATA.mapLvByL(m.L);
+      const LR = (MG.LV_RANGE || {})[kn] || (MG.LV_RANGE || {}).默认 || [1, 29], tq = LR[1] > LR[0] ? Math.max(0, Math.min(1, (lv - LR[0]) / (LR[1] - LR[0]))) : 0;
+      const lp = (a, b) => { a = +a || 0; b = b === undefined ? a : +b || 0; return Math.round((a + (b - a) * tq) * 100) / 100; }, lpA = v => Array.isArray(v) ? lp(v[0], v[v.length - 1]) : lp(v);
+      const cv = c => c ? { chance: c.几率 || 0, pct: lp(c.最小伤害 ?? c.伤害, c.最大伤害 ?? c.伤害), mana: c.消耗 || [0, 1] } : null;
+      m.spell = cv(M.法术); m.fabao = cv(M.法宝); m.mapLv = lv;
       m.manaK = DATA.manaRealmK(m.L);   // 法术、法宝法力消耗的境界倍率（config/mobs.js magic.MANA_REALM）
       const MR = +((CFG.rates || {}).MOB ?? 1);   // config/rates.js 怪物属性总倍率（暴击%不乘；雷劫不走这里）
       if (MR !== 1 && MR >= 0) { for (const k of ["hp", "atk", "def", "speed", "hit", "dodge"]) if (typeof m[k] === "number") m[k] *= MR; m.mana = m.maxMana = m.mana * MR; for (const e in m.res) m.res[e] *= MR; }
@@ -1123,7 +1125,7 @@ G.module({
       const SM = this.ysStCfg().MAX || {};
       for (const [id] of m.stl || []) { if (!this.stDef(id)) continue;
         for (const k in SM) { if (k === "res") { for (const e in m.res) m.res[e] += SM.res; } else if (k === "mana") { m.mana += SM.mana; m.maxMana = m.mana; } else if (typeof m[k] === "number") m[k] += SM[k]; } }
-      const S = M.盾; m.shield = S ? { chance: S.几率 || 0, max: S.次数 || 0, hp: S.护盾值, def: S.盾防御, mana: S.消耗 || [0, 1], red: MG.SHIELD_RED || 0 } : null;
+      const S = M.盾; m.shield = S ? { chance: S.几率 || 0, max: S.次数 || 0, hp: lpA(S.护盾值), def: lpA(S.盾防御), mana: S.消耗 || [0, 1], red: MG.SHIELD_RED || 0 } : null;
       return m;
     },
 
@@ -1449,7 +1451,7 @@ G.module({
         const P = c.mana || [0, 1], cost = (m.manaBr || 0) * P[0] * (P[1] === undefined ? 1 : P[1]);
         if (m.mana < cost || Math.random() * 100 >= c.chance) return;
         m.mana -= cost; mShN++;
-        const rp = v => Array.isArray(v) ? v[0] + Math.random() * (v[1] - v[0]) : v || 0;   // [最小, 最大] 随机
+        const rp = v => Array.isArray(v) ? v[0] + Math.random() * (v[1] - v[0]) : v || 0;   // 护盾值、盾防御已在 addMagic 按地图等级取成数字（老存档里的数组仍随机）
         mShield = { hp: m.hp * rp(c.hp) / 100, def: m.def * rp(c.def) / 100, red: c.red || 0 };
         act = { k: 3, f: 0 }; rec(1, mShield.hp);
       };
