@@ -90,7 +90,7 @@ G.module({
           <div class="row small"><input id="ori-code" maxlength="64" placeholder="礼包码" style="flex:1"><button class="sm primary" onclick="G.introRedeem()">兑换</button></div>
           <p class="desc" id="ori-code-msg"></p></div>
         <div id="ori-pn-gf" class="ori-pn"><div class="ori-head"><h2>功法</h2><button class="ori-rs-btn" onclick="G.introPn('')">返回</button></div>
-          <p class="desc">用出身点购买功法（和选出身共用，<b id="ori-gf-n"></b>），进入游戏后放进背包，在背包里学习。再点一次可退掉。</p>
+          <p class="desc">用出身点购买功法（和选出身共用，<b id="ori-gf-n"></b>），进入游戏后发到传音，领取后在背包里学习。再点一次可退掉。</p>
           <div id="ori-gf-list"></div></div>
         ${API.isAdmin ? `<div id="ori-pn-adm" class="ori-pn"></div>` : ""}`, "ori-fs");
       this.oriPaint(); this.introPn(this._introPn || "");

@@ -98,9 +98,9 @@ G.module({
         if (o.wuzhen > 0) this.addDan("wuzhen", 0, o.wuzhen);
         if (o.bodyL) { for (let i = 0; i < o.bodyL; i++) { s.bodyL++; if (this.brRoll) this.brRoll("rs", s.bodyL); } }
       }
-      for (const id of cl.gf) {   // 出身功法：放进背包（满了进传音），背包里学习；不占灵识点
+      for (const id of cl.gf) {   // 出身功法：放进传音（用户定 2026-11-27），领取后在背包里学习；不占灵识点
         if (!(s.oriFreeGf = s.oriFreeGf || []).includes(id)) s.oriFreeGf.push(id);
-        this.bagPutOrMail({ t: "gfb", id, n: 1 }); got.push(`《${DATA.gongfaInfo(id, 1).name}》`);
+        this.mailboxAdd({ t: "gfb", id, n: 1 }, true, "出身功法"); got.push(`《${DATA.gongfaInfo(id, 1).name}》（传音）`);
       }
       this.oriSsFix();
       this.dirty();
