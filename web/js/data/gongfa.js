@@ -44,7 +44,7 @@ DATA.gongfaTypes.forEach(t => { const n = (_NM.gfType || {})[t.id]; if (n) { t.n
 //   ni = 原来的序号（起名用，不影响原有功法的名字）
 //   功法分阶段（BOOK_STAGE）：fam = 本数按哪一类算（sufa 单独一类），bk = 这一类的第几本；第 4 本起 id「mijue4」…，sufa 第 2 本起「sufa2」…
 DATA.GF_STAGE_SRC = ["sect"];   // 分阶段加书的来源（只有宗门）
-DATA.GF_NEW_SRC = ["sect", "shop", "jshop", "gd", "tianwai", "wdroom", "tower"];   // 按新算法算效果的来源：坊市、功德司、天外天每本 = 宗门同星级每本 × PCT%（跟本数无关）；悟道室、试炼塔 = 宗门同星级每本 × mult（用户定）
+DATA.GF_NEW_SRC = ["sect", "shop", "jshop", "gd", "tianwai", "wdroom", "tower", "ori"];   // 按新算法算效果的来源：坊市、功德司、天外天每本 = 宗门同星级每本 × PCT%（跟本数无关）；悟道室、试炼塔 = 宗门同星级每本 × mult（用户定）
 DATA.gfStage = star => { const n = (_GF.BOOK_STAGE || [1]).length; return Math.max(1, Math.min(n, Math.ceil((star || 1) / (_GF.BOOK_STAGE_STARS || 2)))); };
 DATA.gfBookN = (src, star, fam) => {   // 某来源、某星级、某一类有几本
   src = src || "sect";
@@ -77,12 +77,13 @@ DATA.gfSources = {
   gd: { name: "功德司", cfg: () => DATA.gfDerive((_GF.gd || {}).PCT) },
   tower: { name: "试炼塔", cfg: () => Object.assign({}, _GF.sect, { learn: 0 }) },   // 试炼塔秘诀：效果 = 每本 mult（config/sect.js 的 trial.MIJUE）
   tianwai: { name: "天外天", cfg: () => DATA.gfDerive((_GF.tianwai || {}).PCT) },   // 天外天 11、12 星（暂未开放获取）
+  ori: { name: "出身功法", cfg: () => Object.assign(DATA.gfDerive((((CFG.origin || {}).GF) || {}).PCT), { learn: 0 }) },   // 出身功法：出身页用出身点买，效果 = 宗门同星级同类 × PCT%（config/start.js CFG.origin.GF）
   cc: { name: "宗门传承", cfg: () => { const C = CFG.sect.chuancheng || {}, S = _GF.sect;   // 宗门传承：效果见 gfCalc（本门同星级同类宗门功法 × PCT%，真经 × ZJ_PCT%），学习贡献 × LEARN
     return Object.assign(DATA.gfDerive(C.PCT), { EFFECT_LEARN: (S.EFFECT_LEARN === undefined ? 1 : S.EFFECT_LEARN) * (C.LEARN || 1) }); } },
 };
 /* 功法大类（显示用；名字在 config/names.js 的 gfCat）：来源类型 → 大类 */
-DATA.GF_CAT_OF = { sect: "sect", shop: "shop", jshop: "shop", gd: "gd", tower: "tower", wdroom: "wd", cc: "cc", tianwai: "tianwai" };
-DATA.GF_CATS = { sect: "宗门功法", shop: "坊市功法", gd: "功德司功法", tower: "试炼塔功法", wd: "悟道功法", cc: "宗门传承功法", tianwai: "天外天功法" };
+DATA.GF_CAT_OF = { ori: "ori", sect: "sect", shop: "shop", jshop: "shop", gd: "gd", tower: "tower", wdroom: "wd", cc: "cc", tianwai: "tianwai" };
+DATA.GF_CATS = { sect: "宗门功法", shop: "坊市功法", gd: "功德司功法", tower: "试炼塔功法", wd: "悟道功法", cc: "宗门传承功法", tianwai: "天外天功法", ori: "出身功法" };
 for (const k in DATA.GF_CATS) DATA.GF_CATS[k] = DATA.nmPick(_NM.gfCat, k, DATA.GF_CATS[k]);
 DATA.gfCat = g => g && g.kind !== "mf" && g.src ? DATA.GF_CAT_OF[g.src] || "" : "";   // 秘法、开局功法不算
 
@@ -132,6 +133,7 @@ DATA.gfCn = n => { const d = "零一二三四五六七八九"; return n < 10 ? d
 DATA.gongfaName = (sect, type) => {
   if (sect.src === "yl" && DATA.ylGfName) return DATA.ylGfName(sect, type);   // 游历功法（data/youli.js）
   if (sect.src === "ys" && DATA.ysGfName) return DATA.ysGfName(sect, type);   // 隐世宗门功法（data/yinshi.js）
+  if (sect.src === "ori") return sect.prefix + type.suffix;   // 出身功法：太一心法、太一诀
   if (sect.src === "cc") { const C = CFG.sect.chuancheng, k = type.base || type.id;   // 宗门传承（真经带属性：青阳宗传承火真经）
     return sect.name + C.WORD + (type.fam === "zhenjue" ? (DATA.elById[(sect.els || {})[type.id]] || {}).name || "" : "") + (C.NAME[type.id] || C.NAME[k] || type.suffix); }
   if (sect.src === "wdroom") { const W = CFG.wudaoRoom || {}, NM = (sect.dao && W[sect.dao] && W[sect.dao].NAME) || W.xiulian.NAME || {}; return `${NM[type.id] || type.suffix}·第${DATA.cnNum(sect.juan)}卷`; }   // 悟道室秘诀（修炼之道 / 战斗之道各用自己的名字）
@@ -229,6 +231,15 @@ DATA.ccResIds = re => { const o = {}, rest = DATA.elements.map(e => e.id).filter
 DATA.ccSources = DATA.sects.map(x => { const C = CFG.sect.chuancheng || {}, R = C.RES || [], i = DATA.sects.filter(y => y.star === x.star).indexOf(x), r0 = (R[x.star - 1] || [])[i], re = DATA.elById[r0] ? r0 : x.el;
   const ids = DATA.ccResIds(re), els = {}; for (const e in ids) els[ids[e]] = e;
   return { id: "cc_" + x.id, src: "cc", sectId: x.id, star: x.star, prefix: x.prefix, name: x.name, el: x.el, reqRealm: x.reqRealm, els }; });
+// 服务器上 start.js 被「数据修改」覆盖过、没有 GF 时用这组默认值（和 config/start.js 一致）
+CFG.origin = CFG.origin || {}; if (!CFG.origin.GF) CFG.origin.GF = { STAR: 3, COST: 1, LEARN_MIN: 1, PCT: 100, TYPES: ["xinfa", "gongjue"],
+  NAMES: ["太一", "太初", "太玄", "太真", "太平", "太黄", "太乙", "太元", "太和", "天阳", "莲化", "五灵", "金阳", "轮回", "玄阳"] };
+/* ---------- 出身功法的「来源」（config/start.js CFG.origin.GF，每个名字一个，id og1 ~ og15；只有心法、功诀） ---------- */
+DATA.oriGfSources = ((((CFG.origin || {}).GF) || {}).NAMES || []).map((prefix, i) => ({ id: "og" + (i + 1), src: "ori", star: (CFG.origin.GF.STAR || 3), prefix, name: prefix, el: DATA.elements[i % 6].id, reqRealm: -1 }));
+DATA.oriGfIds = () => { const T = (((CFG.origin || {}).GF) || {}).TYPES || ["xinfa", "gongjue"]; return T.flatMap(t => DATA.oriGfSources.map(o => DATA.gongfaId(o.id, t))); };
+DATA.isOriGf = id => /^og\d+:/.test(id || "") && DATA.oriGfIds().includes(id);
+// 学习时间（毫秒）：出身功法 LEARN_MIN 分钟，其他按星级
+DATA.gfLearnMsOf = g => g && g.src === "ori" ? ((((CFG.origin || {}).GF) || {}).LEARN_MIN ?? 1) * 60000 : DATA.gfLearnMin(g ? g.star : 1) * 60000;
 DATA.ccSrcOf = sectId => DATA.gfSrcById["cc_" + sectId];
 // 随机分配（每个存档第一次进游戏一次，结果存存档 ccAssign = { 门派id: [种类…] }）：每星 KINDS × COPIES 本洗牌，每门派 PER 本、种类不重复
 DATA.ccGenAssign = () => { const C = CFG.sect.chuancheng || {}, K = C.KINDS || [], per = C.PER || 5, cp = C.COPIES || 4, out = {};
@@ -248,7 +259,7 @@ DATA.ccIds = (sectId, assign) => { const o = DATA.ccSrcOf(sectId); if (!o || !as
   const ids = DATA.ccResIds(o.els.zhenjue);
   return (assign[sectId] || []).map(k => k.startsWith("res_") ? ids[k.slice(4)] : k).filter(Boolean).map(t => DATA.gongfaId(o.id, t)); };
 // 所有来源：门派（src = "sect"）+ 坊市 + 试炼塔 + 天外天
-DATA.gfSrcById = Object.assign({}, ...DATA.sects.map(x => ({ [x.id]: x })), ...DATA.shopSources.map(x => ({ [x.id]: x })), ...DATA.twSources.map(x => ({ [x.id]: x })), ...DATA.towerSources.map(x => ({ [x.id]: x })), ...DATA.towerBooks.map(x => ({ [x.id]: x })), ...DATA.ccSources.map(x => ({ [x.id]: x })));
+DATA.gfSrcById = Object.assign({}, ...DATA.sects.map(x => ({ [x.id]: x })), ...DATA.shopSources.map(x => ({ [x.id]: x })), ...DATA.twSources.map(x => ({ [x.id]: x })), ...DATA.towerSources.map(x => ({ [x.id]: x })), ...DATA.towerBooks.map(x => ({ [x.id]: x })), ...DATA.ccSources.map(x => ({ [x.id]: x })), ...DATA.oriGfSources.map(x => ({ [x.id]: x })));
 DATA.gfSrc = sid => DATA.gfSrcById[sid] || (DATA.wdSrc ? DATA.wdSrc(sid) : null) || (DATA.wzSrc ? DATA.wzSrc(sid) : null);   // 悟道室秘诀 / 战斗功法的来源现算（modules/wudaoshi.js）
 DATA.srcType = o => o.src || "sect";
 DATA.srcCfg = o => DATA.gfSources[DATA.srcType(o)].cfg();

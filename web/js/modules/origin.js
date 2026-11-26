@@ -47,16 +47,23 @@ G.module({
     syDeadView() { if (this._syShown && $("#modal-box .sy-dead")) return; this._syShown = true; this._lockModal = true;
       this.modal(`<div class="sy-dead"><h2>寿元到了</h2><p>${this.s.name} 寿元已尽，人物已死亡。</p><div class="btns"><button class="primary" onclick="G._lockModal=false;G.restart()">删档</button></div></div>`); },
     oriNames(s = this.s) { return this.oriOf(s).map(o => o.name).join("、"); },
-    // 清洗客户端传来的选择：只要存在的 id，不重复，最多 PICK 个
+    // 清洗客户端传来的选择：出身 id + 出身功法「gf:功法id」，不重复；出身每个 1 点、功法每本 GF.COST 点，合计不超过 oriPick()
     oriClean(ids) {
-      const L = this.oriList(), out = [];
-      for (const id of Array.isArray(ids) ? ids : []) if (L.some(o => o.id === id) && !out.includes(id)) out.push(id);
-      return out.slice(0, this.oriPick());
+      const L = this.oriList(), out = [], gf = [], cost = this.oriGfCost(); let used = 0;
+      for (const x of Array.isArray(ids) ? ids : []) {
+        const k = String(x);
+        if (k.startsWith("gf:")) { const id = k.slice(3); if (DATA.isOriGf(id) && !gf.includes(id) && used + cost <= this.oriPick()) { gf.push(id); used += cost; } }
+        else if (L.some(o => o.id === k) && !out.includes(k) && used + 1 <= this.oriPick()) { out.push(k); used++; }
+      }
+      return { ori: out, gf };
     },
+    oriGfCost() { const c = (((CFG.origin || {}).GF) || {}).COST; return Math.max(0, c === undefined ? 1 : +c || 0); },
+    // 创建角色页已用的出身点（出身 + 买的功法）
+    oriUsed() { return (this._oriSel || []).length + (this._oriGf || []).length * this.oriGfCost(); },
     // 开局奖励（只在新建角色时调用一次）
     oriApply(ids) {
       const s = this.s, C = CFG.origin || {}, got = [];
-      s.ori = this.oriClean(ids);
+      const cl = this.oriClean(ids); s.ori = cl.ori;
       const pick = a => a[Math.floor(Math.random() * a.length)];
       for (const o of this.oriOf()) {
         if (o.stone) { s.stone += o.stone; }
@@ -91,22 +98,44 @@ G.module({
         if (o.wuzhen > 0) this.addDan("wuzhen", 0, o.wuzhen);
         if (o.bodyL) { for (let i = 0; i < o.bodyL; i++) { s.bodyL++; if (this.brRoll) this.brRoll("rs", s.bodyL); } }
       }
+      for (const id of cl.gf) {   // 出身功法：放进背包（满了进传音），背包里学习；不占灵识点
+        if (!(s.oriFreeGf = s.oriFreeGf || []).includes(id)) s.oriFreeGf.push(id);
+        this.bagPutOrMail({ t: "gfb", id, n: 1 }); got.push(`《${DATA.gongfaInfo(id, 1).name}》`);
+      }
       this.oriSsFix();
       this.dirty();
-      if (s.ori.length) this.log(`出身：${this.oriNames()}。${got.length ? "获得 " + got.join("、") + "。" : ""}`, "gold");
+      if (s.ori.length || cl.gf.length) this.log(`${s.ori.length ? `出身：${this.oriNames()}。` : ""}${got.length ? "获得 " + got.join("、") + "。" : ""}`, "gold");
     },
 
     // 创建角色页：出身选择（界面状态 this._oriSel）
     oriToggle(id) {
       const a = this._oriSel || (this._oriSel = []), i = a.indexOf(id);
-      if (i >= 0) a.splice(i, 1); else if (a.length < this.oriPick()) a.push(id);
+      if (i >= 0) a.splice(i, 1); else if (this.oriUsed() + 1 <= this.oriPick()) a.push(id);
       this.oriPaint();
+    },
+    // 出身页「功法」面板：用出身点买出身功法（再点一次退掉）
+    oriGfToggle(id) {
+      const a = this._oriGf || (this._oriGf = []), i = a.indexOf(id);
+      if (i >= 0) a.splice(i, 1); else if (DATA.isOriGf(id) && this.oriUsed() + this.oriGfCost() <= this.oriPick()) a.push(id);
+      this.oriPaint(); this.oriGfPaint();
+    },
+    oriGfPaint() {
+      const box = $("#ori-gf-list"); if (!box) return;
+      const C = (CFG.origin || {}).GF || {}, a = this._oriGf || [], P = this.oriPick(), U0 = this.oriUsed(), cost = this.oriGfCost();
+      const n = $("#ori-gf-n"); if (n) n.textContent = `已用 ${U0} / ${P}`;
+      box.innerHTML = (C.TYPES || ["xinfa", "gongjue"]).map(t => {
+        const ty = DATA.gongfaTypes.find(x => x.id === t);
+        return `<h3>${ty ? ty.name : t}</h3>` + DATA.oriGfSources.map(o => { const id = DATA.gongfaId(o.id, t), g = DATA.gongfaInfo(id, 1); if (!g) return "";
+          const on = a.includes(id), off = !on && U0 + cost > P;
+          return `<div class="line"><div>《${g.name}》<span class="tag">${g.star}星</span><small>每层${g.label} +${U.num(g.perLv)} · 学习 ${U.dur(DATA.gfLearnMsOf(g) / 1000)} · 不占灵识点 · ${cost} 出身点</small></div>
+            <button class="sm${on ? "" : " primary"}" onclick="G.oriGfToggle('${id}')" ${off ? "disabled" : ""}>${on ? "已购买" : "购买"}</button></div>`; }).join("");
+      }).join("");
     },
     oriPaint() {
       const box = $("#ori-box"); if (!box) return;
-      const a = this._oriSel || [], P = this.oriPick();
-      box.innerHTML = `<div class="ori-pk"><span class="desc">选择出身（${a.length} / ${P}）</span><span class="ori-pk-r"><button class="ori-rs-btn${this._oriSy ? " primary" : ""}" onclick="G._oriSy=!G._oriSy;G.oriPaint()">${this._oriSy ? "已开启寿元" : "开启寿元"}</button><button class="ori-rs-btn" onclick="G.introPn('gift')">增加出身点</button></span></div>` + this.oriList().map(o => {
-        const on = a.includes(o.id), off = !on && a.length >= P;
+      const a = this._oriSel || [], P = this.oriPick(), U0 = this.oriUsed();
+      box.innerHTML = `<div class="ori-pk"><span class="desc">出身点（已用 ${U0} / ${P}）</span><span class="ori-pk-r"><button class="ori-rs-btn${this._oriSy ? " primary" : ""}" onclick="G._oriSy=!G._oriSy;G.oriPaint()">${this._oriSy ? "已开启寿元" : "开启寿元"}</button><button class="ori-rs-btn${(this._oriGf || []).length ? " primary" : ""}" onclick="G.introPn('gf')">功法${(this._oriGf || []).length ? " " + this._oriGf.length : ""}</button><button class="ori-rs-btn" onclick="G.introPn('gift')">增加出身点</button></span></div>` + this.oriList().map(o => {
+        const on = a.includes(o.id), off = !on && U0 + 1 > P;
         return `<div class="ori-it${on ? " on" : ""}${off ? " off" : ""}" onclick="G.oriToggle('${o.id}')"><b>${o.name}</b><small>${o.desc || ""}</small></div>`;
       }).join("");
       // 出身可以不选满（基础和礼包码出身点都是，用户定）；没选满开始时弹确认
