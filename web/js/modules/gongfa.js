@@ -251,7 +251,7 @@ G.module({
       const s = this.s;
       if (!s.gongfa[id] || this.plannedLv(id) >= ((DATA.skillInfo(id) || {}).max || DATA.GONGFA_MAX)) return;
       if (s.gfQueue.length >= DATA.GF_QUEUE) return this.log(`修炼队列已满（最多 ${DATA.GF_QUEUE} 个）。`, "sys");
-      s.gfQueue.push(id);
+      s.gfQueue.push(id); s.gfQAuto = false;   // 手动加过，队列不再按自动条件重排
       if (!s.gfStudy) this.nextStudy();
       this.after();
     },
@@ -309,12 +309,15 @@ G.module({
     },
     gfAutoFill() {
       const s = this.s, A = s.gfAuto; if (!A || !A.on || !Array.isArray(A.rules) || !A.rules.length || !s.gongfa) return;
-      const NQ = Math.min(+CFG.gongfa.AUTO_Q || 2, DATA.GF_QUEUE); if (s.gfQueue.length > 0) return;   // 排队里没有功法了才补（补到 AUTO_Q 个）
+      const NQ = Math.min(+CFG.gongfa.AUTO_Q || 2, DATA.GF_QUEUE);
+      if (!s.gfQueue.length) s.gfQAuto = false;
+      if (s.gfQueue.length > 0 && !s.gfQAuto) return;   // 排队里没有功法了才补（补到 AUTO_Q 个）；队列全是自动补的，按条件重新挑（新学会的更靠前就换掉，用户定）
       // 性能：上次没东西可补、且功法 / 层数 / 队列 / 条件都没变，就不再算（离线结算每 10 秒都会调用）
       const ids = Object.keys(s.gongfa); let lvSum = 0; for (const id of ids) lvSum += s.gongfa[id] || 0;
       const sig = `${ids.length}|${lvSum}|${s.gfStudy ? s.gfStudy.id : ""}|${s.gfQueue.join(",")}|${JSON.stringify(A.rules)}`, M = this._gfaMiss || (this._gfaMiss = new WeakMap());   // 按存档分开记（服务器一个引擎轮流算多个玩家）
       if (M.get(s) === sig) return;
       // 每部只查一次 skillInfo，计划层数一次算好
+      const old = s.gfQAuto ? s.gfQueue.splice(0) : null;   // 重挑：先拿掉自动补的，算完不同才算换
       const plan = {}; for (const id of s.gfQueue) plan[id] = (plan[id] || 0) + 1;
       if (s.gfStudy) plan[s.gfStudy.id] = (plan[s.gfStudy.id] || 0) + 1;
       const all = [];
@@ -336,7 +339,9 @@ G.module({
         if (!pick) break;
         s.gfQueue.push(pick.id); pick.plan++; added++;
       }
-      if (added) M.delete(s); else M.set(s, sig);
+      if (old && !added) s.gfQueue.push(...old);   // 没有可补的（如改了条件）：原样留着
+      if (old) { const same = old.join(",") === s.gfQueue.join(","); if (added) s.gfQAuto = true; M.set(s, `${ids.length}|${lvSum}|${s.gfStudy ? s.gfStudy.id : ""}|${s.gfQueue.join(",")}|${JSON.stringify(A.rules)}`); if (!same && added) this.log(`自动队列：按条件改补《${(DATA.skillInfo(s.gfQueue[0], s.gongfa[s.gfQueue[0]]) || {}).name || s.gfQueue[0]}》。`, "sys"); return; }
+      if (added) { s.gfQAuto = true; M.delete(s); } else M.set(s, sig);
     },
     // 玩家操作（加进 server/action-whitelist.json）
     gfAutoOn() { const A = this.gfAutoCfg(); A.on = !A.on; this.log(`自动队列已${A.on ? "开启" : "关闭"}。`, "sys"); if (A.on) { this.gfAutoFill(); if (!this.s.gfStudy) this.nextStudy(); } this.after(); },
@@ -364,7 +369,7 @@ G.module({
         <span>低于<input type="number" min="0" max="${DATA.GONGFA_MAX}" value="${r.lv || ""}" placeholder="满" onchange="G.gfAutoSet(${i},'lv',this.value||0)${re}">层</span>
         <span>≥<input type="number" min="0" max="99" value="${r.star || ""}" placeholder="任" onchange="G.gfAutoSet(${i},'star',this.value||0)${re}">星</span>
         <span class="gfa-ops"><button class="sm" ${i ? "" : "disabled"} onclick="G.gfAutoMove(${i},0)${re}">↑</button><button class="sm" ${i < A.rules.length - 1 ? "" : "disabled"} onclick="G.gfAutoMove(${i},1)${re}">↓</button><button class="sm" onclick="G.gfAutoDel(${i})${re}">删</button></span></div>`).join("");
-      this.modal(`<h2>自动队列</h2><p class="desc">排队里没有功法时，按条件先后自动补 ${NQ} 个：第 1 条没有可补的，才用第 2 条，依此类推。同一条里先补层数最低的，再按星级高的；选「全部」按 心法、功诀、真经（抗性）、真诀（生命）、秘诀、法诀（法力）、身法（命中）、遁术（闪避）、身法（速度）的顺序补。层数空着 = 补到满层，星级空着 = 不限。</p>
+      this.modal(`<h2>自动队列</h2><p class="desc">排队里没有功法时，按条件先后自动补 ${NQ} 个：第 1 条没有可补的，才用第 2 条，依此类推。自动补进去的还没开练时，新学会的功法按条件更靠前就换掉它（手动加的不换）。同一条里先补层数最低的，再按星级高的；选「全部」按 心法、功诀、真经（抗性）、真诀（生命）、秘诀、法诀（法力）、身法（命中）、遁术（闪避）、身法（速度）的顺序补。层数空着 = 补到满层，星级空着 = 不限。</p>
         <div class="gfa-list">${rows || `<p class="desc">还没有条件。</p>`}</div>
         <div class="btns"><button class="${A.on ? "primary" : ""}" onclick="G.gfAutoOn()${re}">${A.on ? "已开启（点击关闭）" : "已关闭（点击开启）"}</button>
         <button ${A.rules.length >= M ? "disabled" : ""} onclick="G.openGfAutoPick()">添加条件 ${A.rules.length}/${M}</button><button onclick="G.closeModal()">关闭</button></div>`);
