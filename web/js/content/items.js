@@ -4,7 +4,7 @@
  * 这个文件不是数值文件：在这里可以
  *   1. list      添加杂物（名字、说明、出售价）
  *   2. shop      设置坊市卖什么（修炼丹、装备，可以删、改价格）
- *   3. treasury  设置宗门宝库「杂物」页兑换什么（炉子、灵石、秘法）
+ *   3. treasury  设置宗门宝库「杂物」页兑换什么（炉子、灵石、秘法、养神露、延寿丹）
  * 改完把 index.html 里的 ?v=数字 加 1。
  * 物品名字就是物品的 id，不要重名；已经发给玩家的物品改名后，玩家背包里的会变成「失传之物」。
  * ===================================================================== */
@@ -18,7 +18,7 @@ window.ITEMS = {};
  * 发放：地图 fixed 掉落（config/drops.js）、秘境 / 灵地 extra 掉落（config/mijing.js、config/lingdi.js）里写这里的物品名就会掉落。
  */
 ITEMS.list = {
-  // 肉身突破用的仙界 / 冥界 / 魔界药材（config/body.js 的 HERBS_XIAN；以后开放这三界时加进地图掉落）
+  // 肉身突破用的仙界 / 冥界 / 魔界药材（config/body.js 的 HERB_SEG 16~23 境）
   "九天仙芝": { type: "misc",  q: 3, desc: "仙界灵药，散仙以上肉身突破所需。仙界掉落。", sell: 100 },
   "瑶池玉莲": { type: "misc",  q: 3, desc: "仙界灵药，散仙以上肉身突破所需。仙界掉落。", sell: 100 },
   "彼岸花":   { type: "misc",  q: 3, desc: "冥界灵药，散仙以上肉身突破所需。冥界掉落。", sell: 100 },
@@ -57,14 +57,16 @@ ITEMS.shop = [
  *   { kind: "neiguan" }                               太上内观经（学会才能打开经脉，数值在 config/sect.js 的 CFG.neiguan）
  *   { kind: "cqzj", v: 1 }                            出窍真诀第 v 卷（贡献、每步减秒在 config/sect.js 的 CFG.cqzj）
  *   { kind: "lu", star: 2, n: 1000, get: 10, cost: 300 }   n 个同一种药材或矿石（玩家自选）加 cost 贡献换 get 个养神露，每天一次
+ *   { kind: "sy", v: 0 }                              延寿丹第 v+1 种（config/start.js CFG.origin.SY.PILLS）
+ *   任意一行可加：maxStar 门派星级超过就不显示；once: 1（炉子）每个人物只能换一次
  */
 ITEMS.treasury = [
-  { kind: "furnace", fk: "dan", g: 0, cost: 100, maxStar: 1, once: 1 },   // 只有 1 星宗门能换，每个人物只能换一次（用户定 2026-11-25）
+  { kind: "furnace", fk: "dan", g: 0, cost: 100, maxStar: 1, once: 1 },   // 只有 1 星宗门能换，每个人物只能换一次（用户定）
   { kind: "furnace", fk: "qi",  g: 0, cost: 100, maxStar: 1, once: 1 },
-  { kind: "stone", n: 500, fixed: 1, cost: 100, name: "一袋灵石" },   // 固定 500，不乘宗门星级倍率（用户定 2026-11-25）
+  { kind: "stone", n: 500, fixed: 1, cost: 100, name: "一袋灵石" },   // 固定 500，不乘宗门星级倍率（用户定）
   { kind: "chuqiao" },   // 元婴出窍秘法：消耗、效果、境界限制在 config/sect.js 的 CFG.chuqiao
   { kind: "neiguan" },   // 太上内观经：学会才能打开经脉（config/sect.js 的 CFG.neiguan）
-  { kind: "cqzj", v: 1 }, { kind: "cqzj", v: 2 }, { kind: "cqzj", v: 3 },
-  { kind: "lu", star: 2, n: 1000, get: 10, cost: 300 },
-  { kind: "sy", v: 0 }, { kind: "sy", v: 1 }, { kind: "sy", v: 2 }, { kind: "sy", v: 3 }, { kind: "sy", v: 4 },   // 延寿丹 1~5 星（config/start.js CFG.origin.SY.PILLS，开启寿元才显示，每个只能换一次）   // 养神露：2 星宗门起，1000 个药材或矿石加 300 贡献换 10 个，每天一次   // 出窍真诀第一~三卷：贡献、效果在 config/sect.js 的 CFG.cqzj
+  { kind: "cqzj", v: 1 }, { kind: "cqzj", v: 2 }, { kind: "cqzj", v: 3 },   // 出窍真诀第一~三卷：贡献、效果在 config/sect.js 的 CFG.cqzj
+  { kind: "lu", star: 2, n: 1000, get: 10, cost: 300 },   // 养神露：2 星宗门起，1000 个药材或矿石加 300 贡献换 10 个，每天一次
+  { kind: "sy", v: 0 }, { kind: "sy", v: 1 }, { kind: "sy", v: 2 }, { kind: "sy", v: 3 }, { kind: "sy", v: 4 },   // 延寿丹 1~5 星（config/start.js CFG.origin.SY.PILLS，开启寿元才显示，只能在同星级宗门换，每种最多 PILL_MAX 颗）
 ];

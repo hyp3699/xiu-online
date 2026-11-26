@@ -44,7 +44,7 @@ G.module({
     sjSxSeen(a, g) { const o = (this.s.grids || {})[a + "_" + g]; return !!(o && ((Array.isArray(o.v) && o.v.includes(this.sjSxCell(g))) || (+o.sx || 0) > 0)); },   // 神像要探索到那格才显示（老存档已升级过的算发现）
     sjSxCell(g) { const N = this.gridN(g); return Math.floor(N * N / 2); },
     sjJieG(a, g) {
-      const s = this.s, N = this.gridN(g), M = Math.min(N * N - 1, this.sjC().JIE_MOB || 33), C0 = this.sjSxCell(g);
+      const s = this.s, N = this.gridN(g), M = Math.min(N * N - 1, this.sjC().JIE_MOB || 36), C0 = this.sjSxCell(g);
       if (!s.grids || typeof s.grids !== "object") s.grids = {};
       const k = a + "_" + g, o = s.grids[k] && typeof s.grids[k] === "object" ? s.grids[k] : (s.grids[k] = { v: [] });
       if (Array.isArray(o.m) && o.m.length && o.m.length !== M) {   // 老存档怪物数和 JIE_MOB 不一致：保留已打败的，少了补随机空格，多了去掉没打败的

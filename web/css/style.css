@@ -499,10 +499,6 @@ button small .cd{min-width:0}
   background: radial-gradient(ellipse at 50% 40%, #e8f6ff 0%, #8fc8ff 45%, #4a8fe066 75%, transparent 100%); box-shadow: 0 0 10px #8fc8ff; opacity: 0; animation: ys-rise 7s linear infinite; }
 .ys-hbox { position: absolute; left: 50%; bottom: 6%; height: 86%; transform: translateX(-50%); animation: ys-float 4s ease-in-out infinite; }
 .ys-hbox .ys-hero { position: static; display: block; height: 100%; max-width: none; width: auto; transform: none; animation: none; }
-.ys-dot { position: absolute; width: 26px; height: 26px; transform: translate(-50%, -50%); pointer-events: auto; background: none; border: 0; padding: 0; margin: 0; min-width: 0; min-height: 0; box-shadow: none; display: flex; align-items: center; justify-content: center; animation: ys-dot 2.4s ease-in-out infinite; }
-.ys-dot i { display: block; width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle, #fffbe8 0%, #ffe28a 38%, #ffb92e 62%, transparent 74%); box-shadow: 0 0 8px #ffd760, 0 0 16px #ffb52ecc, 0 0 26px #ffa21a88; }
-.ys-dot img { display: block; width: 20px; height: 20px; object-fit: contain; filter: drop-shadow(0 0 4px #ffd760) drop-shadow(0 0 8px #ffb52ecc); }
-@keyframes ys-dot { 0%, 100% { opacity: .8; transform: translate(-50%, -50%) scale(.85); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); } }
 .ys-pow { position: absolute; left: 8px; top: 8px; z-index: 2; padding: 4px 10px; border-radius: 6px; background: #0008; border: 1px solid #c9a96a; text-align: center; line-height: 1.2; }
 .ys-pow span { display: block; font-size: 11px; color: #d8c8a8; } .ys-pow b { font-size: 18px; color: #ffe08a; }
 .ys-stage.fx .ys-aura { animation: ys-burst 1.2s ease-out; } .ys-stage.fx .ys-pow b { animation: ys-pop .8s ease-out; }
@@ -650,10 +646,6 @@ html[data-bg="xuanzhi"] .bar-img,html[data-bg="xinghuang"] .bar-img,html[data-bg
 .bg-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .bg-sw{height:72px;border-radius:6px;border:1px solid var(--c-line);display:flex;align-items:flex-end;justify-content:center;padding:0 0 3px;font-size:12px;color:#f4ead2;text-shadow:0 1px 2px #000;background-size:cover}
 .bg-sw.on{border:2px solid var(--t-gold)}
-/* 从后台切回游戏：等服务器结算完成前的「加载游戏中…」 */
-#resume-load{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;background:rgba(14,12,10,.6)}
-#resume-load.show{display:flex}
-#resume-load span{padding:14px 28px;background:#2a2219f2;border:1px solid #c9a45c;border-radius:10px;color:#f3e6c8;font-size:22px;font-weight:900;letter-spacing:3px;text-shadow:0 1px 2px #000;box-shadow:0 4px 18px #000a}
 /* 两张卡片放一行（炼丹师 + 丹炉）；炼制数量窗口 */
 .card-row{display:flex;gap:8px;align-items:stretch}.card-row>.card{flex:1 1 0;min-width:0}
 .qty-box{display:flex;justify-content:center;align-items:center;gap:6px;margin:12px 0 4px}
@@ -1001,8 +993,7 @@ html[data-bg] .trib,html.bg-light .trib{--c-deep:#14110f;--c-bar:#1b1713;--c-car
 .gridbar{display:flex;justify-content:center;font-size:13px;color:#fff3d6;background:rgba(20,16,12,.72);border-radius:6px;padding:5px 8px;margin:8px 0 0}
 .gridbar.gt{margin:0 0 2px}
 
-/* 凡界大图（18×18）：上下左右都能拖；正中灵矿占 2×2；没开的域锁着 */
-.mgwrap.mg2{overflow:auto;touch-action:pan-x pan-y}
+/* 地图格子：灵矿格、没开的域锁着 */
 .mgrid .gc.lk{width:auto;height:auto;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(30,24,14,.55);outline:1px solid rgba(255,215,120,.55);box-shadow:inset 0 0 14px rgba(255,215,120,.45);z-index:2}
 .mgrid .gc.lk img{width:70%;height:70%;object-fit:contain;filter:drop-shadow(0 0 8px rgba(255,210,120,.8));pointer-events:none}
 .mgrid .gc.lk span{font-size:11px;line-height:14px;padding:0 5px;border-radius:7px;background:rgba(0,0,0,.65);color:#ffe9a8;white-space:nowrap;pointer-events:none}

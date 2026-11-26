@@ -389,9 +389,9 @@ const G = {
     sd.style.height = Math.max(n * 34, v.clientHeight - off - 2) + "px";
     if (!this._gfSideRs) { this._gfSideRs = 1; window.addEventListener("resize", () => { const vv = document.getElementById("view"), d = vv && vv.querySelector(".gf-side"); if (d) { d.style.height = ""; this.gfSideFit(d, d.closest(".fxbody") || vv); } }); }
   },
-  // 地图格子：竖向 9 格刚好占满可用高度，横向超出就左右拖动
+  // 地图格子：竖向 data-n 格（没写 9 格）刚好占满可用高度，横向超出就左右拖动
   gridFit(mw) {
-    const n = +mw.dataset.fit || +mw.dataset.n || 9, h = mw.clientHeight;   // 凡界大图 18×18：竖向按 9 格铺满，上下左右拖动
+    const n = +mw.dataset.n || 9, h = mw.clientHeight;
     if (h > 0) mw.style.setProperty("--gcw", Math.max(28, Math.floor(h / n)) + "px");
     if (!this._gridRs) { this._gridRs = 1; window.addEventListener("resize", () => { const m = document.getElementById("mgwrap"); if (m) this.gridFit(m); }); }
   },

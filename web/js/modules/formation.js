@@ -1,10 +1,11 @@
 /* ===================================================================
  * 阵法室（配置 config/zhenfa.js，阵法参数都在那里）
- * 主动阵法：升级花灵石，受到本系属性伤害时：减伤 = min(本次伤害, RED)，耗灵气 = 减伤 × 3.6（灵气不够时按剩余灵气比例减伤），
+ * 主动阵法：升级花矿石 + 灵石，受到本系属性伤害时：减伤 = min(本次伤害, RED)，耗灵气 = 减伤 × RATE（灵气不够时按剩余灵气比例减伤），
  *   战斗 / 雷劫里受到本系属性伤害直接减、克制系直接加（world.js lgR、trib.js 调 zfDmg）。
  *   雷泽阵的 ke 是金木水火土五系数组，ADD 按五系均分（余数补给前几位，五份之和恰好等于 ADD）；其余五阵 ke 是单个系，加伤整份就是 ADD。
- * 属性阵法：7 种 × 12 阶，每阶单独升到 36 级（花灵石，升的是属性上限）；修炼一次 5 秒，开始扣灵气，
- *   结束加 13~49 点到上限为止，存 s.zf.v，进 craft.js danBonus（zfBonus）。
+ *   开着的主动阵每 10 秒另扣运转灵气 KEEP（zfKeepTick）。
+ * 属性阵法：7 种 × TIERS 阶，每阶单独升到 MAX 级（花矿石 + 灵石，升的是属性上限）；修炼一次 SEC 秒，开始扣灵气，
+ *   结束加 GAIN 随机点到上限为止，存 s.zf.v，进 craft.js danBonus（zfBonus）。
  * 存档 s.zf = { a: { 阵id: 等级 }, on: { 阵id: 1 }, t: { "属性:阶": 等级 }, v: { "属性:阶": 已修炼属性 }, bp: { "属性:阶": 1 学会图纸 }, job: { k, t, end } | null }
  * 本模块没有 tick（fastsim 按有 tick 的模块列表判断），结算放在 cave.js tick。
  * =================================================================== */
@@ -69,13 +70,13 @@ G.module({
       return `<p class="zf-cost-t">${title}</p><div class="cpk-mats zf-cost">${c.mats.map(m => cell(DATA.matImg(m.kind, m.g), this.countMat(m.kind, m.g, false, m.ft), m.n, DATA.matFull(m.kind, m.g))).join("")}${cell(DATA.iconImg("stone"), this.s.stone, c.stone, "灵石")}</div>`;
     },
     zfCanPay(c) { return DATA.isTest() || (this.s.stone >= c.stone && this.hasMats(c.mats)); },
-    // 运转消耗：开着的主动阵每 10 秒合计扣多少灵气（config/zhenfa.js ACT.KEEP，用户定 2026-11-13）
+    // 运转消耗：开着的主动阵每 10 秒合计扣多少灵气（config/zhenfa.js ACT.KEEP，用户定）
     zfKeep(noZq) { const K = (this.zfC().ACT || {}).KEEP; if (!K) return 0; let t = 0; for (const f of this.zfC().ACTIVE || []) if (this.zfAOn(f.id)) t += this.zfAVal(K, this.zfALv(f.id)); return t * (!noZq && this.zqLingK ? this.zqLingK() : 1); },   // 阵旗减消耗
     zfKeepTick() { const k = this.zfKeep(); if (k > 0) this.s.ling = Math.max(0, (this.s.ling || 0) - k); },
     zfARate() { return +((this.zfC().ACT || {}).RATE ?? 3.6) || 0; },   // 每减 1 点伤害扣多少灵气
     zfAUp(id) {
       const f = this.zfAct(id); if (!f) return;
-      const s = this.s, z = this.zfS(), lv = this.zfALv(f.id);
+      const z = this.zfS(), lv = this.zfALv(f.id);
       if (!this.zfAOpen(f.id)) return this.log(`还没有学会${f.name}图纸。`, "sys");
       if (lv >= this.zfMax()) return this.log(`${f.name}已满级。`, "sys");
       if (!this.zfPay(this.zfACost(lv, f.id))) return;   // 布阵（0→1 级）= 1 升 2 消耗 × SET_K
@@ -101,7 +102,7 @@ G.module({
     zfDmg(el, d, noPay) {
       const id = el && el.id || el; if (!id) return 0;
       const A = this.zfC().ACT || {}; let r = 0;
-      const D = (typeof d === "number" && isFinite(d)) ? d : Infinity;   // 没传 d 时按满额减伤（老行为）
+      const D = (typeof d === "number" && isFinite(d)) ? d : Infinity;   // 没传 d 时按满额减伤
       for (const f of this.zfC().ACTIVE || []) {
         if (!this.zfAOn(f.id)) continue; const lv = this.zfALv(f.id);
         if (f.el === id) {
@@ -158,7 +159,7 @@ G.module({
       it.lq = 1; this.lqAdd("forge", { key, k: "zfbp", kind: it.kind, g: it.g, ms: this.zfBpMs(it.g) }); this.closeModal(); this.after();
     },
     // 宗门宝库「图纸」页：属性阵法图纸（只列本宗门星级能兑换的阶）
-    //   未学会的放前面（zfShopHtml），已学会的统一放到所有图纸最后（zfShopDoneHtml）
+    //   未学会的放前面（zfShopHtml），已学会的（done）由 sect.js 并进所有图纸最后的「已学会」卡
     zfShopParts() {
       const x = this.sectInfo() || { star: 1 }, s = this.s;   // 未入宗门时 sectInfo() 为空，默认 1 星防崩（宝库页只对已入宗门开放）
       const act = (this.zfC().ACTIVE || []).length && this.zfBpStar(0) <= x.star ? [{ head: `<h3>主动阵法图纸<small>战斗、度雷劫时生效</small></h3>`, rows: (this.zfC().ACTIVE || []).map(f => {
@@ -179,10 +180,6 @@ G.module({
       return { todo: todo.join(""), done };
     },
     zfShopHtml(p) { return (p || this.zfShopParts()).todo; },   // 未学会的阵法图纸（p 由宝库页一次算好传进来）
-    zfShopDoneHtml() {   // 已学会的阵法图纸：放所有图纸最后
-      const done = this.zfShopParts().done;
-      return done.length ? `<div class="card"><h3>已学会<small>${done.length} 项</small></h3>${U.doneLast(done)}</div>` : "";
-    },
     zfBpLearned(c) { const z = this.zfS(); z.bp = z.bp || {}; z.bp[c.kind + ":" + c.g] = 1; },
     zfBonus() {
       const b = {}, V = this.zfS().v || {};
@@ -191,7 +188,7 @@ G.module({
     },
     zfTUp(k, t) {
       const f = this.zfStat(k); t = Math.floor(+t); if (!f || !(t >= 1 && t <= this.zfTiers())) return;
-      const s = this.s, z = this.zfS(), name = this.zfTName(f, t), lv = this.zfTLv(f.id, t);
+      const z = this.zfS(), name = this.zfTName(f, t), lv = this.zfTLv(f.id, t);
       if (!this.zfTOpen(f.id, t)) return this.log(`还没有学会${name}图纸。`, "sys");
       if (lv >= this.zfMax()) return this.log(`${name}已满级。`, "sys");
       if (!this.zfPay(this.zfTCost(t, lv, f.id))) return;   // 布阵（0→1 级）= 1 升 2 消耗 × SET_K
@@ -231,7 +228,7 @@ G.module({
     // 弹窗：主动阵法
     openZfAct(id) {
       const f = this.zfAct(id); if (!f) return;
-      const A = this.zfC().ACT || {}, s = this.s, lv = this.zfALv(f.id), MX = this.zfMax(), on = this.zfAOn(f.id), full = lv >= MX, c = this.zfACost(lv, f.id), EN = e => (DATA.elById[e] || {}).name || e, keTxt = Array.isArray(f.ke) ? "五行" : EN(f.ke);
+      const lv = this.zfALv(f.id), MX = this.zfMax(), on = this.zfAOn(f.id), full = lv >= MX, c = this.zfACost(lv, f.id), EN = e => (DATA.elById[e] || {}).name || e, keTxt = Array.isArray(f.ke) ? "五行" : EN(f.ke);
       this.modal(`<div class="zf-mhead"><img class="zf-mimg" src="${this.zfImg(f.id)}" alt=""><div><h2>${f.name}</h2><p class="desc">${lv} 级${on ? ` · <span class="c-green">运转中</span>` : ""}</p></div></div>
         ${lv ? `<div class="stats"><div><span>受到${EN(f.el)}属性伤害</span>-${U.fmt(this.zfARed(lv))}</div><div><span>受到${keTxt}属性伤害</span>+${U.fmt(this.zfAAdd(lv))}</div><div><span>每减 1 点伤害消耗灵气</span>${this.zfARate()}</div></div>${full ? "" : this.zfCostHtml(c)}` : this.zfCostHtml(c, "布阵消耗")}
         <div class="btns">${!lv ? `<button class="primary" onclick="G.zfAUp('${f.id}')" ${this.zfCanPay(c) ? "" : "disabled"}>布阵</button>` : `${full ? "" : `<button class="primary" onclick="G.zfAUp('${f.id}')" ${this.zfCanPay(c) ? "" : "disabled"}>升级</button>`}<button onclick="G.zfAToggle('${f.id}')">${on ? "关闭" : "开启"}</button>`}<button onclick="G.closeModal()">关闭</button></div>`);
@@ -250,7 +247,7 @@ G.module({
 
 /* 洞府 · 阵法室：一页，主动、属性阵法每行 3 个；没学会的不显示 */
 G.caveViews.formation = function () {
-  const C = this.zfC(), MX = this.zfMax(), z = this.zfS(), now = this.now(), EN = id => (DATA.elById[id] || {}).name || id, A = C.ACT || {};
+  const C = this.zfC(), z = this.zfS(), now = this.now();
   const cell = (on, img, name, sub, val, cls) => `<div class="zf-cell${cls || ""}" onclick="${on}"><b class="zf-nm">${name}</b><img src="${img}" alt="">${sub}${val}</div>`;
   const act = (C.ACTIVE || []).filter(f => this.zfAOpen(f.id)).map(f => {
     const lv = this.zfALv(f.id), on = this.zfAOn(f.id);

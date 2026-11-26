@@ -3,11 +3,12 @@
  * ---------------------------------------------------------------------
  * 每种灵根可单独升级（消耗灵石 + 同属性灵元），最高 CFG.lingen.MAX 级：
  *   - 每 STEP 级一段，每段的每级效果、消耗单独设置（config/lingen.js：每段每级加成 GONGFA，升级灵石 COST_FIRST → COST_LAST、灵元 LY_FIRST → LY_LAST 等比）
- *   - 灵根只对修炼速度类功法生效：对应属性的秘诀（修为修炼速度）、炼体秘诀（肉身修炼速度）效果 +% = 已升各级的 GONGFA 相加
- *   - 法术、其他功法、法力消耗不吃灵根
+ *   - 修炼速度类功法：对应属性的秘诀（修为修炼速度）、炼体秘诀（肉身修炼速度）效果 +% = 已升各级的 GONGFA 相加
+ *   - 其他功法效果 +%（OTHER_TOTAL）、本系法术伤害 +%（SPELL_TOTAL）：每 PCT_EVERY 级加一次，满级合计 *_TOTAL
+ *   - 每次升级还要元魂果、凝魂芝各若干（HERB_FIRST → HERB_LAST 等比）
  * 页面在洞府里（洞府 → 灵根）。
  * 门派功法、法术的属性 = 门派属性（见 data/sects.js）。
- * 数值在 js/config/ 下的数值文件 的 lingen 部分。
+ * 数值见 config/lingen.js。
  * 存档字段：lingen: { jin: 0, mu: 0, shui: 0, huo: 0, tu: 0, lei: 0 }
  * ===================================================================== */
 G.module({
@@ -16,7 +17,7 @@ G.module({
   defaults: () => ({ lingen: { jin: 0, mu: 0, shui: 0, huo: 0, tu: 0, lei: 0 } }),
 
   api: {
-    // 从 lv 升到 lv+1：灵石 COST_FIRST → COST_LAST、同属性灵元 LY_FIRST → LY_LAST，每次 × 同一倍率
+    // 从 lv 升到 lv+1：灵石 COST_FIRST → COST_LAST（COST_POW 为 0 时每次 × 同一倍率，否则幂曲线）；灵元见 lingenLy
     lingenCost(lv) { const C = CFG.lingen; return C.COST_POW ? DATA.powStep(C.COST_FIRST ?? 1000, C.COST_LAST ?? 300000, lv, C.MAX, +C.COST_POW) : DATA.geoStep(C.COST_FIRST ?? 1000, C.COST_LAST ?? 300000, lv, C.MAX); },
     lingenHerb(lv) { const C = CFG.lingen; return C.HERB_LAST ? DATA.geoStep(C.HERB_FIRST ?? 1, C.HERB_LAST, lv, C.MAX) : 0; },   // 元魂果、凝魂芝各要几个
     lingenStepPct(lv, tot) { const C = CFG.lingen, E = C.PCT_EVERY || 10; return tot ? Math.floor(Math.min(lv, C.MAX) / E) * tot / Math.floor(C.MAX / E) : 0; },   // 每 PCT_EVERY 级加一次，满级 = tot
@@ -25,8 +26,8 @@ G.module({
     lingenLy(el, lv) { const C = CFG.lingen; return DATA.geoStep(C.LY_FIRST ?? 1, C.LY_LAST ?? 1200, lv, C.MAX); },
     // lv 级的总加成 %（只走功法加成表）
     lingenPct(lv) { return DATA.segSum(CFG.lingen, "GONGFA", lv); },
-    // 加成倍率（1 = 无加成）；灵根只对修炼速度类功法生效：stat 为 cultivate（修为修炼速度）或 body（肉身修炼速度）时才吃灵根，其他功法、法术返回 1
-    lingenSpd(stat, el) { return stat === "cultivate" || stat === "body" ? this.lingenGongfa(el) : this.lingenOt(el); },   // 修炼速度类走 GONGFA；其他功法走 OTHER（用户定 2026-11-14）
+    // 功法加成倍率（1 = 无加成）：stat 为 cultivate（修为修炼速度）或 body（肉身修炼速度）走 GONGFA，其他功法走 OTHER_TOTAL
+    lingenSpd(stat, el) { return stat === "cultivate" || stat === "body" ? this.lingenGongfa(el) : this.lingenOt(el); },   // 用户定
     lingenOtPct(lv) { return this.lingenStepPct(lv, CFG.lingen.OTHER_TOTAL); },
     lingenOt(el) { return 1 + this.lingenOtPct((this.s.lingen || {})[el] || 0) / 100; },
     lingenGongfa(el) { return 1 + this.lingenPct((this.s.lingen || {})[el] || 0) / 100; },
@@ -51,7 +52,7 @@ G.module({
   },
 });
 
-/* 洞府 · 灵根 页面（用户定 2026-11-14：列表不放图片，点「升级」弹窗显示所需物品） */
+/* 洞府 · 灵根 页面（用户定：点「升级」弹窗显示所需物品） */
 G.openLingenUp = function (el) {
     const s = this.s, C = CFG.lingen, e = DATA.elById[el], lv = s.lingen[el] || 0;
     if (lv >= C.MAX) return this.closeModal();

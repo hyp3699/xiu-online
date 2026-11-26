@@ -1,7 +1,7 @@
 /* =====================================================================
  * 模块：门派 · 秘法殿 · 宗门秘法
  * ---------------------------------------------------------------------
- * 秘法 1 ~ 10 星，同星级门派共用一套（每星 9 部，见 config/wudao.js、data/gongfa.js 的 mifaKinds）。
+ * 秘法 1 ~ 10 星，同星级门派共用一套（每星 22 部，见 config/wudao.js、data/gongfa.js 的 mifaKinds）。
  * 在本门秘法殿首次学习（灵石 + 贡献），学会即第 1 层，之后在「功法」页修炼升层（修为 + 灵石）。
  * 学会的秘法离开门派也一直有效。
  * 存档：和功法放在一起 gongfa { "w3:mf:expSpeed": 层数 }
@@ -10,7 +10,7 @@ G.module({
   id: "wudao",
 
   api: {
-    // 全部已学秘法的效果合计 { mpBattle, mpIdle, hpBattle, hpIdle, spStudy, gfStudy, expSpeed, bodySpeed, explore }
+    // 全部已学秘法的效果合计 { 每种秘法（DATA.mifaKinds 的 id）: 值, pojunIgn, expSpeedPct, bodySpeedPct, hpBattlePct, mpBattlePct, zhenhunR, jinchanCut }
     mifaBonus() {
       const out = Object.fromEntries(DATA.mifaKinds.map(k => [k.id, 0]));
       for (const id in this.s.gongfa) {
@@ -38,7 +38,7 @@ G.module({
       star = Math.floor(+star || sect.star); if (star < 1 || star > sect.star || !DATA.mifaKindById[kind]) return;
       const id = DATA.mifaId(star, kind), c = DATA.mifaLearnCost(star, kind);
       if (s.gongfa[id]) return;
-      if (!this.lqCan("gf", id)) return;   // v173 学习队列：首次学习要时间（同星级功法 × MIFA_MUL）
+      if (!this.lqCan("gf", id)) return;   // 学习队列：首次学习要时间（同星级功法 × MIFA_MUL）
       if (s.stone < c.stone) return this.log("灵石不足。", "sys");
       if (s.contrib < c.contrib) return this.log("门派贡献不足。", "sys");
       if (!this.lsCheck(id)) return;   // 神识（shenshi.js）
@@ -55,7 +55,6 @@ G.sectWudaoView = function () {
   // N 星宗门显示 1~N 星秘法（高星在前）
   const cards = [];
   for (let st = x.star; st >= 1; st--) {
-    const c = DATA.mifaLearnCost(st);
     cards.push({ head: `<h3>${hall} · ${st}星秘法</h3>`, rows: DATA.mifaKinds.map(K => {
       const id = DATA.mifaId(st, K.id), c = DATA.mifaLearnCost(st, K.id), lv = s.gongfa[id] || 0, g = DATA.mifaInfo(id, Math.max(1, lv));
       const eff = K.id === "explore" ? `圆满后每步 -${U.num2(g.perLv)} 秒` : K.id === "pojun" ? `圆满后 ${fmt(K, g.perLv)}，无视防御 ${U.num(((CFG.wudao.POJUN || {}).IGNORE || [])[st - 1] || 0)}%` : K.full ? `圆满后 ${fmt(K, g.perLv)}` : `每层 ${fmt(K, g.perLv)}`;
