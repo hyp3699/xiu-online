@@ -821,8 +821,8 @@ G.module({
     /* ---------- 强化（config/forge.js 的 forge.enhance）：每条属性分别强化 ---------- */
     canEnhance(e) { return !!(e && e.attrs); },
     // 强化：整件一个等级，没有上限；消耗灵石 + 火髓 + 耀石（法宝用同属性，装备 / 戒指可选一种或自动）
-    // 装备 / 法宝 / 戒指共用 config/forge.js 的 enhance.COST：每强化 UP.N 级，之后每次 灵石 / 火髓 / 耀石 + 固定值
-    enhCost(e, ys) { const E = CFG.forge.enhance.COST || {}, P = E.UP || {}, n = e.enh || 0, k = P.N > 0 ? Math.floor(n / P.N) : 0;
+    // 装备 / 戒指用 config/forge.js 的 enhance.COST，法宝用 enhance.fabao.COST：每强化 UP.N 级，之后每次 灵石 / 火髓 / 耀石 + 固定值
+    enhCost(e, ys) { const E = (e && e.slot === "fabao" && CFG.forge.enhance.fabao.COST) || CFG.forge.enhance.COST || {}, P = E.UP || {}, n = e.enh || 0, k = P.N > 0 ? Math.floor(n / P.N) : 0;
       return { stone: (E.STONE || 0) + k * (P.STONE || 0), fire: ((E.FIRE || [])[e.g] || 1) + k * (P.FIRE || 0), jj: ((E.SPECIAL || [])[e.g] || 0) + k * (P.SPECIAL || 0), sk: "ys", sf: e.slot !== "fabao" && this.ysArg(ys) >= 0 ? this.ysArg(ys) : this.ysFor(e) }; },   // 装备 / 戒指：ys = 玩家选的耀石，不选 = 自动
     enhHave(c) { return (this.s.stone || 0) >= (c.stone || 0) && this.fireCount() >= c.fire && this.smCount(c.sk, c.sf) >= c.jj; },
     enhRate(e) { if (e && e.bm) return 1;   // 本命法宝强化必定成功
