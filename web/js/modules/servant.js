@@ -5,6 +5,7 @@
  *   svPick     选拔中 { end, n 次数 } | 选拔完成待处理 { list: [{ q, el, av, name }] }（旧存档是单个结果）| null
  *   svAuto     自动发放俸禄
  *   svPity     连续未出天品的选拔次数（天品几率保底）
+ *   servants[].fire  准备遣散开始时间（天品道童遣散等 FIRE_DAYS 天才生效，期间可撤销）
  * ===================================================================== */
 G.module({
   id: "servant",
@@ -23,6 +24,8 @@ G.module({
       this.log(`道童选拔结束：选出${list.map(d => this.svName(d)).join("、")}。`, "good"); this.dirty();
     }
     if (s.svAuto) s.servants.forEach(d => { const c = this.svOwed(d) * this.svSalary(d); if (c > 0 && s.stone >= c) { s.stone -= c; d.paid = this.bjDay(); this.dirty(); } });
+    { const fired = s.servants.filter(d => d.fire && this.now() >= this.svFireAt(d));   // 准备遣散到期：正式遣散
+      if (fired.length) { if (fired.some(d => d.job === "lk") && this.lkSettle) this.lkSettle(true); s.servants = s.servants.filter(d => !fired.includes(d)); fired.forEach(d => this.log(`${this.svName(d)}已正式遣散。`, "sys")); this.dirty(); } }
     const gone = s.servants.filter(d => this.svOwed(d) > C.SALARY.LEAVE_DAYS);
     if (gone.length) { if (gone.some(d => d.job === "lk") && this.lkSettle) this.lkSettle(true);   /* 管灵矿的道童走之前先结算，已产出的不丢 */ s.servants = s.servants.filter(d => !gone.includes(d)); gone.forEach(d => this.log(`${this.svName(d)}连续多日未领俸禄，离开了洞府。`, "bad")); this.dirty(); }
   },
@@ -115,11 +118,20 @@ G.module({
       if (d.job === "lk" && this.lkSettle) this.lkSettle(true);   // 管灵矿的：等级改产量，先按旧等级结到现在
       this.takeSm("ly", ly, ft); s.stone -= c; d.lv++; this.after(); this.openSv(i);
     },
+    svFireDelay(d) { return (CFG.servant.FIRE_DELAY_Q || [0]).includes(this.svQ(d)) && (+CFG.servant.FIRE_DAYS || 0) > 0; },
+    svFireAt(d) { return (+d.fire || 0) + (+CFG.servant.FIRE_DAYS || 0) * 86400000; },
     svFire(i) {
+      const d = this.s.servants[i]; if (!d) return;
+      if (this.svFireDelay(d)) {   // 天品：准备遣散，FIRE_DAYS 天后才生效，期间照常干活，可撤销
+        if (d.fire) return;
+        if (!confirm(`遣散这个天品道童？要 ${CFG.servant.FIRE_DAYS} 天后才正式生效，期间可以随时撤销。`)) return;   // 浏览器里的确认框在 core/api.js CONFIRMS.svFire
+        d.fire = this.now(); this.log(`${this.svName(d)}准备遣散，${CFG.servant.FIRE_DAYS} 天后生效。`, "sys"); this.after(); return this.openSv(i);
+      }
       if (!confirm("遣散这个道童？")) return;
-      const d = this.s.servants[i]; if (d && d.job === "lk" && this.lkSettle) this.lkSettle(true);   // 管灵矿的：先结算
+      if (d.job === "lk" && this.lkSettle) this.lkSettle(true);   // 管灵矿的：先结算
       this.s.servants.splice(i, 1); this.closeModal(); this.after();
     },
+    svFireCancel(i) { const d = this.s.servants[i]; if (!d || !d.fire) return; delete d.fire; this.log(`已撤销遣散${this.svName(d)}。`, "good"); this.after(); this.openSv(i); },
     openSv(i) {
       const d = this.s.servants[i]; if (!d) return this.closeModal();
       const C = CFG.servant, max = d.lv >= C.MAX_LV, c = this.svUpCost(d), ly = this.svUpLy(d), lyf = this.svLyFt(d), lyOk = this.smCount("ly", lyf) >= ly, J = C.JOB[d.job], ow = this.svOwed(d), owc = ow * this.svSalary(d), au = this.s.svAuto;
@@ -127,7 +139,8 @@ G.module({
         资质 ${this.svQName(d)} · 五行 ${C.EL[d.el]}<br>等级 ${d.lv} / ${C.MAX_LV}<br>差事：${J && d.job === "lk" ? `${J.name}${DATA.maps[d.lkA] ? " · " + DATA.maps[d.lkA].name : ""} 产量 +${U.num(DATA.lkSvPct(d.lv))}%` : J ? `${J.name} ${this.svEffTxt(d.job, this.svEff(d, d.job), d.job === "zhen" ? this.svFlat(d) : 0, this.svEff(d, d.job, "YIELD_"))}` : "空闲"}<br>每日俸禄 ${U.fmt(this.svSalary(d))} 灵石${ow ? `<br><span class="q5">欠发 ${ow} 天</span>` : ""}</div></div>
         <div class="btns"><button class="${au ? "on" : ""}" onclick="G.svAutoToggle(${i})">自动发放俸禄：${au ? "开" : "关"}</button><button onclick="G.svPay(${i})" ${owc && this.s.stone >= owc ? "" : "disabled"}>发放俸禄${owc ? `（${U.fmt(owc)} 灵石）` : ""}</button></div>
         <div class="btns"><button class="primary" onclick="G.svUp(${i})" ${max || this.s.stone < c || !lyOk ? "disabled" : ""}>${max ? "已满级" : `升级（${U.fmt(c)} 灵石、${DATA.smName("ly", lyf)} ${U.fmt(ly)}）`}</button>
-        <button onclick="G.svFire(${i})">遣散</button><button onclick="G.closeModal()">关闭</button></div>
+        ${d.fire ? `<button onclick="G.svFireCancel(${i})">撤销遣散</button>` : `<button onclick="G.svFire(${i})">遣散</button>`}<button onclick="G.closeModal()">关闭</button></div>
+        ${d.fire ? `<p class="desc c-red">准备遣散，${U.dur(Math.max(0, (this.svFireAt(d) - this.now()) / 1000))} 后正式生效。</p>` : ""}
         ${max ? "" : `<p class="desc">${DATA.li(DATA.smIcon("ly", lyf))}${DATA.smName("ly", lyf)}：有 ${U.fmt(this.smCount("ly", lyf))} 个${lyOk ? "" : `，<span class="q5">不足</span>`}</p>`}`);
     },
     // 差事：点开后选道童，每种五行一个位置
@@ -166,7 +179,7 @@ G.module({
 G.caveViews.servant = function () {
   const s = this.s, C = CFG.servant, p = s.svPick, n = s.servants.length;
   const rows = s.servants.map((d, i) => { const o = this.svOwed(d);
-    return `<div class="sv-row"><img src="${this.svImg(d)}" alt=""><div class="sv-nm">${this.svName(d)}<small>${d.job ? C.JOB[d.job].name : "空闲"}${o ? ` · <span class="q5">欠俸 ${o} 天</span>` : ""}</small></div><b class="sv-el sv-${d.el}">${C.EL[d.el]}</b><span>资质${this.svQName(d)}</span><span>等级${d.lv}级</span><button class="sm" onclick="G.openSv(${i})">管理</button></div>`; }).join("");
+    return `<div class="sv-row"><img src="${this.svImg(d)}" alt=""><div class="sv-nm">${this.svName(d)}<small>${d.job ? C.JOB[d.job].name : "空闲"}${o ? ` · <span class="q5">欠俸 ${o} 天</span>` : ""}</small></div><i class="sv-fire">${d.fire ? "准备遣散" : ""}</i><b class="sv-el sv-${d.el}">${C.EL[d.el]}</b><span>资质${this.svQName(d)}</span><span>等级${d.lv}级</span><button class="sm" onclick="G.openSv(${i})">管理</button></div>`; }).join("");
   const pickBtn = !p ? `<button class="primary" onclick="G.openSvPickN()" ${s.stone < C.PICK_COST || this.svFull() ? "disabled" : ""}>选拔道童<small>${this.svFull() ? "道童已满" : U.fmt(C.PICK_COST) + " 灵石 · 天品 " + U.num(this.svPickW()[0]) + "%"}</small></button>`
     : p.end ? `<button disabled>选拔道童${p.n > 1 ? ` ×${p.n}` : ""}<small>${U.cd(Math.max(0, (p.end - this.now()) / 1000))}</small></button>`
     : `<button class="primary" onclick="G.openSvPick()">选拔道童<small>已选出 ${this.svPickList(p).length} 个</small></button>`;
