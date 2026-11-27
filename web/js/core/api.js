@@ -544,7 +544,9 @@ const API = {
     if (name === "startTrib") { G.tribOpen = true; if (G.tribRender) G.tribRender(true); }
     if (name === "startChuqiao") { G.closeModal(); G.exploreOpen = true; G.render(); }
     if (["autoTaskSet", "atPickSet"].includes(name) && G.openCultSet) G.openCultSet();
-    if (["learnBook", "learnGfBook", "learnBlueprint", "learnRingBp", "installFurnace", "equipItem", "unequip", "sellItem", "slotSpell", "swapFabao", "unslotSpell", "useStone", "useFurnace", "eatDan", "eatWuzhen", "eatQl", "eatYsDan", "eatLg", "eatYb", "useCxp", "learnXd", "learnDanScroll", "plantField", "clearField", "svAccept"].includes(name) && G.closeModal) G.closeModal();
+    if (["learnBook", "learnGfBook", "learnBlueprint", "learnRingBp", "installFurnace", "equipItem", "unequip", "sellItem", "slotSpell", "swapFabao", "unslotSpell", "useStone", "useFurnace", "eatDan", "eatWuzhen", "eatQl", "eatYsDan", "eatLg", "eatYb", "useCxp", "learnXd", "learnDanScroll", "plantField", "clearField"].includes(name) && G.closeModal) G.closeModal();
+    // 选拔结果收下 / 遣散一个后不关窗：还有剩下的就重开选拔结果，全处理完才关（用户定 2026-11-27）
+    if (name === "svAccept" && G.openSvPick) { if (G.svPickList(G.s.svPick).length) G.openSvPick(); else if (G.closeModal) G.closeModal(); }
     // spellAdv 会删掉弹窗里的低星法术：不关弹窗的话 refreshOpenModal 会重开
     // 已删除法术的进阶弹窗，显示「修炼到 10 层才能进阶」。
     if (name === "craftFurnace" && args[2] === "fabao" && G.closeModal) G.closeModal();

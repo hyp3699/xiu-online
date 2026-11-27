@@ -138,7 +138,7 @@ button.sm.active{background:#5a4220;border-color:#c9a45c;color:#f3d48b}   /* 功
 .bar.fc-pop>div{background:#3fae5a}
 .slot-eq.field-cell img.si{width:56%;height:auto;max-height:56%;object-fit:contain}
 .sv-row{display:grid;grid-template-columns:44px 1fr auto auto auto auto auto;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #2e261f}
-.sv-row .sv-fire{font-style:normal;color:#d0342c;font-size:12px;font-weight:bold;white-space:nowrap;transform:rotate(18deg);display:inline-block}
+.sv-row .sv-fire{font-style:normal;color:#d0342c;font-size:12px;font-weight:bold;white-space:nowrap;transform:rotate(-18deg);display:inline-block}
 .sv-row img{width:44px;height:44px;border-radius:50%;background:radial-gradient(circle,var(--c-line),#1a1511);border:1px solid var(--c-edge);object-fit:cover}
 .sv-row>span{text-align:center;font-size:13px}
 .sv-nm small{display:block;color:var(--t-sub);font-size:11px}
