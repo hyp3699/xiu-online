@@ -724,9 +724,10 @@ G.module({
       const [e0, e1] = this.xdEnds(k, src); return Math.round(N > 1 ? e0 + (e1 - e0) * r / (N - 1) : e0);
     },
     xdPrice(k, src, id, v) {
-      if (k === "jl") return this.xdJl().PRICE;
+      const sm = src === "js" && (DATA.maps[+id] || {}).w === "shen" ? (+(CFG.xinde || {}).SHEN_JS_MULT || 1) : 1;   // 神界神市 × SHEN_JS_MULT
+      if (k === "jl") return this.xdJl().PRICE * sm;
       const P = (CFG.xinde || {}).PRICE || [100000, 3000000], hi = Math.max(this.xdEnds(k, "ys")[1], this.xdEnds(k, "js")[1]);
-      return Math.round(P[1] * this.xdExp(k, src, id, v) / hi / 1000) * 1000;
+      return Math.round(P[1] * this.xdExp(k, src, id, v) / hi / 1000) * 1000 * sm;
     },
     xdName(k, src, id, v) {
       const pre = src === "js" ? ((DATA.maps[+id] || {}).name || "") : ((this.ysById(id) || {}).name || "");
