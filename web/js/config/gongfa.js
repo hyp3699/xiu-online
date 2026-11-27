@@ -75,7 +75,7 @@ CFG.gongfa = {
 CFG.gongfa.sect = {
   TYPE_MULT: { xinfa: 1, gongjue: 1, zhenjing: 1, mijue: 1, shenfa: 1, dunshu: 1, fajue: 1, zhenjue: 1, spell: 1, tijue: 1 },   // 类别效果倍率
   // 1~10 星宗门功法（含各阶段多出来的书）全学满后每项属性合计（不算灵根）；res 按所有真经合计
-  TOTAL: { def: 2696700, atk: 3167200, hp: 10329000, mana: 2624000, speed: 954100, dodge: 1152900, res: 2282200, hit: 1390200,
+  TOTAL: { def: 2696700, atk: 3167200, hp: 10329000, mana: 2624000, speed: 954100, dodge: 1152900, res: 2482200, hit: 1390200,
     cultivate: 5086300,   // 秘诀 → 修炼速度
     body: 5095800 },      // 炼体秘诀 → 肉身修炼速度
   RAND: 0.05,        // 每本效果随机幅度（±5%，按书固定）
