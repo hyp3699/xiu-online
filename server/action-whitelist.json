@@ -152,6 +152,7 @@
   "svAccept",
   "svAutoToggle",
   "svFire",
+  "svFireCancel",
   "svPay",
   "svSetJob",
   "svStartPick",
