@@ -142,7 +142,7 @@ G.module({
       const e = { id: DATA.newUid(), it, at: this.now() }; if (src) e.src = String(src); list.push(e);
       // 上限 MAILBOX_MAX 件，超出丢最早的：不封顶的话存档超过 4MB 后服务器拒绝保存，账号进不去
       const MAX = this.MAILBOX_MAX; if (list.length > MAX) { const k = list.length - MAX; list.splice(0, k); if (!this.silent) this.log(`传音已满（最多 ${MAX} 件），最早的 ${k} 件已清除。`, "bad"); }
-      if (!quiet && !this.silent) this.log(`背包已满，已暂存到传音，领取到背包后才能使用。`, "bad");
+      if (!quiet && !this.silent) this.log(`背包已满，已暂存到传音。`, "bad");
       return true;
     },
     // 单件物品：能进背包就进背包，否则进传音；返回 "bag" / "mail"
@@ -166,7 +166,7 @@ G.module({
         if (noMail) {   // 领取时专用：前面已做原子预检，理论上走不到这里；走到这里也一分不动，不算成功
           return false;
         }
-        while (n > 0) { const k = Math.min(n, max); this.mailboxAdd(make(k), true); n -= k; } if (!this.silent) this.log(`背包已满，剩余物品已暂存到传音，领取到背包后才能使用。`, "bad");
+        while (n > 0) { const k = Math.min(n, max); this.mailboxAdd(make(k), true); n -= k; } if (!this.silent) this.log(`背包已满，剩余物品已暂存到传音。`, "bad");
       }
       return true;
     },
@@ -251,7 +251,7 @@ G.module({
       const list = this.mailboxList().filter(x => x && this.now() < this.mailboxDue(x)), now = this.now();
       const rows = list.map(x => {
         const left = Math.max(0, this.mailboxDue(x) - now), days = Math.floor(left / 86400000), hours = Math.floor(left % 86400000 / 3600000);
-        return `<div class="line"><div>${DATA.li(this.itemIcon(x.it))}${this.itemName(x.it)}${x.it.n > 1 ? ` ×${U.fmt(x.it.n)}` : ""}<small>　${x.src ? x.src + " · " : ""}${this.MAILBOX_DAYS > 0 ? `剩余 ${days} 天 ${hours} 小时` : "领取到背包后才能使用"}</small></div><button class="sm primary" onclick="G.mailboxClaim('${x.id}')">领取</button></div>`;
+        return `<div class="line"><div>${DATA.li(this.itemIcon(x.it))}${this.itemName(x.it)}${x.it.n > 1 ? ` ×${U.fmt(x.it.n)}` : ""}<small>　${[x.src, this.MAILBOX_DAYS > 0 ? `剩余 ${days} 天 ${hours} 小时` : ""].filter(Boolean).join(" · ")}</small></div><button class="sm primary" onclick="G.mailboxClaim('${x.id}')">领取</button></div>`;
       }).join("");
       this.modal(`<h2>传音</h2>
         ${rows}
