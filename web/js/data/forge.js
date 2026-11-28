@@ -44,9 +44,17 @@ DATA.refineSm = e => { if (!e || e.slot !== "fabao") return []; const n = (((_FG
 // 精炼材料：炼制对应档星级时的三种矿石（数量相同）
 DATA.refineMats = e => e.slot === "ring" ? DATA.ringMats(DATA.rjMatG(e)) : DATA.forgeEqMats(DATA.rjMatG(e));
 DATA.forgeEqTime = g => _FG.equip.time[g] * 60000;
-DATA.stoneName = g => DATA.JIE[g] + DATA.SS;
-DATA.stoneMats = g => DATA.parseMats(_FG.stone.mats[g]);
-DATA.stoneTime = g => _FG.stone.time[g] * 60000;
+// 空间石三品：g 0~11 凡品，100 + i 仙品，200 + i 神品（config/forge.js stone）
+DATA.SS_Q = ["", "仙品", "神品"];
+DATA.ssQ = g => Math.floor((+g || 0) / 100);
+DATA.ssI = g => (+g || 0) % 100;
+DATA.ssOK = g => { g = +g; if (!Number.isInteger(g) || g < 0) return false; const q = DATA.ssQ(g), i = DATA.ssI(g); return q === 0 ? i < _FG.stone.mats.length : q <= 2 && i < ((q === 1 ? _FG.stone.xianMats : _FG.stone.shenMats) || []).length; };
+DATA.stoneName = g => DATA.JIE[DATA.ssI(g)] + DATA.SS_Q[DATA.ssQ(g)] + DATA.SS;
+DATA.stoneMats = g => { const q = DATA.ssQ(g), i = DATA.ssI(g); return DATA.parseMats((q === 1 ? _FG.stone.xianMats : q === 2 ? _FG.stone.shenMats : _FG.stone.mats)[i]); };
+DATA.stoneTime = g => _FG.stone.time[DATA.ssI(g)] * 60000;
+DATA.stoneSm = g => (_FG.stone.special || [])[DATA.ssI(g)] || 0;
+// 宗门炼器室学炼法要几星：凡品 1~10 阶每星两阶（1 星起），仙品每星两阶（XIAN_STAR 星起）；其它（凡品 11、12 阶、神品）不在宗门学 → 0
+DATA.ssStar = g => { const q = DATA.ssQ(g), i = DATA.ssI(g); if (!DATA.ssOK(g) || i >= 10) return 0; return q === 0 ? Math.floor(i / 2) + 1 : q === 1 ? (_FG.stone.XIAN_STAR || 5) + Math.floor(i / 2) : 0; };
 
 // 法宝：7 种形状（config/forge.js 的 fabao.types：剑 刀 锤 环 盾 鼎 印），属性炼制时自己选，显示如 一阶·火·剑
 //   法宝在存档里：ft = 形状序号、el = 属性

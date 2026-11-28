@@ -327,7 +327,7 @@ G.module({
         }
         return v;
       }
-      if (it.t === "ss") return this.matsValue(DATA.stoneMats(it.g)) + this.smVal("kj", (F.stone.special || [])[it.g] || 0);
+      if (it.t === "ss") return this.matsValue(DATA.stoneMats(it.g)) + this.smVal("kj", DATA.stoneSm(it.g));
       if (it.t === "fu") return this.matsValue(DATA.furnaceMats(it.kind, it.g));
       if (it.t === "dan") return DATA.recipes[it.type] ? this.matsValue(DATA.danRecipe(it.type, it.g)) : -1;
       if (it.t === "pill") { const g = it.g - DATA.pillGrade(it.type, 0); return DATA.isSpeedRecipe(it.type) && g >= 0 && (DATA.recipes[it.type].herbs || [])[g] ? this.matsValue(DATA.danRecipe(it.type, g)) : -1; }
@@ -1169,7 +1169,7 @@ G.module({
       else if (it.t === "dfb") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})">${DATA.danImg(DATA.danIcon(it.type), DATA.danCls(it.type, it.g), "mi")}${DATA.danName(it.type, it.g)}丹方</div>`;
       else if (it.t === "zfbp") cells += `<div class="cell q${Math.min(5, Math.floor(Math.max(0, it.g - 1) / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("bp")}" alt="">${this.zfBpName(it.kind, it.g).replace("图纸", "")}</div>`;
       else if (it.t === "rbp") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("bp")}" alt="">${DATA.ringNames[it.r] || "戒指"}图纸${it.n > 1 ? `<span class="n">${it.n}</span>` : ""}</div>`;
- else if (it.t === "ss") cells += `<div class="cell q${Math.min(5, Math.floor(it.g / 2))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("ss")}" alt="">${DATA.stoneName(it.g)}<span class="n">${it.n}</span></div>`;
+ else if (it.t === "ss") cells += `<div class="cell q${Math.min(5, Math.floor(DATA.ssI(it.g) / 2) + DATA.ssQ(it.g))}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("ss")}" alt="">${DATA.stoneName(it.g)}<span class="n">${it.n}</span></div>`;
       else if (it.t === "bmbp") cells += `<div class="cell q4" onclick="G.openItem(${i})"><img class="mi" src="${DATA.iconImg("bp")}" alt="">${this.bmCfg().MIFA}</div>`;
       else if (it.t === "cu") { const d = this.cuDef(it.name); cells += `<div class="cell q${d ? d.q || 0 : 0}" onclick="G.openItem(${i})"><img class="mi" src="${DATA.cuIcon(d)}" alt="">${it.name}<span class="n">${U.fmt(it.n)}</span></div>`; }
       else { const src = DATA.eqIcon(it.e); cells += `<div class="cell q${it.e.q}${DATA.eqCls(it.e)}" onclick="G.openItem(${i})">${src ? DATA.fbArt(it.e, src, "mi") : ""}${it.e.name}${it.e.enh ? `<span class="n">+${it.e.enh}</span>` : ""}${src ? "" : `<span class="g">${DATA.slots[it.e.slot]}</span>`}</div>`; }

@@ -249,9 +249,23 @@ G.module({
       this.modal(`<div class="sjrgw"><img src="img/map/sjrg_${RG[r]}.webp?v=1" alt=""><div class="sjz sjz0${go ? "" : " off"}" ${go ? `onclick="G.closeModal();G.openGrid(${a},${r})"` : ""}><div class="sjyu"><b>${this.sjJieName(a)} · ${d}</b><small>${ok ? "已通过历练" : "未历练"}${q ? " · 出窍中" : ""}</small><div class="btns">${btns}</div></div></div>${jie}</div><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
     },
     // 愿力祠兑换：悟道果、小世界令牌（config/shenjie.js YL_SHOP）
+    // 神品空间石炼法：第 n 重天愿力祠卖 n 阶（g = 200 + n − 1），愿力同该重天愿力祠功法（config/gongfa.js gd.SHEN_YL），兑换后直接进炼器学习队列（用户定 2026-11-28）
+    ssShenOf(a) { const M = DATA.worldMapIdx.shen || [], i = M.indexOf(+a); if (i < 0 || i >= 10) return null; const Y = (CFG.gongfa.gd || {}).SHEN_YL || [150000, 1500000];
+      return { g: 200 + i, cost: Math.round(Y[0] + (Y[1] - Y[0]) * (M.length > 1 ? i / (M.length - 1) : 0)) }; },
+    ssShenRow(a) {
+      const o = this.ssShenOf(a); if (!o) return ""; const s = this.s, key = this.forgeKey("ss", o.g), has = s.forgeKnown.includes(key), L = this.forgeLearnOf("ss", o.g);
+      return `<div class="line"><div>${DATA.li(DATA.iconImg("ss"))}${DATA.stoneName(o.g)}炼法<small>使用一个储物格 +1，每阶最多 ${CFG.forge.stone.MAX_USE} 个；神界矿石 + 空间晶核 · ${U.fmt(o.cost)} 愿力 · 学习 ${U.dur(L.min * 60)}</small></div>${has ? `<span class="q5">已学会</span>` : this.lqBtn("forge", key, `G.buySsShen(${+a})`, (s.yuanli || 0) < o.cost)}</div>`;
+    },
+    buySsShen(a) {
+      const s = this.s, o = this.ssShenOf(a); if (!o) return; const key = this.forgeKey("ss", o.g);
+      if (s.forgeKnown.includes(key) || !this.lqCan("forge", key)) return;
+      if ((s.yuanli || 0) < o.cost) return this.log("愿力不足。", "sys");
+      s.yuanli -= o.cost; this.lqAdd("forge", { key, k: "forge", ms: this.forgeLearnOf("ss", o.g).min * 60000 });
+      this.log(`愿力 −${U.fmt(o.cost)}，开始学习${DATA.stoneName(o.g)}炼法。`, "good"); this.after();
+    },
     sjShopCard(a) {
       const P = this.sjC().YL_SHOP || {};
-      return `<div class="card"><h3>愿力兑换<small>愿力 ${U.fmt(this.s.yuanli)}</small></h3>${Object.keys(P).map(k => `<div class="line"><div>${DATA.li(DATA.smIcon(k))}${DATA.smName(k)}<small>${U.fmt(P[k])} 愿力/个 · 已有 ${U.fmt(this.smCount(k))}</small></div><button class="sm" onclick="G.openSjBuy('${k}')" ${this.s.yuanli < P[k] ? "disabled" : ""}>兑换</button></div>`).join("")}</div>`;
+      return `<div class="card"><h3>愿力兑换<small>愿力 ${U.fmt(this.s.yuanli)}</small></h3>${Object.keys(P).map(k => `<div class="line"><div>${DATA.li(DATA.smIcon(k))}${DATA.smName(k)}<small>${U.fmt(P[k])} 愿力/个 · 已有 ${U.fmt(this.smCount(k))}</small></div><button class="sm" onclick="G.openSjBuy('${k}')" ${this.s.yuanli < P[k] ? "disabled" : ""}>兑换</button></div>`).join("")}${this.ssShenRow(a)}</div>`;
     },
     openSjBuy(k) {
       const c = (this.sjC().YL_SHOP || {})[k]; if (!c) return;
