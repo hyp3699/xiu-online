@@ -107,6 +107,7 @@ DATA.landCurve = (lv, a, b, s1, MAX) => { const n = MAX - 1; if (n <= 0) return 
   return Math.round((a + k * s1 + d * k * (k - 1) / 2) * 100) / 100; };
 // 土地产量 +%：自己一条曲线 YIELD_LV1 → YIELD_MAX，1→2 级 +YIELD_STEP1（用户定）
 DATA.landYieldPct = lv => { const L = DATA.LAND(); lv = Math.max(0, Math.min(L.MAX, Math.floor(+lv || 0))); if (!lv || !L.YIELD_MAX) return 0;
+  if (L.YIELD_PER != null) return Math.min(+L.YIELD_MAX, lv * +L.YIELD_PER);   // 每级固定 %（用户定 2026-11-28）
   return DATA.landCurve(lv, +(L.YIELD_LV1 ?? 0.5), +L.YIELD_MAX, L.YIELD_STEP1 ?? 0.5, L.MAX); };
 DATA.landPct = lv => { const L = DATA.LAND(); lv = Math.max(0, Math.min(L.MAX, Math.floor(+lv || 0))); if (!lv) return 0;
   if (L.PCT_MAX != null) return DATA.landCurve(lv, +L.PCT_LV1 || 0, +L.PCT_MAX || 0, L.PCT_STEP1, L.MAX);   // 高级加得多（用户定）
