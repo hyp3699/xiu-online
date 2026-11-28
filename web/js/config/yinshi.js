@@ -149,12 +149,12 @@ CFG.yinshi = {
     FAV_REQ: 0, FAV_COST: 5, DAILY: 1, TIME: 100, MONSTERS: 12, ELITES: 5, BOSS: 1, HERB: 0, ORE: 0,
     FRAG_N: [30, 60], CXP_N: { dan: [10, 20], qi: [10, 20], ling: [10, 30] }, CXP_VAL: 10, HERB_N: [50, 100], ORE_N: [50, 100], STONE: [10000, 30000],   // CXP_N 每次掉落个数 [最少, 最多]：dan 炼丹 / qi 炼器 / ling 灵药培育；CXP_VAL 每个加几点经验
   },
-  // 炼丹房：用本宗好感度兑换丹方（每张 RECIPE_FAV 好感度，用户定 2026-11-28 = 原丹药 120 × 10），放背包学习，学会后在炼丹炉炼制
+  // 炼丹房：用本宗好感度兑换丹方（每张 RECIPE_FAV 好感度，用户定 2026-11-28 = 原丹药 120 × 10），兑换后直接进炼丹学习队列（不进背包），学习 LEARN_MIN 分钟，学会后在炼丹炉炼制
   //   丹名 = 宗门名 + 下面的丹名；药材、每颗效果、服用上限、炼制时间照本界同阶丹（data/craft.js 生成，丹方 id ys_宗门id_k）：
   //   凡界、仙界宗门用仙丹（仙界药材），冥界用冥丹，魔界用魔丹，神界用神丹；阶 = 宗门所在地图序号（凡界宗门按一阶）；每个宗门的丹单独算服用上限
   //   以前兑换的成品丹（背包 ysd）照样能吃：每颗 +VAL，每宗每种最多 MAX 颗
   //   k：hp 生命 atk 攻击 def 防御 mana 法力 hit 命中 dodge 闪避 speed 速度 res_属性 该系抗性
-  DAN: { RECIPE_FAV: 1200, FAV: 120, VAL: 100, MAX: 100, CAT: { fan: 1, xian: 1, ming: 2, mo: 3, shen: 4 }, LIST: [
+  DAN: { RECIPE_FAV: 1200, LEARN_MIN: 60, FAV: 120, VAL: 100, MAX: 100, CAT: { fan: 1, xian: 1, ming: 2, mo: 3, shen: 4 }, LIST: [
     { k: "hp", name: "玄元丹" }, { k: "atk", name: "破军丹" }, { k: "def", name: "金刚丹" }, { k: "mana", name: "蕴灵丹" },
     { k: "hit", name: "鹰瞳丹" }, { k: "dodge", name: "幻影丹" }, { k: "speed", name: "疾风丹" },
     { k: "res_jin", name: "庚金护心丹" }, { k: "res_mu", name: "乙木护心丹" }, { k: "res_shui", name: "癸水护心丹" },
