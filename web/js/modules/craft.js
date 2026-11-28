@@ -692,7 +692,7 @@ G.module({
     buyYsBp(ysId, kind, g, sub) {
       g = +g; if (kind === "ring") sub = +sub;
       if (!this.ysById(ysId) || !this.ysFound(ysId) || !this.ysBpTiers(ysId).includes(g)) return;   // 和 ysTask / ysGf / ysDan 一样先查宗门已发现
-      if (kind === "eq" && !DATA.forgeSlots.includes(sub)) return; if (kind === "ring" && !DATA.ringOK(sub)) return; if (!["eq", "ss", "ring", "fu"].includes(kind)) return;
+      if (kind === "eq" && !DATA.forgeSlots.includes(sub)) return; if (kind === "ring" && !DATA.ringOK(sub)) return; if (!["eq", "ring", "fu"].includes(kind)) return;   // 空间石 11、12 阶已去掉（2026-11-28）
       const st = this.ysBpState(kind, g, sub); if (st) return this.log(st === 1 ? "已学会。" : "已在背包或学习中。", "sys");
       const c = this.ysBpCost(g, ysId); if (this.ysFav(ysId) < c) return this.log(`好感度不足，需要 ${U.fmt(c)}。`, "sys");
       if (kind === "eq" || kind === "ss") {
@@ -715,7 +715,6 @@ G.module({
         const rows = [
           ...DATA.forgeSlots.map(sl => row(DATA.eqTierIco(DATA.iconImg(sl === "fabao" ? "fbs0_0" : "eq_" + sl), g), DATA.forgeEqName(sl, g) + "图谱", DATA.slots[sl], "eq", sl)),
           ...DATA.ringList().map(r => row(DATA.eqTierIco(DATA.eqIcon({ slot: "ring", r, g }), g, true), DATA.ringBpName(g, r), "戒指", "ring", r)),
-          row(DATA.li(DATA.iconImg("ss")), DATA.stoneName(g) + "炼法", DATA.SS, "ss"),
           row(DATA.li(DATA.furnaceIcon("qi")), DATA.furnaceName("qi", g) + "图纸", "炉子", "fu"),
         ].join("");
         return `<div class="card"><h3>${DATA.XING[g]}图谱 · 图纸<small>图谱兑换后直接学习</small></h3>${rows}</div>`;
@@ -996,7 +995,7 @@ Object.assign(G, {
     // d：「开始炼器」选择窗口用的结构化信息（名、图、材料、时间、成功率、数量上限、开炼调用）
     const add = (key, info, ok, call, btn, d) => out.push(Object.assign({ key, info, ok: has && !full && ok, call, btn: btn || "炼制" }, d || {}));
     // 空间石（凡品 g，仙品 100 + i，神品 200 + i）
-    const ssRow = g => { if (!s.forgeKnown.includes(this.forgeKey("ss", g))) return; const t = DATA.ssI(g), rate = this.ratePct(this.forgeRate("ss", g)), M = CFG.forge.stone.MAX_USE;
+    const ssRow = g => { if (!DATA.ssOK(g) || !s.forgeKnown.includes(this.forgeKey("ss", g))) return; const t = DATA.ssI(g), rate = this.ratePct(this.forgeRate("ss", g)), M = CFG.forge.stone.MAX_USE;
         const mats = DATA.stoneMats(g), sm = this.jobSm({ kind: "ss", g });
         add(`ss:${g}`, `<div>${DATA.li(DATA.iconImg("ss"))}${DATA.stoneName(g)}<span class="tag">储物格+1</span>
           <small>${this.matsText(mats)}${sm.length ? "、" + this.smText(sm) : ""} · ${U.dur(this.forgePer("ss", g) / 1000)} · 成功率 ${rate} · 已用 ${M - this.stoneLeft(g)}/${M}</small></div>`,
