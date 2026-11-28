@@ -43,10 +43,11 @@ CFG.yinshi = {
     FRAG: [10, 20, 30], FRAG_FAV: [10, 10, 10] },
   // 功法阁：每个宗门 16 本（GF_KEYS：攻击 防御 生命 命中 法力 闪避 + 六种抗性真经 + 2 本修为速度秘诀 + 2 本炼体秘诀）各一本，兑换一次后不能再换；效果 = 同星级宗门功法 × GF_PCT%；功诀、心法、秘诀、炼体秘诀占灵识点（同宗门功法，config/shenshi.js），其余不占
   GF_PCT: 100,   // 用户定 2026-11-28：和宗门功法一样（原 195）
-  GF_COST: 500,   // 5 星每本需要好感度（兑换扣除）
-  GF_COST_STEP: 100,   // 每高 1 星多要好感度（6 星 600 …… 12 星 1200）
+  GF_COST: 1000,   // 5 星每本需要好感度（兑换扣除）；用户定 2026-11-28 翻倍（原 500）
+  GF_COST_STEP: 200,   // 每高 1 星多要好感度（6 星 1200 …… 12 星 2400）；原 100
   GF_KEYS: ["gongjue", "xinfa", "zhenjing", "shenfa", "fajue", "dunshu", "jin", "mu", "shui", "huo", "tu", "lei", "mijue", "mijue2", "tijue", "tijue2"],   // 后 4 本：修为速度秘诀 2 本、炼体秘诀 2 本
-  GF_SUFFIX: { gongjue: "镇岳诀", xinfa: "不动心经", zhenjing: "万寿宝典", shenfa: "踏虚步", fajue: "归元法典", dunshu: "化虹遁法",
+  // 功法名（用户定 2026-11-28）：宗门名 + 统一后缀（诀 心法 真诀 身法 法诀 遁术 秘诀 炼体诀；真经 = 宗门名 + 属性 + 真经；秘诀、炼体诀两本加「·第一卷 / 第二卷」）；GF_SUFFIX 不再使用
+  GF_SUFFIX_OLD: { gongjue: "镇岳诀", xinfa: "不动心经", zhenjing: "万寿宝典", shenfa: "踏虚步", fajue: "归元法典", dunshu: "化虹遁法",
     jin: "太白金经", mu: "青帝木经", shui: "玄冥水经", huo: "南明火经", tu: "厚土宝经", lei: "九霄雷经",
     mijue: "聚元秘诀", mijue2: "归墟秘诀", tijue: "金刚炼体诀", tijue2: "不灭炼体诀" },
   HALL_FAV: 1000,   // 进入宗门大殿需要好感度达到（不消耗）
