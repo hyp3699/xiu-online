@@ -41,6 +41,7 @@ G.module({
     freeGf: { day: "", used: 0, end: 0 },   // 免费练功房：今天用了几次、本次结束时间
     pool: null,       // 炼体池：{ i 池子, end 结束时间, gain 泡完加的属性, day, used }
     poolGain: {},     // 炼体池累计加的肉身属性
+    poolLog: [],      // 炼体池最近 15 次效果：{ t 完成时间, i 池子, gain }
     cqZj: [],         // 已学会的出窍真诀卷号（1~3），每卷地图每步 −CFG.cqzj.SEC 秒
     ngLearn: 0,       // 1 = 已学会太上内观经（才能打开经脉）
     ngL: null,        // 正在学习太上内观经 { end 学会时间 }
@@ -373,6 +374,7 @@ G.module({
       if (!s.poolGain) s.poolGain = {};
       const names = { hp: "生命", atk: "攻击", def: "防御", mana: "法力", hit: "命中", dodge: "闪避", crit: "暴击%", res: "抗性" }, txt = [];
       for (const k in p.gain || {}) { s.poolGain[k] = (s.poolGain[k] || 0) + p.gain[k]; txt.push(`${names[k] || k} +${U.fmt(p.gain[k])}`); }
+      (s.poolLog = Array.isArray(s.poolLog) ? s.poolLog : []).unshift({ t: p.end, i: p.i, gain: { ...(p.gain || {}) } }); if (s.poolLog.length > 15) s.poolLog.length = 15;
       p.end = 0; this.dirty();
       this.log(`${(CFG.sect.pool.list[p.i] || {}).name || CFG.sect.pool.name}修炼完毕，肉身 ${txt.join("、")}。`, "gold");
     },
@@ -1076,6 +1078,11 @@ G.module({
         return `<div class="line"><div>${d.name}${d.rank ? `<span class="tag">${DATA.ranks[d.rank].name}专用</span>` : ""}<small>${me ? `剩余 ${U.cd(Math.ceil((p.end - this.now()) / 1000) + 59)} · ` : ""}${gtx} · 消耗${c.contrib ? `贡献 ${U.fmt(c.contrib)} ` : ""}气血 ${U.fmt(c.hp)}</small></div>
           <button class="sm ${me ? "on" : ""}" onclick="G.enterPool(${i})" ${on || done || lock ? "disabled" : ""}>${me ? "修炼中" : lock ? "职务不足" : done ? "今日已用" : "进入"}</button></div>`;
       }).join("") + `</div>`;
+      {   // 最近 15 次炼体池效果
+        const L = Array.isArray(s.poolLog) ? s.poolLog : [], z = n => String(n).padStart(2, "0"), tm = t => { const d = new Date(t); return `${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`; };
+        const nm = { hp: "生命", atk: "攻击", def: "防御", mana: "法力", hit: "命中", dodge: "闪避", crit: "暴击%", res: "抗性" };
+        h += `<div class="card"><h3>最近效果<small>最近 15 次</small></h3>` + (L.length ? L.map(x => `<div class="line"><div>${(P.list[x.i] || {}).name || P.name}<small>${tm(x.t)} · ${Object.keys(x.gain || {}).map(k => `${nm[k] || k} +${U.fmt(x.gain[k])}`).join("、")}</small></div></div>`).join("") : `<p class="desc">还没有记录。</p>`) + `</div>`;
+      }
     } else if (tab === "treasury") {
       const tt = this.treasuryTab || "pill";
       h += `<div class="sub-tabs">${[["pill", "杂物"], ["herb", DATA.matKinds.herb], ["ore", DATA.matKinds.ore], ["seed", "种子"], ["bp", "图纸"]].map(([k, n]) =>
