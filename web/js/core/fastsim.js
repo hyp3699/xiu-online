@@ -80,7 +80,7 @@
       if (s.danStudy) ev.push(s.danStudy.end);
       if (s.forgeStudy) ev.push(s.forgeStudy.end);
       if (s.bmJob && s.bmJob.end) ev.push(s.bmJob.end);   // 本命法宝炼成：到时加成才生效，不能跨过它做纯数值结算
-      if (Array.isArray(s.mailbox)) for (const x of s.mailbox) if (x && x.at) ev.push(x.at + 10 * 86400000);   // 传音到期：到时清掉过期项
+      if (Array.isArray(s.mailbox) && G.MAILBOX_DAYS > 0) for (const x of s.mailbox) if (x && x.at) ev.push(x.at + G.MAILBOX_DAYS * 86400000);   // 传音到期：到时清掉过期项（MAILBOX_DAYS 0 = 无期限，没有到期事件）
       const j = s.forgeJob;
       if (j) ev.push(j.end);   // 炼器到期是事件（背包满时出炉物品进传音，不暂停）
       const al = s.alchJob;

@@ -157,7 +157,8 @@ G.module({
     },
 
     /* ---------- 宗门大殿 ---------- */
-    rankCost(i) { return DATA.ranks[i].cost; },   // 晋升贡献：就是 ranks 表的 cost，不乘宗门星级
+    // 晋升贡献：ranks 表的 cost × (1 + RANK_COST_STAR_PCT% × (宗门星级 − 1))，2 星 +10% … 10 星 +90%（用户定 2026-11-28）
+    rankCost(i) { const st = (this.sectInfo() || {}).star || 1; return Math.round(DATA.ranks[i].cost * (1 + (CFG.sect.RANK_COST_STAR_PCT || 0) * (st - 1) / 100)); },
     promote() {
       const i = this.s.rank + 1; if (i >= DATA.ranks.length) return;
       if (this.s.contrib < this.rankCost(i)) return;   // 职务不限境界，过了考核就行（用户定）
@@ -278,7 +279,8 @@ G.module({
     },
 
     /* ---------- 事务堂 ---------- */
-    affairContrib(i) { return Math.floor(DATA.affairs[i].contrib * this.rankMul()); },
+    // 普通任务贡献：每项 + AFFAIR_STAR_ADD × (宗门星级 − 1)，2 星 +2 … 10 星 +18（用户定 2026-11-28；灵石不变）
+    affairContrib(i) { const st = (this.sectInfo() || {}).star || 1; return Math.floor((DATA.affairs[i].contrib + (CFG.sect.AFFAIR_STAR_ADD || 0) * (st - 1)) * this.rankMul()); },
     affairStone(i) { return Math.floor(DATA.affairs[i].stone * this.rankMul()); },
     affairReward(i) {
       const c = this.affairContrib(i), st = this.affairStone(i);
