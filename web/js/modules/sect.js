@@ -1081,7 +1081,7 @@ G.module({
       {   // 最近 15 次炼体池效果
         const L = Array.isArray(s.poolLog) ? s.poolLog : [], z = n => String(n).padStart(2, "0"), tm = t => { const d = new Date(t); return `${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`; };
         const nm = { hp: "生命", atk: "攻击", def: "防御", mana: "法力", hit: "命中", dodge: "闪避", crit: "暴击%", res: "抗性" };
-        h += `<div class="card"><h3>最近效果<small>最近 15 次</small></h3>` + (L.length ? L.map(x => `<div class="line"><div>${(P.list[x.i] || {}).name || P.name}<small>${tm(x.t)} · ${Object.keys(x.gain || {}).map(k => `${nm[k] || k} +${U.fmt(x.gain[k])}`).join("、")}</small></div></div>`).join("") : `<p class="desc">还没有记录。</p>`) + `</div>`;
+        h += `<div class="card"><h3>炼体记录<small>最近 15 次</small></h3>` + (L.length ? L.map(x => `<div class="line"><div>${(P.list[x.i] || {}).name || P.name}<small>${tm(x.t)} · ${Object.keys(x.gain || {}).map(k => `${nm[k] || k} +${U.fmt(x.gain[k])}`).join("、")}</small></div></div>`).join("") : `<p class="desc">还没有记录。</p>`) + `</div>`;
       }
     } else if (tab === "treasury") {
       const tt = this.treasuryTab || "pill";
