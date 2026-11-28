@@ -31,7 +31,7 @@ CFG.servant = {
     qi:   { name: "辅助炼器", els: ["jin"], N: 5, LV1: 1, MAX: 36 },   // 炼器速度 +%（同上）
     cult: { name: "辅助修炼", els: ["shui"], N: 5, LV1: 0.6, MAX: 36 },   // 修为、肉身修炼速度 +%（每个满级 36%，最多派 N 个，用户定）
     ling: { name: "灵田种植", els: ["mu"], N: 5, LV1: 0.5, MAX: 36,   // 种植速度 +%（生长时间 ÷ (1 + %)，每个满级 36%，最多派 N 个，用户定）
-            YIELD_LV1: 0.5, YIELD_MAX: 9 },   // 灵药产量 +%（每个满级 9%，用户定）
+            YIELD_LV1: 0.5, YIELD_MAX: 13 },   // 灵药产量 +%（每个满级 13%，用户定 2026-11-28，原 9%）
     zhen: { name: "阵法辅助", els: ["jin", "mu", "shui", "huo", "tu"], LV1: 0, MAX: 0,   // 不加聚灵 %，只加固定聚灵
             FLAT_LV1: 60, FLAT_MAX: 480000 },   // 另加固定聚灵（每 10 秒，不吃任何 % 加成）：1 级 FLAT_LV1 → 满级 FLAT_MAX，每级 × 同一倍率，多个相加（用户定）
     lk:   { name: "驻守灵矿", els: ["jin", "mu", "shui", "huo", "tu"], LV1: 0, MAX: 0, MINE: 1 },   // 凡界每座灵矿最多派 LK.SV_N（3）个道童，至少 1 个才产出，五行不限；道童等级加产量（见 config/youli.js LK.SV_PCT / SV_LAST；用户定）
