@@ -46,10 +46,10 @@ CFG.yinshi = {
   GF_COST: 1000,   // 5 星每本需要好感度（兑换扣除）；用户定 2026-11-28 翻倍（原 500）
   GF_COST_STEP: 200,   // 每高 1 星多要好感度（6 星 1200 …… 12 星 2400）；原 100
   GF_KEYS: ["gongjue", "xinfa", "zhenjing", "shenfa", "fajue", "dunshu", "jin", "mu", "shui", "huo", "tu", "lei", "mijue", "mijue2", "tijue", "tijue2"],   // 后 4 本：修为速度秘诀 2 本、炼体秘诀 2 本
-  // 功法名（用户定 2026-11-28）：宗门名 + 统一后缀（诀 心法 真诀 身法 法诀 遁术 秘诀 炼体诀；真经 = 宗门名 + 属性 + 真经；秘诀、炼体诀两本加「·第一卷 / 第二卷」）；GF_SUFFIX 不再使用
-  GF_SUFFIX_OLD: { gongjue: "镇岳诀", xinfa: "不动心经", zhenjing: "万寿宝典", shenfa: "踏虚步", fajue: "归元法典", dunshu: "化虹遁法",
-    jin: "太白金经", mu: "青帝木经", shui: "玄冥水经", huo: "南明火经", tu: "厚土宝经", lei: "九霄雷经",
-    mijue: "聚元秘诀", mijue2: "归墟秘诀", tijue: "金刚炼体诀", tijue2: "不灭炼体诀" },
+  // 功法名（用户定 2026-11-28）= 宗门名前两字 + GF_MID 中间词 + 统一后缀（诀 心法 真诀 身法 法诀 遁术 真经 秘诀 炼体诀）
+  GF_MID: { gongjue: "镇岳", xinfa: "不动", zhenjing: "万寿", shenfa: "踏虚", fajue: "归元", dunshu: "化虹",
+    jin: "太白", mu: "青帝", shui: "玄冥", huo: "南明", tu: "厚土", lei: "九霄",
+    mijue: "聚元", mijue2: "归墟", tijue: "金刚", tijue2: "不灭" },
   HALL_FAV: 1000,   // 进入宗门大殿需要好感度达到（不消耗）
   HALL_FREE: [],   // 测试用：写宗门 id 则进大殿、修神通不看好感度；正式留空
   // 宗门大殿学神通：每个宗门一种，NODES 个节点按「天地玄黄宇宙洪荒日月星辰」排，从最下面的「辰」开始往上修，最后修「天」；每个节点 LV 级

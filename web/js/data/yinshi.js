@@ -18,9 +18,8 @@
     o.el = o.els.gongjue;
     DATA.gfSrcById[id] = o;
   });
-  // 功法名：宗门名 + 统一后缀；真经加属性（葬剑宗金真经）；秘诀、炼体诀各两本加卷数
-  DATA.ysGfName = (o, type) => { const el = type.fam === "zhenjue" ? ((DATA.elById[(o.els || {})[type.id]] || {}).name || "") : "", two = (type.fam === "mijue" || type.fam === "tijue") ? `·第${DATA.cnNum(type.bk || 1)}卷` : "";
-    return (o.name || o.prefix) + el + type.suffix + two; };
+  // 功法名：宗门名前两字 + 中间词（config GF_MID）+ 统一后缀（type.suffix：诀 心法 真诀 身法 法诀 遁术 真经 秘诀 炼体诀）
+  DATA.ysGfName = (o, type) => { const M = C.GF_MID || {}, key = type.fam === "zhenjue" ? (o.els || {})[type.id] : type.id; return o.prefix + (M[key] || "") + type.suffix; };
   // 宗门的全部功法 id（按 GF_KEYS 顺序）
   DATA.ysGfIds = ysId => (C.GF_KEYS || []).map(k => DATA.gongfaId("ys_" + ysId, DATA.ysTypeId(k))).filter(id => DATA.gongfaInfo(id, 1));
 })();
