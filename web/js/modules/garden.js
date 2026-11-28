@@ -131,7 +131,7 @@ G.module({
         const i = cur * P + j, lv = Math.floor(+f.lv || 0), lfull = lv >= L.MAX, lc = lfull ? 0 : DATA.landCost(lv + 1);
         return `<div class="line"><div>第 ${i + 1} 块 · ${f.g >= 0 ? DATA.cropName(f.g) : "空地"}<small>${lv} 级 · 生长速度 +${U.num(DATA.landPct(lv))}% · 产量 +${U.num(DATA.landYieldPct(lv))}%${lfull ? " · 已满级" : ""}</small></div>${lfull ? "<b>已满级</b>" : `<button class="primary sm" onclick="G.openLandUpOne(${i},${cur})">升级</button>`}</div>`;
       }).join("");
-      this.modal(`${tabs}<div class="line"><div>灵液</div><b>${U.fmt(lh)}</b></div><div class="landup-list">${rows || `<p class="desc">这一页还没有灵田。</p>`}</div><div class="btns"><button onclick="G.closeModal()">关闭</button></div>`);
+      this.modal(`${tabs}<div class="line"><div>灵液</div><b>${U.fmt(lh)}</b></div><div class="landup-list">${rows || `<p class="desc">这一页还没有灵田。</p>`}</div><div class="btns"><button onclick="G.openJmSwap(${cur})">兑换灵液</button><button onclick="G.closeModal()">关闭</button></div>`);
     },
     // 单块灵田升级弹窗：列出灵液、矿石（带图、已有/需要），升级后留在本弹窗看下一级；返回回到列表第 pg 页
     openLandUpOne(i, pg) {

@@ -90,12 +90,13 @@ G.module({
     },
     // 能换灵液的专用材料（神识功法药材 元魂果 yhg、凝魂芝 nhz）：名字 → 键
     jmSwapSm(name) { const k = ((CFG.shenshi || {}).HERB_DROP || {}).ITEMS || []; const f = DATA.smByName(name); return f && k.includes(f.k) ? f.k : null; },
-    openJmSwap() {
+    openJmSwap(landPg) {   // landPg：从灵田升级页打开时的页码，关闭后回到灵田升级页（用户定 2026-11-28）
+      if (landPg !== undefined) this._jmSwapLand = Math.max(0, Math.floor(+landPg) || 0); else if (!this._jmSwapOn) this._jmSwapLand = undefined;
       const R = (CFG.jingmai || {}).LY_RATE || {}; this._jmSwapOn = true;
       const rows = Object.keys(R).filter(n => (DATA.matByName[n] && DATA.matByName[n].kind === "herb") || this.jmSwapSm(n)).map(n => { const sm = this.jmSwapSm(n), h = sm ? this.smCount(sm) : this.countMat("herb", DATA.matByName[n].g);
         return `<div class="line${h ? "" : " dimrow"}"><div>${n}<small>拥有 ${U.fmt(h)} · 每个 ${R[n]} 灵液</small></div><div>${(CFG.jingmai.SWAP_N || [1, 100, 1000]).map(k => `<button class="sm" onclick="G.jmSwap('${n}',${k})" ${h ? "" : "disabled"}>${U.fmt(k)}</button>`).join(" ")}</div></div>`; });
       this.modal(`<h2>灵液兑换</h2><p class="desc" style="text-align:center">当前灵液 <b>${U.fmt(this.smCount("lingye"))}</b></p><div class="runlist">${rows.join("")}</div>
-        <div class="btns"><button onclick="G._jmSwapOn=false;G.closeModal()">关闭</button></div>`);
+        <div class="btns"><button onclick="G._jmSwapOn=false;${this._jmSwapLand !== undefined ? `G.openLandUp(${this._jmSwapLand})` : "G.closeModal()"}">关闭</button></div>`);
     },
     /* ---------- 中间 2 个窍穴：存档 s.jmi[node * 2 + j] = { n: 冲过次数, v: { 属性: 累计 } } ---------- */
     jmIn() { return (CFG.jingmai || {}).INNER || {}; },
