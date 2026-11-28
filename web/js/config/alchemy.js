@@ -32,6 +32,9 @@ CFG.alchemy = {
     // 学习时间（分钟）= LEARN_MIN + LEARN_STEP × (阶 − 1)；再减 神识强度 × SS_SEC 秒，再 × (1 − 减少%)
     // 减少% = floor(神识强度 ÷ 100) × SS_PCT，最多 SS_PCT_MAX；最后不低于 MIN_SEC 秒（界面不显示这些减少）
     LEARN_MIN: 5, LEARN_STEP: 5, SS_SEC: 10, SS_PCT: 2, SS_PCT_MAX: 50, MIN_SEC: 30 },
+  // 炼丹药材倍率（按分类 cat）：仙、冥、魔丹 ×1.5，神丹 ×2（用户定 2026-11-28）；下面 herbs 写的是原数，载入时乘（四舍五入），隐世宗门丹方跟着本界丹一起变
+  //   悟真丹（悟道果等特殊材料）不乘
+  HERB_MULT: { 1: 1.5, 2: 1.5, 3: 1.5, 4: 2 }, HERB_MULT_SKIP: ["wuzhen"],
   MAX_BATCH: 100,    // 一炉最多炼几枚
   QUEUE: 10,         // 炼丹队列上限（排队即扣药材，取消退回）
   /* 丹方：数组都是 10 个数，下标 0~9 = 一阶~十阶

@@ -26,6 +26,10 @@ DATA.parseMats = list => list.map(([name, n]) => {
 });
 
 /* ---------- 丹方 / 属性丹 / 修炼速度丹 ---------- */
+// 炼丹药材倍率（config/alchemy.js HERB_MULT，按 cat）：载入时乘一次（_herbMulted 防重复）
+(() => { const M = _AL.HERB_MULT || {}, SK = _AL.HERB_MULT_SKIP || [];
+  for (const [t, r] of Object.entries(_AL.recipes)) { const m = +M[r.cat || 0]; if (!m || m === 1 || SK.includes(t) || r._herbMulted || !Array.isArray(r.herbs)) continue;
+    r.herbs = r.herbs.map(row => Array.isArray(row) ? row.map(h => [h[0], Math.max(1, Math.round(h[1] * m))]) : row); r._herbMulted = 1; } })();
 // 隐世宗门丹方（config/yinshi.js 的 DAN）：每个宗门每种一张，id ys_宗门id_k，名字 = 宗门名 + 丹名；只有一阶（g = 宗门所在地图序号 − 1，凡界宗门 0），
 //   药材、效果、服用上限、时间照本界同阶丹（DAN.CAT：凡、仙 → 仙丹，冥 → 冥丹，魔 → 魔丹，神 → 神丹）
 (() => { const Y = CFG.yinshi || {}, D = Y.DAN || {}, CAT = D.CAT || { fan: 1, xian: 1, ming: 2, mo: 3, shen: 4 }, PRE = ["", "xian", "ming", "mo", "shen"];
