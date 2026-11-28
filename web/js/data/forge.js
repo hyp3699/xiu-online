@@ -53,7 +53,7 @@ DATA.stoneName = g => DATA.JIE[DATA.ssI(g)] + DATA.SS_Q[DATA.ssQ(g)] + DATA.SS;
 DATA.stoneMats = g => { const q = DATA.ssQ(g), i = DATA.ssI(g); const m = ((q === 1 ? _FG.stone.xianMats : q === 2 ? _FG.stone.shenMats : _FG.stone.mats) || [])[i]; return m ? DATA.parseMats(m) : []; };   // 已去掉的凡品 11、12 阶：旧存档背包里的还能用，没有配方
 DATA.stoneTime = g => _FG.stone.time[DATA.ssI(g)] * 60000;
 DATA.stoneSm = g => (_FG.stone.special || [])[DATA.ssI(g)] || 0;
-// 宗门炼器室学炼法要几星：凡品 1~10 阶每星两阶（1 星起），仙品每星两阶（XIAN_STAR 星起）；其它（凡品 11、12 阶、神品）不在宗门学 → 0
+// 宗门炼器室学图纸要几星：凡品 1~10 阶每星两阶（1 星起），仙品每星两阶（XIAN_STAR 星起）；其它（凡品 11、12 阶、神品）不在宗门学 → 0
 DATA.ssStar = g => { const q = DATA.ssQ(g), i = DATA.ssI(g); if (!DATA.ssOK(g) || i >= 10) return 0; return q === 0 ? Math.floor(i / 2) + 1 : q === 1 ? (_FG.stone.XIAN_STAR || 5) + Math.floor(i / 2) : 0; };
 
 // 法宝：7 种形状（config/forge.js 的 fabao.types：剑 刀 锤 环 盾 鼎 印），属性炼制时自己选，显示如 一阶·火·剑

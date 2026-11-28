@@ -21,7 +21,7 @@
  *   alchQueue  [{ type, g, n }]                   炼丹队列（排队时已扣药材）
  *   alchLog / forgeLog [{ at, name, ... }]       最近 30 次炼丹 / 炼器记录
  *   danEaten   { "atk|0": 已服用枚数, "xian_atk|3|sg": 上古丹另记 }
- *   forgeKnown ["eq:weapon:0", "ss:0", ...]      学会的装备图谱 / 空间石炼法 / 戒指图纸 / 灵珠、阵旗图纸
+ *   forgeKnown ["eq:weapon:0", "ss:0", ...]      学会的装备图谱 / 空间石图纸 / 戒指图纸 / 灵珠、阵旗图纸
  *   forgeStudy { key, end } | null              正在学习的炼器图谱
  *   stoneUsed  { 阶: 已使用空间石个数 }
  *   炼器室队列项 kind：dan/qi 炉子、eq 装备（slot、prev = 已扣的上一阶装备、ft = 法宝种类）、ss 空间石
@@ -630,7 +630,7 @@ G.module({
     /* ---------- 门派炼器室：学习装备图谱 / 空间石 ---------- */
     // 戒指图纸 key：ring:种类:阶；老存档的 ring:阶 = 该阶所有种类（ringKnown 仍认）
     forgeKey(kind, g, slot) { return kind === "zq" ? `zqt:${slot}` : kind === "lz" ? `lz:${slot}` : kind === "eq" ? `eq:${slot}:${g}` : kind === "ring" ? (slot === undefined ? `ring:${g}` : `ring:${slot}:${g}`) : `ss:${g}`; },
-    forgeKeyName(key) { const p = key.split(":"), k = p[0]; return k === "zqt" ? DATA.smName("zq", +p[1]) + "图纸" : k === "lz" ? DATA.smName("lz", +p[1]) + "图纸" : k === "eq" ? DATA.forgeEqName(p[1], +p[2]) + "图谱" : k === "ring" ? (p.length > 2 ? DATA.ringBpName(+p[2], +p[1]) : DATA.ringBpName(+p[1])) : DATA.stoneName(+p[1]) + "炼法"; },
+    forgeKeyName(key) { const p = key.split(":"), k = p[0]; return k === "zqt" ? DATA.smName("zq", +p[1]) + "图纸" : k === "lz" ? DATA.smName("lz", +p[1]) + "图纸" : k === "eq" ? DATA.forgeEqName(p[1], +p[2]) + "图谱" : k === "ring" ? (p.length > 2 ? DATA.ringBpName(+p[2], +p[1]) : DATA.ringBpName(+p[1])) : DATA.stoneName(+p[1]) + "图纸"; },
     ringKnown(r, g) { const K = this.s.forgeKnown; return K.includes(`ring:${r}:${g}`) || K.includes(`ring:${g}`); },
     /* ---------- 灵犀 / 烈阳 / 玄武戒：图纸、专用材料兑换（config/forge.js 的 ring.SPECIAL）
      *   src "sect"：宗门宝库，贡献（宗门星级 ≥ STAR）；src "ys"：隐世宗门 ys 的炼器室，好感度（ysId 要对得上） */
@@ -679,7 +679,7 @@ G.module({
         return `<div class="card"><h3>${DATA.ringNames[r]}<small>主属性 ${(CFG.forge.ring.main[r] || []).map(k => DATA.attrNames[k] || k).join("、")}${bn ? ` · 额外 +${bn}%` : ""}</small></h3>${smRow}${bpRows}</div>`; }).join("");
     },
     /* ---------- 十一、十二星图谱 / 图纸：神界隐世宗门炼器室，好感度兑换（config/forge.js 的 YS_BP） ----------
-     *   kind：eq 装备 / 法宝图谱（sub = 部位）、ss 空间石炼法、ring 戒指图纸（sub = 戒指种类）、fu 炼器炉图纸 */
+     *   kind：eq 装备 / 法宝图谱（sub = 部位）、ss 空间石图纸、ring 戒指图纸（sub = 戒指种类）、fu 炼器炉图纸 */
     ysBpTiers(ysId) { const Y = CFG.forge.YS_BP || {}; return Object.keys(Y).map(Number).filter(g => g < DATA.XING.length && (Y[g].ys || []).includes(ysId)).sort((a, b) => a - b); },
     ysBpCost(g, ysId) { const c = ((CFG.forge.YS_BP || {})[g] || {}).COST || 0; return ysId ? this.ysDisc(ysId, c) : c; },
     // 0 可兑换 / 1 已学会 / 2 背包里有或在学
@@ -1217,13 +1217,13 @@ G.sectForgeView = function () {
     DATA.forgeSlots.map(sl => line("eq", sl, DATA.forgeEqName(sl, g), DATA.slots[sl],
       (sl === "fabao" ? (g ? `升星图谱：把${DATA.XING[g - 1]}法宝升为${DATA.XING[g]}（${DATA.fabaoTypes.length} 种通用，颜色不变）` : `炼制图谱：用耀石炼成一星法宝（${DATA.fabaoTypes.map(t => t.name).join(" ")}，属性自选）`) : `主属性 ${CFG.forge.attr.main[sl].map(k => DATA.attrNames[k]).join("、")} + 1~5 条附加属性`) + (g ? ` · 需上一星${DATA.slots[sl]}` : ""))) });
   }
-  // 空间石炼法：凡品 1~10 阶 1~5 星宗门（每星两阶），仙品 1~10 阶 5~10 星宗门（每星两阶）；贡献同同阶法宝（DATA.ssStar）
+  // 空间石图纸：凡品 1~10 阶 1~5 星宗门（每星两阶），仙品 1~10 阶 5~10 星宗门（每星两阶）；贡献同同阶法宝（DATA.ssStar）
   for (const q of [0, 1]) { const rows = [];
     for (let i = 0; i < 10; i++) { const g = q * 100 + i, need = DATA.ssStar(g); if (!need || star < need) continue;
       const key = this.forgeKey("ss", g), has = s.forgeKnown.includes(key), L = this.forgeLearnOf("ss", g);
-      rows.push([has, `<div class="line"><div>${DATA.li(DATA.iconImg("ss"))}${DATA.stoneName(g)}炼法<span class="tag">${DATA.SS_Q[q] || "凡品"}</span><small>使用一个储物格 +1，每阶最多 ${CFG.forge.stone.MAX_USE} 个；${q ? "仙界" : "凡界"}矿石 + 空间晶核<br>${U.fmt(L.c)} 贡献 · 学习 ${U.dur(L.min * 60)}</small></div>
+      rows.push([has, `<div class="line"><div>${DATA.li(DATA.iconImg("ss"))}${DATA.stoneName(g)}图纸<span class="tag">${DATA.SS_Q[q] || "凡品"}</span><small>使用一个储物格 +1，每阶最多 ${CFG.forge.stone.MAX_USE} 个；${q ? "仙界" : "凡界"}矿石 + 空间晶核<br>${U.fmt(L.c)} 贡献 · 学习 ${U.dur(L.min * 60)}</small></div>
         ${has ? `<button class="sm" disabled>已学会</button>` : this.lqBtn("forge", key, `G.learnForge('ss',${g})`, s.contrib < L.c)}</div>`]); }
-    if (rows.length) cards.push({ head: `<h3>${DATA.SS_Q[q] || ""}${DATA.SS}炼法</h3>`, rows }); }
+    if (rows.length) cards.push({ head: `<h3>${DATA.SS_Q[q] || ""}${DATA.SS}图纸</h3>`, rows }); }
   // 灵珠图纸：不分阶，每个星级都能学
   const LZ = CFG.lingzhu, lzc = LZ.LEARN_COST;
   cards.push({ head: `<h3>灵珠图纸</h3>`, rows: LZ.NAMES.map((n, ft) => { const has = s.forgeKnown.includes(this.forgeKey("lz", 0, ft));
