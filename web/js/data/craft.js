@@ -26,6 +26,16 @@ DATA.parseMats = list => list.map(([name, n]) => {
 });
 
 /* ---------- 丹方 / 属性丹 / 修炼速度丹 ---------- */
+// 隐世宗门丹方（config/yinshi.js 的 DAN）：每个宗门每种一张，id ys_宗门id_k，名字 = 宗门名 + 丹名；只有一阶（g = 宗门所在地图序号 − 1，凡界宗门 0），
+//   药材、效果、服用上限、时间照本界同阶丹（DAN.CAT：凡、仙 → 仙丹，冥 → 冥丹，魔 → 魔丹，神 → 神丹）
+(() => { const Y = CFG.yinshi || {}, D = Y.DAN || {}, CAT = D.CAT || { fan: 1, xian: 1, ming: 2, mo: 3, shen: 4 }, PRE = ["", "xian", "ming", "mo", "shen"];
+  for (const y of Y.list || []) { const cat = CAT[y.w]; if (!cat) continue; const g = y.w === "fan" ? 0 : Math.max(0, Math.min(9, (y.m || 1) - 1));
+    for (const d of D.LIST || []) { const b = _AL.recipes[PRE[cat] + "_" + d.k]; if (!b || !b.herbs || !b.herbs[g]) continue;
+      const cp = a => (a || []).slice();
+      _AL.recipes[`ys_${y.id}_${d.k}`] = { name: y.name + d.name, label: b.label, cat, stat: b.stat || d.k, ys: y.id, ysG: g, icon: `img/ysdan/${d.k}.webp`,
+        val: cp(b.val), limit: cp(b.limit), time: cp(b.time), learnTime: cp(b.learnTime), price: cp(b.price), herbs: b.herbs.map((h, i) => i === g ? h : null) };
+    } } })();
+DATA.danYs = type => (_AL.recipes[type] || {}).ys || "";   // 隐世宗门丹方：所属宗门 id
 DATA.recipes = _AL.recipes;                                         // 全部丹方（含修炼速度丹）
 DATA.dans = {};                                                      // 只含属性丹 { atk: {name, label, val[], ...} }
 for (const t in _AL.recipes) if (!_AL.recipes[t].speed && !_AL.recipes[t].item) DATA.dans[t] = _AL.recipes[t];
@@ -39,14 +49,14 @@ DATA.danStat = type => (_AL.recipes[type] && _AL.recipes[type].stat) || type;
 // 仙冥魔丹（cat 1~3）用炼丹仙炉，神丹（cat 4）用炼丹神炉；修炼丹的品质 = 阶 + REALM0
 DATA.danFu = type => DATA.danCat(type) === 4 ? "sdan" : DATA.danCat(type) ? "xdan" : "dan";   // 神丹用炼丹神炉
 // 仙 / 冥 / 魔丹的命中、速度、闪避、生命、法力丹方在宗门炼丹房学（config/alchemy.js SECT_XMM）
-DATA.danSectX = type => { const X = _AL.SECT_XMM, r = _AL.recipes[type]; return !!(X && r && !r.speed && !r.item && (X.CATS || []).includes(r.cat || 0) && (X.STATS || []).includes(DATA.danStat(type))); };
+DATA.danSectX = type => { const X = _AL.SECT_XMM, r = _AL.recipes[type]; return !!(X && r && !r.ys && !r.speed && !r.item && (X.CATS || []).includes(r.cat || 0) && (X.STATS || []).includes(DATA.danStat(type))); };
 DATA.danSect = type => DATA.danCat(type) === 0 || DATA.danSectX(type);   // 在宗门炼丹房学的丹方：凡丹 + 上面这些（其余仙冥魔神丹在四界功德司）
 DATA.pillGrade = (type, g) => g + ((_AL.recipes[type] && _AL.recipes[type].REALM0) || 0);
 DATA.isSpeedRecipe = type => !!(_AL.recipes[type] && _AL.recipes[type].speed);
 // 一阶破军丹；修炼速度丹显示为 一阶聚气丹（练气期）
 // 上古丹名（不含阶）：上古 + 原名去掉「丹」+ 分类名（config/alchemy.js 的 SHANGGU）
 DATA.sgDanBase = type => ((_AL.SHANGGU || {}).PREFIX || "上古") + _AL.recipes[type].name.replace(/丹$/, "") + (((_AL.SHANGGU || {}).CAT_NAME || {})[DATA.danCat(type)] || _AL.CATS[DATA.danCat(type)] || "丹");
-DATA.danName = (type, g, sg) => type === "wuzhen" ? _AL.recipes[type].name : DATA.recipeItem(type) ? _AL.recipes[type].name : DATA.JIE[g] + (sg ? DATA.sgDanBase(type) : _AL.recipes[type].name) + (DATA.isSpeedRecipe(type) ? `（${DATA.realmLabel(DATA.pillGrade(type, g))}）` : "");
+DATA.danName = (type, g, sg) => type === "wuzhen" || DATA.danYs(type) ? _AL.recipes[type].name : DATA.recipeItem(type) ? _AL.recipes[type].name : DATA.JIE[g] + (sg ? DATA.sgDanBase(type) : _AL.recipes[type].name) + (DATA.isSpeedRecipe(type) ? `（${DATA.realmLabel(DATA.pillGrade(type, g))}）` : "");
 // 丹方效果说明
 DATA.recipeEffect = (type, g) => type === "wuzhen" ? (_AL.recipes[type].effect || "") : DATA.recipeItem(type) ? (_AL.recipes[type].effect || "养神用") : DATA.isSpeedRecipe(type) ? `修炼速度+${Math.round(DATA.pillPct(type, DATA.pillGrade(type, g)))}%` : `${_AL.recipes[type].label}+${U.num(_AL.recipes[type].val[g])}`;
 DATA.danVal = (type, g) => (_AL.recipes[type].val || [])[g] || 0;

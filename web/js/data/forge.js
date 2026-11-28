@@ -350,7 +350,7 @@ DATA.eqIcon = e => {
 DATA.PILL_ICONS = ["juqi", "juling", "peiyuan", "taixu", "jiuxuan", "hongmeng"];
 DATA.pillIcon = type => DATA.iconImg("pill_" + (DATA.PILL_ICONS.includes(type) ? type : DATA.PILL_ICONS[Math.max(0, Object.keys(DATA.pills).indexOf(type)) % 3]));
 // 属性丹（修炼速度丹用修炼丹的图）、炉子
-DATA.danIcon = type => DATA.recipeItem(type) ? DATA.smIcon(DATA.recipeItem(type)) : DATA.isSpeedRecipe(type) ? DATA.pillIcon(type) : DATA.iconImg("dan_" + type);
+DATA.danIcon = type => ((CFG.alchemy.recipes[type] || {}).icon) || (DATA.recipeItem(type) ? DATA.smIcon(DATA.recipeItem(type)) : DATA.isSpeedRecipe(type) ? DATA.pillIcon(type) : DATA.iconImg("dan_" + type));
 DATA.furnaceIcon = kind => DATA.iconImg("fu_" + kind);
 // 列表里的小图：DATA.li(图片地址)
 DATA.li = (src, cls) => src ? `<img class="li${cls ? " " + cls : ""}" src="${src}" alt="" loading="lazy">` : "";

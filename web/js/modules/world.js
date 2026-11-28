@@ -673,7 +673,18 @@ G.module({
       const left = D.MAX - this.ysDanGotN(id, k), df = this.ysDisc(id, D.FAV), max = Math.min(9999, left, Math.floor(this.ysFav(id) / Math.max(1, df)));
       this.buyModal({ title: `兑换${this.ysDanName(id, k)}`, icon: DATA.li(`img/ysdan/${k}.webp`), name: this.ysDanName(id, k), sub: `${U.fmt(df)} 好感/颗 · 已兑换 ${this.ysDanGotN(id, k)}/${D.MAX}`, ok: "兑换", cost: df, cur: "好感", have: this.ysFav(id), max, call: n => this.ysBuyDan(id, k, n) });
     },
+    // 炼丹房丹方（data/craft.js 生成 ys_宗门id_k）：好感度兑换，放背包（满了进传音），在背包里学习
+    ysDfType(id, k) { const t = `ys_${id}_${k}`; return DATA.recipes[t] ? t : ""; },
+    ysBuyDf(id, k) {
+      const s = this.s; if (!this.ysFound(id)) return; const t = this.ysDfType(id, k); if (!t) return; const g = DATA.recipes[t].ysG || 0, key = t + "|" + g;
+      if (s.recipes.includes(key)) return this.log("已经学会了。", "sys");
+      if (s.bag.some(x => x && x.t === "dfb" && x.type === t && x.g === g)) return this.log("背包里已经有这张丹方了。", "sys");
+      const fav = this.ysDisc(id, this.ysDanCfg().RECIPE_FAV || 1200); if (this.ysFav(id) < fav) return this.log(`好感度不足，需要 ${fav}。`, "sys");
+      this.ysFavPay(id, fav); const where = this.bagPutOrMail({ t: "dfb", type: t, g });
+      this.log(`好感度 −${fav}，兑换${DATA.danName(t, g)}丹方，已放入${where === "mail" ? "传音" : "背包"}，可在背包里学习。`, "good"); this.after();
+    },
     ysBuyDan(id, k, n) {
+      return this.log("炼丹房已改为兑换丹方。", "sys");
       if (!this.ysFound(id)) return; const D = this.ysDanCfg(), d = this.ysDanDef(k); if (!d) return;
       const left = D.MAX - this.ysDanGotN(id, k); if (left <= 0) return this.log(`${this.ysDanName(id, k)}已兑换满 ${D.MAX} 颗。`, "sys");
       n = Math.max(1, Math.min(9999, Math.floor(+n) || 1, left));
@@ -724,7 +735,7 @@ G.module({
       const [e0, e1] = this.xdEnds(k, src); return Math.round(N > 1 ? e0 + (e1 - e0) * r / (N - 1) : e0);
     },
     xdPrice(k, src, id, v) {
-      const sm = src === "js" ? (+((CFG.xinde || {}).JS_MULT || {})[(DATA.maps[+id] || {}).w] || 1) : 1;   // 四界坊市 × 本界 JS_MULT
+      const sm = src === "js" ? (+((CFG.xinde || {}).JS_MULT || {})[(DATA.maps[+id] || {}).w] || 1) : (+(CFG.xinde || {}).YS_MULT || 1);   // 四界坊市 × 本界 JS_MULT；隐世宗门 × YS_MULT
       if (k === "jl") return this.xdJl().PRICE * sm;
       const P = (CFG.xinde || {}).PRICE || [100000, 3000000], hi = Math.max(this.xdEnds(k, "ys")[1], this.xdEnds(k, "js")[1]);
       return Math.round(P[1] * this.xdExp(k, src, id, v) / hi / 1000) * 1000 * sm;
@@ -800,11 +811,11 @@ G.module({
         return this.modal(`${head}${rows}${close}`);
       }
       if (pid === "dan") {
-        const D = this.ysDanCfg(), fav = this.ysFav(id);
-        const rows = (D.LIST || []).map(d => { const got = this.ysDanGotN(id, d.k), left = D.MAX - got;
-          return `<div class="line"><div>${DATA.li(`img/ysdan/${d.k}.webp`)}${d.name}<small>${this.ysDanLab(d.k)} +${U.fmt(D.VAL)} · 已兑换 ${got}/${D.MAX} · ${U.fmt(this.ysDisc(id, D.FAV))} 好感</small></div>${left > 0
-            ? `<button class="sm" onclick="G.openYsDan('${id}','${d.k}')" ${fav < this.ysDisc(id, D.FAV) ? "disabled" : ""}>兑换</button>`
-            : `<span class="q5">已满</span>`}</div>`; }).join("");
+        const D = this.ysDanCfg(), fav = this.ysFav(id), cost = this.ysDisc(id, D.RECIPE_FAV || 1200), s = this.s;
+        const rows = (D.LIST || []).map(d => { const t = this.ysDfType(id, d.k); if (!t) return ""; const g = DATA.recipes[t].ysG || 0;
+          const has = s.recipes.includes(t + "|" + g), inBag = s.bag.some(x => x && x.t === "dfb" && x.type === t && x.g === g);
+          return `<div class="line"><div>${DATA.li(DATA.danIcon(t))}${DATA.danName(t, g)}丹方<small>${DATA.recipeEffect(t, g)} · 服用上限 ${U.fmt(DATA.danLimit(t, g))} 颗</small></div>${has ? `<span class="q5">已学会</span>` : inBag ? `<span class="q5">已在背包</span>`
+            : `<button class="sm" onclick="G.ysBuyDf('${id}','${d.k}')" ${fav < cost ? "disabled" : ""}>${U.fmt(cost)} 好感</button>`}</div>`; }).join("");
         return this.modal(`${head}${this.ysLgSeedRow(id)}${rows}${this.ysXdRows(id, "dan")}${close}`);
       }
       if (pid === "qi") return this.modal(`${head}${this.ysBpHtml(id)}${this.ringShopHtml(id)}${this.ysXdRows(id, "qi")}${close}`);   // 神界：十一、十二星图谱图纸（YS_BP）；烈阳戒（观星阁）/ 玄武戒（万化神宫）图纸、专用材料
@@ -3067,13 +3078,13 @@ exCfg(x) { return x && x.mj !== undefined ? this.mjCfg(x.mk) : CFG.explore; },
     sgDanList(a) {
       const S = CFG.alchemy.SHANGGU || {}, w = DATA.maps[a].w, cat = (S.WORLD_CAT || {})[w], g = (DATA.worldMapIdx[w] || []).indexOf(a);
       if (!cat || g < 0) return [];
-      return Object.keys(DATA.dans).filter(t => DATA.danCat(t) === cat && ((CFG.alchemy.recipes[t] || {}).val || [])[g] !== undefined).map(type => ({ type, g, cost: ((w === "shen" && S.SHEN_MERIT ? S.SHEN_MERIT : S.MERIT) || [])[g] || 0 }));   // 含 6 种抗性丹；神界价格单独
+      return Object.keys(DATA.dans).filter(t => DATA.danCat(t) === cat && !DATA.danYs(t) && ((CFG.alchemy.recipes[t] || {}).val || [])[g] !== undefined).map(type => ({ type, g, cost: ((w === "shen" && S.SHEN_MERIT ? S.SHEN_MERIT : S.MERIT) || [])[g] || 0 }));   // 含 6 种抗性丹；神界价格单独
     },
     // 四界功德司丹方：第 i 张地图（0 起）学本界 i 阶丹方，功德 = DATA.danGdCost(i)
     gdRecipeList(a) {
       const S = CFG.alchemy.SHANGGU || {}, w = (DATA.maps[a] || {}).w, cat = (S.WORLD_CAT || {})[w], g = (DATA.worldMapIdx[w] || []).indexOf(a);
       if (!cat || g < 0) return [];
-      return Object.keys(DATA.recipes).filter(t => DATA.danCat(t) === cat && DATA.recipeHas(t, g) && !DATA.danSectX(t)).map(type => ({ type, g, cost: CFG.alchemy.recipes[type].gdCost !== undefined ? CFG.alchemy.recipes[type].gdCost : DATA.danGdCost(g, w === "shen") }));   // gdCost 单独定价的丹方（如悟真丹）不受 GD_RECIPE 通用计价影响
+      return Object.keys(DATA.recipes).filter(t => DATA.danCat(t) === cat && !DATA.danYs(t) && DATA.recipeHas(t, g) && !DATA.danSectX(t)).map(type => ({ type, g, cost: CFG.alchemy.recipes[type].gdCost !== undefined ? CFG.alchemy.recipes[type].gdCost : DATA.danGdCost(g, w === "shen") }));   // gdCost 单独定价的丹方（如悟真丹）不受 GD_RECIPE 通用计价影响
     },
     learnGdRecipe(a, type) {
       const s = this.s, o = DATA.jieGfOf("gd", a), d = this.gdRecipeList(a).find(x => x.type === type); if (!o || !d) return;
